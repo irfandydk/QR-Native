@@ -197,6 +197,11 @@ export interface AppSettings {
   call_sign?: string;
   frekuensi_default?: string;
   pejabat_list?: Pejabat[];
+  admin_username?: string;
+  admin_password?: string;
+  admin_email?: string;
+  reset_token?: string;
+  reset_token_expiry?: string;
 }
 
 export type UserRole = 'ADMIN' | 'OPERATOR_SENKOM' | 'RESCUER' | 'KASIE_OPS' | 'KEPALA_KANTOR';

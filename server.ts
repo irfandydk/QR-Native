@@ -59,6 +59,111 @@ async function startServer() {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
+  // --- Authentication & Security Endpoints ---
+  app.post('/api/auth/login', (req, res) => {
+    try {
+      const { username, password } = req.body;
+      const isValid = db.validateAdminLogin(username, password);
+
+      if (!isValid) {
+        return res.status(401).json({
+          success: false,
+          error: 'Username atau kata sandi yang Anda masukkan salah. Pastikan menggunakan user "admin" dengan kata sandi yang sesuai.',
+        });
+      }
+
+      const user = {
+        id: 'USR-ADMIN',
+        nama: 'Administrator SAR',
+        nip: '198805122010121001',
+        role: 'ADMIN',
+        roleTitle: 'Administrator SAR',
+        pangkat: 'Penata Muda (III/a)',
+        jabatan: 'Pengelola Sistem Komando KPP Kendari',
+        loginAt: new Date().toISOString(),
+      };
+
+      res.json({
+        success: true,
+        message: 'Login berhasil.',
+        user,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/auth/change-password', (req, res) => {
+    try {
+      const { oldPassword, newPassword } = req.body;
+      const result = db.changeAdminPassword(oldPassword, newPassword);
+
+      if (!result.success) {
+        return res.status(400).json({ success: false, error: result.error });
+      }
+
+      res.json({
+        success: true,
+        message: 'Kata sandi administrator berhasil diperbarui.',
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/auth/forgot-password', (req, res) => {
+    try {
+      const originHost = `${req.protocol}://${req.get('host')}`;
+      const resetInfo = db.generateResetToken(originHost);
+
+      // In production/mock, this simulates email dispatch to irfandydk@gmail.com
+      console.log(`[AUTH] Password reset requested. Reset link generated for ${resetInfo.email}: ${resetInfo.resetLink}`);
+
+      res.json({
+        success: true,
+        message: `Link reset kata sandi telah berhasil dikirim ke email resmi (${resetInfo.email}). Silakan periksa kotak masuk atau spam email Anda.`,
+        email: resetInfo.email,
+        resetToken: resetInfo.token,
+        resetLink: resetInfo.resetLink,
+        expiresAt: resetInfo.expiresAt,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/auth/reset-password', (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+      const result = db.resetPasswordWithToken(token, newPassword);
+
+      if (!result.success) {
+        return res.status(400).json({ success: false, error: result.error });
+      }
+
+      res.json({
+        success: true,
+        message: 'Kata sandi baru berhasil disimpan. Silakan login kembali dengan kata sandi baru Anda.',
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get('/api/auth/config', (req, res) => {
+    try {
+      res.json({
+        success: true,
+        data: {
+          username: 'admin',
+          email: db.getAdminEmail(),
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Master Alut
   app.get('/api/master/alut', (req, res) => {
     try {

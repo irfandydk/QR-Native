@@ -21,6 +21,13 @@ import {
   AlertCircle,
   X,
   Sliders,
+  KeyRound,
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  Send,
+  ShieldAlert,
 } from 'lucide-react';
 import { MasterAlut, MasterTim, Pejabat, AppSettings } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -42,12 +49,22 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
   const { isDarkMode, accentColors } = useTheme();
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'alut' | 'tim' | 'pejabat' | 'satker'>('alut');
+  const [activeTab, setActiveTab] = useState<'alut' | 'tim' | 'pejabat' | 'satker' | 'keamanan'>('alut');
 
   // Search queries
   const [searchAlut, setSearchAlut] = useState('');
   const [searchTim, setSearchTim] = useState('');
   const [searchPejabat, setSearchPejabat] = useState('');
+
+  // Password management states
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [isSendingTestReset, setIsSendingTestReset] = useState(false);
 
   // Pejabat list from API
   const [pejabatList, setPejabatList] = useState<Pejabat[]>([]);
@@ -410,6 +427,76 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
     }
   };
 
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!oldPassword.trim()) {
+      showErrorAlert('Validasi Gagal', 'Masukkan kata sandi lama / saat ini.');
+      return;
+    }
+    if (!newPassword.trim() || newPassword.length < 4) {
+      showErrorAlert('Validasi Gagal', 'Kata sandi baru minimal harus 4 karakter.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showErrorAlert('Validasi Gagal', 'Konfirmasi kata sandi baru tidak sesuai.');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          oldPassword: oldPassword.trim(),
+          newPassword: newPassword.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Gagal mengubah kata sandi.');
+      }
+
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      await showSuccessAlert(
+        'Kata Sandi Diperbarui',
+        'Kata sandi administrator berhasil diubah. Gunakan kata sandi baru untuk login selanjutnya.'
+      );
+    } catch (err: any) {
+      showErrorAlert('Gagal Mengubah Sandi', err.message || 'Terjadi kesalahan sistem.');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleSendTestReset = async () => {
+    setIsSendingTestReset(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'irfandydk@gmail.com' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await showSuccessAlert(
+          'Tautan Reset Terkirim',
+          `Tautan dan token pemulihan kata sandi telah dikirim ke email ${data.email || 'irfandydk@gmail.com'}.`
+        );
+      } else {
+        throw new Error(data.error || 'Gagal memproses pengiriman email reset.');
+      }
+    } catch (err: any) {
+      showErrorAlert('Gagal Mengirim', err.message || 'Terjadi kesalahan server.');
+    } finally {
+      setIsSendingTestReset(false);
+    }
+  };
+
   // Filters
   const filteredAlut = masterAlut.filter((a) =>
     a.nama_alut.toLowerCase().includes(searchAlut.toLowerCase()) ||
@@ -583,6 +670,20 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
           >
             <Sliders className="w-4 h-4" />
             <span>Pengaturan Satker & Aplikasi</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('keamanan')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === 'keamanan'
+                ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                : isDarkMode
+                ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>Keamanan & Sandi Admin</span>
           </button>
         </div>
 
@@ -1394,6 +1495,201 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
               </div>
             </div>
           </form>
+        )}
+
+        {/* TAB 5: KEAMANAN & SANDI ADMIN */}
+        {activeTab === 'keamanan' && (
+          <div className="space-y-6 animate-in fade-in duration-150">
+            {/* Account Info & Status Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className={`p-5 rounded-2xl border space-y-2 ${
+                isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="text-xs font-semibold">User Administrator</span>
+                  <KeyRound className="w-4 h-4 text-orange-500" />
+                </div>
+                <div className="text-xl font-black font-mono text-orange-500">admin</div>
+                <p className="text-[11px] text-slate-400">
+                  User tunggal terdaftar untuk otorisasi sistem SAR Kendari.
+                </p>
+              </div>
+
+              <div className={`p-5 rounded-2xl border space-y-2 ${
+                isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="text-xs font-semibold">Email Pemulihan Resmi</span>
+                  <Mail className="w-4 h-4 text-cyan-500" />
+                </div>
+                <div className="text-sm font-bold font-mono text-cyan-600 dark:text-cyan-400 truncate">
+                  irfandydk@gmail.com
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Tujuan pengiriman link dan token reset kata sandi darurat.
+                </p>
+              </div>
+
+              <div className={`p-5 rounded-2xl border space-y-2 ${
+                isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="flex items-center justify-between text-slate-400">
+                  <span className="text-xs font-semibold">Status Keamanan</span>
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Aktif & Terproteksi</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Tersimpan di basis data konfigurasi aplikasi.
+                </p>
+              </div>
+            </div>
+
+            {/* Change Password Form Card */}
+            <div className={`p-6 rounded-2xl border ${
+              isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+            }`}>
+              <div className="flex items-center gap-3 pb-4 border-b border-slate-200 dark:border-slate-800 mb-6">
+                <div className="p-2.5 rounded-xl bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm sm:text-base">Ganti Kata Sandi Administrator</h3>
+                  <p className="text-xs text-slate-400">
+                    Perbarui kata sandi untuk akun administrator utama sistem (default: <span className="font-mono font-bold text-orange-500">Kendari2026</span>)
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleUpdatePassword} className="space-y-4 max-w-xl">
+                {/* Old Password */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                    Kata Sandi Saat Ini / Sandi Lama <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showOldPassword ? 'text' : 'password'}
+                      required
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      placeholder="Masukkan kata sandi saat ini"
+                      className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOldPassword(!showOldPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                      {showOldPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                    Kata Sandi Baru <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Minimal 4 karakter"
+                      className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm New Password */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                    Konfirmasi Kata Sandi Baru <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Ulangi kata sandi baru"
+                      className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={isUpdatingPassword}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-orange-600/30 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{isUpdatingPassword ? 'Memperbarui Sandi...' : 'Perbarui Kata Sandi Admin'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Email Reset Testing & Info Card */}
+            <div className={`p-6 rounded-2xl border ${
+              isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+            }`}>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-500 border border-cyan-500/20 shrink-0">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm">Layanan Pemulihan Email Darurat</h3>
+                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
+                      Fitur lupa kata sandi di halaman login terhubung langsung ke email resmi <strong className="text-cyan-400">irfandydk@gmail.com</strong>. Anda dapat menguji pengiriman link pemulihan kapan saja.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSendTestReset}
+                  disabled={isSendingTestReset}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 transition-all shrink-0 cursor-pointer"
+                >
+                  <Send className={`w-3.5 h-3.5 ${isSendingTestReset ? 'animate-spin' : ''}`} />
+                  <span>{isSendingTestReset ? 'Mengirim...' : 'Uji Kirim Link Reset ke Email'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

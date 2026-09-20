@@ -44,9 +44,12 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  // Filtered List
+  // Filtered List - Urutan BRA SAR Terbaru
   const filteredBraList = useMemo(() => {
-    return braList.filter((item) => {
+    // Urutan BRA SAR terbaru (id_bra descending)
+    const sorted = [...braList].sort((a, b) => (b.id_bra || 0) - (a.id_bra || 0));
+
+    return sorted.filter((item) => {
       const matchesKategori =
         selectedKategori === 'SEMUA' || item.kategori === selectedKategori;
 

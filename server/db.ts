@@ -364,11 +364,32 @@ class Database {
         satker_kode: 'SAR-304',
         satker_nama: 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI',
         pejabat_list: INITIAL_PEJABAT,
+        admin_username: 'admin',
+        admin_password: 'Kendari2026',
+        admin_email: 'irfandydk@gmail.com',
       };
       this.saveData();
-    } else if (!this.data.app_settings.pejabat_list || this.data.app_settings.pejabat_list.length === 0) {
-      this.data.app_settings.pejabat_list = INITIAL_PEJABAT;
-      this.saveData();
+    } else {
+      let shouldSave = false;
+      if (!this.data.app_settings.pejabat_list || this.data.app_settings.pejabat_list.length === 0) {
+        this.data.app_settings.pejabat_list = INITIAL_PEJABAT;
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.admin_username) {
+        this.data.app_settings.admin_username = 'admin';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.admin_password) {
+        this.data.app_settings.admin_password = 'Kendari2026';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.admin_email) {
+        this.data.app_settings.admin_email = 'irfandydk@gmail.com';
+        shouldSave = true;
+      }
+      if (shouldSave) {
+        this.saveData();
+      }
     }
     return this.data.app_settings;
   }
@@ -381,6 +402,84 @@ class Database {
     };
     this.saveData();
     return this.data.app_settings;
+  }
+
+  // --- Authentication & Security Methods ---
+  public getAdminPassword(): string {
+    return this.getAppSettings().admin_password || 'Kendari2026';
+  }
+
+  public getAdminEmail(): string {
+    return this.getAppSettings().admin_email || 'irfandydk@gmail.com';
+  }
+
+  public validateAdminLogin(username: string, password: string): boolean {
+    const cleanUser = (username || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+    const activePass = this.getAdminPassword();
+    return cleanUser === 'admin' && cleanPass === activePass;
+  }
+
+  public changeAdminPassword(oldPass: string, newPass: string): { success: boolean; error?: string } {
+    const cleanOld = (oldPass || '').trim();
+    const cleanNew = (newPass || '').trim();
+    const currentPass = this.getAdminPassword();
+
+    if (cleanOld !== currentPass) {
+      return { success: false, error: 'Kata sandi lama yang Anda masukkan tidak sesuai.' };
+    }
+    if (!cleanNew || cleanNew.length < 4) {
+      return { success: false, error: 'Kata sandi baru minimal harus 4 karakter.' };
+    }
+
+    this.updateAppSettings({ admin_password: cleanNew });
+    return { success: true };
+  }
+
+  public generateResetToken(originHost: string = ''): { token: string; email: string; resetLink: string; expiresAt: string } {
+    const token = 'SAR-' + Math.random().toString(36).substring(2, 8).toUpperCase() + '-' + Date.now().toString(36).toUpperCase();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour expiry
+    const email = this.getAdminEmail();
+
+    this.updateAppSettings({
+      reset_token: token,
+      reset_token_expiry: expiresAt,
+    });
+
+    const resetLink = originHost ? `${originHost}/?resetToken=${token}` : `/?resetToken=${token}`;
+
+    return {
+      token,
+      email,
+      resetLink,
+      expiresAt,
+    };
+  }
+
+  public resetPasswordWithToken(token: string, newPassword: string): { success: boolean; error?: string } {
+    const settings = this.getAppSettings();
+    const cleanToken = (token || '').trim();
+    const cleanPass = (newPassword || '').trim();
+
+    if (!cleanToken || cleanToken !== settings.reset_token) {
+      return { success: false, error: 'Token reset kata sandi tidak valid atau telah kadaluarsa.' };
+    }
+
+    if (settings.reset_token_expiry && new Date(settings.reset_token_expiry).getTime() < Date.now()) {
+      return { success: false, error: 'Token reset kata sandi sudah kadaluarsa. Silakan ajukan permohonan baru.' };
+    }
+
+    if (!cleanPass || cleanPass.length < 4) {
+      return { success: false, error: 'Kata sandi baru minimal harus 4 karakter.' };
+    }
+
+    this.updateAppSettings({
+      admin_password: cleanPass,
+      reset_token: undefined,
+      reset_token_expiry: undefined,
+    });
+
+    return { success: true };
   }
 
   public getPejabatList(): Pejabat[] {

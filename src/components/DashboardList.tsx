@@ -15,6 +15,8 @@ import {
   Database,
   Radio,
   ExternalLink,
+  Calendar,
+  X,
 } from 'lucide-react';
 import { Operasi } from '../types';
 import {
@@ -36,6 +38,11 @@ interface DashboardListProps {
   onOpenSqlModal: () => void;
 }
 
+const MONTH_NAMES_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
 export const DashboardList: React.FC<DashboardListProps> = ({
   operasiList,
   onSelectOperasi,
@@ -48,7 +55,34 @@ export const DashboardList: React.FC<DashboardListProps> = ({
   const { isDarkMode, themePalette, accentColors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
+  const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  // Extract distinct list of months from operasiList
+  const monthOptions = useMemo(() => {
+    const monthMap = new Map<string, { label: string; count: number; dateVal: number }>();
+
+    operasiList.forEach((op) => {
+      const dateStr = op.waktu_kejadian || op.waktu_lapor || op.waktu_berangkat || op.created_at;
+      if (!dateStr) return;
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return;
+      const year = d.getFullYear();
+      const month = d.getMonth();
+      const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+      const label = `${MONTH_NAMES_ID[month]} ${year}`;
+      const existing = monthMap.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        monthMap.set(key, { label, count: 1, dateVal: new Date(year, month, 1).getTime() });
+      }
+    });
+
+    return Array.from(monthMap.entries())
+      .sort((a, b) => b[1].dateVal - a[1].dateVal)
+      .map(([key, val]) => ({ key, label: val.label, count: val.count }));
+  }, [operasiList]);
 
   // Filtered operations
   const filteredList = useMemo(() => {
@@ -61,9 +95,18 @@ export const DashboardList: React.FC<DashboardListProps> = ({
       const matchStatus =
         statusFilter === 'ALL' || op.status === statusFilter;
 
-      return matchSearch && matchStatus;
+      const matchMonth = selectedMonth === 'ALL' || (() => {
+        const dateStr = op.waktu_kejadian || op.waktu_lapor || op.waktu_berangkat || op.created_at;
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return false;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return key === selectedMonth;
+      })();
+
+      return matchSearch && matchStatus && matchMonth;
     });
-  }, [operasiList, searchQuery, statusFilter]);
+  }, [operasiList, searchQuery, statusFilter, selectedMonth]);
 
   // Overall Statistics
   const totalOpen = operasiList.filter((o) => o.status === 'OPEN').length;
@@ -166,11 +209,11 @@ export const DashboardList: React.FC<DashboardListProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl p-3 sm:p-4 border transition-all duration-200 ${
+      <div className={`flex flex-col lg:flex-row items-center justify-between gap-3 rounded-2xl p-3 sm:p-4 border transition-all duration-200 ${
         isDarkMode ? 'bg-slate-900 border-slate-800 shadow-lg' : 'bg-white border-slate-200 shadow-sm'
       }`}>
         {/* Search */}
-        <div className="relative w-full sm:w-80">
+        <div className="relative w-full lg:w-72">
           <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-slate-400' : 'text-slate-400'}`} />
           <input
             type="text"
@@ -183,10 +226,48 @@ export const DashboardList: React.FC<DashboardListProps> = ({
                 : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-transparent'
             }`}
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-200"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
-        {/* Status Filters & Actions */}
-        <div className="flex flex-wrap items-center justify-end gap-2 w-full sm:w-auto">
+        {/* Month Filter, Status Filters & Actions */}
+        <div className="flex flex-wrap items-center justify-end gap-2 w-full lg:w-auto">
+          {/* Month Filter Dropdown */}
+          <div className="relative flex items-center">
+            <div className="absolute left-2.5 pointer-events-none">
+              <Calendar className="w-3.5 h-3.5 text-orange-500" />
+            </div>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              aria-label="Filter Bulan Operasi SAR"
+              className={`pl-8 pr-7 py-2 rounded-xl text-xs font-semibold border transition-colors outline-none cursor-pointer appearance-none ${
+                selectedMonth !== 'ALL'
+                  ? 'bg-orange-500/15 border-orange-500 text-orange-600 dark:text-orange-400 font-bold ring-1 ring-orange-500/40'
+                  : isDarkMode
+                  ? 'bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-600'
+                  : 'bg-slate-50 border-slate-300 text-slate-700 hover:border-slate-400'
+              }`}
+            >
+              <option value="ALL">Semua Bulan Operasi</option>
+              {monthOptions.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label} ({opt.count})
+                </option>
+              ))}
+            </select>
+            <div className="absolute right-2.5 pointer-events-none text-slate-400 text-[10px]">
+              ▼
+            </div>
+          </div>
+
+          {/* Status Filter Tabs */}
           <div className={`flex items-center rounded-xl p-1 text-xs border ${
             isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
           }`}>
@@ -221,7 +302,7 @@ export const DashboardList: React.FC<DashboardListProps> = ({
             title="Export Dump Database MySQL (db_sar_qr.sql)"
           >
             <Database className="w-3.5 h-3.5 text-blue-500" />
-            <span>SQL Export</span>
+            <span className="hidden sm:inline">SQL Export</span>
           </button>
 
           <button
@@ -234,6 +315,65 @@ export const DashboardList: React.FC<DashboardListProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Filter Info Bar when active */}
+      {(selectedMonth !== 'ALL' || statusFilter !== 'ALL' || searchQuery) && (
+        <div className={`px-4 py-2 rounded-xl border flex items-center justify-between text-xs transition-colors ${
+          isDarkMode ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+        }`}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-slate-400 font-medium">Filter Aktif:</span>
+            {selectedMonth !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
+                <Calendar className="w-3 h-3" />
+                <span>Bulan: {monthOptions.find(m => m.key === selectedMonth)?.label || selectedMonth}</span>
+                <button
+                  onClick={() => setSelectedMonth('ALL')}
+                  className="hover:text-orange-800 dark:hover:text-orange-200 ml-0.5"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {statusFilter !== 'ALL' && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                <span>Status: {statusFilter}</span>
+                <button
+                  onClick={() => setStatusFilter('ALL')}
+                  className="hover:text-blue-800 dark:hover:text-blue-200 ml-0.5"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/30">
+                <span>Cari: "{searchQuery}"</span>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="hover:text-slate-900 dark:hover:text-white ml-0.5"
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+            <span className="text-slate-400 text-[11px]">
+              ({filteredList.length} dari {operasiList.length} operasi)
+            </span>
+          </div>
+
+          <button
+            onClick={() => {
+              setSelectedMonth('ALL');
+              setStatusFilter('ALL');
+              setSearchQuery('');
+            }}
+            className="text-[11px] font-semibold text-orange-600 dark:text-orange-400 hover:underline shrink-0"
+          >
+            Reset Semua Filter
+          </button>
+        </div>
+      )}
 
       {/* Operations List */}
       <div className="space-y-3">

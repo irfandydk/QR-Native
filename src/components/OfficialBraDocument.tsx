@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
-import { Printer, Copy, Check, QrCode, ShieldCheck, Download, ExternalLink, X, Image as ImageIcon, FileDown } from 'lucide-react';
+import { Printer, Copy, Check, QrCode, ShieldCheck, Download, ExternalLink, X, FileDown } from 'lucide-react';
 import { BraSar } from '../types';
 import { BasarnasLogo } from './BasarnasLogo';
-import { LogoSettingModal } from './LogoSettingModal';
 import { printElement, downloadDocumentHtml } from '../utils/printUtils';
 import { showToast } from '../utils/alerts';
 import { useTheme } from '../context/ThemeContext';
@@ -28,17 +27,38 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
   const { isDarkMode, accentColors } = useTheme();
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
-  const [showLogoModal, setShowLogoModal] = useState<boolean>(false);
   const [currentLogo, setCurrentLogo] = useState<string>(
     initialLogoUrl || (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') || '' : '')
   );
   const docRef = useRef<HTMLDivElement>(null);
 
-  // Sync initialLogoUrl
+  // Sync initialLogoUrl and global satker settings
   useEffect(() => {
-    if (initialLogoUrl !== undefined) {
+    if (initialLogoUrl) {
       setCurrentLogo(initialLogoUrl);
     }
+  }, [initialLogoUrl]);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const localLogo = localStorage.getItem('sar_custom_logo_url');
+        if (localLogo && !initialLogoUrl) setCurrentLogo(localLogo);
+
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data.success && data.data && data.data.logo_url && !initialLogoUrl) {
+          setCurrentLogo(data.data.logo_url);
+        }
+      } catch (err) {
+        console.error('Failed to load global logo for BRA:', err);
+      }
+    };
+
+    loadSettings();
+    const handleUpdate = () => loadSettings();
+    window.addEventListener('satker-settings-updated', handleUpdate);
+    return () => window.removeEventListener('satker-settings-updated', handleUpdate);
   }, [initialLogoUrl]);
 
   // Compute verify URL
@@ -144,20 +164,6 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Setting Logo Button (Poin 4) */}
-          <button
-            onClick={() => setShowLogoModal(true)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-              isDarkMode
-                ? 'text-slate-200 bg-slate-800 hover:bg-slate-700 border-slate-700'
-                : 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-300 shadow-sm'
-            }`}
-            title="Pengaturan Logo Kop Resmi Basarnas"
-          >
-            <ImageIcon className={`w-3.5 h-3.5 ${accentColors.text}`} />
-            <span>Atur Logo</span>
-          </button>
-
           {onEdit && (
             <button
               onClick={onEdit}
@@ -617,17 +623,6 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
           SISTEM QR SAR • KANTOR PENCARIAN DAN PERTOLONGAN KENDARI • DOKUMEN ELEKTRONIK RESMI
         </div>
       </div>
-
-      {/* Modal Pengaturan Logo (Poin 4) */}
-      <LogoSettingModal
-        isOpen={showLogoModal}
-        onClose={() => setShowLogoModal(false)}
-        currentLogoUrl={currentLogo}
-        onLogoUpdated={(newLogo) => {
-          setCurrentLogo(newLogo);
-          onLogoUpdated?.(newLogo);
-        }}
-      />
     </div>
   );
 };
