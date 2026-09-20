@@ -1182,6 +1182,92 @@ class Database {
 
     return lines.join('\n');
   }
+
+  // Full Database JSON Backup & Restore for Seamless Deployments & Version Upgrades
+  public getFullDatabase(): {
+    version: string;
+    appName: string;
+    exported_at: string;
+    stats: {
+      total_operasi: number;
+      total_korban: number;
+      total_renops: number;
+      total_laporan_harian: number;
+      total_bra_sar: number;
+      total_master_alut: number;
+      total_master_tim: number;
+    };
+    data: DatabaseSchema;
+  } {
+    return {
+      version: '2.5.0',
+      appName: 'SISTEM QR SAR - KANTOR PENCARIAN DAN PERTOLONGAN KENDARI',
+      exported_at: new Date().toISOString(),
+      stats: {
+        total_operasi: (this.data.operasi || []).length,
+        total_korban: (this.data.korban || []).length,
+        total_renops: (this.data.renops || []).length,
+        total_laporan_harian: (this.data.laporan_harian || []).length,
+        total_bra_sar: (this.data.bra_sar || []).length,
+        total_master_alut: (this.data.master_alut || []).length,
+        total_master_tim: (this.data.master_tim || []).length,
+      },
+      data: JSON.parse(JSON.stringify(this.data)),
+    };
+  }
+
+  public restoreFullDatabase(importedPayload: any): {
+    success: boolean;
+    stats?: any;
+    error?: string;
+  } {
+    try {
+      if (!importedPayload || typeof importedPayload !== 'object') {
+        return { success: false, error: 'Format berkas cadangan tidak valid (harus berupa JSON).' };
+      }
+
+      // If the payload was wrapped inside { data: DatabaseSchema, ... }
+      const incomingData: DatabaseSchema = importedPayload.data && typeof importedPayload.data === 'object'
+        ? importedPayload.data
+        : importedPayload;
+
+      // Validate minimally that essential collections exist or can be salvaged
+      const newDb: DatabaseSchema = {
+        master_alut: Array.isArray(incomingData.master_alut) ? incomingData.master_alut : this.data.master_alut || [],
+        master_tim: Array.isArray(incomingData.master_tim) ? incomingData.master_tim : this.data.master_tim || [],
+        operasi: Array.isArray(incomingData.operasi) ? incomingData.operasi : [],
+        korban: Array.isArray(incomingData.korban) ? incomingData.korban : [],
+        detail_tim_berangkat: Array.isArray(incomingData.detail_tim_berangkat) ? incomingData.detail_tim_berangkat : [],
+        detail_unsur: Array.isArray(incomingData.detail_unsur) ? incomingData.detail_unsur : [],
+        detail_alut: Array.isArray(incomingData.detail_alut) ? incomingData.detail_alut : [],
+        renops: Array.isArray(incomingData.renops) ? incomingData.renops : [],
+        renops_sru: Array.isArray(incomingData.renops_sru) ? incomingData.renops_sru : [],
+        laporan_harian: Array.isArray(incomingData.laporan_harian) ? incomingData.laporan_harian : [],
+        bra_sar: Array.isArray(incomingData.bra_sar) ? incomingData.bra_sar : [],
+        app_settings: incomingData.app_settings && typeof incomingData.app_settings === 'object'
+          ? { ...this.data.app_settings, ...incomingData.app_settings }
+          : this.data.app_settings,
+      };
+
+      this.data = newDb;
+      this.saveData();
+
+      return {
+        success: true,
+        stats: {
+          operasi: this.data.operasi.length,
+          korban: this.data.korban.length,
+          renops: this.data.renops.length,
+          laporan_harian: this.data.laporan_harian.length,
+          bra_sar: (this.data.bra_sar || []).length,
+          master_alut: this.data.master_alut.length,
+          master_tim: this.data.master_tim.length,
+        },
+      };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Gagal memproses data pemulihan basis data.' };
+    }
+  }
 }
 
 function escapeSQL(val: string | null | undefined): string {

@@ -16,6 +16,32 @@ interface OfficialBraDocumentProps {
   onLogoUpdated?: (newLogo: string) => void;
 }
 
+// Embedded Base Basarnas Vector SVG Data URI for instantaneous, offline-proof QR Center Logo rendering
+const BASARNAS_EMBLEM_SVG_URI = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="48" fill="#F97316" stroke="#C2410C" stroke-width="2" />
+  <circle cx="50" cy="50" r="43" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5" />
+  <path id="tpa" d="M 18,50 A 32,32 0 1,1 82,50" fill="none" stroke="none" />
+  <text font-size="7.5" font-weight="900" fill="#9A3412" letter-spacing="0.8">
+    <textPath href="#tpa" startOffset="50%" text-anchor="middle">SAR NASIONAL</textPath>
+  </text>
+  <g transform="translate(50, 52)">
+    <path d="M -30,-4 C -22,-14 -8,-8 0,4 C 8,-8 22,-14 30,-4 C 22,2 14,8 0,14 C -14,8 -22,2 -30,-4 Z" fill="#D97706" stroke="#78350F" stroke-width="0.8" />
+    <path d="M -24,-2 C -18,-9 -6,-4 0,5 C 6,-4 18,-9 24,-2 C 18,3 10,7 0,10 C -10,7 -18,3 -24,-2 Z" fill="#F59E0B" />
+    <circle cx="0" cy="-14" r="4" fill="none" stroke="#1E293B" stroke-width="1.8" />
+    <line x1="-8" y1="-8" x2="8" y2="-8" stroke="#1E293B" stroke-width="2.2" stroke-linecap="round" />
+    <line x1="0" y1="-14" x2="0" y2="12" stroke="#1E293B" stroke-width="2.5" stroke-linecap="round" />
+    <path d="M -13,5 C -9,14 9,14 13,5" fill="none" stroke="#1E293B" stroke-width="2.2" stroke-linecap="round" />
+    <polygon points="-13,3 -16,6 -11,7" fill="#1E293B" />
+    <polygon points="13,3 16,6 11,7" fill="#1E293B" />
+  </g>
+  <path id="tpb" d="M 80,56 A 34,34 0 0,1 20,56" fill="none" stroke="none" />
+  <text font-size="5.5" font-weight="800" fill="#B45309" letter-spacing="0.4">
+    <textPath href="#tpb" startOffset="50%" text-anchor="middle">INDONESIA</textPath>
+  </text>
+</svg>
+`)}`;
+
 export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
   bra,
   onClose,
@@ -66,34 +92,89 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
     ? `${window.location.origin}/?viewBra=${bra.id_bra}`
     : `https://basarnas-kendari.go.id/bra/${bra.id_bra}`;
 
+  // Generate QR Code with Embedded Logo in Center (Using Error Correction 'H' for 100% Reliable Scanning)
   useEffect(() => {
-    // Generate QR Code as DataURL
-    QRCode.toDataURL(
+    const canvas = document.createElement('canvas');
+    const size = 320;
+    canvas.width = size;
+    canvas.height = size;
+
+    QRCode.toCanvas(
+      canvas,
       verifyUrl,
       {
-        width: 140,
+        width: size,
         margin: 1,
         color: {
-          dark: '#0f172a',
+          dark: '#0a0f1d',
           light: '#ffffff',
         },
-        errorCorrectionLevel: 'M',
+        errorCorrectionLevel: 'H', // High error correction (30% recovery tolerance) ensures instantaneous scan
       },
-      (err, url) => {
-        if (!err && url) {
-          setQrDataUrl(url);
+      (err) => {
+        if (err) {
+          // Fallback to standard QR
+          QRCode.toDataURL(verifyUrl, { width: 140, margin: 1, errorCorrectionLevel: 'H' }, (e2, url) => {
+            if (!e2 && url) setQrDataUrl(url);
+          });
+          return;
         }
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          setQrDataUrl(canvas.toDataURL('image/png'));
+          return;
+        }
+
+        const logoImg = new Image();
+        logoImg.crossOrigin = 'anonymous';
+
+        logoImg.onload = () => {
+          const logoSize = Math.floor(size * 0.22); // 22% of QR width/height (well within 30% H tolerance)
+          const center = (size - logoSize) / 2;
+          const bgRadius = Math.floor(logoSize / 2) + 5;
+
+          // Clean white circular badge background behind logo
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(size / 2, size / 2, bgRadius, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Elegant subtle outer ring
+          ctx.strokeStyle = '#e2e8f0';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+
+          // Render logo centered inside the badge
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(size / 2, size / 2, Math.floor(logoSize / 2) - 1, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(logoImg, center, center, logoSize, logoSize);
+          ctx.restore();
+
+          setQrDataUrl(canvas.toDataURL('image/png'));
+        };
+
+        logoImg.onerror = () => {
+          if (logoImg.src !== BASARNAS_EMBLEM_SVG_URI) {
+            logoImg.src = BASARNAS_EMBLEM_SVG_URI;
+          } else {
+            setQrDataUrl(canvas.toDataURL('image/png'));
+          }
+        };
+
+        logoImg.src = currentLogo || BASARNAS_EMBLEM_SVG_URI;
       }
     );
-  }, [verifyUrl, bra.id_bra]);
+  }, [verifyUrl, bra.id_bra, currentLogo]);
 
-  // Copy plain text telegram format (Poin 1: NO dan Judul diletakkan di atas AAA)
+  // Copy plain text telegram format (Poin 1: Format murni telegram tanpa kata SIFAT/SEGERA)
   const handleCopyTelegram = () => {
     let text = `BRA SAR\nBADAN NASIONAL PENCARIAN DAN PERTOLONGAN\n\n`;
     text += `DARI : ${bra.dari}\n`;
     text += `AKSI : ${bra.aksi}\n`;
     text += `INFO : ${bra.info}\n`;
-    if (bra.sifat) text += `SIFAT : ${bra.sifat}\n`;
     text += `TWU : ${bra.twu}\n`;
     text += `JUMLAH KATA : ${bra.jumlah_kata || `${bra.sections.reduce((acc, s) => acc + s.isi.split(/\s+/).length, 0)} KATA`}\n\n`;
 
@@ -279,14 +360,14 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
         }`}
         style={{ minHeight: '1050px' }}
       >
-        {/* Header: Basarnas Logo + Titles (KOP) */}
-        <div className="flex items-center justify-center gap-3.5 sm:gap-4 pb-3 mb-2">
-          {/* Logo on Left of KOP Title */}
-          <div className="shrink-0 flex items-center justify-center">
-            <BasarnasLogo size={50} logoUrl={currentLogo} />
+        {/* Header: Basarnas Logo + Titles (KOP) - Logo Centered above text as per official Basarnas standard */}
+        <div className="flex flex-col items-center justify-center pb-3 mb-2 text-center">
+          {/* Logo Basarnas Centered */}
+          <div className="shrink-0 flex items-center justify-center mb-1.5">
+            <BasarnasLogo size={54} logoUrl={currentLogo} />
           </div>
 
-          <div className="text-center">
+          <div>
             <h1 className={`text-xl sm:text-2xl font-black tracking-wide uppercase leading-tight print:text-black ${
               isDarkMode ? 'text-white' : 'text-slate-950'
             }`}>
@@ -342,8 +423,8 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
             </div>
 
             {/* Upper Section: 2 Columns */}
-            {/* Left: DARI, AKSI, INFO, SIFAT */}
-            {/* Right: Poin 5 - 3 Baris Kolom Berturut-turut */}
+            {/* Left: DARI, AKSI, INFO (Tanpa Sifat) */}
+            {/* Right: Tanggal Waktu TWU & Jumlah Kata */}
             <div className={`grid grid-cols-12 divide-x-2 print:divide-black print:bg-white ${
               isDarkMode ? 'divide-slate-700 bg-slate-900' : 'divide-black bg-white'
             }`}>
@@ -366,17 +447,9 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                   <span className="mr-1">:</span>
                   <span className={`uppercase print:text-black ${isDarkMode ? 'text-slate-200' : 'text-black'}`}>{bra.info}</span>
                 </div>
-
-                {bra.sifat && (
-                  <div className="flex">
-                    <span className={`w-16 font-bold uppercase shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-700'}`}>SIFAT</span>
-                    <span className="mr-1">:</span>
-                    <span className={`font-bold uppercase print:text-black ${isDarkMode ? 'text-amber-400' : 'text-black'}`}>{bra.sifat}</span>
-                  </div>
-                )}
               </div>
 
-              {/* Right Column (4 cols): Poin 2 & 4 - Kolom Tanggal Waktu Sesuai Contoh Lampiran */}
+              {/* Right Column (4 cols): Kolom Tanggal Waktu Sesuai Contoh Lampiran */}
               <div className={`col-span-5 sm:col-span-4 divide-y-2 flex flex-col justify-between print:divide-black ${
                 isDarkMode ? 'divide-slate-700' : 'divide-black'
               }`}>
@@ -421,25 +494,18 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
             </div>
 
             {/* Telegram Body Sections (AAA, BBB, CCC, etc.) */}
-            {/* Poin 1: Nomor dan Judul TIDAK PERLU KOLOM TERSENDIRI, CUKUP DIATAS AAA */}
+            {/* Bagian Nomor dan Judul di atas AAA tanpa kotak/kolom pembatas */}
             <div className={`border-t-2 p-3 sm:p-4 min-h-[420px] flex flex-col justify-between print:border-black print:bg-white ${
               isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-black bg-white'
             }`}>
               <div>
-                {/* Bagian NO dan Judul langsung di atas AAA tanpa kotak/kolom pembatas */}
+                {/* Bagian NO dan Judul langsung di atas AAA tanpa tulisan Segera di sampingnya */}
                 <div className="mb-3.5">
                   <div className="space-y-1">
                     <div className="flex items-center text-xs sm:text-sm font-bold uppercase">
                       <span className={`w-20 sm:w-24 font-black shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-800'}`}>NO.</span>
                       <span className="w-3 text-center shrink-0">:</span>
                       <span className={`font-extrabold tracking-wider ml-1 print:text-black ${isDarkMode ? 'text-amber-400' : 'text-black'}`}>{bra.no_bra}</span>
-                      {bra.sifat && (
-                        <span className={`ml-3 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider print:bg-black print:text-white ${
-                          isDarkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-black text-white'
-                        }`}>
-                          {bra.sifat}
-                        </span>
-                      )}
                     </div>
 
                     {bra.menbra && (

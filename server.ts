@@ -552,6 +552,42 @@ async function startServer() {
     }
   });
 
+  // Native JSON Database Export (Full App-Compatible Backup)
+  app.get(['/api/database/export', '/api/backup/export'], (req, res) => {
+    try {
+      const fullBackup = db.getFullDatabase();
+      const dateStr = new Date().toISOString().split('T')[0];
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="BACKUP_DATABASE_SAR_KENDARI_${dateStr}.json"`);
+      res.json(fullBackup);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Native JSON Database Import & Restore
+  app.post(['/api/database/import', '/api/backup/import'], (req, res) => {
+    try {
+      const payload = req.body;
+      if (!payload) {
+        return res.status(400).json({ success: false, error: 'Data cadangan tidak boleh kosong.' });
+      }
+
+      const result = db.restoreFullDatabase(payload);
+      if (!result.success) {
+        return res.status(400).json({ success: false, error: result.error });
+      }
+
+      res.json({
+        success: true,
+        message: 'Basis data berhasil dipulihkan secara penuh.',
+        stats: result.stats,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // AI Assistant Endpoints using Gemini with Cascade and Fallback
   app.post('/api/ai/draft-kronologi', async (req, res) => {
     const { draftInput, namaOperasi, lokasi, waktuKejadian } = req.body;

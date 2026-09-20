@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   Ship,
@@ -28,6 +28,12 @@ import {
   CheckCircle2,
   Send,
   ShieldAlert,
+  Database,
+  Download,
+  Upload,
+  FileCode,
+  HardDrive,
+  FileCheck,
 } from 'lucide-react';
 import { MasterAlut, MasterTim, Pejabat, AppSettings } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -49,7 +55,12 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
   const { isDarkMode, accentColors } = useTheme();
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'alut' | 'tim' | 'pejabat' | 'satker' | 'keamanan'>('alut');
+  const [activeTab, setActiveTab] = useState<'alut' | 'tim' | 'pejabat' | 'satker' | 'keamanan' | 'backup'>('alut');
+
+  // Database Backup / Restore states
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Search queries
   const [searchAlut, setSearchAlut] = useState('');
@@ -497,6 +508,120 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
     }
   };
 
+  // --- BACKUP & RESTORE DATABASE (JSON SUPORT APLIKASI) ---
+  const handleExportDatabase = async () => {
+    setIsExporting(true);
+    try {
+      showToast('Menyiapkan berkas cadangan database...', 'info');
+      const res = await fetch('/api/database/export');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Gagal mengunduh cadangan database.');
+      }
+      const data = await res.json();
+      const jsonStr = JSON.stringify(data, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `BACKUP_DATABASE_SAR_KENDARI_${dateStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showSuccessAlert(
+        'Cadangan Berhasil Diunduh',
+        `Berkas database JSON berhasil diekspor. Berkas ini kompatibel penuh untuk di-import kapan saja.`
+      );
+    } catch (err: any) {
+      showErrorAlert('Gagal Ekspor Database', err.message || 'Terjadi kesalahan saat mengekspor database.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input so re-selecting same file triggers change
+    e.target.value = '';
+
+    if (!file.name.endsWith('.json')) {
+      showErrorAlert('Format Berkas Tidak Valid', 'Silakan pilih berkas cadangan dengan format JSON (.json).');
+      return;
+    }
+
+    try {
+      setIsImporting(true);
+      showToast('Membaca berkas cadangan JSON...', 'info');
+      const text = await file.text();
+      let parsedData: any;
+      try {
+        parsedData = JSON.parse(text);
+      } catch (parseErr) {
+        throw new Error('Berkas yang dipilih bukan file JSON yang valid atau rusak.');
+      }
+
+      // Validasi struktur minimal
+      if (!parsedData || typeof parsedData !== 'object') {
+        throw new Error('Struktur data cadangan tidak valid.');
+      }
+
+      const totalOperasi = Array.isArray(parsedData.operasi_sar) ? parsedData.operasi_sar.length : 0;
+      const totalBra = Array.isArray(parsedData.bra_sar) ? parsedData.bra_sar.length : 0;
+      const totalKorban = Array.isArray(parsedData.korban) ? parsedData.korban.length : 0;
+      const totalRenops = Array.isArray(parsedData.renops) ? parsedData.renops.length : 0;
+      const totalLapbang = Array.isArray(parsedData.lapbang) ? parsedData.lapbang.length : 0;
+      const totalAlut = Array.isArray(parsedData.master_alut) ? parsedData.master_alut.length : 0;
+      const totalTim = Array.isArray(parsedData.master_tim) ? parsedData.master_tim.length : 0;
+
+      const confirmed = await showConfirmDialog(
+        'Konfirmasi Pemulihan Database',
+        `Ditemukan data cadangan:\n` +
+        `• ${totalOperasi} Operasi SAR\n` +
+        `• ${totalBra} Naskah BRA SAR\n` +
+        `• ${totalKorban} Data Korban\n` +
+        `• ${totalRenops} Rencana Operasi\n` +
+        `• ${totalLapbang} Laporan Perkembangan\n` +
+        `• ${totalAlut} Master Alut & ${totalTim} Master Tim\n\n` +
+        `Apakah Anda yakin ingin memulihkan (import) database ini ke sistem? Data yang ada akan diperbarui.`
+      );
+
+      if (!confirmed) {
+        setIsImporting(false);
+        return;
+      }
+
+      showToast('Memulihkan database sistem...', 'info');
+      const res = await fetch('/api/database/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsedData),
+      });
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || 'Gagal memulihkan database.');
+      }
+
+      // Refresh data
+      await onRefreshData();
+      await fetchSettingsAndPejabat();
+
+      showSuccessAlert(
+        'Database Berhasil Dipulihkan!',
+        `Semua data Operasi SAR, BRA SAR, Rencana Operasi, dan Pengaturan telah berhasil disinkronkan ke dalam aplikasi.`
+      );
+    } catch (err: any) {
+      showErrorAlert('Gagal Memulihkan Database', err.message || 'Terjadi kesalahan pemulihan.');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // Filters
   const filteredAlut = masterAlut.filter((a) =>
     a.nama_alut.toLowerCase().includes(searchAlut.toLowerCase()) ||
@@ -684,6 +809,20 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
           >
             <KeyRound className="w-4 h-4" />
             <span>Keamanan & Sandi Admin</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('backup')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === 'backup'
+                ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                : isDarkMode
+                ? 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Database className="w-4 h-4" />
+            <span>Cadangan & Impor/Ekspor Database</span>
           </button>
         </div>
 
@@ -1687,6 +1826,243 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
                   <Send className={`w-3.5 h-3.5 ${isSendingTestReset ? 'animate-spin' : ''}`} />
                   <span>{isSendingTestReset ? 'Mengirim...' : 'Uji Kirim Link Reset ke Email'}</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: CADANGAN & IMPOR/EKSPOR DATABASE (JSON SUPORT APLIKASI) */}
+        {activeTab === 'backup' && (
+          <div className="space-y-6 animate-in fade-in duration-150">
+            {/* Hidden JSON file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".json,application/json"
+              onChange={handleImportFileSelected}
+              className="hidden"
+            />
+
+            {/* Hero / Header Card */}
+            <div className={`p-6 rounded-2xl border ${
+              isDarkMode
+                ? 'bg-gradient-to-br from-slate-900 via-slate-900 to-orange-950/30 border-slate-800'
+                : 'bg-gradient-to-br from-white via-white to-orange-50/50 border-slate-200 shadow-sm'
+            }`}>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="p-3.5 rounded-2xl bg-orange-500/10 text-orange-500 border border-orange-500/20 shrink-0">
+                    <Database className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                        PERSISTENSI BASIS DATA JSON
+                      </span>
+                      <span className="text-xs text-slate-400">•</span>
+                      <span className="text-xs text-emerald-500 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Kompatibel 100% dengan Aplikasi
+                      </span>
+                    </div>
+                    <h2 className="text-lg sm:text-xl font-black mt-1">
+                      Manajemen Cadangan & Pemulihan Basis Data
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                      Sediakan berkas cadangan database dalam format JSON terstruktur yang dapat di-export dan di-import kapan saja. Fitur ini melindungi seluruh data Operasi SAR, Korban, Rencana Operasi (Renops), Arsip BRA SAR, dan Pengaturan Satker agar tidak hilang atau berubah saat pembaruan versi aplikasi / deploy ulang.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleExportDatabase}
+                    disabled={isExporting}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 shadow-lg shadow-orange-600/25 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <Download className={`w-4 h-4 ${isExporting ? 'animate-bounce' : ''}`} />
+                    <span>{isExporting ? 'Mengekspor Data...' : 'Ekspor Database (.json)'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isImporting}
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border transition-all disabled:opacity-50 cursor-pointer ${
+                      isDarkMode
+                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-sm'
+                    }`}
+                  >
+                    <Upload className={`w-4 h-4 text-orange-500 ${isImporting ? 'animate-pulse' : ''}`} />
+                    <span>{isImporting ? 'Memulihkan Data...' : 'Impor / Pulihkan Database'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 2-Column Action Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Card 1: Ekspor Database */}
+              <div className={`p-6 rounded-2xl border flex flex-col justify-between space-y-4 ${
+                isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                      <Download className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm">1. Ekspor Database (Backup JSON)</h3>
+                      <p className="text-xs text-slate-400">Unduh snapshot seluruh data operasional ke perangkat lokal</p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-300 dark:text-slate-400 leading-relaxed">
+                    Menghasilkan satu berkas <code className="px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 font-mono text-[11px]">.json</code> yang berisi seluruh riwayat Operasi SAR, data korban, rencana operasi harian (Renops), laporan perkembangan (Lapbang), naskah telegram resmi BRA SAR, daftar pejabat/SMC, master alut, serta konfigurasi global satker.
+                  </p>
+
+                  <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>Format standar JSON native, aman dan mudah diarsipkan.</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>Dapat dibuka atau diverifikasi secara independen.</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span>Nama berkas otomatis mencantumkan tanggal pembuatan cadangan.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={handleExportDatabase}
+                    disabled={isExporting}
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 shadow-md shadow-orange-600/20 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{isExporting ? 'Sedang Mengunduh...' : 'Unduh Cadangan Database (.json)'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 2: Impor / Pulihkan Database */}
+              <div className={`p-6 rounded-2xl border flex flex-col justify-between space-y-4 ${
+                isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm">2. Impor Database (Restore JSON)</h3>
+                      <p className="text-xs text-slate-400">Pulihkan seluruh data dari berkas cadangan JSON yang telah diekspor</p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-300 dark:text-slate-400 leading-relaxed">
+                    Unggah berkas cadangan database JSON untuk memulihkan seluruh data operasional SAR ke dalam sistem secara instan. Sistem akan menampilkan rincian jumlah item untuk konfirmasi sebelum menerapkan perubahan.
+                  </p>
+
+                  <div className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400 text-xs space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Perhatian Sebelum Memulihkan:</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-slate-400">
+                      Proses import akan memperbarui koleksi database dengan isi berkas yang diunggah. Pastikan Anda mengunduh cadangan terkini sebelum melakukan pemulihan.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isImporting}
+                    className={`w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-bold border transition-all disabled:opacity-50 cursor-pointer ${
+                      isDarkMode
+                        ? 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                    }`}
+                  >
+                    <Upload className="w-4 h-4 text-orange-500" />
+                    <span>{isImporting ? 'Sedang Memproses Berkas...' : 'Pilih Berkas Cadangan JSON & Pulihkan'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Scope of Backup Checklist Table */}
+            <div className={`p-6 rounded-2xl border ${
+              isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+            }`}>
+              <div className="flex items-center gap-2 mb-4">
+                <FileCheck className="w-5 h-5 text-emerald-500" />
+                <h3 className="font-bold text-sm">Cakupan Data yang Disimpan & Dilindungi</h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+                <div className={`p-3.5 rounded-xl border ${
+                  isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="font-bold text-orange-400">1. Operasi SAR & Status</div>
+                  <p className="text-slate-400 text-[11px] mt-1">
+                    Semua riwayat operasi, jenis musibah, koordinat lokasi, status operasi (Aktif/Selesai/Tutup), dan log kejadian.
+                  </p>
+                </div>
+
+                <div className={`p-3.5 rounded-xl border ${
+                  isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="font-bold text-cyan-400">2. Data Korban & Medis</div>
+                  <p className="text-slate-400 text-[11px] mt-1">
+                    Identitas korban, kondisi (Selamat, Meninggal, Hilang), serta data evakuasi ke fasilitas medis.
+                  </p>
+                </div>
+
+                <div className={`p-3.5 rounded-xl border ${
+                  isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="font-bold text-amber-400">3. Rencana Operasi & Lapbang</div>
+                  <p className="text-slate-400 text-[11px] mt-1">
+                    Seluruh berkas Renops H.1 s.d H.7, pembagian SRU/Search Area, dan Laporan Perkembangan harian.
+                  </p>
+                </div>
+
+                <div className={`p-3.5 rounded-xl border ${
+                  isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="font-bold text-emerald-400">4. Arsip Telegram BRA SAR</div>
+                  <p className="text-slate-400 text-[11px] mt-1">
+                    Arsip lengkap naskah telegram BRA MAPEL, Pergerakan Kapal, dan SAR Umum beserta tanda tangan QR digital terverifikasi.
+                  </p>
+                </div>
+
+                <div className={`p-3.5 rounded-xl border ${
+                  isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="font-bold text-purple-400">5. Master Alut & Tim SAR</div>
+                  <p className="text-slate-400 text-[11px] mt-1">
+                    Daftar alut perairan, darat, palsar evakuasi/medis, serta master tim rescue/pos SAR terdaftar.
+                  </p>
+                </div>
+
+                <div className={`p-3.5 rounded-xl border ${
+                  isDarkMode ? 'bg-slate-950/60 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="font-bold text-rose-400">6. Pengaturan Satker & Pejabat</div>
+                  <p className="text-slate-400 text-[11px] mt-1">
+                    Nama Satker, Call Sign, Logo Global, Daftar Pejabat/SMC, Alamat, Kontak, dan kredensial admin.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
