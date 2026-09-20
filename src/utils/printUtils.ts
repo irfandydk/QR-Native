@@ -3,9 +3,24 @@
  * Menjamin 100% konsistensi antara Tampilan Preview dan Hasil Cetak/Download PDF.
  */
 
-export const getBasePrintStyles = () => `
+export const getPageSizeCss = (pageSize: string = 'A4'): string => {
+  switch (pageSize.toUpperCase()) {
+    case 'F4':
+    case 'FOLIO':
+      return '215mm 330mm';
+    case 'LETTER':
+      return 'letter portrait';
+    case 'LEGAL':
+      return 'legal portrait';
+    case 'A4':
+    default:
+      return 'A4 portrait';
+  }
+};
+
+export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100) => `
   @page {
-    size: A4 portrait;
+    size: ${getPageSizeCss(pageSize)};
     margin: 8mm 10mm 8mm 10mm;
   }
   *, *::before, *::after {
@@ -24,11 +39,13 @@ export const getBasePrintStyles = () => `
   }
   .print-wrapper {
     width: 100%;
-    max-width: 820px;
+    max-width: ${pageSize === 'F4' || pageSize === 'LEGAL' ? '850px' : '820px'};
     margin: 0 auto;
     background: #ffffff !important;
     color: #000000 !important;
     padding: 10px;
+    transform-origin: top center;
+    ${scale !== 100 ? `transform: scale(${scale / 100});` : ''}
   }
   #official-bra-document {
     width: 100% !important;
@@ -77,7 +94,12 @@ export const getBasePrintStyles = () => `
   }
 `;
 
-export const printElement = (elementId: string, docTitle = 'Dokumen Resmi Basarnas'): Promise<boolean> => {
+export const printElement = (
+  elementId: string,
+  docTitle = 'Dokumen Resmi Basarnas',
+  pageSize: string = 'A4',
+  scale: number = 100
+): Promise<boolean> => {
   return new Promise((resolve) => {
     const element = document.getElementById(elementId);
     if (!element) {
@@ -139,7 +161,7 @@ export const printElement = (elementId: string, docTitle = 'Dokumen Resmi Basarn
           <title>${docTitle}</title>
           ${stylesHtml}
           <style>
-            ${getBasePrintStyles()}
+            ${getBasePrintStyles(pageSize, scale)}
           </style>
         </head>
         <body>
@@ -173,7 +195,12 @@ export const printElement = (elementId: string, docTitle = 'Dokumen Resmi Basarn
 /**
  * Unduh Dokumen sebagai file HTML mandiri yang 100% presisi dan mandiri
  */
-export const downloadDocumentHtml = (elementId: string, filename = 'Dokumen_BRA_SAR.html') => {
+export const downloadDocumentHtml = (
+  elementId: string,
+  filename = 'Dokumen_BRA_SAR.html',
+  pageSize: string = 'A4',
+  scale: number = 100
+) => {
   const element = document.getElementById(elementId);
   if (!element) return;
 
@@ -204,7 +231,7 @@ export const downloadDocumentHtml = (elementId: string, filename = 'Dokumen_BRA_
         <title>${filename.replace('.html', '')}</title>
         ${stylesHtml}
         <style>
-          ${getBasePrintStyles()}
+          ${getBasePrintStyles(pageSize, scale)}
           .action-bar {
             max-width: 820px;
             margin: 15px auto;
@@ -242,7 +269,7 @@ export const downloadDocumentHtml = (elementId: string, filename = 'Dokumen_BRA_
       <body>
         <div class="action-bar no-print">
           <div>
-            <strong style="color: #0f172a; font-size: 14px;">📄 Lembar Dokumen Resmi BRA SAR</strong>
+            <strong style="color: #0f172a; font-size: 14px;">📄 Lembar Dokumen Resmi BRA SAR (${pageSize.toUpperCase()})</strong>
             <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">Standar Format Korps Basarnas • Siap Dicetak ke PDF</p>
           </div>
           <button onclick="window.print()">

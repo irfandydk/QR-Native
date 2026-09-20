@@ -6,7 +6,6 @@ import { DetailOperasiHub } from './components/DetailOperasiHub';
 import { MasterDataModal } from './components/MasterDataModal';
 import { MasterSettingsPage } from './components/MasterSettingsPage';
 import { BraArchivePage } from './components/BraArchivePage';
-import { SqlExportModal } from './components/SqlExportModal';
 import { ViewLaporanModal } from './components/ViewLaporanModal';
 import { FormBraSar } from './components/FormBraSar';
 import { OfficialBraDocument } from './components/OfficialBraDocument';
@@ -48,7 +47,6 @@ export default function App() {
 
   // Modals
   const [showMasterModal, setShowMasterModal] = useState<boolean>(false);
-  const [showSqlModal, setShowSqlModal] = useState<boolean>(false);
   const [viewLaporanData, setViewLaporanData] = useState<{
     isOpen: boolean;
     title: string;
@@ -298,7 +296,6 @@ export default function App() {
           setView('form-inisiasi');
         }}
         onOpenMasterData={() => setView('master-settings')}
-        onOpenSqlExport={() => setShowSqlModal(true)}
         onGoHome={() => {
           setView('dashboard');
           setSelectedOperasiId(null);
@@ -338,6 +335,7 @@ export default function App() {
               setView('view-bra');
             }}
             onCreateBra={(kategori) => handleOpenCreateBra(kategori)}
+            onDeleteBra={handleDeleteBra}
             onBack={() => setView('dashboard')}
           />
         ) : view === 'view-bra' && activeBraDoc ? (
@@ -351,6 +349,7 @@ export default function App() {
                   setView('bra-archive');
                 }
               }}
+              onDelete={() => handleDeleteBra(activeBraDoc.id_bra)}
               onEdit={() => {
                 setActiveBraKategori(activeBraDoc.kategori);
                 setPreselectedBraOpId(activeBraDoc.id_operasi || null);
@@ -382,7 +381,6 @@ export default function App() {
                 text,
               });
             }}
-            onOpenSqlModal={() => setShowSqlModal(true)}
           />
         ) : view === 'form-inisiasi' ? (
           <FormInisiasi
@@ -459,13 +457,6 @@ export default function App() {
             </button>
             <span>•</span>
             <span>Standar Format WhatsApp "FILE AKTIF"</span>
-            <span>•</span>
-            <button
-              onClick={() => setShowSqlModal(true)}
-              className="hover:text-orange-500 underline transition-colors cursor-pointer"
-            >
-              Export db_sar_qr.sql
-            </button>
           </div>
         </div>
       </footer>
@@ -491,12 +482,6 @@ export default function App() {
         masterTim={masterTim}
         onAddAlut={handleAddAlut}
         onAddTim={handleAddTim}
-      />
-
-      {/* SQL Export Modal */}
-      <SqlExportModal
-        isOpen={showSqlModal}
-        onClose={() => setShowSqlModal(false)}
       />
 
       {/* Quick View WhatsApp Text Modal */}

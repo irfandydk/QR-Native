@@ -19,16 +19,18 @@ import {
   List,
   Sparkles,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { BraSar, KategoriBra } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { printElement, downloadDocumentHtml } from '../utils/printUtils';
-import { showToast } from '../utils/alerts';
+import { showToast, showConfirmDialog } from '../utils/alerts';
 
 interface BraArchivePageProps {
   braList: BraSar[];
   onSelectBra: (bra: BraSar) => void;
   onCreateBra: (kategori: KategoriBra) => void;
+  onDeleteBra?: (id: number) => Promise<void> | void;
   onBack: () => void;
 }
 
@@ -36,6 +38,7 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
   braList,
   onSelectBra,
   onCreateBra,
+  onDeleteBra,
   onBack,
 }) => {
   const { isDarkMode, accentColors } = useTheme();
@@ -89,6 +92,18 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
   const handleQuickPrint = async (bra: BraSar, e: React.MouseEvent) => {
     e.stopPropagation();
     onSelectBra(bra);
+  };
+
+  const handleDeleteBra = async (bra: BraSar, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const confirmed = await showConfirmDialog(
+      `Hapus BRA SAR ${bra.no_bra}?`,
+      `Apakah Anda yakin ingin menghapus naskah Berita Radio SAR "${bra.perihal || bra.no_bra}" dari arsip? Tindakan ini tidak dapat dibatalkan.`
+    );
+    if (confirmed && onDeleteBra) {
+      await onDeleteBra(bra.id_bra);
+      showToast(`Dokumen BRA ${bra.no_bra} berhasil dihapus!`, 'success');
+    }
   };
 
   const getKategoriBadge = (kategori: KategoriBra) => {
@@ -480,6 +495,17 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
                     >
                       <Eye className="w-3.5 h-3.5" />
                     </button>
+
+                    {onDeleteBra && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteBra(bra, e)}
+                        className="p-1.5 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/15 transition-colors"
+                        title="Hapus Dokumen BRA SAR"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -561,6 +587,15 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
                             <Eye className="w-3 h-3" />
                             <span>Buka</span>
                           </button>
+                          {onDeleteBra && (
+                            <button
+                              onClick={(e) => handleDeleteBra(bra, e)}
+                              className="p-1 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/15 transition-colors"
+                              title="Hapus Dokumen"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

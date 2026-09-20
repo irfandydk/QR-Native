@@ -35,7 +35,6 @@ interface DashboardListProps {
   onEditOperasi: (op: Operasi) => void;
   onDeleteOperasi: (id: number) => Promise<void>;
   onViewTextWA: (title: string, subtitle: string, text: string) => void;
-  onOpenSqlModal: () => void;
 }
 
 const MONTH_NAMES_ID = [
@@ -50,7 +49,6 @@ export const DashboardList: React.FC<DashboardListProps> = ({
   onEditOperasi,
   onDeleteOperasi,
   onViewTextWA,
-  onOpenSqlModal,
 }) => {
   const { isDarkMode, themePalette, accentColors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
@@ -290,20 +288,6 @@ export const DashboardList: React.FC<DashboardListProps> = ({
               );
             })}
           </div>
-
-          <button
-            id="btn-sql-export"
-            onClick={onOpenSqlModal}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
-              isDarkMode
-                ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
-            }`}
-            title="Export Dump Database MySQL (db_sar_qr.sql)"
-          >
-            <Database className="w-3.5 h-3.5 text-blue-500" />
-            <span className="hidden sm:inline">SQL Export</span>
-          </button>
 
           <button
             id="btn-tambah-laporan-awal"

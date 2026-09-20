@@ -26,7 +26,6 @@ interface HeaderProps {
   onLogout?: () => void;
   onNewOperasi: () => void;
   onOpenMasterData: () => void;
-  onOpenSqlExport: () => void;
   onGoHome: () => void;
   onCreateBra?: (kategori: KategoriBra) => void;
   onOpenBraList?: () => void;
@@ -37,7 +36,6 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onNewOperasi,
   onOpenMasterData,
-  onOpenSqlExport,
   onGoHome,
   onCreateBra,
   onOpenBraList,

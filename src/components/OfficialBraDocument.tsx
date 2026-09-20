@@ -1,16 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
-import { Printer, Copy, Check, QrCode, ShieldCheck, Download, ExternalLink, X, FileDown } from 'lucide-react';
+import {
+  Printer,
+  Copy,
+  Check,
+  QrCode,
+  ShieldCheck,
+  Download,
+  ExternalLink,
+  X,
+  FileDown,
+  Trash2,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import { BraSar } from '../types';
 import { BasarnasLogo } from './BasarnasLogo';
 import { printElement, downloadDocumentHtml } from '../utils/printUtils';
-import { showToast } from '../utils/alerts';
+import { showToast, showConfirmDialog } from '../utils/alerts';
 import { useTheme } from '../context/ThemeContext';
 
 interface OfficialBraDocumentProps {
   bra: BraSar;
   onClose?: () => void;
   onEdit?: () => void;
+  onDelete?: () => Promise<void> | void;
   isEmbedded?: boolean;
   logoUrl?: string;
   onLogoUpdated?: (newLogo: string) => void;
@@ -46,6 +60,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
   bra,
   onClose,
   onEdit,
+  onDelete,
   isEmbedded = false,
   logoUrl: initialLogoUrl,
   onLogoUpdated,
@@ -53,6 +68,8 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
   const { isDarkMode, accentColors } = useTheme();
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
+  const [pageSize, setPageSize] = useState<'A4' | 'F4' | 'LETTER' | 'LEGAL'>('A4');
+  const [pageScale, setPageScale] = useState<number>(100);
   const [currentLogo, setCurrentLogo] = useState<string>(
     initialLogoUrl || (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') || '' : '')
   );
@@ -201,13 +218,13 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
   };
 
   const handlePrint = async () => {
-    showToast('Mempersiapkan Cetak Dokumen Resmi...', 'info');
-    await printElement('official-bra-document', `BRA_SAR_${bra.no_bra.replace(/\//g, '_')}`);
+    showToast(`Mempersiapkan Cetak Dokumen Resmi (${pageSize})...`, 'info');
+    await printElement('official-bra-document', `BRA_SAR_${bra.no_bra.replace(/\//g, '_')}`, pageSize, pageScale);
   };
 
   const handleDownloadHtml = () => {
-    downloadDocumentHtml('official-bra-document', `BRA_SAR_${bra.no_bra.replace(/\//g, '_')}.html`);
-    showToast('File Dokumen HTML Berhasil Diunduh!', 'success');
+    downloadDocumentHtml('official-bra-document', `BRA_SAR_${bra.no_bra.replace(/\//g, '_')}.html`, pageSize, pageScale);
+    showToast(`File Dokumen HTML (${pageSize}) Berhasil Diunduh!`, 'success');
   };
 
   const handleDownloadQr = () => {
@@ -219,13 +236,25 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
     showToast('Barcode QR Berhasil Diunduh!', 'success');
   };
 
+  const handleDeleteClick = async () => {
+    const confirmed = await showConfirmDialog(
+      `Hapus Dokumen BRA SAR?`,
+      `Apakah Anda yakin ingin menghapus naskah Berita Radio SAR "${bra.no_bra}" dari arsip? Tindakan ini tidak dapat dibatalkan.`
+    );
+    if (confirmed && onDelete) {
+      await onDelete();
+      showToast(`Dokumen BRA ${bra.no_bra} berhasil dihapus!`, 'success');
+      if (onClose) onClose();
+    }
+  };
+
   return (
     <div className={`flex flex-col items-center ${isEmbedded ? '' : 'p-3 sm:p-6'}`}>
       {/* Top Action Toolbar (Hidden during print) */}
       <div className={`w-full max-w-4xl mb-4 print:hidden flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-xl shadow-lg border transition-colors ${
         isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-md'
       }`}>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className={`px-2.5 py-1 text-xs font-bold rounded uppercase tracking-wider border ${
             bra.kategori === 'MAPEL'
               ? 'bg-orange-500/20 text-orange-500 dark:text-orange-400 border-orange-500/30'
@@ -244,11 +273,52 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Paper Size & Scale Adjuster */}
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 pl-1">
+            Kertas:
+          </span>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(e.target.value as any)}
+            className="text-xs font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-1 outline-none cursor-pointer"
+            title="Pilih Ukuran Kertas Dokumen (Default A4)"
+          >
+            <option value="A4">A4 (210×297 mm) [Default]</option>
+            <option value="F4">F4 / Folio (215×330 mm)</option>
+            <option value="LETTER">Letter (216×279 mm)</option>
+            <option value="LEGAL">Legal (216×356 mm)</option>
+          </select>
+
+          <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-0.5" />
+
+          {/* Scale Adjustment */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPageScale((prev) => Math.max(80, prev - 5))}
+              className="p-1 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
+              title="Perkecil Tampilan (Zoom Out)"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300 min-w-[34px] text-center">
+              {pageScale}%
+            </span>
+            <button
+              onClick={() => setPageScale((prev) => Math.min(125, prev + 5))}
+              className="p-1 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
+              title="Perbesar Tampilan (Zoom In)"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
           {onEdit && (
             <button
               onClick={onEdit}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+              className={`px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
                 isDarkMode
                   ? 'text-slate-300 bg-slate-800 hover:bg-slate-700 border-slate-700'
                   : 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-300 shadow-sm'
@@ -260,7 +330,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
 
           <button
             onClick={handleCopyTelegram}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
               isDarkMode
                 ? 'text-slate-200 bg-slate-800 hover:bg-slate-700 border-slate-700'
                 : 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-300 shadow-sm'
@@ -268,12 +338,12 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
             title="Salin Naskah Telegram Radio"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
-            <span>{copied ? 'Tersalin!' : 'Salin Naskah'}</span>
+            <span className="hidden sm:inline">{copied ? 'Tersalin!' : 'Salin Naskah'}</span>
           </button>
 
           <button
             onClick={handleDownloadQr}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
               isDarkMode
                 ? 'text-slate-200 bg-slate-800 hover:bg-slate-700 border-slate-700'
                 : 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-300 shadow-sm'
@@ -281,12 +351,12 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
             title="Unduh Barcode QR Verifikasi"
           >
             <Download className="w-3.5 h-3.5 text-slate-400" />
-            <span className="hidden sm:inline">Unduh Barcode</span>
+            <span className="hidden sm:inline">Unduh QR</span>
           </button>
 
           <button
             onClick={handleDownloadHtml}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
               isDarkMode
                 ? 'text-slate-200 bg-slate-800 hover:bg-slate-700 border-slate-700'
                 : 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-300 shadow-sm'
@@ -294,17 +364,28 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
             title="Unduh Dokumen Mandiri (Bisa Dibuka Offline)"
           >
             <FileDown className="w-3.5 h-3.5 text-slate-400" />
-            <span className="hidden sm:inline">Unduh HTML</span>
+            <span className="hidden sm:inline">HTML</span>
           </button>
 
           <button
             onClick={handlePrint}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-gradient-to-r ${accentColors.gradient} hover:opacity-95 rounded-lg shadow-md transition-all hover:scale-[1.02]`}
-            title="Cetak Langsung Lembar Dokumen Resmi A4"
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r ${accentColors.gradient} hover:opacity-95 rounded-lg shadow-md transition-all hover:scale-[1.02]`}
+            title={`Cetak Langsung Lembar Dokumen Resmi (${pageSize})`}
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>Cetak Dokumen (PDF)</span>
+            <span>Cetak ({pageSize})</span>
           </button>
+
+          {onDelete && (
+            <button
+              onClick={handleDeleteClick}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg transition-colors"
+              title="Hapus Dokumen BRA SAR ini dari arsip"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Hapus</span>
+            </button>
+          )}
 
           {onClose && (
             <button
@@ -353,12 +434,18 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
       <div
         ref={docRef}
         id="official-bra-document"
-        className={`w-full max-w-4xl font-sans p-6 sm:p-10 transition-colors shadow-2xl border print:border-none print:shadow-none print:p-0 print:max-w-none print:bg-white print:text-black ${
+        className={`w-full font-sans p-6 sm:p-10 transition-colors shadow-2xl border print:border-none print:shadow-none print:p-0 print:max-w-none print:bg-white print:text-black ${
+          pageSize === 'F4' || pageSize === 'LEGAL' ? 'max-w-[850px]' : 'max-w-4xl'
+        } ${
           isDarkMode
             ? 'bg-slate-900 text-slate-100 border-slate-700'
             : 'bg-white text-slate-950 border-gray-300 shadow-xl'
         }`}
-        style={{ minHeight: '1050px' }}
+        style={{
+          minHeight: pageSize === 'LEGAL' ? '1340px' : pageSize === 'F4' ? '1240px' : '1050px',
+          transform: pageScale !== 100 ? `scale(${pageScale / 100})` : undefined,
+          transformOrigin: 'top center',
+        }}
       >
         {/* Header: Basarnas Logo + Titles (KOP) - Logo Centered above text as per official Basarnas standard */}
         <div className="flex flex-col items-center justify-center pb-3 mb-2 text-center">
@@ -453,14 +540,14 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               <div className={`col-span-5 sm:col-span-4 divide-y-2 flex flex-col justify-between print:divide-black ${
                 isDarkMode ? 'divide-slate-700' : 'divide-black'
               }`}>
-                {/* Baris 1: TANGGAL WAKTU : */}
-                <div className={`p-1.5 sm:p-2 flex items-center min-h-[30px] print:bg-white ${
+                {/* Baris 1: TANGGAL WAKTU (Tanpa : dan Posisi Center) */}
+                <div className={`p-1.5 sm:p-2 flex items-center justify-center text-center min-h-[30px] print:bg-white ${
                   isDarkMode ? 'bg-slate-850' : 'bg-white'
                 }`}>
-                  <span className={`font-bold uppercase text-[9.5px] sm:text-[10.5px] print:text-black ${
+                  <span className={`font-bold uppercase text-[9.5px] sm:text-[10.5px] tracking-wider text-center print:text-black ${
                     isDarkMode ? 'text-slate-300' : 'text-black'
                   }`}>
-                    TANGGAL WAKTU :
+                    TANGGAL WAKTU
                   </span>
                 </div>
 
