@@ -22,7 +22,8 @@ import { Operasi, Renops, RenopsSRU, DetailUnsur, DetailAlut, MasterAlut } from 
 import { hitungHariKe, formatTW, generateRenopsWA } from '../utils/templates';
 import { showSuccessAlert, showErrorAlert, showToast } from '../utils/alerts';
 import { DateTimeInput24H } from './DateTimeInput24H';
-import { UnsurAlutEditor } from './UnsurAlutEditor';
+import { UnsurSarEditor } from './UnsurSarEditor';
+import { AlutPalsarEditor } from './AlutPalsarEditor';
 import { useTheme } from '../context/ThemeContext';
 
 interface FormRenopsModalProps {
@@ -571,20 +572,22 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
               </div>
             </div>
 
-            {/* CARD 4: Personel & Alut Terlibat */}
-            <div className={`p-5 rounded-2xl border transition-colors ${
-              isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <UnsurAlutEditor
-                title="4. Unsur SAR & Alut Palsar Bertugas"
-                description="Daftar instansi gabungan dan armada perahu/peralatan yang ditugaskan hari ini"
-                unsurList={unsurList}
-                alutList={alutList}
-                masterAlut={masterAlut}
-                onUnsurChange={setUnsurList}
-                onAlutChange={setAlutList}
-              />
-            </div>
+            {/* CARD 4: Unsur SAR Terlibat */}
+            <UnsurSarEditor
+              title="4. Unsur SAR Terlibat"
+              description="Daftar instansi potensi SAR gabungan dan jumlah personel yang bertugas hari ini"
+              unsurList={unsurList}
+              onChangeUnsur={setUnsurList}
+            />
+
+            {/* CARD 5: Alut & Palsar yang Dikerahkan */}
+            <AlutPalsarEditor
+              title="5. Alut & Palsar yang Dikerahkan"
+              description="Daftar armada perahu/kapal, kendaraan operasional, dan peralatan SAR khusus"
+              alutList={alutList}
+              masterAlut={masterAlut}
+              onChangeAlut={setAlutList}
+            />
           </div>
 
           {/* Right Column: Sticky Live WhatsApp Preview (5 cols) */}

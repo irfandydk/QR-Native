@@ -673,6 +673,70 @@ Hanya berikan JSON murni tanpa markdown triple backticks.`;
     }
   });
 
+  app.put('/api/settings', (req, res) => {
+    try {
+      const updated = db.updateSettings(req.body);
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // --- Pejabat Management Endpoints ---
+  app.get('/api/settings/pejabat', (req, res) => {
+    try {
+      const list = db.getPejabatList();
+      res.json({ success: true, data: list });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/settings/pejabat', (req, res) => {
+    try {
+      const { nama, nip, pangkat, jabatan, is_default_smc } = req.body;
+      if (!nama || !jabatan) {
+        return res.status(400).json({ success: false, error: 'Nama dan Jabatan wajib diisi' });
+      }
+      const created = db.addPejabat({
+        nama,
+        nip: nip || '',
+        pangkat: pangkat || '',
+        jabatan,
+        is_default_smc: Boolean(is_default_smc),
+      });
+      res.json({ success: true, data: created });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.put('/api/settings/pejabat/:id', (req, res) => {
+    try {
+      const id = req.params.id;
+      const updated = db.updatePejabat(id, req.body);
+      if (!updated) {
+        return res.status(404).json({ success: false, error: 'Data pejabat tidak ditemukan' });
+      }
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.delete('/api/settings/pejabat/:id', (req, res) => {
+    try {
+      const id = req.params.id;
+      const ok = db.deletePejabat(id);
+      if (!ok) {
+        return res.status(404).json({ success: false, error: 'Data pejabat tidak ditemukan' });
+      }
+      res.json({ success: true, message: 'Pejabat berhasil dihapus' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Vite middleware for development vs static production serving
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

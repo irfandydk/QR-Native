@@ -48,9 +48,41 @@ export const Header: React.FC<HeaderProps> = ({
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showBraMenu, setShowBraMenu] = useState(false);
+  const [satkerLogo, setSatkerLogo] = useState<string | null>(null);
+  const [satkerName, setSatkerName] = useState<string>('KPP KENDARI');
+
   const themeMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const braMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fetch satker logo & settings
+  const loadSatkerSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      if (data.success && data.data) {
+        if (data.data.logo_url) {
+          setSatkerLogo(data.data.logo_url);
+        }
+        if (data.data.nama_kantor) {
+          setSatkerName(data.data.nama_kantor);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load satker settings for header:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadSatkerSettings();
+    const handleSettingsUpdated = () => {
+      loadSatkerSettings();
+    };
+    window.addEventListener('satker-settings-updated', handleSettingsUpdated);
+    return () => {
+      window.removeEventListener('satker-settings-updated', handleSettingsUpdated);
+    };
+  }, []);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -157,10 +189,22 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-3 cursor-pointer group select-none shrink-0"
             title="Kembali ke Dashboard Utama"
           >
-            {/* Basarnas Orange Insignia Badge */}
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 flex items-center justify-center shadow-md shadow-orange-500/25 border border-orange-400/40 group-hover:scale-105 transition-transform duration-200 shrink-0">
-              <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow" />
-            </div>
+            {/* Display custom Satker Logo if uploaded, otherwise fallback to Shield Insignia */}
+            {satkerLogo ? (
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white dark:bg-slate-800 p-1 flex items-center justify-center shadow-md shadow-orange-500/20 border border-orange-400/40 group-hover:scale-105 transition-transform duration-200 shrink-0 overflow-hidden">
+                <img
+                  src={satkerLogo}
+                  alt="Logo Satker Basarnas"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-contain"
+                  onError={() => setSatkerLogo(null)}
+                />
+              </div>
+            ) : (
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 flex items-center justify-center shadow-md shadow-orange-500/25 border border-orange-400/40 group-hover:scale-105 transition-transform duration-200 shrink-0">
+                <Shield className="w-5 h-5 sm:w-6 sm:h-6 text-white drop-shadow" />
+              </div>
+            )}
 
             <div>
               <div className="flex items-center gap-2">
@@ -171,8 +215,8 @@ export const Header: React.FC<HeaderProps> = ({
                   FILE AKTIF
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-tight">
-                KPP KENDARI • Quick Report SAR
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-tight uppercase">
+                {satkerName} • Quick Report SAR
               </p>
             </div>
           </div>

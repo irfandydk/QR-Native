@@ -19,7 +19,8 @@ import { MasterAlut, MasterTim, Operasi, Korban, DetailUnsur, DetailAlut } from 
 import { generateLaporanAwalWA } from '../utils/templates';
 import { showSuccessAlert, showErrorAlert, showToast } from '../utils/alerts';
 import { DateTimeInput24H } from './DateTimeInput24H';
-import { UnsurAlutEditor } from './UnsurAlutEditor';
+import { UnsurSarEditor } from './UnsurSarEditor';
+import { AlutPalsarEditor } from './AlutPalsarEditor';
 
 interface FormInisiasiProps {
   initialOperasi?: Operasi | null;
@@ -956,15 +957,22 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
             </div>
           </div>
 
-          {/* Card 6 & 7: Unsur SAR & Alut Palsar Terlibat */}
-          <UnsurAlutEditor
+          {/* Card 6: Unsur SAR Terlibat */}
+          <UnsurSarEditor
             unsurList={unsurList}
-            alutList={alutList}
-            masterAlut={masterAlut}
             onChangeUnsur={setUnsurList}
+            masterTim={masterTim}
+            title="6. Unsur SAR Terlibat"
+            description="Daftar instansi potensi SAR dan jumlah personel gabungan yang dikerahkan"
+          />
+
+          {/* Card 7: Alut & Palsar Terlibat */}
+          <AlutPalsarEditor
+            alutList={alutList}
             onChangeAlut={setAlutList}
-            title="6 & 7. Unsur SAR & Alut / Palsar Terlibat"
-            description="Daftar instansi potensi SAR, armada dan peralatan yang dikerahkan (terintegrasi & dapat disinkronkan ke Renops/Sitrep)"
+            masterAlut={masterAlut}
+            title="7. Alut & Palsar Terlibat"
+            description="Daftar armada kapal/perahu, kendaraan, dan peralatan SAR yang dikerahkan"
           />
 
           {/* Card 8: Cuaca & Faktor Penghambat */}

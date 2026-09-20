@@ -5,6 +5,7 @@ import { FormInisiasi } from './components/FormInisiasi';
 import { DetailOperasiHub } from './components/DetailOperasiHub';
 import { MasterDataModal } from './components/MasterDataModal';
 import { MasterSettingsPage } from './components/MasterSettingsPage';
+import { BraArchivePage } from './components/BraArchivePage';
 import { SqlExportModal } from './components/SqlExportModal';
 import { ViewLaporanModal } from './components/ViewLaporanModal';
 import { FormBraSar } from './components/FormBraSar';
@@ -14,6 +15,7 @@ import { LoginPage } from './components/LoginPage';
 import { useTheme } from './context/ThemeContext';
 import { showToast } from './utils/alerts';
 import { Operasi, MasterAlut, MasterTim, BraSar, KategoriBra, UserSession } from './types';
+import { ShieldCheck, LogIn } from 'lucide-react';
 
 export default function App() {
   const { isDarkMode } = useTheme();
@@ -26,7 +28,7 @@ export default function App() {
     }
   });
 
-  const [view, setView] = useState<'dashboard' | 'form-inisiasi' | 'detail-hub' | 'form-bra' | 'view-bra' | 'master-settings'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'form-inisiasi' | 'detail-hub' | 'form-bra' | 'view-bra' | 'master-settings' | 'bra-archive'>('dashboard');
   const [selectedOperasiId, setSelectedOperasiId] = useState<number | null>(null);
   const [editingOperasi, setEditingOperasi] = useState<Operasi | null>(null);
 
@@ -36,6 +38,8 @@ export default function App() {
   const [activeBraDoc, setActiveBraDoc] = useState<BraSar | null>(null);
   const [showBraListModal, setShowBraListModal] = useState<boolean>(false);
   const [preselectedBraOpId, setPreselectedBraOpId] = useState<number | null>(null);
+  const [isPublicScanView, setIsPublicScanView] = useState<boolean>(false);
+  const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
 
   const [operasiList, setOperasiList] = useState<Operasi[]>([]);
   const [masterAlut, setMasterAlut] = useState<MasterAlut[]>([]);
@@ -90,12 +94,13 @@ export default function App() {
     fetchData();
   }, [fetchData]);
 
-  // Handle URL query for Direct QR Code Scan verification (?viewBra=123)
+  // Handle URL query for Direct QR Code Scan verification (?viewBra=123 or ?bra=123)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const braId = params.get('viewBra') || params.get('bra');
       if (braId) {
+        setIsPublicScanView(true);
         fetch(`/api/bra/${braId}`)
           .then((res) => res.json())
           .then((data) => {
@@ -199,6 +204,79 @@ export default function App() {
     showToast('Berhasil keluar dari sistem SAR.', 'info');
   };
 
+  // If viewing via QR scan without login, render public verification view directly!
+  if (!currentUser && (isPublicScanView || view === 'view-bra') && activeBraDoc) {
+    return (
+      <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${
+        isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      }`}>
+        {/* Public Header Banner */}
+        <div className={`border-b px-4 py-3 shadow-md flex items-center justify-between gap-3 ${
+          isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-bold text-xs shadow">
+              SAR
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm tracking-wide">BASARNAS KENDARI</span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                  <ShieldCheck className="w-3 h-3" />
+                  Verifikasi Dokumen Resmi
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400">Pusat Validasi Berita Radio SAR (BRA SAR) Digital</p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowLoginModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold shadow transition-all"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Login Petugas</span>
+          </button>
+        </div>
+
+        {/* Public Document View */}
+        <div className="flex-1 py-6 px-2 sm:px-6">
+          <OfficialBraDocument
+            bra={activeBraDoc}
+            onClose={() => {
+              if (typeof window !== 'undefined' && window.location.search) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+              }
+              setIsPublicScanView(false);
+            }}
+          />
+        </div>
+
+        {/* Login modal popup for officers */}
+        {showLoginModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="w-full max-w-md relative">
+              <button
+                onClick={() => setShowLoginModal(false)}
+                className="absolute right-3 top-3 text-slate-400 hover:text-white z-10 text-xs px-2 py-1 bg-black/40 rounded-lg"
+              >
+                Tutup ✕
+              </button>
+              <LoginPage
+                onLoginSuccess={(user) => {
+                  setCurrentUser(user);
+                  setShowLoginModal(false);
+                  setIsPublicScanView(false);
+                  setView('dashboard');
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // If not logged in, show Login Page before entering Dashboard
   if (!currentUser) {
     return <LoginPage onLoginSuccess={(user) => setCurrentUser(user)} />;
@@ -228,7 +306,7 @@ export default function App() {
           setActiveBraDoc(null);
         }}
         onCreateBra={(kategori) => handleOpenCreateBra(kategori)}
-        onOpenBraList={() => setShowBraListModal(true)}
+        onOpenBraList={() => setView('bra-archive')}
       />
 
       {/* Main Content Area */}
@@ -252,12 +330,26 @@ export default function App() {
               setView('view-bra');
             }}
           />
+        ) : view === 'bra-archive' ? (
+          <BraArchivePage
+            braList={braList}
+            onSelectBra={(bra) => {
+              setActiveBraDoc(bra);
+              setView('view-bra');
+            }}
+            onCreateBra={(kategori) => handleOpenCreateBra(kategori)}
+            onBack={() => setView('dashboard')}
+          />
         ) : view === 'view-bra' && activeBraDoc ? (
           <div className="py-6">
             <OfficialBraDocument
               bra={activeBraDoc}
               onClose={() => {
-                setView(selectedOperasiId ? 'detail-hub' : 'dashboard');
+                if (selectedOperasiId) {
+                  setView('detail-hub');
+                } else {
+                  setView('bra-archive');
+                }
               }}
               onEdit={() => {
                 setActiveBraKategori(activeBraDoc.kategori);
@@ -360,8 +452,8 @@ export default function App() {
           </p>
           <div className="flex items-center gap-4">
             <button
-              onClick={() => setShowBraListModal(true)}
-              className="hover:text-amber-500 transition-colors"
+              onClick={() => setView('bra-archive')}
+              className="hover:text-amber-500 transition-colors cursor-pointer font-semibold"
             >
               Arsip BRA SAR ({braList.length})
             </button>
@@ -370,7 +462,7 @@ export default function App() {
             <span>•</span>
             <button
               onClick={() => setShowSqlModal(true)}
-              className="hover:text-orange-500 underline transition-colors"
+              className="hover:text-orange-500 underline transition-colors cursor-pointer"
             >
               Export db_sar_qr.sql
             </button>

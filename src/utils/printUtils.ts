@@ -1,8 +1,81 @@
 /**
- * Utility Cetak Dokumen Resmi Basarnas
- * Mendukung pencetakan isolasi via hidden iframe yang bekerja 100% pada semua browser
- * dan tidak terblokir oleh pembatasan iframe / sandbox.
+ * Utility Cetak dan Unduh Dokumen Resmi Basarnas
+ * Menjamin 100% konsistensi antara Tampilan Preview dan Hasil Cetak/Download PDF.
  */
+
+export const getBasePrintStyles = () => `
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 8mm 10mm;
+  }
+  *, *::before, *::after {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .print-wrapper {
+    width: 100%;
+    max-width: 820px;
+    margin: 0 auto;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 10px;
+  }
+  #official-bra-document {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .print\\:hidden, .no-print, button {
+    display: none !important;
+  }
+  /* Table & Border overrides to guarantee high contrast black lines */
+  table, tr, td, th {
+    border-color: #000000 !important;
+  }
+  .border, .border-2, .border-t, .border-b, .border-l, .border-r,
+  .divide-y, .divide-y-2, .divide-x, .divide-x-2 {
+    border-color: #000000 !important;
+  }
+  .divide-y > :not([hidden]) ~ :not([hidden]),
+  .divide-y-2 > :not([hidden]) ~ :not([hidden]) {
+    border-top-color: #000000 !important;
+  }
+  .divide-x > :not([hidden]) ~ :not([hidden]),
+  .divide-x-2 > :not([hidden]) ~ :not([hidden]) {
+    border-left-color: #000000 !important;
+  }
+  /* Ensure all text in document is solid black */
+  p, span, div, h1, h2, h3, h4, strong {
+    color: #000000 !important;
+  }
+  .text-amber-500, .text-amber-600, .text-orange-500, .text-orange-600,
+  .text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900,
+  .text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800, .text-gray-900 {
+    color: #000000 !important;
+  }
+  .bg-slate-900, .bg-slate-800, .bg-slate-850, .bg-slate-950, .bg-slate-50, .bg-gray-50, .bg-white {
+    background-color: #ffffff !important;
+  }
+  img {
+    max-width: 100%;
+    page-break-inside: avoid;
+  }
+`;
 
 export const printElement = (elementId: string, docTitle = 'Dokumen Resmi Basarnas'): Promise<boolean> => {
   return new Promise((resolve) => {
@@ -34,13 +107,12 @@ export const printElement = (elementId: string, docTitle = 'Dokumen Resmi Basarn
 
     const iframeDoc = iframe.contentWindow?.document;
     if (!iframeDoc) {
-      // Fallback ke window.print biasa
       window.print();
       resolve(true);
       return;
     }
 
-    // Kumpulkan CSS dari halaman induk agar layout Tailwind dan border tercetak presisi
+    // Ambil stylesheet aplikasi yang aktif
     let stylesHtml = '';
     const styleSheets = Array.from(document.styleSheets);
     for (const sheet of styleSheets) {
@@ -52,69 +124,26 @@ export const printElement = (elementId: string, docTitle = 'Dokumen Resmi Basarn
           stylesHtml += `<style>${rules}</style>`;
         }
       } catch (e) {
-        // Cross-origin stylesheet, buat link rel
         if (sheet.href) {
           stylesHtml += `<link rel="stylesheet" href="${sheet.href}">`;
         }
       }
     }
 
-    // Tambahkan CSS cetak resmi presisi tinggi (A4, margin 12mm, warna hitam pekat)
-    const customPrintStyles = `
-      <style>
-        @page {
-          size: A4 portrait;
-          margin: 10mm 12mm 10mm 12mm;
-        }
-        *, *::before, *::after {
-          box-sizing: border-box;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        body {
-          margin: 0;
-          padding: 0;
-          background: #ffffff !important;
-          color: #000000 !important;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-          font-size: 11pt;
-          line-height: 1.35;
-        }
-        #official-bra-document, .print-container {
-          width: 100% !important;
-          max-width: 100% !important;
-          margin: 0 auto !important;
-          padding: 0 !important;
-          border: none !important;
-          box-shadow: none !important;
-          background: #ffffff !important;
-          color: #000000 !important;
-        }
-        .print\\:hidden, button, .no-print {
-          display: none !important;
-        }
-        table, tr, td, th {
-          border-color: #000000 !important;
-        }
-        img {
-          max-width: 100%;
-          page-break-inside: avoid;
-        }
-      </style>
-    `;
-
     iframeDoc.open();
     iframeDoc.write(`
       <!DOCTYPE html>
-      <html>
+      <html lang="id">
         <head>
           <meta charset="utf-8">
           <title>${docTitle}</title>
           ${stylesHtml}
-          ${customPrintStyles}
+          <style>
+            ${getBasePrintStyles()}
+          </style>
         </head>
         <body>
-          <div class="print-container">
+          <div class="print-wrapper">
             ${element.outerHTML}
           </div>
         </body>
@@ -142,11 +171,29 @@ export const printElement = (elementId: string, docTitle = 'Dokumen Resmi Basarn
 };
 
 /**
- * Unduh Dokumen sebagai file HTML mandiri (bisa dibuka dan dicetak di Chrome/Edge)
+ * Unduh Dokumen sebagai file HTML mandiri yang 100% presisi dan mandiri
  */
-export const downloadDocumentHtml = (elementId: string, filename = 'Dokumen_SAR.html') => {
+export const downloadDocumentHtml = (elementId: string, filename = 'Dokumen_BRA_SAR.html') => {
   const element = document.getElementById(elementId);
   if (!element) return;
+
+  // Kumpulkan style aplikasi
+  let stylesHtml = '';
+  const styleSheets = Array.from(document.styleSheets);
+  for (const sheet of styleSheets) {
+    try {
+      if (sheet.cssRules) {
+        const rules = Array.from(sheet.cssRules)
+          .map((r) => r.cssText)
+          .join('\n');
+        stylesHtml += `<style>${rules}</style>`;
+      }
+    } catch (e) {
+      if (sheet.href) {
+        stylesHtml += `<link rel="stylesheet" href="${sheet.href}">`;
+      }
+    }
+  }
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -155,21 +202,54 @@ export const downloadDocumentHtml = (elementId: string, filename = 'Dokumen_SAR.
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>${filename.replace('.html', '')}</title>
-        <script src="https://cdn.tailwindcss.com"></script>
+        ${stylesHtml}
         <style>
-          @page { size: A4; margin: 12mm; }
-          body { background: #fff; color: #000; font-family: sans-serif; padding: 20px; }
-          .print-toolbar { text-align: center; margin-bottom: 20px; }
-          @media print { .print-toolbar { display: none; } body { padding: 0; } }
+          ${getBasePrintStyles()}
+          .action-bar {
+            max-width: 820px;
+            margin: 15px auto;
+            padding: 12px 18px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          }
+          .action-bar button {
+            padding: 8px 16px;
+            background: #ea580c;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 13px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+          }
+          .action-bar button:hover {
+            background: #c2410c;
+          }
+          @media print {
+            .action-bar { display: none !important; }
+            .print-wrapper { padding: 0 !important; }
+          }
         </style>
       </head>
       <body>
-        <div class="print-toolbar">
-          <button onclick="window.print()" style="padding: 10px 20px; background: #ea580c; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
-            🖨️ Cetak Dokumen Ini (PDF / Print)
+        <div class="action-bar no-print">
+          <div>
+            <strong style="color: #0f172a; font-size: 14px;">📄 Lembar Dokumen Resmi BRA SAR</strong>
+            <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">Standar Format Korps Basarnas • Siap Dicetak ke PDF</p>
+          </div>
+          <button onclick="window.print()">
+            🖨️ Cetak / Simpan PDF
           </button>
         </div>
-        <div style="max-width: 800px; margin: 0 auto; background: white;">
+        <div class="print-wrapper">
           ${element.outerHTML}
         </div>
       </body>
@@ -183,3 +263,4 @@ export const downloadDocumentHtml = (elementId: string, filename = 'Dokumen_SAR.
   link.click();
   URL.revokeObjectURL(link.href);
 };
+

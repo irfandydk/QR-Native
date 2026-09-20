@@ -349,6 +349,14 @@ class Database {
     return this.data.master_tim;
   }
 
+  public getSettings(): AppSettings {
+    return this.getAppSettings();
+  }
+
+  public updateSettings(settings: Partial<AppSettings>): AppSettings {
+    return this.updateAppSettings(settings);
+  }
+
   // App Settings & Pejabat
   public getAppSettings(): AppSettings {
     if (!this.data.app_settings) {
@@ -459,13 +467,13 @@ class Database {
 
     const newUnsurList: DetailUnsur[] = unsurList.map((u, idx) => ({
       ...u,
-      id_detail_unsur: this.data.detail_unsur.reduce((max, item) => Math.max(max, item.id_detail_unsur), 0) + idx + 1,
+      id_detail_unsur: this.data.detail_unsur.reduce((max, item) => Math.max(max, item.id_detail_unsur || 0), 0) + idx + 1,
       id_operasi: nextOpId,
     }));
 
     const newAlutList: DetailAlut[] = alutList.map((a, idx) => ({
       ...a,
-      id_detail_alut: this.data.detail_alut.reduce((max, item) => Math.max(max, item.id_detail_alut), 0) + idx + 1,
+      id_detail_alut: this.data.detail_alut.reduce((max, item) => Math.max(max, item.id_detail_alut || 0), 0) + idx + 1,
       id_operasi: nextOpId,
     }));
 
@@ -529,7 +537,7 @@ class Database {
       this.data.detail_unsur = this.data.detail_unsur.filter(u => u.id_operasi !== id_operasi);
       const newUnsur: DetailUnsur[] = unsurList.map((u, idx) => ({
         ...u,
-        id_detail_unsur: this.data.detail_unsur.reduce((max, item) => Math.max(max, item.id_detail_unsur), 0) + idx + 1,
+        id_detail_unsur: this.data.detail_unsur.reduce((max, item) => Math.max(max, item.id_detail_unsur || 0), 0) + idx + 1,
         id_operasi,
       }));
       this.data.detail_unsur.push(...newUnsur);
@@ -539,7 +547,7 @@ class Database {
       this.data.detail_alut = this.data.detail_alut.filter(a => a.id_operasi !== id_operasi);
       const newAlut: DetailAlut[] = alutList.map((a, idx) => ({
         ...a,
-        id_detail_alut: this.data.detail_alut.reduce((max, item) => Math.max(max, item.id_detail_alut), 0) + idx + 1,
+        id_detail_alut: this.data.detail_alut.reduce((max, item) => Math.max(max, item.id_detail_alut || 0), 0) + idx + 1,
         id_operasi,
       }));
       this.data.detail_alut.push(...newAlut);
@@ -620,7 +628,7 @@ class Database {
       this.data.detail_unsur = this.data.detail_unsur.filter(u => u.id_operasi !== id_operasi);
       updatedUnsur.forEach((u, idx) => {
         this.data.detail_unsur.push({
-          id_detail_unsur: this.data.detail_unsur.reduce((max, item) => Math.max(max, item.id_detail_unsur), 0) + idx + 1,
+          id_detail_unsur: this.data.detail_unsur.reduce((max, item) => Math.max(max, item.id_detail_unsur || 0), 0) + idx + 1,
           id_operasi,
           nama_unsur: u.nama_unsur,
           jumlah_personil: Number(u.jumlah_personil) || 1,
@@ -632,7 +640,7 @@ class Database {
       this.data.detail_alut = this.data.detail_alut.filter(a => a.id_operasi !== id_operasi);
       updatedAlut.forEach((a, idx) => {
         this.data.detail_alut.push({
-          id_detail_alut: this.data.detail_alut.reduce((max, item) => Math.max(max, item.id_detail_alut), 0) + idx + 1,
+          id_detail_alut: this.data.detail_alut.reduce((max, item) => Math.max(max, item.id_detail_alut || 0), 0) + idx + 1,
           id_operasi,
           id_alut: a.id_alut,
           nama_alut: a.nama_alut,
@@ -707,7 +715,7 @@ class Database {
       this.data.detail_unsur = this.data.detail_unsur.filter(u => u.id_operasi !== id_operasi);
       updatedUnsur.forEach((u, idx) => {
         this.data.detail_unsur.push({
-          id_detail_unsur: this.data.detail_unsur.reduce((max, item) => Math.max(max, item.id_detail_unsur), 0) + idx + 1,
+          id_detail_unsur: this.data.detail_unsur.reduce((max, item) => Math.max(max, item.id_detail_unsur || 0), 0) + idx + 1,
           id_operasi,
           nama_unsur: u.nama_unsur,
           jumlah_personil: Number(u.jumlah_personil) || 1,
@@ -719,7 +727,7 @@ class Database {
       this.data.detail_alut = this.data.detail_alut.filter(a => a.id_operasi !== id_operasi);
       updatedAlut.forEach((a, idx) => {
         this.data.detail_alut.push({
-          id_detail_alut: this.data.detail_alut.reduce((max, item) => Math.max(max, item.id_detail_alut), 0) + idx + 1,
+          id_detail_alut: this.data.detail_alut.reduce((max, item) => Math.max(max, item.id_detail_alut || 0), 0) + idx + 1,
           id_operasi,
           id_alut: a.id_alut,
           nama_alut: a.nama_alut,
@@ -913,28 +921,6 @@ class Database {
       return true;
     }
     return false;
-  }
-
-  // App Settings (Logo & Satker)
-  public getSettings() {
-    if (!this.data.app_settings) {
-      this.data.app_settings = {
-        logo_url: '',
-        satker_kode: 'SAR-304',
-        satker_nama: 'KANTOR PENCARIAN DAN PERTOLONGAN KENDARI',
-      };
-    }
-    return this.data.app_settings;
-  }
-
-  public updateSettings(settings: Partial<{ logo_url: string; satker_kode: string; satker_nama: string }>) {
-    const current = this.getSettings();
-    this.data.app_settings = {
-      ...current,
-      ...settings,
-    };
-    this.saveData();
-    return this.data.app_settings;
   }
 
   // Generate MySQL dump text

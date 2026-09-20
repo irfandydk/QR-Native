@@ -26,6 +26,8 @@ import {
   countBraWords,
   formatIndoDate,
   getDefaultBraTemplate,
+  buildBraSectionsFromRenops,
+  buildBraSectionsFromSitrep,
 } from '../utils/braUtils';
 import { OfficialBraDocument } from './OfficialBraDocument';
 import { showSuccessAlert, showErrorAlert, showWarningAlert, showToast } from '../utils/alerts';
@@ -196,6 +198,54 @@ export const FormBraSar: React.FC<FormBraSarProps> = ({
     const opId = opIdStr ? parseInt(opIdStr, 10) : null;
     setSelectedOperasiId(opId);
     applyTemplate(kategori, opId);
+  };
+
+  // Muat rekomendasi otomatis dari Laporan Terakhir operasi terkait
+  const handleLoadRecommendation = (type: 'RENOPS' | 'SITREP' | 'INISIASI') => {
+    const selectedOp = operasiList.find((o) => o.id_operasi === selectedOperasiId);
+    if (!selectedOp) {
+      showWarningAlert('Pilih Operasi SAR', 'Silakan pilih Operasi SAR terlebih dahulu pada dropdown di atas.');
+      return;
+    }
+
+    const now = new Date();
+    const twuStr = formatMilitaryTW(now, 'H');
+    const twbStr = formatMilitaryTW(new Date(now.getTime() - 15 * 60000), 'H');
+
+    if (type === 'RENOPS') {
+      const renopsList = selectedOp.renops || [];
+      if (renopsList.length === 0) {
+        showWarningAlert('Data Belum Ada', 'Belum ada Rencana Operasi (Renops) yang dibuat untuk operasi SAR ini.');
+        return;
+      }
+      const latestRenops = renopsList[renopsList.length - 1];
+      const res = buildBraSectionsFromRenops(selectedOp, latestRenops, twbStr, twuStr);
+      setSections(res.sections);
+      setPerihal(res.perihal);
+      setAksi(res.aksi);
+      setInfo(res.info);
+      setTwu(twuStr);
+      setTwb(twbStr);
+      showToast(`Rekomendasi Rencana Operasi Hari Ke-${latestRenops.hari_ke || 1} berhasil dimuat!`, 'success');
+    } else if (type === 'SITREP') {
+      const sitrepList = (selectedOp.laporan as any) || [];
+      if (sitrepList.length === 0) {
+        showWarningAlert('Data Belum Ada', 'Belum ada Laporan Perkembangan (Lapbang) yang dibuat untuk operasi SAR ini.');
+        return;
+      }
+      const latestSitrep = sitrepList[sitrepList.length - 1];
+      const res = buildBraSectionsFromSitrep(selectedOp, latestSitrep, twbStr, twuStr);
+      setSections(res.sections);
+      setPerihal(res.perihal);
+      setAksi(res.aksi);
+      setInfo(res.info);
+      setTwu(twuStr);
+      setTwb(twbStr);
+      showToast(`Rekomendasi Laporan Perkembangan Hari Ke-${latestSitrep.hari_ke || 1} berhasil dimuat!`, 'success');
+    } else if (type === 'INISIASI') {
+      applyTemplate('SAR_UMUM', selectedOperasiId);
+      showToast('Rekomendasi Laporan Awal berhasil dimuat!', 'success');
+    }
   };
 
   // Muat Preset Kapal (KN SAR Pacitan 102 / Rescue Boat 210) sesuai Lampiran Resmi
@@ -815,6 +865,68 @@ MOHON BANTUAN BCC UNTUK PEMANTAUAN MELALUI IMSAR DAN GPS TRACKING TTK`,
               </span>
             </div>
           </div>
+
+          {/* Quick Recommendation from selected Operasi SAR reports */}
+          {selectedOperasiId && (
+            <div className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in transition-colors ${
+              isDarkMode
+                ? 'bg-amber-950/20 border-amber-500/30 text-amber-200'
+                : 'bg-amber-50 border-amber-200 text-amber-900'
+            }`}>
+              <div className="flex items-center gap-2 text-xs">
+                <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                <div>
+                  <span className="font-bold">Rekomendasi Isi Telegram Otomatis:</span>
+                  <p className={`text-[11px] ${isDarkMode ? 'text-amber-300/80' : 'text-amber-700'}`}>
+                    Muat teks rekomendasi bagian AAA, BBB, CCC sesuai data laporan terbaru operasi ini:
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleLoadRecommendation('RENOPS')}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1 ${
+                    isDarkMode
+                      ? 'bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 border-amber-500/40'
+                      : 'bg-white hover:bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
+                  }`}
+                  title="Otomatis isi AAA-DDD dari Rencana Operasi terakhir"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Rencana Operasi (Renops)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleLoadRecommendation('SITREP')}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1 ${
+                    isDarkMode
+                      ? 'bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 border-amber-500/40'
+                      : 'bg-white hover:bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
+                  }`}
+                  title="Otomatis isi AAA-EEE dari Laporan Perkembangan terakhir"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Lap. Perkembangan (Lapbang)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleLoadRecommendation('INISIASI')}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${
+                    isDarkMode
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+                  }`}
+                  title="Isi dari data Laporan Awal"
+                >
+                  Laporan Awal
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Card 2: Format Militer TWU & TWB */}

@@ -19,7 +19,8 @@ import { Operasi, LaporanHarian, Korban, DetailUnsur, DetailAlut, StatusKorban, 
 import { hitungHariKe, generateLapbangWA, formatTW } from '../utils/templates';
 import { showSuccessAlert, showErrorAlert, showWarningAlert, showToast } from '../utils/alerts';
 import { DateTimeInput24H } from './DateTimeInput24H';
-import { UnsurAlutEditor } from './UnsurAlutEditor';
+import { UnsurSarEditor } from './UnsurSarEditor';
+import { AlutPalsarEditor } from './AlutPalsarEditor';
 import { useTheme } from '../context/ThemeContext';
 
 interface FormSitrepModalProps {
@@ -541,22 +542,24 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
               </div>
             </div>
 
-            {/* CARD 4: Personel & Alut Terlibat */}
-            <div className={`p-5 rounded-2xl border transition-colors ${
-              isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <UnsurAlutEditor
-                title="4. Unsur SAR & Alut Palsar yang Terlibat Hari Ini"
-                description="Personel SAR gabungan dan armada alut yang aktif bergerak di lapangan"
-                unsurList={unsurList}
-                alutList={alutList}
-                masterAlut={masterAlut}
-                onUnsurChange={setUnsurList}
-                onAlutChange={setAlutList}
-              />
-            </div>
+            {/* CARD 4: Unsur SAR Terlibat */}
+            <UnsurSarEditor
+              title="4. Unsur SAR Terlibat Hari Ini"
+              description="Daftar potensi SAR gabungan dan jumlah personel yang bertugas di lapangan"
+              unsurList={unsurList}
+              onChangeUnsur={setUnsurList}
+            />
 
-            {/* CARD 5: Opsi Terminasi / Penutupan Operasi */}
+            {/* CARD 5: Alut & Palsar yang Dikerahkan */}
+            <AlutPalsarEditor
+              title="5. Alut & Palsar yang Digunakan Hari Ini"
+              description="Daftar armada perahu/kapal, kendaraan, dan peralatan khusus yang dikerahkan"
+              alutList={alutList}
+              masterAlut={masterAlut}
+              onChangeAlut={setAlutList}
+            />
+
+            {/* CARD 6: Opsi Terminasi / Penutupan Operasi */}
             <div className={`p-5 rounded-2xl border transition-all ${
               isPenutupan
                 ? isDarkMode

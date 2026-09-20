@@ -381,6 +381,10 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
       });
       const data = await res.json();
       if (data.success) {
+        if (settings.logo_url) {
+          localStorage.setItem('sar_custom_logo_url', settings.logo_url);
+        }
+        window.dispatchEvent(new CustomEvent('satker-settings-updated', { detail: settings }));
         showSuccessAlert('Pengaturan Disimpan', 'Informasi satuan kerja dan aplikasi berhasil diperbarui.');
       } else {
         throw new Error(data.error);

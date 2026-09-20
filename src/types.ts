@@ -24,15 +24,15 @@ export interface Korban {
 }
 
 export interface DetailUnsur {
-  id_detail_unsur: number;
-  id_operasi: number;
+  id_detail_unsur?: number;
+  id_operasi?: number;
   nama_unsur: string;
   jumlah_personil: number;
 }
 
 export interface DetailAlut {
-  id_detail_alut: number;
-  id_operasi: number;
+  id_detail_alut?: number;
+  id_operasi?: number;
   id_alut?: number;
   nama_alut: string;
   satuan: string;
@@ -109,13 +109,18 @@ export interface Operasi {
   full_text_wa: string;
   created_at: string;
   
-  // Relations populated when fetched in detail
+  // Relations and computed helpers populated when fetched in detail
   korban?: Korban[];
   detail_unsur?: DetailUnsur[];
   detail_alut?: DetailAlut[];
   detail_tim_berangkat?: DetailTimBerangkat[];
   renops?: Renops[];
   laporan_harian?: LaporanHarian[];
+  laporan?: LaporanHarian[];
+  pob?: number;
+  korban_selamat?: number;
+  korban_meninggal?: number;
+  korban_hilang?: number;
 }
 
 export type KategoriBra = 'MAPEL' | 'SAR_UMUM' | 'PERGERAKAN_KAPAL';
