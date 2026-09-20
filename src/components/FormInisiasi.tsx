@@ -14,6 +14,14 @@ import {
   Wind,
   Compass,
   FileText,
+  Clock,
+  MapPin,
+  Phone,
+  Shield,
+  UserCheck,
+  RotateCcw,
+  CloudSun,
+  Waves,
 } from 'lucide-react';
 import { MasterAlut, MasterTim, Operasi, Korban, DetailUnsur, DetailAlut } from '../types';
 import { generateLaporanAwalWA } from '../utils/templates';
@@ -21,6 +29,7 @@ import { showSuccessAlert, showErrorAlert, showToast } from '../utils/alerts';
 import { DateTimeInput24H } from './DateTimeInput24H';
 import { UnsurSarEditor } from './UnsurSarEditor';
 import { AlutPalsarEditor } from './AlutPalsarEditor';
+import { useTheme } from '../context/ThemeContext';
 
 interface FormInisiasiProps {
   initialOperasi?: Operasi | null;
@@ -37,6 +46,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
   onBack,
   onSaveSuccess,
 }) => {
+  const { isDarkMode, accentColors, themePalette } = useTheme();
   const isEditing = !!initialOperasi;
 
   // Form states
@@ -47,7 +57,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
   const [hubunganPelapor, setHubunganPelapor] = useState(initialOperasi?.hubungan_pelapor || 'Masyarakat');
   const [noTelpPelapor, setNoTelpPelapor] = useState(initialOperasi?.no_telp_pelapor || '');
 
-  // Helper to format ISO for datetime-local
+  // Helper to format ISO for datetime
   const formatDatetimeLocal = (isoString?: string) => {
     if (!isoString) {
       const now = new Date();
@@ -146,7 +156,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
         }))
       : [
           { nama_unsur: 'Tim Rescue Kansar Kendari', jumlah_personil: 7 },
-          { nama_unsur: 'Polairud', jumlah_personil: 3 },
+          { nama_unsur: 'Polairud Polda Sultra', jumlah_personil: 3 },
           { nama_unsur: 'Masyarakat & Nelayan Setempat', jumlah_personil: 10 },
         ]
   );
@@ -187,6 +197,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
     const formatted = `${latDeg.padStart(2, '0')}° ${latMin.padStart(2, '0')}' ${latSec.padStart(2, '0')}" ${latDir} - ${lonDeg.padStart(3, '0')}° ${lonMin.padStart(2, '0')}' ${lonSec.padStart(2, '0')}" ${lonDir}`;
     setKoordinat(formatted);
     setShowDmsHelper(false);
+    showToast('Format koordinat DMS berhasil diterapkan!', 'success');
   };
 
   // Toggle selected departure team
@@ -299,12 +310,22 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
       if (data.success && data.text) {
         setKronologi(data.text);
         setShowAiModal(false);
+        showToast('Kronologi berhasil dirapikan dengan standar Basarnas!', 'success');
+      } else {
+        throw new Error(data.error || 'Gagal memproses kronologi AI');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      showErrorAlert('Gagal AI Kronologi', err.message || 'Gagal menghubungi server AI');
     } finally {
       setIsAiDrafting(false);
     }
+  };
+
+  // Quick Preset Insert for Kronologi
+  const handleInsertKronologiPreset = (presetText: string) => {
+    setKronologi(presetText);
+    showToast('Template kronologi diterapkan!', 'info');
   };
 
   // Add / Remove Victim
@@ -313,7 +334,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
       ...prev,
       {
         nama_korban: '',
-        umur: '',
+        umur: '30 Tahun',
         jk: 'Laki-laki',
         alamat: '',
         status_korban: 'DP',
@@ -323,33 +344,6 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
 
   const handleRemoveKorban = (index: number) => {
     setKorbanList((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Add / Remove Unsur
-  const handleAddUnsur = () => {
-    setUnsurList((prev) => [...prev, { nama_unsur: '', jumlah_personil: 5 }]);
-  };
-
-  const handleRemoveUnsur = (index: number) => {
-    setUnsurList((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Add / Remove Alut
-  const handleAddAlut = () => {
-    const first = masterAlut[0];
-    setAlutList((prev) => [
-      ...prev,
-      {
-        id_alut: first?.id_alut,
-        nama_alut: first?.nama_alut || 'Rubber Boat',
-        satuan: first?.satuan || 'Unit',
-        jumlah_alut: 1,
-      },
-    ]);
-  };
-
-  const handleRemoveAlut = (index: number) => {
-    setAlutList((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Copy preview
@@ -436,32 +430,62 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
     }
   };
 
+  // Reusable styling helpers based on ThemeContext
+  const cardBgClass = isDarkMode
+    ? 'bg-slate-900/90 border-slate-800 text-slate-100 shadow-xl'
+    : 'bg-white border-slate-200 text-slate-900 shadow-md';
+
+  const innerBoxClass = isDarkMode
+    ? 'bg-slate-950/70 border-slate-800 text-slate-200'
+    : 'bg-slate-50 border-slate-200 text-slate-800';
+
+  const inputClass = `w-full px-3 py-2 text-xs rounded-xl border transition-colors outline-none focus:ring-2 ${accentColors.ring} ${
+    isDarkMode
+      ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500 focus:border-orange-500'
+      : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-orange-500'
+  }`;
+
+  const labelClass = `block text-xs font-semibold mb-1 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Top Bar Navigation */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition-colors"
+          className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all hover:scale-[1.02] active:scale-[0.98] ${
+            isDarkMode
+              ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-sm'
+          }`}
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 text-orange-500" />
           <span>Kembali ke Dashboard</span>
         </button>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-bold border ${
+              isDarkMode
+                ? 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                : 'bg-orange-50 text-orange-600 border-orange-200'
+            }`}
+          >
             {isEditing ? 'Mode Edit Data Operasi' : 'Penyusunan Laporan Awal (FILE AKTIF)'}
           </span>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-xs font-semibold flex items-center justify-between shadow-lg">
-          <span>⚠️ {errorMsg}</span>
+        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-500 text-xs font-semibold flex items-center justify-between shadow-lg">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-500" />
+            <span>{errorMsg}</span>
+          </div>
           <button
             type="button"
             onClick={() => setErrorMsg('')}
-            className="text-red-400 hover:text-white p-1 rounded transition-colors"
+            className="text-red-500 hover:text-red-700 p-1 rounded transition-colors"
           >
             ✕
           </button>
@@ -469,23 +493,35 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
       )}
 
       {/* Main Grid: Form Left, WhatsApp Live Preview Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Form Container */}
         <form onSubmit={handleSubmit} className="lg:col-span-7 space-y-6">
-          {/* Card 1: Nama & Sumber Info */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800">
-              <div className="p-1.5 bg-orange-500/10 text-orange-400 rounded-md border border-orange-500/20">
-                <FileText className="w-4 h-4" />
+          {/* ============================================================
+              POIN 1: Identitas Operasi & Sumber Informasi
+             ============================================================ */}
+          <div className={`border rounded-2xl p-5 space-y-4 ${cardBgClass}`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`p-2 rounded-xl text-white shadow-md bg-gradient-to-r ${accentColors.gradient}`}
+                >
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    1. Identitas Operasi & Sumber Informasi
+                  </h2>
+                  <p className="text-[11px] text-slate-400">
+                    Nama resmi operasi SAR dan data pelapor awal
+                  </p>
+                </div>
               </div>
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                1. Identitas Operasi & Sumber Informasi
-              </h2>
             </div>
 
+            {/* Nama Operasi */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Nama / Judul Operasi SAR <span className="text-red-400">*</span>
+              <label className={labelClass}>
+                Nama / Judul Operasi SAR <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -493,53 +529,90 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                 value={namaOperasi}
                 onChange={(e) => setNamaOperasi(e.target.value)}
                 placeholder="Contoh: KMM 1 Orang Terjatuh dari Longboat di Perairan Wakatobi"
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-xs sm:text-sm text-white focus:outline-none focus:border-orange-500"
+                className={`${inputClass} font-semibold text-sm`}
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Nama Pelapor</label>
-                <input
-                  type="text"
-                  value={namaPelapor}
-                  onChange={(e) => setNamaPelapor(e.target.value)}
-                  placeholder="Bpk. La Ode..."
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
-                />
+            {/* Sumber Informasi / Data Pelapor */}
+            <div className={`p-3.5 rounded-xl border space-y-3 ${innerBoxClass}`}>
+              <div className="flex items-center gap-2">
+                <UserCheck className="w-3.5 h-3.5 text-orange-500" />
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Data Pelapor Awal
+                </span>
               </div>
 
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Hubungan / Instansi</label>
-                <input
-                  type="text"
-                  value={hubunganPelapor}
-                  onChange={(e) => setHubunganPelapor(e.target.value)}
-                  placeholder="Keluarga / Polairud / Kades..."
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
-                />
-              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+                    Nama Pelapor
+                  </label>
+                  <input
+                    type="text"
+                    value={namaPelapor}
+                    onChange={(e) => setNamaPelapor(e.target.value)}
+                    placeholder="Bpk. La Ode..."
+                    className={inputClass}
+                  />
+                </div>
 
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">No. HP Pelapor</label>
-                <input
-                  type="text"
-                  value={noTelpPelapor}
-                  onChange={(e) => setNoTelpPelapor(e.target.value)}
-                  placeholder="0812-xxxx-xxxx"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
-                />
+                <div>
+                  <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+                    Hubungan / Instansi
+                  </label>
+                  <input
+                    type="text"
+                    value={hubunganPelapor}
+                    onChange={(e) => setHubunganPelapor(e.target.value)}
+                    placeholder="Keluarga / Polairud / Kades..."
+                    className={inputClass}
+                  />
+                  {/* Quick chips for hubungan */}
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {['Masyarakat', 'Keluarga', 'Polairud', 'Pos SAR', 'BPBD', 'Kades'].map((hub) => (
+                      <button
+                        key={hub}
+                        type="button"
+                        onClick={() => setHubunganPelapor(hub)}
+                        className={`text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
+                          hubunganPelapor === hub
+                            ? 'bg-orange-500/20 text-orange-500 border-orange-500/40 font-bold'
+                            : 'bg-slate-200/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:border-slate-400'
+                        }`}
+                      >
+                        {hub}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+                    No. HP Pelapor
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={noTelpPelapor}
+                      onChange={(e) => setNoTelpPelapor(e.target.value)}
+                      placeholder="0812-xxxx-xxxx"
+                      className={inputClass}
+                    />
+                    <Phone className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            {/* Waktu Kejadian & Waktu Lapor (Dropdown Pickers) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <DateTimeInput24H
                 id="input-waktu-kejadian"
                 label="Waktu Kejadian"
                 value={waktuKejadian}
                 onChange={(val) => setWaktuKejadian(val)}
                 required
-                helpText="Waktu insiden berlangsung (WITA / UTC+8)"
+                helpText="Waktu estimasi insiden berlangsung (WITA / UTC+8)"
               />
 
               <DateTimeInput24H
@@ -548,22 +621,34 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                 value={waktuLapor}
                 onChange={(val) => setWaktuLapor(val)}
                 required
-                helpText="Waktu info diterima Kansar (WITA / UTC+8)"
+                helpText="Waktu info resmi diterima Kantor SAR (WITA / UTC+8)"
               />
             </div>
           </div>
 
-          {/* Card 2: Pelaksanaan SAR & Keberangkatan */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800">
-              <div className="p-1.5 bg-orange-500/10 text-orange-400 rounded-md border border-orange-500/20">
-                <Navigation className="w-4 h-4" />
+          {/* ============================================================
+              POIN 2: Pelaksanaan SAR & Tim Berangkat
+             ============================================================ */}
+          <div className={`border rounded-2xl p-5 space-y-4 ${cardBgClass}`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`p-2 rounded-xl text-white shadow-md bg-gradient-to-r ${accentColors.gradient}`}
+                >
+                  <Navigation className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    2. Pelaksanaan SAR & Tim Berangkat
+                  </h2>
+                  <p className="text-[11px] text-slate-400">
+                    Waktu pergerakan tim rescue, estimasi tiba, dan jarak tempuh
+                  </p>
+                </div>
               </div>
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                2. Pelaksanaan SAR & Tim Berangkat
-              </h2>
             </div>
 
+            {/* Waktu Berangkat & ETA Tiba */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <DateTimeInput24H
                 id="input-waktu-berangkat"
@@ -571,7 +656,8 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                 value={waktuBerangkat}
                 onChange={(val) => setWaktuBerangkat(val)}
                 required
-                helpText="Waktu tim rescue bergerak (WITA / UTC+8)"
+                helpText="Waktu tim rescue mulai bergerak menuju LKP"
+                quickAddHours={[1, 2]}
               />
 
               <DateTimeInput24H
@@ -581,15 +667,21 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                 onChange={(val) => setEtaTiba(val)}
                 required
                 helpText="Perkiraan waktu tiba di lokasi kejadian"
+                quickAddHours={[1, 2, 3]}
               />
             </div>
 
             {/* Tim Berangkat selector */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Pilih Tim / Unit Siaga SAR yang Berangkat (Bisa Lebih dari 1)
-              </label>
-              <div className="flex flex-wrap gap-2">
+            <div className={`p-3.5 rounded-xl border space-y-2 ${innerBoxClass}`}>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  Pilih Tim / Unit Siaga SAR yang Diberangkatkan:
+                </label>
+                <span className="text-[10px] text-orange-500 font-bold">
+                  {selectedTimIds.length} Tim Terpilih
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
                 {masterTim.map((tim) => {
                   const isSelected = selectedTimIds.includes(tim.id_tim);
                   return (
@@ -597,10 +689,12 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                       type="button"
                       key={tim.id_tim}
                       onClick={() => toggleTeam(tim.id_tim)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                         isSelected
-                          ? 'bg-orange-600/30 border-orange-500 text-orange-300 shadow-sm'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                          ? `bg-gradient-to-r ${accentColors.gradient} text-white border-orange-500/50 shadow-sm scale-[1.02]`
+                          : isDarkMode
+                          ? 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
+                          : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
                       }`}
                     >
                       {isSelected ? '✓ ' : '+ '}
@@ -611,9 +705,10 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            {/* Jarak Tempuh & Estimasi Waktu Tempuh */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Jarak Tempuh</label>
+                <label className={labelClass}>Jarak Tempuh ke Lokasi</label>
                 <div className="flex gap-2">
                   <input
                     type="number"
@@ -621,102 +716,143 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                     value={jarakAngka}
                     onChange={(e) => setJarakAngka(e.target.value)}
                     placeholder="15"
-                    className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
+                    className={`flex-1 ${inputClass}`}
                   />
                   <select
                     value={jarakSatuan}
                     onChange={(e) => setJarakSatuan(e.target.value)}
-                    className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
+                    className={`w-28 ${inputClass} font-semibold cursor-pointer`}
                   >
-                    <option value="Nm">Nm (Nautical Mile)</option>
+                    <option value="Nm">Nm (Mil Laut)</option>
                     <option value="Km">Km (Kilometer)</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Estimasi Waktu Tempuh</label>
+                <label className={labelClass}>Estimasi Waktu Tempuh</label>
                 <input
                   type="text"
                   value={etaLokasi}
                   onChange={(e) => setEtaLokasi(e.target.value)}
                   placeholder="Contoh: 1 Jam 30 Menit"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
+                  className={inputClass}
                 />
+                {/* Quick preset pills */}
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {['30 Menit', '45 Menit', '1 Jam', '1 Jam 30 Menit', '2 Jam', '3 Jam'].map((et) => (
+                    <button
+                      key={et}
+                      type="button"
+                      onClick={() => setEtaLokasi(et)}
+                      className={`text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
+                        etaLokasi === et
+                          ? 'bg-orange-500/20 text-orange-500 border-orange-500/40 font-bold'
+                          : 'bg-slate-200/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:border-slate-400'
+                      }`}
+                    >
+                      {et}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Card 3: Lokasi & Titik Koordinat */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          {/* ============================================================
+              POIN 3: Lokasi Kejadian & Titik Koordinat (LKP)
+             ============================================================ */}
+          <div className={`border rounded-2xl p-5 space-y-4 ${cardBgClass}`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-orange-500/10 text-orange-400 rounded-md border border-orange-500/20">
+                <div
+                  className={`p-2 rounded-xl text-white shadow-md bg-gradient-to-r ${accentColors.gradient}`}
+                >
                   <Compass className="w-4 h-4" />
                 </div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                  3. Lokasi Kejadian & Titik Koordinat (LKP)
-                </h2>
+                <div>
+                  <h2 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    3. Lokasi Kejadian & Titik Koordinat (LKP)
+                  </h2>
+                  <p className="text-[11px] text-slate-400">
+                    Posisi duga Last Known Position (LKP)
+                  </p>
+                </div>
               </div>
+
               <button
                 type="button"
                 onClick={() => setShowDmsHelper(!showDmsHelper)}
-                className="text-xs font-medium text-orange-400 hover:text-orange-300 underline"
+                className="text-xs font-bold text-orange-500 hover:text-orange-600 underline cursor-pointer"
               >
-                {showDmsHelper ? 'Tutup Builder DMS' : '📐 Generator Derajat/Menit/Detik'}
+                {showDmsHelper ? 'Tutup Builder DMS' : '📐 Generator DMS'}
               </button>
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Deskripsi Lokasi / Perairan</label>
-              <input
-                type="text"
-                required
-                value={lokasiKejadian}
-                onChange={(e) => setLokasiKejadian(e.target.value)}
-                placeholder="Contoh: Perairan Karang Kapota, Kab. Wakatobi, Sulawesi Tenggara"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
-              />
+              <label className={labelClass}>
+                Deskripsi Lokasi / Wilayah Perairan <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  value={lokasiKejadian}
+                  onChange={(e) => setLokasiKejadian(e.target.value)}
+                  placeholder="Contoh: Perairan Karang Kapota, Kab. Wakatobi, Sulawesi Tenggara"
+                  className={inputClass}
+                />
+                <MapPin className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+              </div>
             </div>
 
+            {/* DMS Helper Box */}
             {showDmsHelper && (
-              <div className="p-4 bg-slate-950 border border-orange-500/30 rounded-xl space-y-3">
-                <div className="text-xs font-semibold text-orange-400">
-                  Konverter Koordinat Format Basarnas (DMS):
+              <div className={`p-4 rounded-xl border space-y-3 ${innerBoxClass} border-orange-500/30`}>
+                <div className="text-xs font-bold text-orange-500">
+                  Konverter Koordinat Format Basarnas (Derajat, Menit, Detik):
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   {/* Lintang */}
                   <div className="space-y-1">
-                    <span className="text-slate-400 font-medium">Lintang (Latitude):</span>
+                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Lintang (Latitude):</span>
                     <div className="flex items-center gap-1.5">
                       <input
                         type="text"
                         value={latDeg}
                         onChange={(e) => setLatDeg(e.target.value)}
-                        className="w-12 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-center text-white"
+                        className={`w-12 px-2 py-1 border rounded text-center font-mono ${
+                          isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
                         placeholder="03"
                       />
-                      <span>°</span>
+                      <span className="font-bold">°</span>
                       <input
                         type="text"
                         value={latMin}
                         onChange={(e) => setLatMin(e.target.value)}
-                        className="w-12 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-center text-white"
+                        className={`w-12 px-2 py-1 border rounded text-center font-mono ${
+                          isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
                         placeholder="58"
                       />
-                      <span>'</span>
+                      <span className="font-bold">'</span>
                       <input
                         type="text"
                         value={latSec}
                         onChange={(e) => setLatSec(e.target.value)}
-                        className="w-12 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-center text-white"
+                        className={`w-12 px-2 py-1 border rounded text-center font-mono ${
+                          isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
                         placeholder="30"
                       />
-                      <span>"</span>
+                      <span className="font-bold">"</span>
                       <select
                         value={latDir}
                         onChange={(e) => setLatDir(e.target.value)}
-                        className="px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                        className={`px-2 py-1 border rounded font-bold ${
+                          isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
                       >
                         <option value="S">S (LS)</option>
                         <option value="N">N (LU)</option>
@@ -726,36 +862,44 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
 
                   {/* Bujur */}
                   <div className="space-y-1">
-                    <span className="text-slate-400 font-medium">Bujur (Longitude):</span>
+                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Bujur (Longitude):</span>
                     <div className="flex items-center gap-1.5">
                       <input
                         type="text"
                         value={lonDeg}
                         onChange={(e) => setLonDeg(e.target.value)}
-                        className="w-14 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-center text-white"
+                        className={`w-14 px-2 py-1 border rounded text-center font-mono ${
+                          isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
                         placeholder="122"
                       />
-                      <span>°</span>
+                      <span className="font-bold">°</span>
                       <input
                         type="text"
                         value={lonMin}
                         onChange={(e) => setLonMin(e.target.value)}
-                        className="w-12 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-center text-white"
+                        className={`w-12 px-2 py-1 border rounded text-center font-mono ${
+                          isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
                         placeholder="35"
                       />
-                      <span>'</span>
+                      <span className="font-bold">'</span>
                       <input
                         type="text"
                         value={lonSec}
                         onChange={(e) => setLonSec(e.target.value)}
-                        className="w-12 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-center text-white"
+                        className={`w-12 px-2 py-1 border rounded text-center font-mono ${
+                          isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
                         placeholder="12"
                       />
-                      <span>"</span>
+                      <span className="font-bold">"</span>
                       <select
                         value={lonDir}
                         onChange={(e) => setLonDir(e.target.value)}
-                        className="px-2 py-1 bg-slate-900 border border-slate-700 rounded text-white"
+                        className={`px-2 py-1 border rounded font-bold ${
+                          isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
                       >
                         <option value="E">E (BT)</option>
                         <option value="W">W (BB)</option>
@@ -768,17 +912,17 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                   <button
                     type="button"
                     onClick={handleApplyDms}
-                    className="px-3 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded text-xs font-medium"
+                    className={`px-3 py-1.5 bg-gradient-to-r ${accentColors.gradient} text-white rounded-lg text-xs font-bold shadow-sm`}
                   >
-                    Terapkan ke Koordinat
+                    Terapkan ke Kolom Koordinat
                   </button>
                 </div>
               </div>
             )}
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">
-                Format Teks Koordinat Resmi
+              <label className={labelClass}>
+                Format Teks Koordinat Resmi Basarnas
               </label>
               <input
                 type="text"
@@ -786,30 +930,95 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                 value={koordinat}
                 onChange={(e) => setKoordinat(e.target.value)}
                 placeholder={'03° 58\' 30" S - 122° 35\' 12" E'}
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs font-mono text-emerald-400 focus:outline-none focus:border-orange-500"
+                className={`w-full px-3 py-2 text-xs font-mono font-bold tracking-wider rounded-xl border outline-none focus:ring-2 ${accentColors.ring} ${
+                  isDarkMode
+                    ? 'bg-slate-950 border-slate-700 text-emerald-400'
+                    : 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                }`}
               />
             </div>
           </div>
 
-          {/* Card 4: Kronologi Kejadian */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          {/* ============================================================
+              POIN 4: Kronologi Kejadian
+             ============================================================ */}
+          <div className={`border rounded-2xl p-5 space-y-4 ${cardBgClass}`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-orange-500/10 text-orange-400 rounded-md border border-orange-500/20">
+                <div
+                  className={`p-2 rounded-xl text-white shadow-md bg-gradient-to-r ${accentColors.gradient}`}
+                >
                   <FileText className="w-4 h-4" />
                 </div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                  4. Kronologi Kejadian
-                </h2>
+                <div>
+                  <h2 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    4. Kronologi Kejadian
+                  </h2>
+                  <p className="text-[11px] text-slate-400">
+                    Alur cerita insiden dan perkembangan awal
+                  </p>
+                </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowAiModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/50 hover:to-indigo-600/50 border border-purple-500/40 text-purple-300 rounded-lg text-xs font-medium transition-all"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 hover:from-purple-600/30 hover:to-indigo-600/30 border border-purple-500/40 text-purple-400 rounded-xl text-xs font-bold transition-all shadow-sm"
               >
                 <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                <span>✨ Asisten AI Kronologi</span>
+                <span>Asisten AI Kronologi</span>
+              </button>
+            </div>
+
+            {/* Quick preset buttons */}
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-[10px] text-slate-400 self-center mr-1">Template Cepat:</span>
+              <button
+                type="button"
+                onClick={() =>
+                  handleInsertKronologiPreset(
+                    'Pada tanggal tersebut korban pergi melaut mencari ikan menggunakan perahu/longboat di sekitar perairan setempat. Hingga batas waktu kepulangan yang biasanya korban belum kembali ke rumah, dan pencarian awal oleh nelayan setempat hanya menemukan perahu korban dalam keadaan mesin menyala tanpa pengemudi.'
+                  )
+                }
+                className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+                  isDarkMode
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
+              >
+                Man Overboard / Nelayan
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleInsertKronologiPreset(
+                    'Kapal mengalami mati mesin (engine failure) saat dalam pelayaran akibat cuaca buruk dan gelombang tinggi, sehingga terombang-ambing di perairan dan membutuhkan evakuasi pertolongan SAR.'
+                  )
+                }
+                className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+                  isDarkMode
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
+              >
+                Mati Mesin Kapal
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  handleInsertKronologiPreset(
+                    'Korban dilaporkan mandi/berenang di sekitar pantai/muara sungai kemudian terseret arus deras dan tenggelam. Saksi di lokasi berusaha menolong namun korban hilang dari pandangan.'
+                  )
+                }
+                className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${
+                  isDarkMode
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
+              >
+                Terseret Arus Pantai
               </button>
             </div>
 
@@ -818,32 +1027,47 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
               required
               value={kronologi}
               onChange={(e) => setKronologi(e.target.value)}
-              placeholder="Ceritakan urutan kejadian dari saat korban berangkat, saat ditemukan tanda-tanda, hingga laporan masuk ke Kantor SAR..."
-              className="w-full p-3 bg-slate-950 border border-slate-700 rounded-lg text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-orange-500 leading-relaxed"
+              placeholder="Ceritakan urutan kejadian secara rinci: dari saat korban berangkat, tanda-tanda ditemukan, hingga laporan masuk ke Kantor SAR..."
+              className={`${inputClass} leading-relaxed font-sans`}
             />
+
+            <div className="flex justify-between items-center text-[10px] text-slate-400">
+              <span>Gunakan bahasa baku dinas SAR</span>
+              <span>{kronologi.length} karakter</span>
+            </div>
           </div>
 
-          {/* Card 5: Data Korban Dinamis */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+          {/* ============================================================
+              POIN 5: Data Korban Dinamis (POB)
+             ============================================================ */}
+          <div className={`border rounded-2xl p-5 space-y-4 ${cardBgClass}`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-orange-500/10 text-orange-400 rounded-md border border-orange-500/20">
+                <div
+                  className={`p-2 rounded-xl text-white shadow-md bg-gradient-to-r ${accentColors.gradient}`}
+                >
                   <Users className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+                  <h2 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                     5. Data Korban ({korbanList.length} Orang)
                   </h2>
-                  <p className="text-[11px] text-slate-400">POB otomatis terkalkulasi</p>
+                  <p className="text-[11px] text-slate-400">
+                    Jumlah Person on Board (POB) otomatis terkalkulasi
+                  </p>
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={handleAddKorban}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg text-xs font-medium transition-colors"
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                  isDarkMode
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                    : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300 shadow-sm'
+                }`}
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5 text-orange-500" />
                 <span>Tambah Korban</span>
               </button>
             </div>
@@ -852,17 +1076,24 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
               {korbanList.map((k, idx) => (
                 <div
                   key={idx}
-                  className="p-3.5 bg-slate-950 border border-slate-800 rounded-xl space-y-3 relative group"
+                  className={`p-3.5 rounded-xl border space-y-3 relative group transition-colors ${innerBoxClass}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-orange-400">
-                      Korban #{idx + 1}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">
+                        {idx + 1}
+                      </span>
+                      <span className="text-xs font-bold text-orange-500">
+                        Korban #{idx + 1}
+                      </span>
+                    </div>
+
                     {korbanList.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveKorban(idx)}
-                        className="text-slate-500 hover:text-red-400 p-1 rounded transition-colors"
+                        className="text-slate-400 hover:text-red-500 p-1 rounded-lg transition-colors"
+                        title="Hapus Korban Ini"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -871,7 +1102,9 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
                     <div className="sm:col-span-2">
-                      <label className="block text-[11px] text-slate-400 mb-1">Nama Lengkap</label>
+                      <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+                        Nama Lengkap
+                      </label>
                       <input
                         type="text"
                         required
@@ -882,12 +1115,14 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                           setKorbanList(updated);
                         }}
                         placeholder="Nama Korban..."
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white"
+                        className={inputClass}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] text-slate-400 mb-1">Umur</label>
+                      <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+                        Umur
+                      </label>
                       <input
                         type="text"
                         value={k.umur}
@@ -897,12 +1132,14 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                           setKorbanList(updated);
                         }}
                         placeholder="35 Tahun"
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white"
+                        className={inputClass}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] text-slate-400 mb-1">Jenis Kelamin</label>
+                      <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+                        Jenis Kelamin
+                      </label>
                       <select
                         value={k.jk}
                         onChange={(e) => {
@@ -910,7 +1147,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                           updated[idx].jk = e.target.value;
                           setKorbanList(updated);
                         }}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white"
+                        className={`${inputClass} font-semibold cursor-pointer`}
                       >
                         <option value="Laki-laki">Laki-laki</option>
                         <option value="Perempuan">Perempuan</option>
@@ -920,7 +1157,9 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs">
                     <div className="sm:col-span-3">
-                      <label className="block text-[11px] text-slate-400 mb-1">Alamat Korban</label>
+                      <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+                        Alamat / Asal Korban
+                      </label>
                       <input
                         type="text"
                         value={k.alamat}
@@ -930,12 +1169,14 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                           setKorbanList(updated);
                         }}
                         placeholder="Alamat domisili korban..."
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white"
+                        className={inputClass}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] text-slate-400 mb-1">Status Awal</label>
+                      <label className="block text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+                        Status Awal
+                      </label>
                       <select
                         value={k.status_korban}
                         onChange={(e) => {
@@ -943,7 +1184,15 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                           updated[idx].status_korban = e.target.value as any;
                           setKorbanList(updated);
                         }}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-amber-400 font-semibold"
+                        className={`${inputClass} font-bold cursor-pointer ${
+                          k.status_korban === 'DP'
+                            ? 'text-amber-500'
+                            : k.status_korban === 'S'
+                            ? 'text-emerald-500'
+                            : k.status_korban === 'MD'
+                            ? 'text-red-500'
+                            : 'text-slate-400'
+                        }`}
                       >
                         <option value="DP">DP (Dalam Pencarian)</option>
                         <option value="S">S (Selamat)</option>
@@ -957,16 +1206,20 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
             </div>
           </div>
 
-          {/* Card 6: Unsur SAR Terlibat */}
+          {/* ============================================================
+              POIN 6: Unsur SAR Terlibat
+             ============================================================ */}
           <UnsurSarEditor
             unsurList={unsurList}
             onChangeUnsur={setUnsurList}
             masterTim={masterTim}
             title="6. Unsur SAR Terlibat"
-            description="Daftar instansi potensi SAR dan jumlah personel gabungan yang dikerahkan"
+            description="Daftar instansi potensi SAR gabungan dan jumlah personel yang dikerahkan"
           />
 
-          {/* Card 7: Alut & Palsar Terlibat */}
+          {/* ============================================================
+              POIN 7: Alut & Palsar Terlibat
+             ============================================================ */}
           <AlutPalsarEditor
             alutList={alutList}
             onChangeAlut={setAlutList}
@@ -975,70 +1228,157 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
             description="Daftar armada kapal/perahu, kendaraan, dan peralatan SAR yang dikerahkan"
           />
 
-          {/* Card 8: Cuaca & Faktor Penghambat */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800">
-              <div className="p-1.5 bg-orange-500/10 text-orange-400 rounded-md border border-orange-500/20">
-                <Wind className="w-4 h-4" />
+          {/* ============================================================
+              POIN 8: Cuaca & Faktor Penghambat
+             ============================================================ */}
+          <div className={`border rounded-2xl p-5 space-y-4 ${cardBgClass}`}>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`p-2 rounded-xl text-white shadow-md bg-gradient-to-r ${accentColors.gradient}`}
+                >
+                  <Wind className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className={`text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    8. Kondisi Cuaca & Faktor Penghambat
+                  </h2>
+                  <p className="text-[11px] text-slate-400">
+                    Parameter meteorologi BMKG dan kendala di lapangan
+                  </p>
+                </div>
               </div>
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                8. Kondisi Cuaca & Faktor Penghambat
-              </h2>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Kondisi Cuaca (BMKG)</label>
+                <label className={labelClass}>
+                  Kondisi Cuaca (BMKG)
+                </label>
                 <input
                   type="text"
                   value={cuaca}
                   onChange={(e) => setCuaca(e.target.value)}
                   placeholder="Cerah Berawan / Hujan Sedang..."
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
+                  className={inputClass}
                 />
+                {/* Cuaca quick pills */}
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {['Cerah', 'Cerah Berawan', 'Berawan', 'Hujan Ringan', 'Hujan Lebat'].map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setCuaca(c)}
+                      className={`text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
+                        cuaca === c
+                          ? 'bg-orange-500/20 text-orange-500 border-orange-500/40 font-bold'
+                          : 'bg-slate-200/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:border-slate-400'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Tinggi Gelombang</label>
+                <label className={labelClass}>
+                  Tinggi Gelombang
+                </label>
                 <input
                   type="text"
                   value={gelombang}
                   onChange={(e) => setGelombang(e.target.value)}
                   placeholder="0.5 - 1.25 M"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
+                  className={inputClass}
                 />
+                {/* Gelombang quick pills */}
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {['0.1 - 0.5 M', '0.5 - 1.25 M', '1.25 - 2.5 M', '2.5 - 4.0 M'].map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setGelombang(g)}
+                      className={`text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
+                        gelombang === g
+                          ? 'bg-orange-500/20 text-orange-500 border-orange-500/40 font-bold'
+                          : 'bg-slate-200/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:border-slate-400'
+                      }`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Kecepatan & Arah Angin</label>
+                <label className={labelClass}>
+                  Kecepatan & Arah Angin
+                </label>
                 <input
                   type="text"
                   value={angin}
                   onChange={(e) => setAngin(e.target.value)}
                   placeholder="Timur - Tenggara, 5 - 15 Knots"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
+                  className={inputClass}
                 />
+                {/* Angin quick pills */}
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {['5 - 15 Knots', '10 - 20 Knots', '15 - 25 Knots'].map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      onClick={() => setAngin(`Barat Daya - Barat Laut, ${a}`)}
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-slate-200/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-transparent hover:border-slate-400"
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Faktor Penghambat (Opsional)</label>
+              <label className={labelClass}>
+                Faktor Penghambat (Opsional)
+              </label>
               <input
                 type="text"
                 value={faktorPenghambat}
                 onChange={(e) => setFaktorPenghambat(e.target.value)}
-                placeholder="Nihil / Arus deras / Gelombang tinggi..."
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-orange-500"
+                placeholder="Nihil / Arus deras / Gelombang tinggi / Jarak pandang terbatas..."
+                className={inputClass}
               />
+              {/* Penghambat quick pills */}
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {['Nihil', 'Arus Deras', 'Gelombang Tinggi', 'Jarak Pandang Terbatas', 'Hujan Lebat'].map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFaktorPenghambat(f)}
+                    className={`text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
+                      faktorPenghambat === f
+                        ? 'bg-orange-500/20 text-orange-500 border-orange-500/40 font-bold'
+                        : 'bg-slate-200/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:border-slate-400'
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Submit Action */}
+          {/* Action Submit Buttons */}
           <div className="flex items-center justify-between pt-2">
             <button
               type="button"
               onClick={onBack}
-              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold transition-colors"
+              className={`px-4 py-2.5 rounded-xl text-xs font-semibold border transition-colors ${
+                isDarkMode
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                  : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
+              }`}
             >
               Batal
             </button>
@@ -1047,21 +1387,33 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
               id="btn-simpan-operasi"
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white rounded-xl text-xs sm:text-sm font-bold shadow-lg shadow-orange-600/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              className={`inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r ${accentColors.gradient} hover:opacity-95 text-white rounded-xl text-xs sm:text-sm font-bold shadow-lg shadow-orange-600/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50`}
             >
               <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Menyimpan...' : isEditing ? 'Simpan Pembaruan Data' : 'Kunci & Terbitkan Laporan Awal'}</span>
+              <span>
+                {isSubmitting
+                  ? 'Menyimpan...'
+                  : isEditing
+                  ? 'Simpan Pembaruan Data'
+                  : 'Kunci & Terbitkan Laporan Awal'}
+              </span>
             </button>
           </div>
         </form>
 
         {/* Live Preview Column Right */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="sticky top-24 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[calc(100vh-120px)]">
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-800/90 border-b border-slate-700">
+          <div
+            className={`sticky top-24 border rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[calc(100vh-120px)] transition-colors ${cardBgClass}`}
+          >
+            <div
+              className={`flex items-center justify-between px-4 py-3 border-b ${
+                isDarkMode ? 'bg-slate-800/90 border-slate-700' : 'bg-slate-100 border-slate-200'
+              }`}
+            >
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                <h3 className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                   Live Preview: FILE AKTIF (Laporan Awal)
                 </h3>
               </div>
@@ -1069,22 +1421,32 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
               <button
                 type="button"
                 onClick={handleCopyPreview}
-                className="inline-flex items-center gap-1.5 px-3 py-1 bg-orange-600 hover:bg-orange-500 text-white rounded-md text-xs font-semibold transition-colors shadow-sm"
+                className={`inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r ${accentColors.gradient} text-white rounded-lg text-xs font-bold transition-all shadow-sm hover:scale-[1.02] active:scale-[0.98]`}
               >
                 {copiedPreview ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedPreview ? 'Tersalin!' : 'Salin WA'}</span>
               </button>
             </div>
 
-            <div className="p-4 flex-1 overflow-y-auto bg-slate-950/80">
-              <pre className="font-mono text-[11px] text-slate-300 whitespace-pre-wrap leading-relaxed select-text font-medium">
+            <div
+              className={`p-4 flex-1 overflow-y-auto ${
+                isDarkMode ? 'bg-slate-950/80 text-slate-300' : 'bg-slate-50 text-slate-800'
+              }`}
+            >
+              <pre className="font-mono text-[11px] whitespace-pre-wrap leading-relaxed select-text font-medium">
                 {liveWaText}
               </pre>
             </div>
 
-            <div className="px-4 py-2 bg-slate-900 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
-              <span>Format Resmi Basarnas Kendari</span>
-              <span>{liveWaText.length} Karakter</span>
+            <div
+              className={`px-4 py-2 border-t text-[11px] flex items-center justify-between ${
+                isDarkMode
+                  ? 'bg-slate-900 border-slate-800 text-slate-400'
+                  : 'bg-slate-100 border-slate-200 text-slate-600'
+              }`}
+            >
+              <span>Format Standar Basarnas Kendari</span>
+              <span className="font-mono font-bold">{liveWaText.length} Karakter</span>
             </div>
           </div>
         </div>
@@ -1093,23 +1455,29 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
       {/* AI Assistant Modal for Kronologi */}
       {showAiModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="w-full max-w-lg bg-slate-900 border border-purple-500/40 rounded-2xl p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <div className="flex items-center gap-2 text-purple-400">
+          <div
+            className={`w-full max-w-lg border rounded-2xl p-5 shadow-2xl space-y-4 ${
+              isDarkMode ? 'bg-slate-900 border-purple-500/40 text-slate-100' : 'bg-white border-purple-300 text-slate-900'
+            }`}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2 text-purple-500">
                 <Sparkles className="w-5 h-5" />
-                <h3 className="text-sm font-bold text-white">Poles Kronologi Kejadian dengan AI</h3>
+                <h3 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  Poles Kronologi Kejadian dengan AI
+                </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAiModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-slate-300">
-              Masukkan catatan kasar, waktu, atau poin kejadian. Asisten AI akan merangkumnya menjadi narasi kronologi baku sesuai standar dinas Basarnas.
+            <p className="text-xs text-slate-500 dark:text-slate-300 leading-relaxed">
+              Masukkan catatan kasar, perkiraan waktu, atau poin kronologi. Asisten AI akan merangkumnya menjadi narasi kronologi baku sesuai standar dinas Basarnas.
             </p>
 
             <textarea
@@ -1117,14 +1485,18 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
               value={aiDraftPrompt}
               onChange={(e) => setAiDraftPrompt(e.target.value)}
               placeholder="Contoh catatan: Korban pergi memancing subuh tadi di wakatobi naik perahu kecil, jam 7 ditemukan perahu muter mesin nyala tapi orangnya gak ada..."
-              className="w-full p-3 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white focus:outline-none focus:border-purple-500"
+              className={inputClass}
             />
 
             <div className="flex justify-end gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setShowAiModal(false)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs"
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold border ${
+                  isDarkMode
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
               >
                 Batal
               </button>
@@ -1132,7 +1504,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                 type="button"
                 disabled={isAiDrafting}
                 onClick={handleGenerateAiKronologi}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold shadow-md shadow-purple-600/30"
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-600/30 transition-all hover:scale-[1.02]"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>{isAiDrafting ? 'Menyusun Narasi...' : 'Generate Kronologi'}</span>

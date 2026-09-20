@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, RotateCcw } from 'lucide-react';
+import { Calendar, Clock, RotateCcw, ChevronDown, Sparkles } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 interface DateTimeInput24HProps {
@@ -13,10 +13,31 @@ interface DateTimeInput24HProps {
   showTime?: boolean;
   helperBadge?: string;
   helpText?: string;
+  quickAddHours?: number[]; // e.g. [1, 2, 3] for ETA
 }
 
-// Helper functions for DD/MM/YY and 24H (HH:mm)
-export function parseToDateParts(val?: string): { day: string; month: string; year: string; hours: string; minutes: string } {
+const MONTHS_ID = [
+  { val: '01', name: 'Jan' },
+  { val: '02', name: 'Feb' },
+  { val: '03', name: 'Mar' },
+  { val: '04', name: 'Apr' },
+  { val: '05', name: 'Mei' },
+  { val: '06', name: 'Jun' },
+  { val: '07', name: 'Jul' },
+  { val: '08', name: 'Agu' },
+  { val: '09', name: 'Sep' },
+  { val: '10', name: 'Okt' },
+  { val: '11', name: 'Nov' },
+  { val: '12', name: 'Des' },
+];
+
+export function parseToDateParts(val?: string): {
+  day: string;
+  month: string;
+  year: string;
+  hours: string;
+  minutes: string;
+} {
   if (!val) {
     const now = new Date();
     const d = String(now.getDate()).padStart(2, '0');
@@ -53,10 +74,23 @@ export function parseToDateParts(val?: string): { day: string; month: string; ye
     // fallback
   }
 
-  return { day: '01', month: '01', year: '26', hours: '08', minutes: '00' };
+  const now = new Date();
+  return {
+    day: String(now.getDate()).padStart(2, '0'),
+    month: String(now.getMonth() + 1).padStart(2, '0'),
+    year: String(now.getFullYear()).slice(-2),
+    hours: '08',
+    minutes: '00',
+  };
 }
 
-export function formatToISO(day: string, month: string, year: string, hours: string = '08', minutes: string = '00'): string {
+export function formatToISO(
+  day: string,
+  month: string,
+  year: string,
+  hours: string = '08',
+  minutes: string = '00'
+): string {
   const fullYear = year.length === 2 ? `20${year}` : year;
   const mm = month.padStart(2, '0');
   const dd = day.padStart(2, '0');
@@ -75,43 +109,33 @@ export const DateTimeInput24H: React.FC<DateTimeInput24HProps> = ({
   showTime = true,
   helperBadge,
   helpText,
+  quickAddHours,
 }) => {
   const { isDarkMode, accentColors } = useTheme();
   const parts = parseToDateParts(value);
 
-  const [dateStr, setDateStr] = useState<string>(`${parts.day}/${parts.month}/${parts.year}`);
-  const [timeStr, setTimeStr] = useState<string>(`${parts.hours}:${parts.minutes}`);
+  const [day, setDay] = useState(parts.day);
+  const [month, setMonth] = useState(parts.month);
+  const [year, setYear] = useState(parts.year);
+  const [hours, setHours] = useState(parts.hours);
+  const [minutes, setMinutes] = useState(parts.minutes);
 
   useEffect(() => {
     const p = parseToDateParts(value);
-    setDateStr(`${p.day}/${p.month}/${p.year}`);
-    setTimeStr(`${p.hours}:${p.minutes}`);
+    setDay(p.day);
+    setMonth(p.month);
+    setYear(p.year);
+    setHours(p.hours);
+    setMinutes(p.minutes);
   }, [value]);
 
-  const handleDateChange = (val: string) => {
-    setDateStr(val);
-    // Validate DD/MM/YY
-    const match = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
-    if (match) {
-      const [_, d, m, y] = match;
-      const [h, min] = timeStr.split(':');
-      const iso = formatToISO(d, m, y, h || '08', min || '00');
-      onChange(iso);
-    }
-  };
-
-  const handleTimeChange = (val: string) => {
-    setTimeStr(val);
-    // Validate HH:mm (24H: 00:00 - 23:59)
-    const match = val.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
-    if (match) {
-      const dmyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
-      if (dmyMatch) {
-        const [_, d, m, y] = dmyMatch;
-        const iso = formatToISO(d, m, y, match[1], match[2]);
-        onChange(iso);
-      }
-    }
+  const updateDateTime = (newDay: string, newMonth: string, newYear: string, newH: string, newMin: string) => {
+    setDay(newDay);
+    setMonth(newMonth);
+    setYear(newYear);
+    setHours(newH);
+    setMinutes(newMin);
+    onChange(formatToISO(newDay, newMonth, newYear, newH, newMin));
   };
 
   const setNow = () => {
@@ -121,108 +145,281 @@ export const DateTimeInput24H: React.FC<DateTimeInput24HProps> = ({
     const y = String(now.getFullYear()).slice(-2);
     const h = String(now.getHours()).padStart(2, '0');
     const min = String(now.getMinutes()).padStart(2, '0');
-    setDateStr(`${d}/${m}/${y}`);
-    setTimeStr(`${h}:${min}`);
-    onChange(formatToISO(d, m, y, h, min));
+    updateDateTime(d, m, y, h, min);
   };
 
-  // Convert for hidden native picker sync
+  const addMinutes = (minsToAdd: number) => {
+    const fullYear = year.length === 2 ? `20${year}` : year;
+    const current = new Date(`${fullYear}-${month}-${day}T${hours}:${minutes}:00`);
+    current.setMinutes(current.getMinutes() + minsToAdd);
+
+    const d = String(current.getDate()).padStart(2, '0');
+    const m = String(current.getMonth() + 1).padStart(2, '0');
+    const y = String(current.getFullYear()).slice(-2);
+    const h = String(current.getHours()).padStart(2, '0');
+    const min = String(current.getMinutes()).padStart(2, '0');
+    updateDateTime(d, m, y, h, min);
+  };
+
+  // Convert for native date picker sync
   const currentIsoDateOnly = () => {
-    const p = parseToDateParts(value);
-    const fullYear = `20${p.year}`;
-    return `${fullYear}-${p.month}-${p.day}`;
+    const fullYear = `20${year}`;
+    return `${fullYear}-${month}-${day}`;
   };
 
   const handleNativeDatePicked = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.value) return;
     const [y, m, d] = e.target.value.split('-');
     const yr = y.slice(-2);
-    setDateStr(`${d}/${m}/${yr}`);
-    const [h, min] = timeStr.split(':');
-    onChange(formatToISO(d, m, yr, h || '08', min || '00'));
+    updateDateTime(d, m, yr, hours, minutes);
   };
 
+  // Generate lists for dropdowns
+  const daysList = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const hoursList = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+  const minutesList = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+  const yearsList = ['24', '25', '26', '27', '28', '29', '30'];
+
   return (
-    <div className="space-y-1.5" id={id}>
+    <div
+      className={`p-3 rounded-xl border transition-colors ${
+        isDarkMode
+          ? 'bg-slate-900/90 border-slate-800'
+          : 'bg-white border-slate-200 shadow-sm'
+      }`}
+      id={id}
+    >
       {label && (
-        <div className="flex items-center justify-between">
-          <label className={`block text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-            {label} {required && <span className="text-red-400">*</span>}
+        <div className="flex items-center justify-between mb-2">
+          <label className={`block text-xs font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+            {label} {required && <span className="text-red-500">*</span>}
           </label>
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20 font-bold">
-              DD/MM/YY • 24 Jam
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold border ${
+                isDarkMode
+                  ? 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                  : 'bg-orange-50 text-orange-600 border-orange-200'
+              }`}
+            >
+              24 Jam (WITA)
             </span>
             <button
               type="button"
               onClick={setNow}
-              title="Set Waktu Saat Ini (WITA)"
-              className="text-[10px] text-slate-400 hover:text-orange-400 flex items-center gap-0.5 transition-colors"
+              title="Set Waktu Sekarang"
+              className={`text-[10px] flex items-center gap-1 px-1.5 py-0.5 rounded border transition-colors ${
+                isDarkMode
+                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+              }`}
             >
-              <RotateCcw className="w-2.5 h-2.5" />
+              <RotateCcw className="w-2.5 h-2.5 text-orange-500" />
               <span>Sekarang</span>
             </button>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-12 gap-2">
-        {/* Date Input with DD/MM/YY */}
-        <div className={`relative ${showTime ? 'col-span-7 sm:col-span-7' : 'col-span-12'}`}>
+      <div className="space-y-2">
+        {/* Row 1: Tanggal Picker Dropdowns */}
+        <div className="flex items-center gap-1.5">
           <div className="relative flex items-center">
-            <input
-              type="text"
-              required={required}
+            <Calendar className="w-3.5 h-3.5 text-slate-400 mr-1.5 flex-shrink-0" />
+          </div>
+
+          {/* Tanggal */}
+          <div className="flex-1">
+            <select
+              value={day}
               disabled={disabled}
-              value={dateStr}
-              onChange={(e) => handleDateChange(e.target.value)}
-              placeholder="DD/MM/YY"
-              maxLength={8}
-              className={`w-full pl-8 pr-8 py-2 rounded-xl text-xs font-mono tracking-wider border transition-colors outline-none focus:ring-2 ${accentColors.ring} ${
+              onChange={(e) => updateDateTime(e.target.value, month, year, hours, minutes)}
+              className={`w-full py-1.5 px-2 text-xs font-semibold rounded-lg border outline-none cursor-pointer ${
                 isDarkMode
-                  ? 'bg-slate-950 border-slate-800 text-white placeholder-slate-500'
-                  : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                  ? 'bg-slate-950 border-slate-700 text-slate-100 focus:border-orange-500'
+                  : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-orange-500'
               }`}
-            />
-            <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
-            {/* Native date picker trigger for easy calendar icon click */}
+              title="Pilih Tanggal"
+            >
+              {daysList.map((d) => (
+                <option key={d} value={d}>
+                  Tgl {d}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Bulan */}
+          <div className="flex-1">
+            <select
+              value={month}
+              disabled={disabled}
+              onChange={(e) => updateDateTime(day, e.target.value, year, hours, minutes)}
+              className={`w-full py-1.5 px-2 text-xs font-semibold rounded-lg border outline-none cursor-pointer ${
+                isDarkMode
+                  ? 'bg-slate-950 border-slate-700 text-slate-100 focus:border-orange-500'
+                  : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-orange-500'
+              }`}
+              title="Pilih Bulan"
+            >
+              {MONTHS_ID.map((m) => (
+                <option key={m.val} value={m.val}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Tahun */}
+          <div className="w-20">
+            <select
+              value={year}
+              disabled={disabled}
+              onChange={(e) => updateDateTime(day, month, e.target.value, hours, minutes)}
+              className={`w-full py-1.5 px-2 text-xs font-semibold rounded-lg border outline-none cursor-pointer ${
+                isDarkMode
+                  ? 'bg-slate-950 border-slate-700 text-slate-100 focus:border-orange-500'
+                  : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-orange-500'
+              }`}
+              title="Pilih Tahun"
+            >
+              {yearsList.map((y) => (
+                <option key={y} value={y}>
+                  20{y}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Quick Calendar Popover Trigger */}
+          <div className="relative">
             <input
               type="date"
               tabIndex={-1}
               value={currentIsoDateOnly()}
               onChange={handleNativeDatePicked}
-              className="absolute right-2.5 w-4 h-4 opacity-0 cursor-pointer"
-              title="Pilih Tanggal dari Kalender"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              title="Buka Kalender"
             />
-            <Calendar className="w-3.5 h-3.5 text-orange-500 hover:text-orange-400 absolute right-2.5 pointer-events-none" />
+            <button
+              type="button"
+              className={`p-1.5 rounded-lg border transition-colors ${
+                isDarkMode
+                  ? 'bg-slate-800 border-slate-700 text-orange-400 hover:bg-slate-700'
+                  : 'bg-slate-100 border-slate-200 text-orange-600 hover:bg-slate-200'
+              }`}
+              title="Buka Kalender Pemilih Tanggal"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* Time Input 24 Jam (HH:mm) */}
+        {/* Row 2: Waktu (Jam & Menit) Dropdowns */}
         {showTime && (
-          <div className="col-span-5 sm:col-span-5 relative flex items-center">
-            <input
-              type="text"
-              required={required}
-              disabled={disabled}
-              value={timeStr}
-              onChange={(e) => handleTimeChange(e.target.value)}
-              placeholder="HH:mm (24 Jam)"
-              maxLength={5}
-              className={`w-full pl-8 pr-2.5 py-2 rounded-xl text-xs font-mono font-bold tracking-wider border transition-colors outline-none focus:ring-2 ${accentColors.ring} ${
-                isDarkMode
-                  ? 'bg-slate-950 border-slate-800 text-amber-400 placeholder-slate-500'
-                  : 'bg-white border-slate-300 text-amber-600 placeholder-slate-400'
-              }`}
-            />
-            <Clock className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
-            <span className="absolute right-2 text-[10px] text-slate-400 pointer-events-none">WITA</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/50 dark:border-slate-800/80">
+            <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
+              <Clock className="w-3.5 h-3.5 text-amber-500 mr-1 flex-shrink-0" />
+
+              {/* Pilihan Jam (00 - 23) */}
+              <div className="flex-1 flex items-center gap-1">
+                <span className="text-[11px] font-medium text-slate-400">Jam:</span>
+                <select
+                  value={hours}
+                  disabled={disabled}
+                  onChange={(e) => updateDateTime(day, month, year, e.target.value, minutes)}
+                  className={`w-full py-1 px-2 text-xs font-mono font-bold rounded-lg border outline-none cursor-pointer ${
+                    isDarkMode
+                      ? 'bg-slate-950 border-slate-700 text-amber-400 focus:border-orange-500'
+                      : 'bg-slate-50 border-slate-300 text-amber-700 focus:border-orange-500'
+                  }`}
+                  title="Pilih Jam (00 - 23)"
+                >
+                  {hoursList.map((h) => (
+                    <option key={h} value={h}>
+                      {h} : 00
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <span className="font-bold text-slate-400">:</span>
+
+              {/* Pilihan Menit (00 - 59) */}
+              <div className="flex-1 flex items-center gap-1">
+                <span className="text-[11px] font-medium text-slate-400">Mnt:</span>
+                <select
+                  value={minutes}
+                  disabled={disabled}
+                  onChange={(e) => updateDateTime(day, month, year, hours, e.target.value)}
+                  className={`w-full py-1 px-2 text-xs font-mono font-bold rounded-lg border outline-none cursor-pointer ${
+                    isDarkMode
+                      ? 'bg-slate-950 border-slate-700 text-amber-400 focus:border-orange-500'
+                      : 'bg-slate-50 border-slate-300 text-amber-700 focus:border-orange-500'
+                  }`}
+                  title="Pilih Menit (00 - 59)"
+                >
+                  {minutesList.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <span className="text-[10px] font-bold text-slate-400 px-1">WITA</span>
+            </div>
+
+            {/* Quick offset buttons (e.g. +30m, +1 Jam, +2 Jam) */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => addMinutes(30)}
+                className={`px-1.5 py-0.5 text-[10px] font-medium rounded border transition-colors ${
+                  isDarkMode
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
+                title="Tambah 30 Menit"
+              >
+                +30m
+              </button>
+              <button
+                type="button"
+                onClick={() => addMinutes(60)}
+                className={`px-1.5 py-0.5 text-[10px] font-medium rounded border transition-colors ${
+                  isDarkMode
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
+                title="Tambah 1 Jam"
+              >
+                +1 Jam
+              </button>
+              {quickAddHours?.map((qh) => (
+                <button
+                  key={qh}
+                  type="button"
+                  onClick={() => addMinutes(qh * 60)}
+                  className={`px-1.5 py-0.5 text-[10px] font-medium rounded border transition-colors ${
+                    isDarkMode
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                  }`}
+                  title={`Tambah ${qh} Jam`}
+                >
+                  +{qh} Jam
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
       {(helperBadge || helpText) && (
-        <p className="text-[10px] text-slate-400 mt-0.5">{helpText || helperBadge}</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5">
+          {helpText || helperBadge}
+        </p>
       )}
     </div>
   );
