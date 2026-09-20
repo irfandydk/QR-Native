@@ -1,0 +1,6 @@
+{
+  "name": "QR SAR",
+  "description": "Quick Report SAR System - Sistem Pelaporan Operasi SAR Resmi Kantor Pencarian dan Pertolongan (KPP) Kendari berbasis format FILE AKTIF Basarnas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
