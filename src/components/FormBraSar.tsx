@@ -475,6 +475,8 @@ MOHON BANTUAN BCC UNTUK PEMANTAUAN MELALUI IMSAR DAN GPS TRACKING TTK`,
       setSaving(true);
       const totalWords = countBraWords(sections, `${dari} ${aksi} ${info} ${perihal}`);
 
+      const savedLogo = typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') || '' : '';
+
       const braPayload: Omit<BraSar, 'id_bra'> = {
         kategori,
         no_bra: noBra,
@@ -499,6 +501,7 @@ MOHON BANTUAN BCC UNTUK PEMANTAUAN MELALUI IMSAR DAN GPS TRACKING TTK`,
         nama_smc: namaSmc,
         pangkat_smc: pangkatSmc,
         jabatan_smc: jabatanSmc,
+        logo_url: savedLogo,
         created_at: new Date().toISOString(),
       };
 
@@ -552,6 +555,7 @@ MOHON BANTUAN BCC UNTUK PEMANTAUAN MELALUI IMSAR DAN GPS TRACKING TTK`,
     nama_smc: namaSmc,
     pangkat_smc: pangkatSmc,
     jabatan_smc: jabatanSmc,
+    logo_url: typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') || '' : '',
     created_at: new Date().toISOString(),
   };
 

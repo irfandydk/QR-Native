@@ -131,6 +131,70 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     white-space: nowrap !important;
   }
 
+  /* Page break rules for official BRA SAR document */
+  /* Prevent KOP from being separated alone on page 1 without table content */
+  .bra-kop {
+    page-break-after: avoid !important;
+    break-after: avoid-page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .bra-top-header {
+    page-break-after: avoid !important;
+    break-after: avoid-page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .bra-upper-section {
+    page-break-after: avoid !important;
+    break-after: avoid-page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .bra-no-header {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Multi-page flow: Allow table and body to break across pages cleanly */
+  .bra-main-layout {
+    display: table !important;
+    width: 100% !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+  .bra-senkom-col {
+    display: table-cell !important;
+    width: 28px !important;
+    vertical-align: top !important;
+  }
+  .bra-table-col {
+    display: table-cell !important;
+    width: auto !important;
+    vertical-align: top !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+  .bra-body-container {
+    min-height: 0 !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+  }
+  .bra-section-row {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .bra-twb-row {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .bra-footer-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   img {
     max-width: 100%;
     page-break-inside: avoid;

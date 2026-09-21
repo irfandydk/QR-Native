@@ -108,104 +108,70 @@
     },
     {
       "id_tim": 7,
-      "nama_tim": "ABK KN SAR Pacitan"
+      "nama_tim": "Unit Siaga SAR Konawe"
     },
     {
       "id_tim": 8,
-      "nama_tim": "ABK RB 210"
+      "nama_tim": "Unit Siaga SAR Kolaka Utara"
     },
     {
       "id_tim": 9,
+      "nama_tim": "ABK KN SAR Pacitan"
+    },
+    {
+      "id_tim": 10,
+      "nama_tim": "ABK RB 210"
+    },
+    {
+      "id_tim": 11,
       "nama_tim": "ABK RB 307"
     }
   ],
   "operasi": [
     {
-      "nama_operasi": "KMM 1 Orang Terjatuh dari Longboat di Perairan Wakatobi",
-      "nama_pelapor": "",
+      "nama_operasi": "operasi sar kecelakaan kapal di kendari",
+      "nama_pelapor": "konawe",
       "hubungan_pelapor": "Masyarakat",
-      "no_telp_pelapor": "",
-      "waktu_kejadian": "2026-09-19T23:42:00.000Z",
-      "waktu_lapor": "2026-09-19T23:42:00.000Z",
-      "waktu_berangkat": "2026-09-19T23:42:00.000Z",
+      "no_telp_pelapor": "9020310293019",
+      "waktu_kejadian": "2026-09-15T00:37:00.000Z",
+      "waktu_lapor": "2026-09-21T00:38:00.000Z",
+      "waktu_berangkat": "2026-09-21T00:43:00.000Z",
       "tim_berangkat": "Tim Rescue Kansar Kendari",
-      "eta_tiba": "2026-09-19T23:42:00.000Z",
-      "lokasi_kejadian": "Perairan Kaporta",
+      "eta_tiba": "2026-09-21T01:37:00.000Z",
+      "lokasi_kejadian": "Kendari",
       "koordinat": "03° 58' 30\" S - 122° 35' 12\" E",
-      "jarak": "10 Nm",
-      "eta_lokasi": "1 Jam 30 Menit",
-      "kronologi": "Pada tanggal 20 September 2026 pukul 17.00 WITA, korban berangkat melaut menggunakan longboat seorang diri dengan tujuan memancing di perairan Kaporta, Kabupaten Wakatobi. Hingga pukul 20.00 WITA, korban belum kembali ke daratan dan tidak dapat dihubungi, sehingga pihak keluarga bersama warga setempat melakukan pencarian awal di sekitar lokasi namun belum membuahkan hasil. Diduga korban mengalami kondisi darurat saat melaut sehingga dinyatakan hilang pada LKP (*Last Known Position*) dengan koordinat yang masih dalam tahap verifikasi di perairan tersebut.",
+      "jarak": "16 Km",
+      "eta_lokasi": "1 Jam",
+      "kronologi": "Pada 20 September 2026 pukul 08.37 WITA, korban dilaporkan pergi melaut untuk memancing ikan menggunakan 1 (satu) unit longboat di sekitar perairan Bungkutoko. Korban yang seharusnya telah kembali hingga saat ini belum tiba dan dinyatakan hilang kontak di sekitar LKP (Last Known Position). Upaya pencarian telah dilakukan secara mandiri oleh pihak keluarga bersama warga setempat di area perkiraan kejadian, namun korban belum berhasil ditemukan dengan hasil nihil. Selanjutnya, pihak keluarga melaporkan kejadian tersebut ke Kantor Pencarian dan Pertolongan (KPP) Kendari guna memohon bantuan SAR.",
       "jumlah_pob": 1,
-      "unsur_terlibat": "Tim Rescue Kansar Kendari (7 Org), Polairud (3 Org), Masyarakat & Nelayan Setempat (10 Org), Staf SMC (5 Org)",
-      "alut_palsar": "1 Unit Rescue Car, 1 Unit Rubber Boat, 1 Set Aqua Eye",
+      "unsur_terlibat": "Tim Rescue Kansar Kendari (7 Org), Staf SMC (3 Org)",
+      "alut_palsar": "1 Unit Rescue Car, 1 Set Aqua Eye, 1 Unit RIB (Rigid Inflatable Boat), 1 Set Palsar Evakuasi & Tandu, 1 Unit Drone Thermal / Surveillance, 1 Set Palsar Komunikasi & Alkom, 1 Set Palsar Medis (First Aid Kit), 1 Unit Aqua Eye (Sonar Scanner), 1 Set Peralatan Selam (Diving Gear)",
       "faktor_penghambat": "Nihil",
       "cuaca": "Cerah Berawan",
-      "gelombang": "0.5 - 1.25 M",
+      "gelombang": "0.1 - 0.5 M",
       "angin": "Barat Daya - Barat Laut, 5 - 15 Knots",
-      "full_text_wa": "FILE AKTIF\n____\n\nSEMANGAT QUICK ACTION SEARCH AND RESCUE\nSATU JIWA SATU RASA\nWE ARE FAMILY\nPROFESIONAL MODERN TERUJI\nLAPORAN AWAL OPS SAR\n\nKANTOR PENCARIAN DAN PERTOLONGAN KENDARI\nMinggu, 20 September 2026\n\nYTH : KABASARNAS\nCC : PIMTI MADYA & PRATAMA\n\nDengan hormat, mohon ijin melaporkan KMM 1 Orang Terjatuh dari Longboat di Perairan Wakatobi.\n__________________________________________________\n\n1. Sumber Info kejadian :\nBpk. Pelapor (Masyarakat / No. HP -)\nPada Tanggal 20 September 2026 pukul 07:42 Wita\n\n2. Lokasi Kejadian :\nLokasi : Perairan Kaporta\nKoordinat : 03° 58' 30\" S - 122° 35' 12\" E\njarak tempuh : 10 Nm\nEstimasi waktu tempuh : 1 Jam 30 Menit\n\n3. Pelaksanaan SAR\nPada Tanggal 20 September 2026 pukul 07:42 Wita, Tim Rescue Kansar Kendari berangkat ke LKP untuk melaksanakan Operasi SAR, dengan estimasi waktu tempuh ETA 20 September 2026 pukul 07:42 WITA.\n\n4. Kronologi Kejadian\nPada tanggal 20 September 2026 pukul 17.00 WITA, korban berangkat melaut menggunakan longboat seorang diri dengan tujuan memancing di perairan Kaporta, Kabupaten Wakatobi. Hingga pukul 20.00 WITA, korban belum kembali ke daratan dan tidak dapat dihubungi, sehingga pihak keluarga bersama warga setempat melakukan pencarian awal di sekitar lokasi namun belum membuahkan hasil. Diduga korban mengalami kondisi darurat saat melaut sehingga dinyatakan hilang pada LKP (*Last Known Position*) dengan koordinat yang masih dalam tahap verifikasi di perairan tersebut.\n\n5. Data Korban: 1 orang\n• S : 0 orang\n• MD : 0 orang\n• DP : 1 orang\n• H : 0 orang\n\nIdentitas Korban :\n1. Nama : la gambang\n   Umur : 20 Tahun\n   Jenis Kelamin : Laki-laki\n   Alamat : kendari\n\n6. Unsur SAR Terlibat\n• Tim Rescue Kansar Kendari (7 Org)\n• Polairud (3 Org)\n• Masyarakat & Nelayan Setempat (10 Org)\n• Staf SMC (5 Org)\n\n7. Alut dan Palsar\n• 1 Unit Rescue Car\n• 1 Unit Rubber Boat\n• 1 Set Aqua Eye\n\n8. Faktor Penghambat\nNihil\n\n9. Kondisi Cuaca :\n• cuaca : Cerah Berawan\n• Gelombang : 0.5 - 1.25 M\n• Angin: Barat Daya - Barat Laut, 5 - 15 Knots\n\nDemikian kami laporkan, mohon petunjuk dan arahan\n\nTtd\n\nKKS Kendari\n===========================\n🏢 Kantor Pencarian Dan Pertolongan Kendari\n📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116\n☎️ Telp. : (0401) 3196557\n📠 Fax. : (0401) 3196558\n📱 WhatsApp : +62811-4034-115\n🚨 Emergency Call : 115\n🌐 Website : Www.Kendari.Basarnas.go.id\n📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id\n📲 Medsos : @Basarnaskendari",
-      "id_operasi": 2,
-      "status": "OPEN",
-      "created_at": "2026-09-19T23:47:11.450Z"
-    },
-    {
+      "full_text_wa": "FILE AKTIF\n____\n\nSEMANGAT QUICK ACTION SEARCH AND RESCUE\nSATU JIWA SATU RASA\nWE ARE FAMILY\nPROFESIONAL MODERN TERUJI\nLAPORAN AWAL OPS SAR\n\nKANTOR PENCARIAN DAN PERTOLONGAN KENDARI\nSenin, 21 September 2026\n\nYTH : KABASARNAS\nCC : PIMTI MADYA & PRATAMA\n\nDengan hormat, mohon ijin melaporkan operasi sar kecelakaan kapal di kendari.\n__________________________________________________\n\n1. Sumber Info kejadian :\nkonawe (Masyarakat / No. HP 9020310293019)\nPada Tanggal 21 September 2026 pukul 08:38 Wita\n\n2. Lokasi Kejadian :\nLokasi : Kendari\nKoordinat : 03° 58' 30\" S - 122° 35' 12\" E\njarak tempuh : 16 Km\nEstimasi waktu tempuh : 1 Jam\n\n3. Pelaksanaan SAR\nPada Tanggal 21 September 2026 pukul 08:43 Wita, Tim Rescue Kansar Kendari berangkat ke LKP untuk melaksanakan Operasi SAR, dengan estimasi waktu tempuh ETA 21 September 2026 pukul 09:37 WITA.\n\n4. Kronologi Kejadian\nPada 20 September 2026 pukul 08.37 WITA, korban dilaporkan pergi melaut untuk memancing ikan menggunakan 1 (satu) unit longboat di sekitar perairan Bungkutoko. Korban yang seharusnya telah kembali hingga saat ini belum tiba dan dinyatakan hilang kontak di sekitar LKP (Last Known Position). Upaya pencarian telah dilakukan secara mandiri oleh pihak keluarga bersama warga setempat di area perkiraan kejadian, namun korban belum berhasil ditemukan dengan hasil nihil. Selanjutnya, pihak keluarga melaporkan kejadian tersebut ke Kantor Pencarian dan Pertolongan (KPP) Kendari guna memohon bantuan SAR.\n\n5. Data Korban: 1 orang\n• S : 0 orang\n• MD : 0 orang\n• DP : 1 orang\n• H : 0 orang\n\nIdentitas Korban :\n1. Nama : lapuko\n   Umur : 25 tahun\n   Jenis Kelamin : Laki-laki\n   Alamat : kendari\n\n6. Unsur SAR Terlibat\n• Tim Rescue Kansar Kendari (7 Org)\n• Staf SMC (3 Org)\n\n7. Alut dan Palsar\n• 1 Unit Rescue Car\n• 1 Set Aqua Eye\n• 1 Unit RIB (Rigid Inflatable Boat)\n• 1 Set Palsar Evakuasi & Tandu\n• 1 Unit Drone Thermal / Surveillance\n• 1 Set Palsar Komunikasi & Alkom\n• 1 Set Palsar Medis (First Aid Kit)\n• 1 Unit Aqua Eye (Sonar Scanner)\n• 1 Set Peralatan Selam (Diving Gear)\n\n8. Faktor Penghambat\nNihil\n\n9. Kondisi Cuaca :\n• cuaca : Cerah Berawan\n• Gelombang : 0.1 - 0.5 M\n• Angin: Barat Daya - Barat Laut, 5 - 15 Knots\n\nDemikian kami laporkan, mohon petunjuk dan arahan\n\nTtd\n\nKKS Kendari\n===========================\n🏢 Kantor Pencarian Dan Pertolongan Kendari\n📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116\n☎️ Telp. : (0401) 3196557\n📠 Fax. : (0401) 3196558\n📱 WhatsApp : +62811-4034-115\n🚨 Emergency Call : 115\n🌐 Website : Www.Kendari.Basarnas.go.id\n📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id\n📲 Medsos : @Basarnaskendari",
       "id_operasi": 1,
-      "nama_operasi": "KMM 1 Orang Nelayan Terjatuh dari Longboat di Perairan Wakatobi",
-      "nama_pelapor": "Bpk. La Ode Sudirman",
-      "hubungan_pelapor": "Kepala Desa Mola Selatan",
-      "no_telp_pelapor": "0812-4589-9821",
-      "waktu_kejadian": "2026-09-18T21:42:38.174Z",
-      "waktu_lapor": "2026-09-18T22:42:38.174Z",
-      "waktu_berangkat": "2026-09-18T23:42:38.174Z",
-      "tim_berangkat": "Pos SAR Wakatobi, Tim Rescue Kansar Kendari",
-      "eta_tiba": "2026-09-19T01:12:38.174Z",
-      "lokasi_kejadian": "Perairan Karang Kapota, Kabupaten Wakatobi, Sulawesi Tenggara",
-      "koordinat": "05° 18' 24\" S - 123° 34' 10\" E",
-      "jarak": "12 Nm",
-      "eta_lokasi": "1 Jam 15 Menit",
-      "kronologi": "Pada hari kemarin sekitar pukul 05.30 WITA korban berangkat melaut seorang diri mencari ikan menggunakan longboat. Sekitar pukul 07.00 WITA seorang nelayan lain menemukan longboat korban dalam keadaan mesin masih menyala berputar tanpa pengemudi. Pencarian telah dilakukan oleh nelayan setempat namun hingga laporan ini dibuat korban belum ditemukan.",
-      "jumlah_pob": 1,
-      "unsur_terlibat": "Pos SAR Wakatobi (5 Org), Polairud Wakatobi (3 Org), Pos TNI AL Wakatobi (2 Org), BPBD Wakatobi (3 Org), Nelayan Setempat (15 Org)",
-      "alut_palsar": "1 Unit RIB Pos SAR Wakatobi, 1 Unit Rubber Boat, 4 Unit Longboat Nelayan, 1 Set Palsar Selam, 1 Set Aqua Eye",
-      "faktor_penghambat": "Arus bawah laut cukup deras",
-      "cuaca": "Cerah Berawan",
-      "gelombang": "0.75 - 1.5 M",
-      "angin": "Timur - Tenggara, 8 - 15 Knots",
       "status": "OPEN",
-      "waktu_selesai": null,
-      "full_text_wa": "FILE AKTIF\n____\n\nSEMANGAT QUICK ACTION SEARCH AND RESCUE\nSATU JIWA SATU RASA\nWE ARE FAMILY\nPROFESIONAL MODERN TERUJI\nLAPORAN AWAL OPS SAR\n\nKANTOR PENCARIAN DAN PERTOLONGAN KENDARI\nSabtu, 19 September 2026\n\nYTH : KABASARNAS\nCC : PIMTI MADYA & PRATAMA\n\nDengan hormat, mohon ijin melaporkan KMM 1 Orang Nelayan Terjatuh dari Longboat di Perairan Wakatobi.\n__________________________________________________\n\n1. Sumber Info kejadian :\nBpk. La Ode Sudirman (Kepala Desa Mola Selatan / No. HP 0812-4589-9821)\nPada Tanggal 19 September 2026 pukul 06:42 Wita\n\n2. Lokasi Kejadian :\nLokasi : Perairan Karang Kapota, Kabupaten Wakatobi, Sulawesi Tenggara\nKoordinat : 05° 18' 24\" S - 123° 34' 10\" E\njarak tempuh : 12 Nm\nEstimasi waktu tempuh : 1 Jam 15 Menit\n\n3. Pelaksanaan SAR\nPada Tanggal 19 September 2026 pukul 07:42 Wita, Pos SAR Wakatobi, Tim Rescue Kansar Kendari berangkat ke LKP untuk melaksanakan Operasi SAR, dengan estimasi waktu tempuh ETA 19 September 2026 pukul 09:12 WITA.\n\n4. Kronologi Kejadian\nPada hari kemarin sekitar pukul 05.30 WITA korban berangkat melaut seorang diri mencari ikan menggunakan longboat. Sekitar pukul 07.00 WITA seorang nelayan lain menemukan longboat korban dalam keadaan mesin masih menyala berputar tanpa pengemudi. Pencarian telah dilakukan oleh nelayan setempat namun hingga laporan ini dibuat korban belum ditemukan.\n\n5. Data Korban: 1 orang\n• S : 0 orang\n• MD : 0 orang\n• DP : 1 orang\n• H : 0 orang\n\nIdentitas Korban :\n1. Nama : La Sarifuddin\n   Umur : 42 Tahun\n   Jenis Kelamin : Laki-laki\n   Alamat : Desa Mola Selatan, Kec. Wangi-Wangi Selatan, Kab. Wakatobi\n\n6. Unsur SAR Terlibat\n• Pos SAR Wakatobi (5 Org)\n• Polairud Wakatobi (3 Org)\n• Pos TNI AL Wakatobi (2 Org)\n• BPBD Wakatobi (3 Org)\n• Masyarakat & Nelayan Setempat (15 Org)\n\n7. Alut dan Palsar\n• 1 Unit RIB\n• 1 Unit Rubber Boat\n• 4 Unit Longboat Masyarakat\n• 1 Set Aqua Eye\n• 2 Set Palsar Selam\n\n8. Faktor Penghambat\nArus bawah laut cukup deras\n\n9. Kondisi Cuaca :\n• cuaca : Cerah Berawan\n• Gelombang : 0.75 - 1.5 M\n• Angin: Timur - Tenggara, 8 - 15 Knots\n\nDemikian kami laporkan, mohon petunjuk dan arahan\n\nTtd\n\nKKS Kendari\n===========================\n🏢 Kantor Pencarian Dan Pertolongan Kendari\n📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116\n☎️ Telp. : (0401) 3196557\n📠 Fax. : (0401) 3196558\n📱 WhatsApp : +62811-4034-115\n🚨 Emergency Call : 115\n🌐 Website : Www.Kendari.Basarnas.go.id\n📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id\n📲 Medsos : @Basarnaskendari",
-      "created_at": "2026-09-18T22:42:38.174Z"
+      "created_at": "2026-09-21T00:43:22.131Z",
+      "waktu_selesai": null
     }
   ],
   "korban": [
     {
-      "id_korban": 1,
-      "id_operasi": 1,
-      "nama_korban": "La Sarifuddin",
-      "umur": "42 Tahun",
-      "jk": "Laki-laki",
-      "alamat": "Desa Mola Selatan, Kec. Wangi-Wangi Selatan, Kab. Wakatobi",
-      "status_korban": "DP"
-    },
-    {
-      "nama_korban": "la gambang",
-      "umur": "20 Tahun",
+      "nama_korban": "lapuko",
+      "umur": "25 tahun",
       "jk": "Laki-laki",
       "alamat": "kendari",
-      "status_korban": "DP",
-      "id_korban": 2,
-      "id_operasi": 2
+      "status_korban": "S",
+      "id_korban": 1,
+      "id_operasi": 1
     }
   ],
   "detail_tim_berangkat": [
     {
       "id_detail_tim": 1,
       "id_operasi": 1,
-      "id_tim": 4,
-      "nama_tim": "Pos SAR Wakatobi"
-    },
-    {
-      "id_detail_tim": 2,
-      "id_operasi": 2,
       "id_tim": 1,
       "nama_tim": "Tim Rescue Kansar Kendari"
     }
@@ -214,166 +180,172 @@
     {
       "id_detail_unsur": 1,
       "id_operasi": 1,
-      "nama_unsur": "Pos SAR Wakatobi",
-      "jumlah_personil": 5
-    },
-    {
-      "id_detail_unsur": 2,
-      "id_operasi": 1,
-      "nama_unsur": "Polairud Wakatobi",
+      "nama_unsur": "Staf SMC",
       "jumlah_personil": 3
     },
     {
       "id_detail_unsur": 3,
       "id_operasi": 1,
-      "nama_unsur": "Pos TNI AL Wakatobi",
-      "jumlah_personil": 2
-    },
-    {
-      "id_detail_unsur": 4,
-      "id_operasi": 1,
-      "nama_unsur": "BPBD Wakatobi",
-      "jumlah_personil": 3
-    },
-    {
-      "id_detail_unsur": 5,
-      "id_operasi": 1,
-      "nama_unsur": "Masyarakat & Nelayan Setempat",
-      "jumlah_personil": 15
-    },
-    {
       "nama_unsur": "Tim Rescue Kansar Kendari",
-      "jumlah_personil": 7,
+      "jumlah_personil": 7
+    },
+    {
       "id_detail_unsur": 6,
-      "id_operasi": 2
-    },
-    {
-      "nama_unsur": "Polairud",
-      "jumlah_personil": 3,
-      "id_detail_unsur": 7,
-      "id_operasi": 2
-    },
-    {
-      "nama_unsur": "Masyarakat & Nelayan Setempat",
-      "jumlah_personil": 10,
-      "id_detail_unsur": 8,
-      "id_operasi": 2
-    },
-    {
-      "nama_unsur": "Staf SMC",
-      "jumlah_personil": 5,
-      "id_detail_unsur": 9,
-      "id_operasi": 2
+      "id_operasi": 1,
+      "nama_unsur": "Polsek & Koramil Setempat",
+      "jumlah_personil": 4
     }
   ],
   "detail_alut": [
     {
       "id_detail_alut": 1,
       "id_operasi": 1,
-      "id_alut": 5,
-      "nama_alut": "RIB",
-      "satuan": "Unit",
-      "jumlah_alut": 1
-    },
-    {
-      "id_detail_alut": 2,
-      "id_operasi": 1,
-      "id_alut": 6,
-      "nama_alut": "Rubber Boat",
+      "id_alut": 1,
+      "nama_alut": "Rescue Car",
       "satuan": "Unit",
       "jumlah_alut": 1
     },
     {
       "id_detail_alut": 3,
       "id_operasi": 1,
-      "id_alut": 7,
-      "nama_alut": "Longboat Masyarakat",
-      "satuan": "Unit",
-      "jumlah_alut": 4
-    },
-    {
-      "id_detail_alut": 4,
-      "id_operasi": 1,
       "id_alut": 8,
       "nama_alut": "Aqua Eye",
       "satuan": "Set",
       "jumlah_alut": 1
     },
     {
-      "id_detail_alut": 5,
-      "id_operasi": 1,
-      "id_alut": 14,
-      "nama_alut": "Palsar Selam",
-      "satuan": "Set",
-      "jumlah_alut": 2
-    },
-    {
-      "id_alut": 1,
-      "nama_alut": "Rescue Car",
-      "satuan": "Unit",
-      "jumlah_alut": 1,
       "id_detail_alut": 6,
-      "id_operasi": 2
-    },
-    {
-      "id_alut": 6,
-      "nama_alut": "Rubber Boat",
+      "id_operasi": 1,
+      "id_alut": 0,
+      "nama_alut": "RIB (Rigid Inflatable Boat)",
       "satuan": "Unit",
-      "jumlah_alut": 1,
-      "id_detail_alut": 7,
-      "id_operasi": 2
+      "jumlah_alut": 1
     },
     {
-      "id_alut": 8,
-      "nama_alut": "Aqua Eye",
+      "id_detail_alut": 10,
+      "id_operasi": 1,
+      "id_alut": 0,
+      "nama_alut": "Palsar Evakuasi & Tandu",
       "satuan": "Set",
-      "jumlah_alut": 1,
-      "id_detail_alut": 8,
-      "id_operasi": 2
+      "jumlah_alut": 1
+    },
+    {
+      "id_detail_alut": 15,
+      "id_operasi": 1,
+      "id_alut": 0,
+      "nama_alut": "Drone Thermal / Surveillance",
+      "satuan": "Unit",
+      "jumlah_alut": 1
+    },
+    {
+      "id_detail_alut": 21,
+      "id_operasi": 1,
+      "id_alut": 0,
+      "nama_alut": "Palsar Komunikasi & Alkom",
+      "satuan": "Set",
+      "jumlah_alut": 1
+    },
+    {
+      "id_detail_alut": 28,
+      "id_operasi": 1,
+      "id_alut": 0,
+      "nama_alut": "Palsar Medis (First Aid Kit)",
+      "satuan": "Set",
+      "jumlah_alut": 1
+    },
+    {
+      "id_detail_alut": 36,
+      "id_operasi": 1,
+      "id_alut": 0,
+      "nama_alut": "Aqua Eye (Sonar Scanner)",
+      "satuan": "Unit",
+      "jumlah_alut": 1
+    },
+    {
+      "id_detail_alut": 45,
+      "id_operasi": 1,
+      "id_alut": 0,
+      "nama_alut": "Peralatan Selam (Diving Gear)",
+      "satuan": "Set",
+      "jumlah_alut": 1
     }
   ],
   "renops": [
     {
-      "id_renops": 1,
-      "id_operasi": 1,
-      "hari_ke": "H.1",
-      "tanggal_laporan": "2026-09-18",
-      "waktu_briefing": "2026-09-19T01:12:38.174Z",
-      "waktu_mulai_ops": "2026-09-19T01:42:38.174Z",
+      "hari_ke": "H.2",
+      "tanggal_laporan": "2026-09-22",
+      "waktu_briefing": "2026-09-21T23:00:00.000Z",
+      "waktu_mulai_ops": "2026-09-21T23:30:00.000Z",
       "cuaca": "Cerah Berawan",
       "unsur_text": "",
       "alut_text": "",
-      "full_text_wa": "FILE AKTIF\n____\n\nSEMANGAT QUICK ACTION SEARCH AND RESCUE\nSATU JIWA SATU RASA\nWE ARE FAMILY\nPROFESIONAL MODERN TERUJI\nRENCANA OPS SAR H.1\n\nKANTOR PENCARIAN DAN PERTOLONGAN KENDARI\nJumat, 18 September 2026\n\nYTH : KABASARNAS\nCC : PIMTI MADYA & PRATAMA\n\nDengan hormat, mohon ijin melaporkan Rencana Ops KMM 1 Orang Nelayan Terjatuh dari Longboat di Perairan Wakatobi.\n====================\n\nRencana Ops H.1 :\n\n• PD TW 0919 0912 H Tim SAR Gabungan Melaksanakan Brifing Operasi.\n• Pada TW 0919 0942 H Tim SAR Gabungan Melanjutkan Operasi Pencarian H.1 Sesuai Rencana Operasi H.1 dengan Tim SAR gabungan menuju ke entri point masing-masing.\nDengan Tim dibagi 2 SRU dengan area pencarian sbb :\n\n*SRU 1 (RIB Pos SAR Wakatobi) melakukan penyisiran dgn koordinat\nA: 05° 17' 00\" S - 123° 33' 00\" E\nB: 05° 17' 00\" S - 123° 36' 00\" E\nC: 05° 20' 00\" S - 123° 36' 00\" E\nD: 05° 20' 00\" S - 123° 33' 00\" E\nLuas area pencarian 9 Nm²\nPola pencarian : Parallel Track Search\n\n*SRU 2 (Longboat Masyarakat) melakukan penyisiran dgn koordinat\nPenyisiran di sekitar pesisir Karang Kapota dan pulau-pulau kecil terdekat\nLuas area pencarian 6 Nm²\nPola pencarian : Creeping Line Search\n\n1. Data Korban: 1 Orang\n• S : 0 ORANG\n• MD : 0 ORANG\n• DP : 1 ORANG\n• H : 0 ORANG\n\n2. Identitas Korban\n1. Nama : La Sarifuddin\n   Umur : 42 Tahun\n   Jenis Kelamin : Laki-laki\n   Alamat : Desa Mola Selatan, Kec. Wangi-Wangi Selatan, Kab. Wakatobi\n\n3. Unsur SAR Terlibat\n• Pos SAR Wakatobi : 5 Orang\n• Polairud Wakatobi : 3 Orang\n• Pos TNI AL Wakatobi : 2 Orang\n• BPBD Wakatobi : 3 Orang\n• Masyarakat & Nelayan Setempat : 15 Orang\n\n4. Alut dan Palsar\n• 1 Unit RIB\n• 1 Unit Rubber Boat\n• 4 Unit Longboat Masyarakat\n• 1 Set Aqua Eye\n• 2 Set Palsar Selam\n\n5. Kondisi Cuaca :\n• Cuaca: Cerah Berawan\n(Sumber BMKG)\n\nDemikian kami laporkan, mohon petunjuk dan arahan\n\nTtd\n\nKKS Kendari\n===========================\n🏢 Kantor Pencarian Dan Pertolongan Kendari\n📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116\n☎️ Telp. : (0401) 3196557\n📠 Fax. : (0401) 3196558\n📱 WhatsApp : +62811-4034-115\n🚨 Emergency Call : 115\n🌐 Website : Www.Kendari.Basarnas.go.id\n📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id\n📲 Medsos : @Basarnaskendari",
-      "created_at": "2026-09-18T23:42:38.174Z"
+      "full_text_wa": "FILE AKTIF\n____\n\nSEMANGAT QUICK ACTION SEARCH AND RESCUE\nSATU JIWA SATU RASA\nWE ARE FAMILY\nPROFESIONAL MODERN TERUJI\nRENCANA OPS SAR H.2\n\nKANTOR PENCARIAN DAN PERTOLONGAN KENDARI\nSelasa, 22 September 2026\n\nYTH : KABASARNAS\nCC : PIMTI MADYA & PRATAMA\n\nDengan hormat, mohon ijin melaporkan Rencana Ops operasi sar kecelakaan kapal di kendari.\n====================\n\nRencana Ops H.2 :\n\n• PD TW 0922 0700 H Tim SAR Gabungan Melaksanakan Brifing Operasi.\n• Pada TW 0922 0730 H Tim SAR Gabungan Melanjutkan Operasi Pencarian H.2 Sesuai Rencana Operasi H.2 dengan Tim SAR gabungan menuju ke entri point masing-masing.\nDengan Tim dibagi 2 SRU dengan area pencarian sbb :\n\n*SRU 1 (Tim Rescue Kansar Kendari) melakukan penyisiran dgn koordinat\nA: 03° 58' 30\" S - 122° 35' 12\" E\nB: 03° 58' 30\" S - 122° 40' 00\" E\nC: 04° 03' 00\" S - 122° 40' 00\" E\nD: 04° 03' 00\" S - 122° 35' 12\" E\nLuas area pencarian 10 Nm²\nPola pencarian : Parallel Track Search\n\n*SRU 2 (Unsur Gabungan & Nelayan) melakukan penyisiran dgn koordinat\nPenyisiran visual di sepanjang pesisir pantai dan pulau terdekat\nLuas area pencarian 6 Nm²\nPola pencarian : Creeping Line Search\n\n1. Data Korban: 1 Orang\n• S : 1 ORANG\n• MD : 0 ORANG\n• DP : 0 ORANG\n• H : 0 ORANG\n\n2. Identitas Korban\n1. Nama : lapuko (Selamat (S))\n   Umur : 25 tahun\n   Jenis Kelamin : Laki-laki\n   Alamat : kendari\n\n3. Unsur SAR Terlibat\n• Staf SMC : 3 Orang\n• Tim Rescue Kansar Kendari : 7 Orang\n• Polsek & Koramil Setempat : 4 Orang\n\n4. Alut dan Palsar\n• 1 Unit Rescue Car\n• 1 Set Aqua Eye\n• 1 Unit RIB (Rigid Inflatable Boat)\n• 1 Set Palsar Evakuasi & Tandu\n• 1 Unit Drone Thermal / Surveillance\n• 1 Set Palsar Komunikasi & Alkom\n• 1 Set Palsar Medis (First Aid Kit)\n• 1 Unit Aqua Eye (Sonar Scanner)\n• 1 Set Peralatan Selam (Diving Gear)\n\n5. Kondisi Cuaca :\n• Cuaca: Cerah Berawan\n(Sumber BMKG)\n\nDemikian kami laporkan, mohon petunjuk dan arahan\n\nTtd\n\nKKS Kendari\n===========================\n🏢 Kantor Pencarian Dan Pertolongan Kendari\n📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116\n☎️ Telp. : (0401) 3196557\n📠 Fax. : (0401) 3196558\n📱 WhatsApp : +62811-4034-115\n🚨 Emergency Call : 115\n🌐 Website : Www.Kendari.Basarnas.go.id\n📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id\n📲 Medsos : @Basarnaskendari",
+      "id_renops": 2,
+      "id_operasi": 1,
+      "created_at": "2026-09-21T01:24:49.918Z"
+    },
+    {
+      "hari_ke": "H.2",
+      "tanggal_laporan": "2026-09-22",
+      "waktu_briefing": "2026-09-21T23:00:00.000Z",
+      "waktu_mulai_ops": "2026-09-21T23:30:00.000Z",
+      "cuaca": "Cerah Berawan, Hujan Ringan",
+      "unsur_text": "",
+      "alut_text": "",
+      "full_text_wa": "FILE AKTIF\n____\n\nSEMANGAT QUICK ACTION SEARCH AND RESCUE\nSATU JIWA SATU RASA\nWE ARE FAMILY\nPROFESIONAL MODERN TERUJI\nRENCANA OPS SAR H.2\n\nKANTOR PENCARIAN DAN PERTOLONGAN KENDARI\nSelasa, 22 September 2026\n\nYTH : KABASARNAS\nCC : PIMTI MADYA & PRATAMA\n\nDengan hormat, mohon ijin melaporkan Rencana Ops operasi sar kecelakaan kapal di kendari.\n====================\n\nRencana Ops H.2 :\n\n• PD TW 0922 0700 H Tim SAR Gabungan Melaksanakan Brifing Operasi.\n• Pada TW 0922 0730 H Tim SAR Gabungan Melanjutkan Operasi Pencarian H.2 Sesuai Rencana Operasi H.2 dengan Tim SAR gabungan menuju ke entri point masing-masing.\nDengan Tim dibagi 2 SRU dengan area pencarian sbb :\n\n*SRU 1 (Tim Rescue Kansar Kendari) melakukan penyisiran dgn koordinat\nA: 03° 58' 30\" S - 122° 35' 12\" E\nB: 03° 58' 30\" S - 122° 40' 00\" E\nC: 04° 03' 00\" S - 122° 40' 00\" E\nD: 04° 03' 00\" S - 122° 35' 12\" E\nLuas area pencarian 10 Nm²\nPola pencarian : Parallel Track Search\n\n*SRU 2 (Unsur Gabungan & Nelayan) melakukan penyisiran dgn koordinat\nPenyisiran visual di sepanjang pesisir pantai dan pulau terdekat\nLuas area pencarian 6 Nm²\nPola pencarian : Creeping Line Search\n\n1. Data Korban: 1 Orang\n• S : 0 ORANG\n• MD : 0 ORANG\n• DP : 1 ORANG\n• H : 0 ORANG\n\n2. Identitas Korban\n1. Nama : lapuko\n   Umur : 25 tahun\n   Jenis Kelamin : Laki-laki\n   Alamat : kendari\n\n3. Unsur SAR Terlibat\n• Staf SMC : 3 Orang\n• Tim Rescue Kansar Kendari : 7 Orang\n• Polsek & Koramil Setempat : 4 Orang\n\n4. Alut dan Palsar\n• 1 Unit Rescue Car\n• 1 Set Aqua Eye\n• 1 Unit RIB (Rigid Inflatable Boat)\n• 1 Set Palsar Evakuasi & Tandu\n• 1 Unit Drone Thermal / Surveillance\n• 1 Set Palsar Komunikasi & Alkom\n• 1 Set Palsar Medis (First Aid Kit)\n• 1 Unit Aqua Eye (Sonar Scanner)\n• 1 Set Peralatan Selam (Diving Gear)\n\n5. Kondisi Cuaca :\n• Cuaca: Cerah Berawan, Hujan Ringan\n(Sumber BMKG)\n\nDemikian kami laporkan, mohon petunjuk dan arahan\n\nTtd\n\nKKS Kendari\n===========================\n🏢 Kantor Pencarian Dan Pertolongan Kendari\n📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116\n☎️ Telp. : (0401) 3196557\n📠 Fax. : (0401) 3196558\n📱 WhatsApp : +62811-4034-115\n🚨 Emergency Call : 115\n🌐 Website : Www.Kendari.Basarnas.go.id\n📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id\n📲 Medsos : @Basarnaskendari",
+      "id_renops": 1,
+      "id_operasi": 1,
+      "created_at": "2026-09-21T00:44:56.898Z"
     }
   ],
   "renops_sru": [
     {
+      "nama_sru": "SRU 1 (Tim Rescue Kansar Kendari)",
+      "koordinat_area": "A: 03° 58' 30\" S - 122° 35' 12\" E\nB: 03° 58' 30\" S - 122° 40' 00\" E\nC: 04° 03' 00\" S - 122° 40' 00\" E\nD: 04° 03' 00\" S - 122° 35' 12\" E",
+      "luas_area": "10 Nm²",
+      "pola_pencarian": "Parallel Track Search",
       "id_sru": 1,
-      "id_renops": 1,
-      "nama_sru": "SRU 1 (RIB Pos SAR Wakatobi)",
-      "koordinat_area": "A: 05° 17' 00\" S - 123° 33' 00\" E\nB: 05° 17' 00\" S - 123° 36' 00\" E\nC: 05° 20' 00\" S - 123° 36' 00\" E\nD: 05° 20' 00\" S - 123° 33' 00\" E",
-      "luas_area": "9 Nm²",
-      "pola_pencarian": "Parallel Track Search"
+      "id_renops": 1
     },
     {
-      "id_sru": 2,
-      "id_renops": 1,
-      "nama_sru": "SRU 2 (Longboat Masyarakat)",
-      "koordinat_area": "Penyisiran di sekitar pesisir Karang Kapota dan pulau-pulau kecil terdekat",
+      "nama_sru": "SRU 2 (Unsur Gabungan & Nelayan)",
+      "koordinat_area": "Penyisiran visual di sepanjang pesisir pantai dan pulau terdekat",
       "luas_area": "6 Nm²",
-      "pola_pencarian": "Creeping Line Search"
+      "pola_pencarian": "Creeping Line Search",
+      "id_sru": 2,
+      "id_renops": 1
+    },
+    {
+      "nama_sru": "SRU 1 (Tim Rescue Kansar Kendari)",
+      "koordinat_area": "A: 03° 58' 30\" S - 122° 35' 12\" E\nB: 03° 58' 30\" S - 122° 40' 00\" E\nC: 04° 03' 00\" S - 122° 40' 00\" E\nD: 04° 03' 00\" S - 122° 35' 12\" E",
+      "luas_area": "10 Nm²",
+      "pola_pencarian": "Parallel Track Search",
+      "id_sru": 3,
+      "id_renops": 2
+    },
+    {
+      "nama_sru": "SRU 2 (Unsur Gabungan & Nelayan)",
+      "koordinat_area": "Penyisiran visual di sepanjang pesisir pantai dan pulau terdekat",
+      "luas_area": "6 Nm²",
+      "pola_pencarian": "Creeping Line Search",
+      "id_sru": 4,
+      "id_renops": 2
     }
   ],
   "laporan_harian": [
     {
-      "id_laporan": 1,
-      "id_operasi": 1,
       "hari_ke": "H.1",
       "jenis_laporan": "PERKEMBANGAN",
-      "isi_laporan": "Tim SAR Gabungan telah melaksanakan penyisiran sesuai Renops H.1 seluas 15 Nm² di sekitar LKP dan Karang Kapota. Tim juga melakukan penyelaman di 2 titik koordinat dicurigai menggunakan Aqua Eye. Hingga pukul 17.30 WITA operasi dihentikan sementara dengan hasil NIHIL dan akan dilanjutkan esok hari.",
-      "full_text_wa": "FILE AKTIF\n____\n\nSEMANGAT QUICK ACTION SEARCH AND RESCUE\nSATU JIWA SATU RASA\nWE ARE FAMILY\nPROFESIONAL MODERN TERUJI\nLAPBANG OPS SAR H.1\n\nKANTOR PENCARIAN DAN PERTOLONGAN KENDARI\nSabtu, 19 September 2026\n\nYTH : KABASARNAS\nCC : PIMTI MADYA & PRATAMA\n\nDengan hormat, mohon ijin melaporkan Perkembangan Ops KMM 1 Orang Nelayan Terjatuh dari Longboat di Perairan Wakatobi.\n__________________________________________________\n\nHasil Ops SAR H.1:\n\nTim SAR Gabungan telah melaksanakan penyisiran sesuai Renops H.1 seluas 15 Nm² di sekitar LKP dan Karang Kapota. Tim juga melakukan penyelaman di 2 titik koordinat dicurigai menggunakan Aqua Eye. Hingga pukul 17.30 WITA operasi dihentikan sementara dengan hasil NIHIL dan akan dilanjutkan esok hari.\n\n1. Data Korban: 1 Orang\n• S : 0 ORANG\n• MD : 0 ORANG\n• DP : 1 ORANG\n• H : 0 ORANG\n\n2. Identitas Korban\n1. Nama : La Sarifuddin [Status: Dalam Pencarian (DP)]\n   Umur : 42 Tahun\n   Jenis Kelamin : Laki-laki\n   Alamat : Desa Mola Selatan, Kec. Wangi-Wangi Selatan, Kab. Wakatobi\n\n3. Unsur SAR Terlibat\n• Pos SAR Wakatobi : 5 Orang\n• Polairud Wakatobi : 3 Orang\n• Pos TNI AL Wakatobi : 2 Orang\n• BPBD Wakatobi : 3 Orang\n• Masyarakat & Nelayan Setempat : 15 Orang\n\n4. Alut dan Palsar\n• 1 Unit RIB\n• 1 Unit Rubber Boat\n• 4 Unit Longboat Masyarakat\n• 1 Set Aqua Eye\n• 2 Set Palsar Selam\n\nDemikian kami laporkan, mohon petunjuk dan arahan\n\nTtd\n\nKKS Kendari\n===========================\n🏢 Kantor Pencarian Dan Pertolongan Kendari\n📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116\n☎️ Telp. : (0401) 3196557\n📠 Fax. : (0401) 3196558\n📱 WhatsApp : +62811-4034-115\n🚨 Emergency Call : 115\n🌐 Website : Www.Kendari.Basarnas.go.id\n📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id\n📲 Medsos : @Basarnaskendari",
-      "waktu_laporan": "2026-09-19T09:42:38.174Z"
+      "isi_laporan": "Pada pelaksanaan operasi SAR hari pertama (H.1), Tim SAR Gabungan telah melaksanakan pergerakan dan penyisiran baik melalui jalur perairan maupun pemantauan darat sesuai dengan Rencana Operasi (Renops) yang telah ditetapkan di sekitar perairan Kendari. Dari rangkaian upaya pencarian tersebut, Tim SAR Gabungan berhasil menemukan korban dalam keadaan selamat di area sekitar Jembatan Bahteramas. Korban kemudian langsung dievakuasi dan diserahterimakan kepada pihak keluarga dalam kondisi stabil. Sehubungan dengan telah ditemukannya korban, maka rencana pergerakan operasi pencarian dihentikan, seluruh rangkaian Operasi SAR diusulkan untuk ditutup, dan seluruh unsur potensi SAR yang terlibat dikembalikan ke kesatuan masing-masing.",
+      "korban_selamat_update": 1,
+      "korban_meninggal_update": 0,
+      "korban_hilang_update": 0,
+      "unsur_text": "",
+      "alut_text": "",
+      "full_text_wa": "FILE AKTIF\n____\n\nSEMANGAT QUICK ACTION SEARCH AND RESCUE\nSATU JIWA SATU RASA\nWE ARE FAMILY\nPROFESIONAL MODERN TERUJI\nLAPBANG OPS SAR H.1\n\nKANTOR PENCARIAN DAN PERTOLONGAN KENDARI\nSenin, 21 September 2026\n\nYTH : KABASARNAS\nCC : PIMTI MADYA & PRATAMA\n\nDengan hormat, mohon ijin melaporkan Perkembangan Ops operasi sar kecelakaan kapal di kendari.\n__________________________________________________\n\nHasil Ops SAR H.1:\n\nPada pelaksanaan operasi SAR hari pertama (H.1), Tim SAR Gabungan telah melaksanakan pergerakan dan penyisiran baik melalui jalur perairan maupun pemantauan darat sesuai dengan Rencana Operasi (Renops) yang telah ditetapkan di sekitar perairan Kendari. Dari rangkaian upaya pencarian tersebut, Tim SAR Gabungan berhasil menemukan korban dalam keadaan selamat di area sekitar Jembatan Bahteramas. Korban kemudian langsung dievakuasi dan diserahterimakan kepada pihak keluarga dalam kondisi stabil. Sehubungan dengan telah ditemukannya korban, maka rencana pergerakan operasi pencarian dihentikan, seluruh rangkaian Operasi SAR diusulkan untuk ditutup, dan seluruh unsur potensi SAR yang terlibat dikembalikan ke kesatuan masing-masing.\n\n1. Data Korban: 1 Orang\n• S : 1 ORANG\n• MD : 0 ORANG\n• DP : 0 ORANG\n• H : 0 ORANG\n\n2. Identitas Korban\n1. Nama : lapuko [Status: Selamat (S)]\n   Umur : 25 tahun\n   Jenis Kelamin : Laki-laki\n   Alamat : kendari\n\n3. Unsur SAR Terlibat\n• Staf SMC : 3 Orang\n• Tim Rescue Kansar Kendari : 7 Orang\n• Polsek & Koramil Setempat : 4 Orang\n\n4. Alut dan Palsar\n• 1 Unit Rescue Car\n• 1 Set Aqua Eye\n• 1 Unit RIB (Rigid Inflatable Boat)\n• 1 Set Palsar Evakuasi & Tandu\n• 1 Unit Drone Thermal / Surveillance\n• 1 Set Palsar Komunikasi & Alkom\n• 1 Set Palsar Medis (First Aid Kit)\n• 1 Unit Aqua Eye (Sonar Scanner)\n• 1 Set Peralatan Selam (Diving Gear)\n\nDemikian kami laporkan, mohon petunjuk dan arahan\n\nTtd\n\nKKS Kendari\n===========================\n🏢 Kantor Pencarian Dan Pertolongan Kendari\n📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116\n☎️ Telp. : (0401) 3196557\n📠 Fax. : (0401) 3196558\n📱 WhatsApp : +62811-4034-115\n🚨 Emergency Call : 115\n🌐 Website : Www.Kendari.Basarnas.go.id\n📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id\n📲 Medsos : @Basarnaskendari",
+      "waktu_laporan": "2026-09-21T00:47:00.000Z",
+      "id_laporan": 1,
+      "id_operasi": 1
     }
   ],
   "bra_sar": [
@@ -415,7 +387,182 @@
       "pangkat_smc": "PEMBINA (IV/a)",
       "jabatan_smc": "KEPALA KANTOR",
       "barcode_data": "/?viewBra=1",
-      "created_at": "2026-09-20T07:00:00.000Z"
+      "created_at": "2026-09-20T07:00:00.000Z",
+      "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Logo_Basarnas.svg/300px-Logo_Basarnas.svg.png"
+    },
+    {
+      "kategori": "SAR_UMUM",
+      "no_bra": "192/SAR-304/0926",
+      "nomor_urut": 192,
+      "satker_kode": "SAR-304",
+      "bulan_tahun": "0926",
+      "id_operasi": 1,
+      "nama_operasi": "LAPORAN AWAL OPERASI SAR KECELAKAAN KAPAL DI KENDARI TTK",
+      "derajat": "SGR",
+      "dari": "KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI",
+      "aksi": "KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN",
+      "info": "DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN",
+      "sifat": "",
+      "menbra": "",
+      "perihal": "LAPORAN AWAL OPERASI SAR KECELAKAAN KAPAL DI KENDARI TTK",
+      "tanggal_waktu": "21 September 2026",
+      "twu": "0921 0931 H",
+      "twb": "0921 0916 H",
+      "jumlah_kata": "241 KATA",
+      "sections": [
+        {
+          "kode": "AAA",
+          "isi": "PADA TW 0921 0838 H TERIMA INFO DARI KONAWE (MASYARAKAT / HP 9020310293019) BAHWA TELAH TERJADI OPERASI SAR KECELAKAAN KAPAL DI KENDARI DI KENDARI PADA KOORDINAT 03° 58' 30\" S - 122° 35' 12\" E TTK"
+        },
+        {
+          "kode": "BBB",
+          "isi": "TERSEBUT AAA DIATAS MAKA PADA TW 0921 0843 H TIM RESCUE KANSAR KENDARI DIBERANGKATKAN MENUJU LKP DENGAN MENGGUNAKAN 1 UNIT RESCUE CAR KMA 1 SET AQUA EYE KMA 1 UNIT RIB (RIGID INFLATABLE BOAT) KMA DENGAN ETA TW 0921 0937 H TTK"
+        },
+        {
+          "kode": "CCC",
+          "isi": "UNSUR SAR TERLIBAT TTK DUA\n* STAF SMC : 3 ORANG\n* TIM RESCUE KANSAR KENDARI : 7 ORANG\n* POLSEK & KORAMIL SETEMPAT : 4 ORANG\n\nALUT DAN PALSAR TTK DUA\n• 1 UNIT RESCUE CAR\n• 1 SET AQUA EYE\n• 1 UNIT RIB (RIGID INFLATABLE BOAT)\n• 1 SET PALSAR EVAKUASI & TANDU\n• 1 UNIT DRONE THERMAL / SURVEILLANCE\n• 1 SET PALSAR KOMUNIKASI & ALKOM\n• 1 SET PALSAR MEDIS (FIRST AID KIT)\n• 1 UNIT AQUA EYE (SONAR SCANNER)\n• 1 SET PERALATAN SELAM (DIVING GEAR)\n\nKONDISI CUACA TTK DUA\n• CUACA : CERAH BERAWAN\n• ANGIN : BARAT DAYA - BARAT LAUT, 5 - 15 KNOTS\n• GELOMBANG : 0.1 - 0.5 M"
+        },
+        {
+          "kode": "DDD",
+          "isi": "LAPORAN PERKEMBANGAN MENYUSUL KMA KA KPP KENDARI KRM TTK HBS"
+        }
+      ],
+      "pengirim": "KANTOR PENCARIAN DAN PERTOLONGAN KENDARI",
+      "nama_smc": "AMIRUDDIN AS, S.Sos.",
+      "pangkat_smc": "PEMBINA (IV/a)",
+      "jabatan_smc": "SMC",
+      "created_at": "2026-09-21T01:41:45.442Z",
+      "id_bra": 2,
+      "barcode_data": "http://localhost:3000/?viewBra=2",
+      "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Logo_Basarnas.svg/300px-Logo_Basarnas.svg.png"
+    }
+  ],
+  "app_settings": {
+    "satker_kode": "SAR-304",
+    "satker_nama": "KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI",
+    "pejabat_list": [
+      {
+        "id": "pej-1",
+        "nama": "AMIRUDDIN AS, S.Sos.",
+        "nip": "197405101998031002",
+        "pangkat": "PEMBINA (IV/a)",
+        "jabatan": "Kepala Kantor Pencarian dan Pertolongan Kelas A Kendari",
+        "is_default_smc": true
+      }
+    ],
+    "admin_username": "admin",
+    "admin_password": "Kendari2026",
+    "admin_email": "irfandydk@gmail.com",
+    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Logo_Basarnas.svg/300px-Logo_Basarnas.svg.png"
+  },
+  "sar_units": [
+    {
+      "id_unit": 1,
+      "nama_unit": "Kansar Kendari (Kantor Utama)",
+      "jenis_unit": "KANTOR_SAR",
+      "wilayah": "Kota Kendari / Konawe Selatan",
+      "latitude": -4.084194,
+      "longitude": 122.428389,
+      "koordinat_dms": "04° 05' 03\" S - 122° 25' 42\" E",
+      "alamat": "Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan, Sultra",
+      "no_telp": "(0401) 3122115 / Emergency 115",
+      "is_default": true
+    },
+    {
+      "id_unit": 2,
+      "nama_unit": "Pos SAR Kolaka",
+      "jenis_unit": "POS_SAR",
+      "wilayah": "Kabupaten Kolaka",
+      "latitude": -4.053889,
+      "longitude": 121.604167,
+      "koordinat_dms": "04° 03' 14\" S - 121° 36' 15\" E",
+      "alamat": "Kompleks Pelabuhan Ferry Kolaka, Jl. Dermaga Ferry Kolaka, Kel. Kolakaasi, Kec. Latambaga, Kab. Kolaka",
+      "no_telp": "0811-4091-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 3,
+      "nama_unit": "Pos SAR Baubau",
+      "jenis_unit": "POS_SAR",
+      "wilayah": "Kota Baubau & Buton",
+      "latitude": -5.463889,
+      "longitude": 122.604167,
+      "koordinat_dms": "05° 27' 50\" S - 122° 36' 15\" E",
+      "alamat": "Kawasan Pelabuhan Murhum / Jembatan Batu, Kel. Batulo, Kec. Wolio, Kota Baubau, Sulawesi Tenggara",
+      "no_telp": "0811-4092-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 4,
+      "nama_unit": "Pos SAR Wakatobi",
+      "jenis_unit": "POS_SAR",
+      "wilayah": "Kabupaten Wakatobi",
+      "latitude": -5.326389,
+      "longitude": 123.588889,
+      "koordinat_dms": "05° 19' 35\" S - 123° 35' 20\" E",
+      "alamat": "Kawasan Pelabuhan Mandati / Pangulubelo, Wangi-Wangi Selatan, Kab. Wakatobi, Sulawesi Tenggara",
+      "no_telp": "0811-4093-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 5,
+      "nama_unit": "Pos SAR Konawe Utara",
+      "jenis_unit": "POS_SAR",
+      "wilayah": "Kabupaten Konawe Utara",
+      "latitude": -3.513889,
+      "longitude": 122.180556,
+      "koordinat_dms": "03° 30' 50\" S - 122° 10' 50\" E",
+      "alamat": "Jl. Poros Trans Sulawesi Kendari - Morowali, Wanggudu / Kec. Asera, Kab. Konawe Utara, Sulawesi Tenggara",
+      "no_telp": "0811-4094-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 6,
+      "nama_unit": "Unit Siaga SAR Muna",
+      "jenis_unit": "UNIT_SIAGA",
+      "wilayah": "Kabupaten Muna",
+      "latitude": -4.836111,
+      "longitude": 122.719444,
+      "koordinat_dms": "04° 50' 10\" S - 122° 43' 10\" E",
+      "alamat": "Kawasan Pelabuhan Nusantara Raha / Jl. By Pass, Kota Raha, Kab. Muna, Sulawesi Tenggara",
+      "no_telp": "0811-4095-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 7,
+      "nama_unit": "Unit Siaga SAR Konawe",
+      "jenis_unit": "UNIT_SIAGA",
+      "wilayah": "Kabupaten Konawe",
+      "latitude": -3.905556,
+      "longitude": 122.047222,
+      "koordinat_dms": "03° 54' 20\" S - 122° 02' 50\" E",
+      "alamat": "Jl. Poros Kendari - Kolaka, Kota Unaaha, Kab. Konawe, Sulawesi Tenggara",
+      "no_telp": "0811-4096-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 8,
+      "nama_unit": "Unit Siaga SAR Kolaka Utara",
+      "jenis_unit": "UNIT_SIAGA",
+      "wilayah": "Kabupaten Kolaka Utara",
+      "latitude": -3.425,
+      "longitude": 120.897,
+      "koordinat_dms": "03° 25' 30\" S - 120° 53' 49\" E",
+      "alamat": "Kawasan Pelabuhan Penyeberangan Tobaku / Jl. Poros Lasusua, Kec. Lasusua, Kab. Kolaka Utara",
+      "no_telp": "0811-4097-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 9,
+      "nama_unit": "Dermaga SAR Kendari (KN SAR / RB)",
+      "jenis_unit": "KN_SAR",
+      "wilayah": "Kota Kendari (Bungkutoko)",
+      "latitude": -3.974167,
+      "longitude": 122.585,
+      "koordinat_dms": "03° 58' 27\" S - 122° 35' 06\" E",
+      "alamat": "Kawasan Pelabuhan Bungkutoko (Pangkalan KN SAR Pacitan / RB 210 / RB 307), Kota Kendari",
+      "no_telp": "(0401) 3122115",
+      "is_default": false
     }
   ]
 }

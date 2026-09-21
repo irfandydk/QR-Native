@@ -71,27 +71,33 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
   const [pageSize, setPageSize] = useState<'A4' | 'F4' | 'LETTER' | 'LEGAL'>('A4');
   const [pageScale, setPageScale] = useState<number>(100);
   const [currentLogo, setCurrentLogo] = useState<string>(
-    initialLogoUrl || (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') || '' : '')
+    initialLogoUrl || bra.logo_url || (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') || '' : '')
   );
   const docRef = useRef<HTMLDivElement>(null);
 
-  // Sync initialLogoUrl and global satker settings
+  // Sync initialLogoUrl and bra.logo_url and global satker settings
   useEffect(() => {
     if (initialLogoUrl) {
       setCurrentLogo(initialLogoUrl);
+    } else if (bra.logo_url) {
+      setCurrentLogo(bra.logo_url);
     }
-  }, [initialLogoUrl]);
+  }, [initialLogoUrl, bra.logo_url]);
 
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const localLogo = localStorage.getItem('sar_custom_logo_url');
-        if (localLogo && !initialLogoUrl) setCurrentLogo(localLogo);
+        if (!initialLogoUrl && !bra.logo_url) {
+          const localLogo = localStorage.getItem('sar_custom_logo_url');
+          if (localLogo) setCurrentLogo(localLogo);
+        }
 
         const res = await fetch('/api/settings');
         const data = await res.json();
-        if (data.success && data.data && data.data.logo_url && !initialLogoUrl) {
-          setCurrentLogo(data.data.logo_url);
+        if (data.success && data.data && data.data.logo_url) {
+          if (!initialLogoUrl && !bra.logo_url) {
+            setCurrentLogo(data.data.logo_url);
+          }
         }
       } catch (err) {
         console.error('Failed to load global logo for BRA:', err);
@@ -99,10 +105,16 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
     };
 
     loadSettings();
-    const handleUpdate = () => loadSettings();
+    const handleUpdate = (e: any) => {
+      if (e?.detail?.logo_url) {
+        setCurrentLogo(e.detail.logo_url);
+      } else {
+        loadSettings();
+      }
+    };
     window.addEventListener('satker-settings-updated', handleUpdate);
     return () => window.removeEventListener('satker-settings-updated', handleUpdate);
-  }, [initialLogoUrl]);
+  }, [initialLogoUrl, bra.logo_url]);
 
   // Compute verify URL
   const verifyUrl = typeof window !== 'undefined'
@@ -443,14 +455,15 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
           transformOrigin: 'top center',
         }}
       >
-        {/* Header: Basarnas Logo + Titles (KOP) - Logo Centered above text as per official Basarnas standard */}
-        <div className="flex flex-col items-center justify-center pb-3 mb-2 text-center">
-          {/* Logo Basarnas Centered */}
-          <div className="shrink-0 flex items-center justify-center mb-1.5">
-            <BasarnasLogo size={54} logoUrl={currentLogo} />
+        {/* Header: Basarnas Logo on Left + Titles (KOP) - Samping Kiri */}
+        <div className="bra-kop flex items-center justify-between pb-3 mb-2 border-b-2 border-black text-black">
+          {/* Samping Kiri: Logo Basarnas */}
+          <div className="w-16 shrink-0 flex items-center justify-start">
+            <BasarnasLogo size={56} logoUrl={currentLogo} />
           </div>
 
-          <div>
+          {/* Tengah: Judul Dokumen BRA SAR & Basarnas */}
+          <div className="flex-1 text-center px-2">
             <h1 className="text-xl sm:text-2xl font-black tracking-wide uppercase leading-tight text-black">
               BRA SAR
             </h1>
@@ -458,13 +471,16 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
             </h2>
           </div>
+
+          {/* Samping Kanan: Spacer Penyeimbang agar judul tepat di tengah */}
+          <div className="w-16 shrink-0" aria-hidden="true" />
         </div>
 
         {/* Main Body Grid Container with Left SENKOM Note */}
-        <div className="flex w-full">
+        <div className="bra-main-layout flex w-full">
           {/* Left Vertical Side Label: RUANGAN DILUAR GARIS TEBAL DI ISI OLEH DINAS SENKOM */}
           <div
-            className="w-7 sm:w-8 shrink-0 flex items-center justify-center border-r-2 border-transparent mr-1 select-none senkom-vertical-label"
+            className="bra-senkom-col w-7 sm:w-8 shrink-0 flex items-center justify-center border-r-2 border-transparent mr-1 select-none senkom-vertical-label"
             style={{
               writingMode: 'vertical-rl',
               transform: 'rotate(180deg)',
@@ -476,9 +492,9 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
           </div>
 
           {/* Right Main Table Box (Thick Borders as per standard) */}
-          <div className="flex-1 border-2 border-black divide-y-2 divide-black text-[11px] sm:text-xs bg-white text-black">
+          <div className="bra-table-col flex-1 border-2 border-black divide-y-2 divide-black text-[11px] sm:text-xs bg-white text-black">
             {/* SENKOM Top Header Row */}
-            <div className="grid grid-cols-5 divide-x-2 divide-black text-center font-bold bg-white text-black">
+            <div className="bra-top-header grid grid-cols-5 divide-x-2 divide-black text-center font-bold bg-white text-black">
               <div className="py-1 px-1">Panggilan</div>
               <div className="py-1 px-1">Jenis</div>
               <div className="py-1 px-1">Nr. Stn</div>
@@ -494,7 +510,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
             {/* Upper Section: 2 Columns */}
             {/* Left: DARI, AKSI, INFO (Tanpa Sifat) */}
             {/* Right: Tanggal Waktu TWU & Jumlah Kata */}
-            <div className="grid grid-cols-12 divide-x-2 divide-black bg-white text-black">
+            <div className="bra-upper-section grid grid-cols-12 divide-x-2 divide-black bg-white text-black">
               {/* Left Column (8 cols) */}
               <div className="col-span-7 sm:col-span-8 p-2.5 space-y-1.5">
                 <div className="flex">
@@ -546,10 +562,10 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
 
             {/* Telegram Body Sections (AAA, BBB, CCC, etc.) */}
             {/* Bagian Nomor dan Judul di atas AAA tanpa kotak/kolom pembatas */}
-            <div className="border-t-2 border-black p-3 sm:p-4 min-h-[380px] flex flex-col justify-between bg-white text-black">
+            <div className="bra-body-container border-t-2 border-black p-3 sm:p-4 min-h-[360px] flex flex-col justify-between bg-white text-black">
               <div>
                 {/* Bagian NO dan Judul langsung di atas AAA tanpa tulisan Segera di sampingnya */}
-                <div className="mb-3.5">
+                <div className="bra-no-header mb-3.5">
                   <div className="space-y-1">
                     <div className="flex items-center text-xs sm:text-sm font-bold uppercase">
                       <span className="w-20 sm:w-24 font-black shrink-0 text-black">NO.</span>
@@ -576,7 +592,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                 {/* Isian Bagian Telegram: AAA, BBB, CCC, dll. */}
                 <div className="space-y-4">
                   {bra.sections.map((section, idx) => (
-                    <div key={idx} className="flex items-start text-justify leading-relaxed">
+                    <div key={idx} className="bra-section-row flex items-start text-justify leading-relaxed">
                       <span className="font-black text-xs sm:text-sm tracking-wider uppercase w-12 sm:w-14 shrink-0 text-black">
                         {section.kode} :
                       </span>
@@ -589,13 +605,13 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               </div>
 
               {/* TWB di sudut kanan bawah area telegram tepat di atas garis pembatas */}
-              <div className="text-right font-black text-xs sm:text-sm tracking-wider uppercase pt-4 pr-1 text-black">
+              <div className="bra-twb-row text-right font-black text-xs sm:text-sm tracking-wider uppercase pt-4 pr-1 text-black">
                 TWB {bra.twb}
               </div>
             </div>
 
             {/* Bottom Footer Section: SMC / Pengirim with Barcode & SENKOM Signatures */}
-            <div className="grid grid-cols-12 divide-x-2 divide-black bg-white text-black">
+            <div className="bra-footer-section grid grid-cols-12 divide-x-2 divide-black bg-white text-black">
               {/* Left Column: Pengirim (SMC) with QR Barcode */}
               <div className="col-span-7 sm:col-span-7 p-2.5 flex flex-col justify-between">
                 <div>
@@ -703,6 +719,55 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
         <div className="mt-2 text-right text-[8px] font-mono text-gray-600">
           SISTEM QR SAR • KANTOR PENCARIAN DAN PERTOLONGAN KENDARI • DOKUMEN ELEKTRONIK RESMI
         </div>
+
+        {/* Embedded print style rules to guarantee multi-page flow and prevent KOP orphan */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            .bra-kop {
+              page-break-after: avoid !important;
+              break-after: avoid-page !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            .bra-top-header, .bra-upper-section, .bra-no-header {
+              page-break-after: avoid !important;
+              break-after: avoid-page !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            .bra-main-layout {
+              display: table !important;
+              width: 100% !important;
+              page-break-inside: auto !important;
+              break-inside: auto !important;
+            }
+            .bra-senkom-col {
+              display: table-cell !important;
+              width: 28px !important;
+              vertical-align: top !important;
+            }
+            .bra-table-col {
+              display: table-cell !important;
+              width: auto !important;
+              vertical-align: top !important;
+              page-break-inside: auto !important;
+              break-inside: auto !important;
+            }
+            .bra-body-container {
+              min-height: 0 !important;
+              page-break-inside: auto !important;
+              break-inside: auto !important;
+            }
+            .bra-section-row {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            .bra-twb-row, .bra-footer-section {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+          }
+        ` }} />
       </div>
     </div>
   );

@@ -6,6 +6,8 @@ import { generateLaporanAwalWA, generateRenopsWA, generateLapbangWA } from '../s
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
+export const DEFAULT_BASARNAS_LOGO = 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Logo_Basarnas.svg/300px-Logo_Basarnas.svg.png';
+
 export const INITIAL_SAR_UNITS: SarUnit[] = [
   {
     id_unit: 1,
@@ -551,6 +553,7 @@ class Database {
       this.data.app_settings = {
         satker_kode: 'SAR-304',
         satker_nama: 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI',
+        logo_url: DEFAULT_BASARNAS_LOGO,
         pejabat_list: INITIAL_PEJABAT,
         admin_username: 'admin',
         admin_password: 'Kendari2026',
@@ -559,6 +562,10 @@ class Database {
       this.saveData();
     } else {
       let shouldSave = false;
+      if (!this.data.app_settings.logo_url) {
+        this.data.app_settings.logo_url = DEFAULT_BASARNAS_LOGO;
+        shouldSave = true;
+      }
       if (!this.data.app_settings.pejabat_list || this.data.app_settings.pejabat_list.length === 0) {
         this.data.app_settings.pejabat_list = INITIAL_PEJABAT;
         shouldSave = true;
@@ -1264,15 +1271,27 @@ class Database {
     if (!this.data.bra_sar) {
       this.data.bra_sar = [];
     }
-    // Return sorted newest first
-    return [...this.data.bra_sar].sort((a, b) => b.id_bra - a.id_bra);
+    const dbLogo = this.getAppSettings().logo_url || DEFAULT_BASARNAS_LOGO;
+    // Return sorted newest first with enriched logo_url
+    return [...this.data.bra_sar]
+      .sort((a, b) => b.id_bra - a.id_bra)
+      .map((b) => ({
+        ...b,
+        logo_url: b.logo_url || dbLogo,
+      }));
   }
 
   public getBraSarById(id_bra: number): BraSar | null {
     if (!this.data.bra_sar) {
       this.data.bra_sar = [];
     }
-    return this.data.bra_sar.find(b => b.id_bra === id_bra) || null;
+    const bra = this.data.bra_sar.find((b) => b.id_bra === id_bra);
+    if (!bra) return null;
+    const dbLogo = this.getAppSettings().logo_url || DEFAULT_BASARNAS_LOGO;
+    return {
+      ...bra,
+      logo_url: bra.logo_url || dbLogo,
+    };
   }
 
   /**
@@ -1324,9 +1343,12 @@ class Database {
       ? `${originHost}/?viewBra=${nextId}`
       : `/?viewBra=${nextId}`;
 
+    const currentLogo = braData.logo_url || this.getAppSettings().logo_url || DEFAULT_BASARNAS_LOGO;
+
     const newBra: BraSar = {
       ...braData,
       id_bra: nextId,
+      logo_url: currentLogo,
       no_bra: finalNoBra,
       nomor_urut: finalUrut || nextSeq.nomor_urut,
       bulan_tahun: braData.bulan_tahun || nextSeq.bulan_tahun,
@@ -1599,9 +1621,20 @@ class Database {
           ? incomingData.bra_sar
           : (Array.isArray(incomingData.bra) ? incomingData.bra : []),
         app_settings: incomingData.app_settings && typeof incomingData.app_settings === 'object'
-          ? { ...this.data.app_settings, ...incomingData.app_settings }
-          : this.data.app_settings,
+          ? { ...this.getAppSettings(), ...incomingData.app_settings }
+          : (incomingData.settings && typeof incomingData.settings === 'object'
+              ? { ...this.getAppSettings(), ...incomingData.settings }
+              : this.getAppSettings()),
       };
+
+      // Ensure all bra_sar records retain or get the active logo
+      if (newDb.bra_sar && newDb.bra_sar.length > 0) {
+        const activeLogo = newDb.app_settings?.logo_url || this.getAppSettings().logo_url || DEFAULT_BASARNAS_LOGO;
+        newDb.bra_sar = newDb.bra_sar.map((b) => ({
+          ...b,
+          logo_url: b.logo_url || activeLogo,
+        }));
+      }
 
       this.data = newDb;
       this.saveData();

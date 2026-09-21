@@ -175,6 +175,7 @@ export interface BraSar {
   paraf?: string;
 
   barcode_data?: string;
+  logo_url?: string;
   created_at: string;
 }
 

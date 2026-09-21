@@ -9,6 +9,7 @@ import { BraArchivePage } from './components/BraArchivePage';
 import { ViewLaporanModal } from './components/ViewLaporanModal';
 import { FormBraSar } from './components/FormBraSar';
 import { OfficialBraDocument } from './components/OfficialBraDocument';
+import { BasarnasLogo } from './components/BasarnasLogo';
 import { BraListModal } from './components/BraListModal';
 import { LoginPage } from './components/LoginPage';
 import { useTheme } from './context/ThemeContext';
@@ -213,9 +214,7 @@ export default function App() {
           isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white font-bold text-xs shadow">
-              SAR
-            </div>
+            <BasarnasLogo size={36} logoUrl={activeBraDoc?.logo_url} className="shrink-0 drop-shadow-sm" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-sm tracking-wide">BASARNAS KENDARI</span>
@@ -241,6 +240,7 @@ export default function App() {
         <div className="flex-1 py-6 px-2 sm:px-6">
           <OfficialBraDocument
             bra={activeBraDoc}
+            logoUrl={activeBraDoc.logo_url}
             onClose={() => {
               if (typeof window !== 'undefined' && window.location.search) {
                 window.history.replaceState({}, document.title, window.location.pathname);

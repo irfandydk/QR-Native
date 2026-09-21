@@ -6,11 +6,22 @@ interface BasarnasLogoProps {
   logoUrl?: string;
 }
 
-export const BasarnasLogo: React.FC<BasarnasLogoProps> = ({ className = '', size = 56, logoUrl }) => {
-  // If no explicit logoUrl passed, attempt reading from localStorage cache
-  const activeLogo = logoUrl || (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') : null);
+export const DEFAULT_BASARNAS_LOGO_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Logo_Basarnas.svg/300px-Logo_Basarnas.svg.png';
 
-  if (activeLogo) {
+export const BasarnasLogo: React.FC<BasarnasLogoProps> = ({ className = '', size = 56, logoUrl }) => {
+  const [hasError, setHasError] = React.useState<boolean>(false);
+
+  // If no explicit logoUrl passed, attempt reading from localStorage or use official default
+  const activeLogo =
+    logoUrl ||
+    (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') : null) ||
+    DEFAULT_BASARNAS_LOGO_URL;
+
+  React.useEffect(() => {
+    setHasError(false);
+  }, [logoUrl]);
+
+  if (activeLogo && !hasError) {
     return (
       <div
         style={{ width: size, height: size }}
@@ -21,9 +32,10 @@ export const BasarnasLogo: React.FC<BasarnasLogoProps> = ({ className = '', size
           src={activeLogo}
           alt="Logo Resmi Basarnas"
           className="w-full h-full object-contain"
-          onError={(e) => {
+          crossOrigin="anonymous"
+          onError={() => {
             // Fallback if custom image fails to load
-            (e.target as HTMLElement).style.display = 'none';
+            setHasError(true);
           }}
         />
       </div>
