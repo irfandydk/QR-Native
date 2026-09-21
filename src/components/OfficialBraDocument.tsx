@@ -455,7 +455,10 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
         }}
       >
         {/* Header: Basarnas Logo di samping kiri judul BRA SAR (berdekatan & rapi di tengah) */}
-        <div className="bra-kop flex items-center justify-center gap-3.5 sm:gap-4 pb-2.5 mb-2.5 border-b-2 border-black text-black">
+        <div
+          className="bra-kop flex items-center justify-center gap-3.5 sm:gap-4 pb-2.5 mb-2.5 print:pb-1.5 print:mb-1.5 border-b-2 border-black text-black break-inside-avoid break-after-auto"
+          style={{ pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+        >
           <BasarnasLogo size={52} logoUrl={currentLogo} className="shrink-0 drop-shadow-none" />
           <div className="text-left">
             <h1 className="text-xl sm:text-2xl font-black tracking-wider uppercase leading-tight text-black m-0 p-0">
@@ -468,7 +471,10 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
         </div>
 
         {/* Main Body Container with Left SENKOM Note */}
-        <div className="bra-table-wrapper relative pl-6 sm:pl-7 w-full">
+        <div
+          className="bra-table-wrapper relative pl-6 sm:pl-7 w-full"
+          style={{ pageBreakInside: 'auto', breakInside: 'auto', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+        >
           {/* Left Vertical Side Label: RUANGAN DILUAR GARIS TEBAL DI ISI OLEH DINAS SENKOM */}
           <div
             className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center select-none pointer-events-none senkom-vertical-label"
@@ -483,27 +489,36 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
           </div>
 
           {/* Right Main Table Box (Thick Borders as per standard) */}
-          <div className="bra-table-box border-2 border-black divide-y-2 divide-black text-[11px] sm:text-xs bg-white text-black w-full">
+          <div
+            className="bra-table-box border-2 border-black divide-y-2 divide-black text-[11px] sm:text-xs bg-white text-black w-full"
+            style={{ pageBreakInside: 'auto', breakInside: 'auto', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+          >
             {/* SENKOM Top Header Row */}
-            <div className="bra-top-header grid grid-cols-5 divide-x-2 divide-black text-center font-bold bg-white text-black">
-              <div className="py-1 px-1">Panggilan</div>
-              <div className="py-1 px-1">Jenis</div>
-              <div className="py-1 px-1">Nr. Stn</div>
-              <div className="py-1 px-1">
+            <div
+              className="bra-top-header grid grid-cols-5 divide-x-2 divide-black text-center font-bold bg-white text-black break-inside-avoid break-after-auto"
+              style={{ pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+            >
+              <div className="py-1 px-1 print:py-0.5">Panggilan</div>
+              <div className="py-1 px-1 print:py-0.5">Jenis</div>
+              <div className="py-1 px-1 print:py-0.5">Nr. Stn</div>
+              <div className="py-1 px-1 print:py-0.5">
                 <div>Derajat</div>
                 <div className="font-extrabold text-[11px] sm:text-xs border-t border-black mt-0.5 pt-0.5 text-black">
                   {bra.derajat || 'SGR'}
                 </div>
               </div>
-              <div className="py-1 px-1">Instruksi penerusan</div>
+              <div className="py-1 px-1 print:py-0.5">Instruksi penerusan</div>
             </div>
 
             {/* Upper Section: 2 Columns */}
             {/* Left: DARI, AKSI, INFO (Tanpa Sifat) */}
             {/* Right: Tanggal Waktu TWU & Jumlah Kata */}
-            <div className="bra-upper-section grid grid-cols-12 divide-x-2 divide-black bg-white text-black">
+            <div
+              className="bra-upper-section grid grid-cols-12 divide-x-2 divide-black bg-white text-black break-inside-avoid break-after-auto"
+              style={{ pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+            >
               {/* Left Column (8 cols) */}
-              <div className="col-span-7 sm:col-span-8 p-2.5 space-y-1.5">
+              <div className="col-span-7 sm:col-span-8 p-2.5 print:p-2 space-y-1.5 print:space-y-1">
                 <div className="flex">
                   <span className="w-16 font-bold uppercase shrink-0 text-black">DARI</span>
                   <span className="mr-1">:</span>
@@ -526,21 +541,21 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               {/* Right Column (4 cols): Kolom Tanggal Waktu Sesuai Contoh Lampiran */}
               <div className="col-span-5 sm:col-span-4 divide-y-2 divide-black flex flex-col justify-between bg-white text-black">
                 {/* Baris 1: TANGGAL WAKTU (Tanpa : dan Posisi Center) */}
-                <div className="p-1.5 sm:p-2 flex items-center justify-center text-center min-h-[30px] bg-white">
+                <div className="p-1.5 sm:p-2 print:p-1 flex items-center justify-center text-center min-h-[30px] print:min-h-[24px] bg-white">
                   <span className="font-bold uppercase text-[9.5px] sm:text-[10.5px] tracking-wider text-center text-black">
                     TANGGAL WAKTU
                   </span>
                 </div>
 
                 {/* Baris 2: TWU (misal: TWU 0918 2105 H sesuai contoh lampiran) */}
-                <div className="p-1.5 sm:p-2 flex items-center justify-center text-center flex-1 min-h-[36px] bg-white">
+                <div className="p-1.5 sm:p-2 print:p-1 flex items-center justify-center text-center flex-1 min-h-[36px] print:min-h-[28px] bg-white">
                   <span className="font-black text-xs sm:text-sm tracking-wider uppercase text-black">
                     {bra.twu.startsWith('TWU') ? bra.twu : `TWU ${bra.twu}`}
                   </span>
                 </div>
 
                 {/* Baris 3: JUMLAH KATA */}
-                <div className="p-1.5 sm:p-2 flex items-center justify-between min-h-[30px] bg-white">
+                <div className="p-1.5 sm:p-2 print:p-1 flex items-center justify-between min-h-[30px] print:min-h-[24px] bg-white">
                   <span className="font-bold uppercase text-[9.5px] sm:text-[10.5px] text-black">
                     JUMLAH KATA
                   </span>
@@ -553,10 +568,19 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
 
             {/* Telegram Body Sections (AAA, BBB, CCC, etc.) */}
             {/* Bagian Nomor dan Judul di atas AAA tanpa kotak/kolom pembatas */}
-            <div className="bra-body-container border-t-2 border-black p-3 sm:p-4 bg-white text-black">
-              <div>
+            <div
+              className="bra-body-container border-t-2 border-black p-3 sm:p-4 print:p-2.5 sm:print:p-3 bg-white text-black"
+              style={{ pageBreakInside: 'auto', breakInside: 'auto', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+            >
+              <div
+                className="bra-body-content"
+                style={{ pageBreakInside: 'auto', breakInside: 'auto', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+              >
                 {/* Bagian NO dan Judul langsung di atas AAA tanpa tulisan Segera di sampingnya */}
-                <div className="bra-no-header mb-3.5">
+                <div
+                  className="bra-no-header mb-3.5 print:mb-2 break-inside-avoid break-after-auto"
+                  style={{ pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+                >
                   <div className="space-y-1">
                     <div className="flex items-center text-xs sm:text-sm font-bold uppercase">
                       <span className="w-20 sm:w-24 font-black shrink-0 text-black">NO.</span>
@@ -574,20 +598,27 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                   </div>
 
                   {bra.perihal && (
-                    <div className="font-black uppercase text-xs sm:text-sm tracking-tight leading-snug mt-2.5 mb-1 text-black">
+                    <div className="font-black uppercase text-xs sm:text-sm tracking-tight leading-snug mt-2.5 print:mt-1.5 mb-1 text-black">
                       {bra.perihal}
                     </div>
                   )}
                 </div>
 
                 {/* Isian Bagian Telegram: AAA, BBB, CCC, dll. */}
-                <div className="space-y-3.5 bra-sections-list">
+                <div
+                  className="space-y-3.5 print:space-y-2 bra-sections-list"
+                  style={{ pageBreakInside: 'auto', breakInside: 'auto', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+                >
                   {bra.sections.map((section, idx) => (
-                    <div key={idx} className="bra-section-row flex items-start text-justify leading-relaxed">
+                    <div
+                      key={idx}
+                      className="bra-section-row flex items-start text-justify leading-relaxed print:leading-normal text-xs sm:text-[12.5px] break-inside-avoid break-after-auto"
+                      style={{ pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+                    >
                       <span className="font-black text-xs sm:text-sm tracking-wider uppercase w-12 sm:w-14 shrink-0 text-black">
                         {section.kode} :
                       </span>
-                      <div className="flex-1 whitespace-pre-line uppercase font-normal text-xs sm:text-[12.5px] leading-relaxed text-black">
+                      <div className="flex-1 whitespace-pre-line uppercase font-normal text-xs sm:text-[12.5px] leading-relaxed print:leading-normal text-black">
                         {section.isi}
                       </div>
                     </div>
@@ -596,15 +627,21 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               </div>
 
               {/* TWB di sudut kanan bawah area telegram tepat di atas garis pembatas */}
-              <div className="bra-twb-row text-right font-black text-xs sm:text-sm tracking-wider uppercase pt-3 pr-1 text-black">
+              <div
+                className="bra-twb-row text-right font-black text-xs sm:text-sm tracking-wider uppercase pt-3 print:pt-2 pr-1 text-black break-inside-avoid break-after-auto"
+                style={{ pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+              >
                 TWB {bra.twb}
               </div>
             </div>
 
             {/* Bottom Footer Section: SMC / Pengirim with Barcode & SENKOM Signatures */}
-            <div className="bra-footer-section grid grid-cols-12 divide-x-2 divide-black bg-white text-black">
+            <div
+              className="bra-footer-section grid grid-cols-12 divide-x-2 divide-black bg-white text-black break-inside-avoid break-after-auto"
+              style={{ pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+            >
               {/* Left Column: Pengirim (SMC) with QR Barcode */}
-              <div className="col-span-7 sm:col-span-7 p-2.5 flex flex-col justify-between">
+              <div className="col-span-7 sm:col-span-7 p-2.5 print:p-2 flex flex-col justify-between">
                 <div>
                   <div className="space-y-1">
                     <div className="flex">
@@ -660,7 +697,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                           <img
                             src={qrDataUrl}
                             alt={`Barcode ${bra.no_bra}`}
-                            className="w-24 h-24 sm:w-28 sm:h-28 object-contain"
+                            className="w-24 h-24 sm:w-28 sm:h-28 print:w-20 print:h-20 object-contain"
                           />
                         </div>
                       ) : (
@@ -687,7 +724,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                 </div>
 
                 {/* Empty operator logging rows for SENKOM */}
-                <div className="grid grid-cols-4 divide-x-2 divide-black flex-1 min-h-[110px] bg-white text-black">
+                <div className="grid grid-cols-4 divide-x-2 divide-black flex-1 min-h-[110px] print:min-h-[85px] bg-white text-black">
                   <div className="p-1 text-center font-mono text-[10px] text-black">
                     {bra.twt || ''}
                   </div>
@@ -714,15 +751,31 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
         {/* Embedded print style rules to guarantee multi-page flow and prevent KOP orphan */}
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
+            @page {
+              size: auto;
+              margin: 12mm 12mm 12mm 15mm;
+            }
             .bra-kop {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
               margin-bottom: 6px !important;
             }
             .bra-table-wrapper {
               width: 100% !important;
               page-break-inside: auto !important;
               break-inside: auto !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
+            }
+            .senkom-vertical-label {
+              top: 25px !important;
+              bottom: auto !important;
+              height: 280px !important;
+              position: absolute !important;
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
             }
             .bra-table-box {
               border: 2px solid #000000 !important;
@@ -730,35 +783,53 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               -webkit-box-decoration-break: clone !important;
               page-break-inside: auto !important;
               break-inside: auto !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
             }
             .bra-top-header {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
             }
             .bra-upper-section {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
             }
             .bra-no-header {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
             }
-            .bra-body-container {
+            .bra-body-container,
+            .bra-body-content,
+            .bra-sections-list {
               page-break-inside: auto !important;
               break-inside: auto !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
               min-height: 0 !important;
             }
             .bra-section-row {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
             }
             .bra-twb-row {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
             }
             .bra-footer-section {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
             }
           }
         ` }} />

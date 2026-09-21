@@ -21,7 +21,7 @@ export const getPageSizeCss = (pageSize: string = 'A4'): string => {
 export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100) => `
   @page {
     size: ${getPageSizeCss(pageSize)};
-    margin: 15mm 15mm 15mm 20mm; /* Standar Tata Naskah Dinas: Atas 15mm, Kanan 15mm, Bawah 15mm, Kiri 20mm */
+    margin: 12mm 12mm 12mm 15mm; /* Standar Tata Naskah Dinas: Atas 12mm, Kanan 12mm, Bawah 12mm, Kiri 15mm */
   }
   *, *::before, *::after {
     box-sizing: border-box;
@@ -131,18 +131,28 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     transform: rotate(180deg) !important;
     text-orientation: mixed !important;
     white-space: nowrap !important;
+    top: 25px !important;
+    bottom: auto !important;
+    height: 280px !important;
+    position: absolute !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* Multi-page flow: Natural document flow across pages without blank pages */
   .bra-kop {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
     margin-bottom: 6px !important;
   }
   .bra-table-wrapper {
     width: 100% !important;
     page-break-inside: auto !important;
     break-inside: auto !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
   .bra-table-box {
     border: 2px solid #000000 !important;
@@ -150,35 +160,63 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     -webkit-box-decoration-break: clone !important;
     page-break-inside: auto !important;
     break-inside: auto !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
   .bra-top-header {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
   .bra-upper-section {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
   .bra-no-header {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
-  .bra-body-container {
+  .bra-body-container,
+  .bra-body-content,
+  .bra-sections-list {
     page-break-inside: auto !important;
     break-inside: auto !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
     min-height: 0 !important;
   }
   .bra-section-row {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
   .bra-twb-row {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
   .bra-footer-section {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  /* Utility classes support for print elements */
+  .break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .break-after-auto {
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 
   img {
