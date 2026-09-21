@@ -148,26 +148,43 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     position: relative !important;
     text-align: center !important;
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
     align-items: center !important;
     justify-content: center !important;
+    gap: 14px !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     page-break-after: auto !important;
     break-after: auto !important;
     margin-bottom: 6px !important;
-    min-height: 50px !important;
+    padding-bottom: 6px !important;
+    border-bottom: 2px solid #000000 !important;
+    min-height: 48px !important;
   }
-  .bra-kop-agency {
+  .bra-kop-text {
     display: flex !important;
+    flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
-    gap: 12px !important;
-    margin-top: 4px !important;
-  }
-  .bra-kop-title {
     text-align: center !important;
-    width: 100% !important;
+  }
+  .bra-kop-text h1 {
+    font-size: 20px !important;
+    font-weight: 900 !important;
+    line-height: 1.0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-align: center !important;
+    letter-spacing: 0.8px !important;
+  }
+  .bra-kop-text h2 {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    line-height: 1.0 !important;
+    margin: 4px 0 0 0 !important;
+    padding: 0 !important;
+    text-align: center !important;
+    letter-spacing: 0.5px !important;
   }
   .bra-table-wrapper {
     width: 100% !important;
@@ -468,6 +485,151 @@ export const downloadDocumentHtml = (
  * mempertahankan margin standar Tata Naskah Dinas (Kiri 15mm, Kanan 12mm, Atas 12mm, Bawah 12mm)
  * serta memotong dokumen pada batas baris tabel alami tanpa memotong teks di tengah.
  */
+/**
+ * Menyalin computed styles dan menginjeksi border/layout inline secara eksplisit
+ * agar rendering PDF di lingkungan produksi (deployed) tidak kehilangan garis batas
+ * akibat pembatasan akses stylesheet eksternal (CORS / sheet.cssRules).
+ */
+export const applyDirectDocumentStyles = (sourceEl: HTMLElement, targetEl: HTMLElement) => {
+  try {
+    const sourceNodes = [sourceEl, ...Array.from(sourceEl.querySelectorAll<HTMLElement>('*'))];
+    const targetNodes = [targetEl, ...Array.from(targetEl.querySelectorAll<HTMLElement>('*'))];
+    const count = Math.min(sourceNodes.length, targetNodes.length);
+
+    for (let i = 0; i < count; i++) {
+      const src = sourceNodes[i];
+      const tgt = targetNodes[i];
+      if (!src || !tgt || !src.style) continue;
+
+      const comp = window.getComputedStyle(src);
+
+      // Salin border
+      if (comp.borderTopWidth && comp.borderTopWidth !== '0px') {
+        tgt.style.borderTopWidth = comp.borderTopWidth;
+        tgt.style.borderTopStyle = comp.borderTopStyle || 'solid';
+        tgt.style.borderTopColor = '#000000';
+      }
+      if (comp.borderBottomWidth && comp.borderBottomWidth !== '0px') {
+        tgt.style.borderBottomWidth = comp.borderBottomWidth;
+        tgt.style.borderBottomStyle = comp.borderBottomStyle || 'solid';
+        tgt.style.borderBottomColor = '#000000';
+      }
+      if (comp.borderLeftWidth && comp.borderLeftWidth !== '0px') {
+        tgt.style.borderLeftWidth = comp.borderLeftWidth;
+        tgt.style.borderLeftStyle = comp.borderLeftStyle || 'solid';
+        tgt.style.borderLeftColor = '#000000';
+      }
+      if (comp.borderRightWidth && comp.borderRightWidth !== '0px') {
+        tgt.style.borderRightWidth = comp.borderRightWidth;
+        tgt.style.borderRightStyle = comp.borderRightStyle || 'solid';
+        tgt.style.borderRightColor = '#000000';
+      }
+
+      // Salin display & grid / flex layout
+      if (comp.display === 'grid') {
+        tgt.style.display = 'grid';
+        if (comp.gridTemplateColumns) {
+          tgt.style.gridTemplateColumns = comp.gridTemplateColumns;
+        }
+      } else if (comp.display === 'flex') {
+        tgt.style.display = 'flex';
+        tgt.style.flexDirection = comp.flexDirection;
+        tgt.style.alignItems = comp.alignItems;
+        tgt.style.justifyContent = comp.justifyContent;
+      }
+
+      // Salin tipografi & perataan teks
+      if (comp.textAlign) tgt.style.textAlign = comp.textAlign;
+      if (comp.textTransform) tgt.style.textTransform = comp.textTransform;
+      if (comp.fontWeight) tgt.style.fontWeight = comp.fontWeight;
+      if (comp.fontSize) tgt.style.fontSize = comp.fontSize;
+
+      // Paksa teks hitam dan background putih
+      tgt.style.color = '#000000';
+      if (
+        comp.backgroundColor &&
+        comp.backgroundColor !== 'rgba(0, 0, 0, 0)' &&
+        comp.backgroundColor !== 'transparent'
+      ) {
+        tgt.style.backgroundColor = '#ffffff';
+      }
+    }
+  } catch (err) {
+    console.warn('Gagal menyalin computed styles:', err);
+  }
+
+  // Terapkan aturan struktural eksplisit sebagai jaminan 100%
+  targetEl.querySelectorAll<HTMLElement>('.bra-table-box').forEach((el) => {
+    el.style.border = '2px solid #000000';
+    el.style.backgroundColor = '#ffffff';
+    el.style.color = '#000000';
+    el.style.width = '100%';
+  });
+
+  targetEl.querySelectorAll<HTMLElement>('.bra-kop').forEach((el) => {
+    el.style.borderBottom = '2px solid #000000';
+    el.style.display = 'flex';
+    el.style.flexDirection = 'row';
+    el.style.alignItems = 'center';
+    el.style.justifyContent = 'center';
+    el.style.paddingBottom = '6px';
+    el.style.marginBottom = '6px';
+  });
+
+  targetEl.querySelectorAll<HTMLElement>('.border-2').forEach((el) => {
+    el.style.border = '2px solid #000000';
+  });
+  targetEl.querySelectorAll<HTMLElement>('.border-b-2').forEach((el) => {
+    el.style.borderBottom = '2px solid #000000';
+  });
+  targetEl.querySelectorAll<HTMLElement>('.border-t-2').forEach((el) => {
+    el.style.borderTop = '2px solid #000000';
+  });
+  targetEl.querySelectorAll<HTMLElement>('.border-b').forEach((el) => {
+    el.style.borderBottom = '1px solid #000000';
+  });
+  targetEl.querySelectorAll<HTMLElement>('.border-t').forEach((el) => {
+    el.style.borderTop = '1px solid #000000';
+  });
+
+  // Divide-y-2 dan divide-x-2
+  targetEl.querySelectorAll<HTMLElement>('.divide-y-2').forEach((parent) => {
+    const children = Array.from(parent.children) as HTMLElement[];
+    for (let i = 1; i < children.length; i++) {
+      children[i].style.borderTop = '2px solid #000000';
+    }
+  });
+
+  targetEl.querySelectorAll<HTMLElement>('.divide-x-2').forEach((parent) => {
+    const children = Array.from(parent.children) as HTMLElement[];
+    for (let i = 1; i < children.length; i++) {
+      children[i].style.borderLeft = '2px solid #000000';
+    }
+  });
+
+  // Grid definitions
+  targetEl.querySelectorAll<HTMLElement>('.grid-cols-5').forEach((el) => {
+    el.style.display = 'grid';
+    el.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
+  });
+  targetEl.querySelectorAll<HTMLElement>('.grid-cols-4').forEach((el) => {
+    el.style.display = 'grid';
+    el.style.gridTemplateColumns = 'repeat(4, minmax(0, 1fr))';
+  });
+  targetEl.querySelectorAll<HTMLElement>('.grid-cols-12').forEach((el) => {
+    el.style.display = 'grid';
+    el.style.gridTemplateColumns = 'repeat(12, minmax(0, 1fr))';
+  });
+
+  // Column spans
+  targetEl.querySelectorAll<HTMLElement>('.col-span-7, .sm\\:col-span-8').forEach((el) => {
+    el.style.gridColumn = 'span 8 / span 8';
+  });
+  targetEl.querySelectorAll<HTMLElement>('.col-span-5, .sm\\:col-span-4').forEach((el) => {
+    el.style.gridColumn = 'span 4 / span 4';
+  });
+};
+
 export const exportDocumentToPdf = async (
   elementId: string,
   filename = 'dokumen.pdf',
@@ -504,11 +666,12 @@ export const exportDocumentToPdf = async (
 
   const cleanFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
 
-  // Buat offscreen container untuk rendering yang bersih dan terisolasi dari viewport/scroll
+  // Buat container rendering tersembunyi di dalam viewport nyata (zIndex: -99999)
+  // agar getBoundingClientRect dan layout rendering menghasilkan dimensi yang akurat
   const offscreenContainer = document.createElement('div');
   offscreenContainer.style.position = 'fixed';
   offscreenContainer.style.top = '0';
-  offscreenContainer.style.left = '-10000px';
+  offscreenContainer.style.left = '0';
   offscreenContainer.style.width = '840px';
   offscreenContainer.style.backgroundColor = '#ffffff';
   offscreenContainer.style.zIndex = '-99999';
@@ -528,10 +691,24 @@ export const exportDocumentToPdf = async (
   clonedEl.style.backgroundColor = '#ffffff';
   clonedEl.style.color = '#000000';
 
+  // Suntikkan stylesheet mandiri langsung ke dalam dokumen kloning
+  const embeddedStyle = document.createElement('style');
+  embeddedStyle.textContent = `
+    ${getBasePrintStyles(pageSize, 100)}
+    *, *::before, *::after {
+      border-color: #000000 !important;
+      color: #000000 !important;
+      box-sizing: border-box !important;
+    }
+  `;
+  clonedEl.prepend(embeddedStyle);
+
+  // Terapkan salinan computed styles dan inline border ke elemen klon
+  applyDirectDocumentStyles(element, clonedEl);
+
   // Sanitasi SEMUA gambar di clonedEl agar tidak ada tainted canvas atau CORS issue
   const images = clonedEl.querySelectorAll('img');
   images.forEach((img) => {
-    // Jika ada gambar eksternal yang bukan data URI atau gagal dimuat, gantikan dengan SVG resmi
     if (!img.src || (!img.src.startsWith('data:') && !img.src.startsWith('blob:'))) {
       img.src = BASARNAS_EMBLEM_SVG_URI;
     }
@@ -570,6 +747,11 @@ export const exportDocumentToPdf = async (
         backgroundColor: '#ffffff',
         logging: false,
         windowWidth: 1024,
+        onclone: (clonedDoc) => {
+          const headStyle = clonedDoc.createElement('style');
+          headStyle.textContent = getBasePrintStyles(pageSize, 100);
+          clonedDoc.head.appendChild(headStyle);
+        },
       });
     } catch (primaryCanvasError) {
       console.warn('html2canvas utama gagal, mencoba fallback rendering:', primaryCanvasError);
@@ -579,6 +761,11 @@ export const exportDocumentToPdf = async (
         allowTaint: true,
         backgroundColor: '#ffffff',
         logging: false,
+        onclone: (clonedDoc) => {
+          const headStyle = clonedDoc.createElement('style');
+          headStyle.textContent = getBasePrintStyles(pageSize, 100);
+          clonedDoc.head.appendChild(headStyle);
+        },
       });
     }
 

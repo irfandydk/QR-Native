@@ -13,12 +13,10 @@ import {
   Trash2,
   ZoomIn,
   ZoomOut,
-  FileText,
-  Loader2,
 } from 'lucide-react';
 import { BraSar } from '../types';
 import { BasarnasLogo } from './BasarnasLogo';
-import { printElement, downloadDocumentHtml, exportDocumentToPdf } from '../utils/printUtils';
+import { printElement, downloadDocumentHtml } from '../utils/printUtils';
 import { showToast, showConfirmDialog } from '../utils/alerts';
 import { useTheme } from '../context/ThemeContext';
 
@@ -70,7 +68,6 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
   const { isDarkMode, accentColors } = useTheme();
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
-  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
   const [pageSize, setPageSize] = useState<'A4' | 'F4' | 'LETTER' | 'LEGAL'>('A4');
   const [pageScale, setPageScale] = useState<number>(100);
   const [currentLogo, setCurrentLogo] = useState<string>(
@@ -242,24 +239,6 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
     showToast(`File Dokumen HTML (${pageSize}) Berhasil Diunduh!`, 'success');
   };
 
-  const handleExportPdf = async () => {
-    try {
-      setIsExportingPdf(true);
-      showToast(`Mempersiapkan File PDF (${pageSize})...`, 'info');
-      await exportDocumentToPdf(
-        'official-bra-document',
-        `BRA_SAR_${bra.no_bra.replace(/\//g, '_')}`,
-        pageSize
-      );
-      showToast(`Dokumen PDF BRA SAR (${pageSize}) berhasil diunduh!`, 'success');
-    } catch (err: any) {
-      console.error('Gagal mengekspor PDF:', err);
-      showToast('Gagal membuat PDF. Silakan gunakan tombol Cetak untuk opsi cetak PDF browser.', 'error');
-    } finally {
-      setIsExportingPdf(false);
-    }
-  };
-
   const handleDownloadQr = () => {
     if (!qrDataUrl) return;
     const link = document.createElement('a');
@@ -400,32 +379,10 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
             <span className="hidden sm:inline">HTML</span>
           </button>
 
-          {/* Export PDF Button (html2pdf.js) */}
-          <button
-            onClick={handleExportPdf}
-            disabled={isExportingPdf}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 active:scale-95 rounded-lg shadow-md transition-all ${
-              isExportingPdf ? 'opacity-70 cursor-wait' : 'hover:scale-[1.02]'
-            }`}
-            title={`Unduh Dokumen BRA SAR Langsung dalam Format PDF (${pageSize})`}
-          >
-            {isExportingPdf ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Membuat PDF...</span>
-              </>
-            ) : (
-              <>
-                <FileText className="w-3.5 h-3.5" />
-                <span>Unduh PDF</span>
-              </>
-            )}
-          </button>
-
           <button
             onClick={handlePrint}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r ${accentColors.gradient} hover:opacity-95 rounded-lg shadow-md transition-all hover:scale-[1.02]`}
-            title={`Cetak Langsung Lembar Dokumen Resmi (${pageSize})`}
+            title={`Cetak Langsung Lembar Dokumen Resmi (${pageSize}) - Bisa pilih Simpan sebagai PDF di dialog cetak browser`}
           >
             <Printer className="w-3.5 h-3.5" />
             <span>Cetak ({pageSize})</span>
@@ -497,21 +454,19 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
           transformOrigin: 'top center',
         }}
       >
-        {/* Header Kop: Judul BRA SAR dan Logo persis di samping BADAN NASIONAL PENCARIAN DAN PERTOLONGAN */}
+        {/* Header Kop: Logo sejajar dengan BRA SAR dan BADAN NASIONAL PENCARIAN DAN PERTOLONGAN */}
         <div
-          className="bra-kop relative flex flex-col items-center justify-center pb-2.5 mb-2.5 print:pb-1.5 print:mb-1.5 border-b-2 border-black text-black break-inside-avoid break-after-auto"
+          className="bra-kop relative flex items-center justify-center gap-3 sm:gap-4 pb-2 mb-2 print:pb-1.5 print:mb-1.5 border-b-2 border-black text-black break-inside-avoid break-after-auto"
           style={{ pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakAfter: 'auto', breakAfter: 'auto' }}
         >
-          <div className="bra-kop-title text-center w-full">
-            <h1 className="text-xl sm:text-2xl font-black tracking-wider uppercase leading-tight text-black m-0 p-0 text-center">
+          <BasarnasLogo size={48} logoUrl={currentLogo} className="shrink-0 drop-shadow-none" />
+          <div className="bra-kop-text flex flex-col items-center justify-center text-center">
+            <h1 className="text-xl sm:text-[22px] font-black tracking-wider uppercase leading-none text-black m-0 p-0 text-center">
               BRA SAR
             </h1>
-            <div className="bra-kop-agency flex items-center justify-center gap-3 sm:gap-4 mt-1.5">
-              <BasarnasLogo size={52} logoUrl={currentLogo} className="shrink-0 drop-shadow-none" />
-              <h2 className="text-xs sm:text-sm md:text-[15px] font-bold tracking-wider uppercase text-black m-0 p-0 text-center">
-                BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
-              </h2>
-            </div>
+            <h2 className="text-xs sm:text-[13px] md:text-[14px] font-bold tracking-wider uppercase leading-none text-black m-0 mt-1 p-0 text-center">
+              BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
+            </h2>
           </div>
         </div>
 
@@ -807,26 +762,43 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               position: relative !important;
               text-align: center !important;
               display: flex !important;
-              flex-direction: column !important;
+              flex-direction: row !important;
               align-items: center !important;
               justify-content: center !important;
+              gap: 12px !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
               page-break-after: auto !important;
               break-after: auto !important;
               margin-bottom: 6px !important;
-              min-height: 50px !important;
+              padding-bottom: 6px !important;
+              border-bottom: 2px solid #000000 !important;
+              min-height: 48px !important;
             }
-            .bra-kop-agency {
+            .bra-kop-text {
               display: flex !important;
+              flex-direction: column !important;
               align-items: center !important;
               justify-content: center !important;
-              gap: 12px !important;
-              margin-top: 4px !important;
-            }
-            .bra-kop-title {
               text-align: center !important;
-              width: 100% !important;
+            }
+            .bra-kop-text h1 {
+              font-size: 20px !important;
+              font-weight: 900 !important;
+              line-height: 1.0 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              text-align: center !important;
+              letter-spacing: 0.8px !important;
+            }
+            .bra-kop-text h2 {
+              font-size: 13px !important;
+              font-weight: 700 !important;
+              line-height: 1.0 !important;
+              margin: 4px 0 0 0 !important;
+              padding: 0 !important;
+              text-align: center !important;
+              letter-spacing: 0.5px !important;
             }
             .bra-table-wrapper {
               width: 100% !important;
