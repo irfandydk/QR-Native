@@ -434,15 +434,11 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
       <div
         ref={docRef}
         id="official-bra-document"
-        className={`w-full font-sans p-6 sm:p-10 transition-colors shadow-2xl border print:border-none print:shadow-none print:p-0 print:max-w-none print:bg-white print:text-black ${
+        className={`w-full font-sans p-6 sm:p-8 transition-all shadow-2xl border-2 border-slate-300 print:border-none print:shadow-none print:p-0 print:max-w-none bg-white text-black ${
           pageSize === 'F4' || pageSize === 'LEGAL' ? 'max-w-[850px]' : 'max-w-4xl'
-        } ${
-          isDarkMode
-            ? 'bg-slate-900 text-slate-100 border-slate-700'
-            : 'bg-white text-slate-950 border-gray-300 shadow-xl'
         }`}
         style={{
-          minHeight: pageSize === 'LEGAL' ? '1340px' : pageSize === 'F4' ? '1240px' : '1050px',
+          minHeight: pageSize === 'LEGAL' ? '1200px' : pageSize === 'F4' ? '1100px' : '960px',
           transform: pageScale !== 100 ? `scale(${pageScale / 100})` : undefined,
           transformOrigin: 'top center',
         }}
@@ -455,14 +451,10 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
           </div>
 
           <div>
-            <h1 className={`text-xl sm:text-2xl font-black tracking-wide uppercase leading-tight print:text-black ${
-              isDarkMode ? 'text-white' : 'text-slate-950'
-            }`}>
+            <h1 className="text-xl sm:text-2xl font-black tracking-wide uppercase leading-tight text-black">
               BRA SAR
             </h1>
-            <h2 className={`text-xs sm:text-sm font-bold tracking-wider uppercase mt-0.5 print:text-black ${
-              isDarkMode ? 'text-slate-300' : 'text-slate-800'
-            }`}>
+            <h2 className="text-xs sm:text-sm font-bold tracking-wider uppercase mt-0.5 text-black">
               BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
             </h2>
           </div>
@@ -472,37 +464,27 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
         <div className="flex w-full">
           {/* Left Vertical Side Label: RUANGAN DILUAR GARIS TEBAL DI ISI OLEH DINAS SENKOM */}
           <div
-            className="w-7 sm:w-8 shrink-0 flex items-center justify-center border-r-2 border-transparent mr-1 select-none"
+            className="w-7 sm:w-8 shrink-0 flex items-center justify-center border-r-2 border-transparent mr-1 select-none senkom-vertical-label"
             style={{
               writingMode: 'vertical-rl',
               transform: 'rotate(180deg)',
             }}
           >
-            <span className={`text-[9px] sm:text-[10px] font-bold tracking-widest uppercase text-center leading-none print:text-gray-800 ${
-              isDarkMode ? 'text-slate-400' : 'text-gray-800'
-            }`}>
+            <span className="text-[9px] sm:text-[10px] font-bold tracking-widest uppercase text-center leading-none text-black">
               RUANGAN DILUAR GARIS TEBAL DI ISI OLEH DINAS SENKOM
             </span>
           </div>
 
           {/* Right Main Table Box (Thick Borders as per standard) */}
-          <div className={`flex-1 border-2 divide-y-2 text-[11px] sm:text-xs print:border-black print:divide-black ${
-            isDarkMode ? 'border-slate-700 divide-slate-700' : 'border-black divide-black'
-          }`}>
+          <div className="flex-1 border-2 border-black divide-y-2 divide-black text-[11px] sm:text-xs bg-white text-black">
             {/* SENKOM Top Header Row */}
-            <div className={`grid grid-cols-5 divide-x-2 text-center font-bold print:border-black print:divide-black print:bg-white print:text-black ${
-              isDarkMode
-                ? 'divide-slate-700 bg-slate-800/80 text-slate-200'
-                : 'divide-black bg-white text-black'
-            }`}>
+            <div className="grid grid-cols-5 divide-x-2 divide-black text-center font-bold bg-white text-black">
               <div className="py-1 px-1">Panggilan</div>
               <div className="py-1 px-1">Jenis</div>
               <div className="py-1 px-1">Nr. Stn</div>
               <div className="py-1 px-1">
                 <div>Derajat</div>
-                <div className={`font-extrabold text-[11px] sm:text-xs border-t mt-0.5 pt-0.5 print:border-black print:text-black ${
-                  isDarkMode ? 'border-slate-600 text-amber-400' : 'border-black text-black'
-                }`}>
+                <div className="font-extrabold text-[11px] sm:text-xs border-t border-black mt-0.5 pt-0.5 text-black">
                   {bra.derajat || 'SGR'}
                 </div>
               </div>
@@ -512,68 +494,50 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
             {/* Upper Section: 2 Columns */}
             {/* Left: DARI, AKSI, INFO (Tanpa Sifat) */}
             {/* Right: Tanggal Waktu TWU & Jumlah Kata */}
-            <div className={`grid grid-cols-12 divide-x-2 print:divide-black print:bg-white ${
-              isDarkMode ? 'divide-slate-700 bg-slate-900' : 'divide-black bg-white'
-            }`}>
+            <div className="grid grid-cols-12 divide-x-2 divide-black bg-white text-black">
               {/* Left Column (8 cols) */}
               <div className="col-span-7 sm:col-span-8 p-2.5 space-y-1.5">
                 <div className="flex">
-                  <span className={`w-16 font-bold uppercase shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-700'}`}>DARI</span>
+                  <span className="w-16 font-bold uppercase shrink-0 text-black">DARI</span>
                   <span className="mr-1">:</span>
-                  <span className={`font-bold uppercase tracking-tight print:text-black ${isDarkMode ? 'text-white' : 'text-black'}`}>{bra.dari}</span>
+                  <span className="font-bold uppercase tracking-tight text-black">{bra.dari}</span>
                 </div>
 
                 <div className="flex">
-                  <span className={`w-16 font-bold uppercase shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-700'}`}>AKSI</span>
+                  <span className="w-16 font-bold uppercase shrink-0 text-black">AKSI</span>
                   <span className="mr-1">:</span>
-                  <span className={`uppercase print:text-black ${isDarkMode ? 'text-slate-200' : 'text-black'}`}>{bra.aksi}</span>
+                  <span className="uppercase text-black">{bra.aksi}</span>
                 </div>
 
                 <div className="flex">
-                  <span className={`w-16 font-bold uppercase shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-700'}`}>INFO</span>
+                  <span className="w-16 font-bold uppercase shrink-0 text-black">INFO</span>
                   <span className="mr-1">:</span>
-                  <span className={`uppercase print:text-black ${isDarkMode ? 'text-slate-200' : 'text-black'}`}>{bra.info}</span>
+                  <span className="uppercase text-black">{bra.info}</span>
                 </div>
               </div>
 
               {/* Right Column (4 cols): Kolom Tanggal Waktu Sesuai Contoh Lampiran */}
-              <div className={`col-span-5 sm:col-span-4 divide-y-2 flex flex-col justify-between print:divide-black ${
-                isDarkMode ? 'divide-slate-700' : 'divide-black'
-              }`}>
+              <div className="col-span-5 sm:col-span-4 divide-y-2 divide-black flex flex-col justify-between bg-white text-black">
                 {/* Baris 1: TANGGAL WAKTU (Tanpa : dan Posisi Center) */}
-                <div className={`p-1.5 sm:p-2 flex items-center justify-center text-center min-h-[30px] print:bg-white ${
-                  isDarkMode ? 'bg-slate-850' : 'bg-white'
-                }`}>
-                  <span className={`font-bold uppercase text-[9.5px] sm:text-[10.5px] tracking-wider text-center print:text-black ${
-                    isDarkMode ? 'text-slate-300' : 'text-black'
-                  }`}>
+                <div className="p-1.5 sm:p-2 flex items-center justify-center text-center min-h-[30px] bg-white">
+                  <span className="font-bold uppercase text-[9.5px] sm:text-[10.5px] tracking-wider text-center text-black">
                     TANGGAL WAKTU
                   </span>
                 </div>
 
                 {/* Baris 2: TWU (misal: TWU 0918 2105 H sesuai contoh lampiran) */}
-                <div className={`p-1.5 sm:p-2 flex items-center justify-center text-center flex-1 min-h-[36px] print:bg-white ${
-                  isDarkMode ? 'bg-slate-850' : 'bg-white'
-                }`}>
-                  <span className={`font-black text-xs sm:text-sm tracking-wider uppercase print:text-black ${
-                    isDarkMode ? 'text-amber-400' : 'text-black'
-                  }`}>
+                <div className="p-1.5 sm:p-2 flex items-center justify-center text-center flex-1 min-h-[36px] bg-white">
+                  <span className="font-black text-xs sm:text-sm tracking-wider uppercase text-black">
                     {bra.twu.startsWith('TWU') ? bra.twu : `TWU ${bra.twu}`}
                   </span>
                 </div>
 
                 {/* Baris 3: JUMLAH KATA */}
-                <div className={`p-1.5 sm:p-2 flex items-center justify-between min-h-[30px] print:bg-white ${
-                  isDarkMode ? 'bg-slate-850' : 'bg-white'
-                }`}>
-                  <span className={`font-bold uppercase text-[9.5px] sm:text-[10.5px] print:text-black ${
-                    isDarkMode ? 'text-slate-300' : 'text-black'
-                  }`}>
+                <div className="p-1.5 sm:p-2 flex items-center justify-between min-h-[30px] bg-white">
+                  <span className="font-bold uppercase text-[9.5px] sm:text-[10.5px] text-black">
                     JUMLAH KATA
                   </span>
-                  <span className={`font-bold text-xs uppercase print:text-black ${
-                    isDarkMode ? 'text-slate-200' : 'text-black'
-                  }`}>
+                  <span className="font-bold text-xs uppercase text-black">
                     {bra.jumlah_kata || `${bra.sections.reduce((acc, s) => acc + s.isi.split(/\s+/).length, 0)} KATA`}
                   </span>
                 </div>
@@ -582,32 +546,28 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
 
             {/* Telegram Body Sections (AAA, BBB, CCC, etc.) */}
             {/* Bagian Nomor dan Judul di atas AAA tanpa kotak/kolom pembatas */}
-            <div className={`border-t-2 p-3 sm:p-4 min-h-[420px] flex flex-col justify-between print:border-black print:bg-white ${
-              isDarkMode ? 'border-slate-700 bg-slate-900' : 'border-black bg-white'
-            }`}>
+            <div className="border-t-2 border-black p-3 sm:p-4 min-h-[380px] flex flex-col justify-between bg-white text-black">
               <div>
                 {/* Bagian NO dan Judul langsung di atas AAA tanpa tulisan Segera di sampingnya */}
                 <div className="mb-3.5">
                   <div className="space-y-1">
                     <div className="flex items-center text-xs sm:text-sm font-bold uppercase">
-                      <span className={`w-20 sm:w-24 font-black shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-800'}`}>NO.</span>
+                      <span className="w-20 sm:w-24 font-black shrink-0 text-black">NO.</span>
                       <span className="w-3 text-center shrink-0">:</span>
-                      <span className={`font-extrabold tracking-wider ml-1 print:text-black ${isDarkMode ? 'text-amber-400' : 'text-black'}`}>{bra.no_bra}</span>
+                      <span className="font-extrabold tracking-wider ml-1 text-black">{bra.no_bra}</span>
                     </div>
 
                     {bra.menbra && (
                       <div className="flex items-center text-xs sm:text-sm font-bold uppercase">
-                        <span className={`w-20 sm:w-24 font-black shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-800'}`}>MENBRA</span>
+                        <span className="w-20 sm:w-24 font-black shrink-0 text-black">MENBRA</span>
                         <span className="w-3 text-center shrink-0">:</span>
-                        <span className={`font-extrabold tracking-wider ml-1 print:text-black ${isDarkMode ? 'text-slate-200' : 'text-black'}`}>{bra.menbra}</span>
+                        <span className="font-extrabold tracking-wider ml-1 text-black">{bra.menbra}</span>
                       </div>
                     )}
                   </div>
 
                   {bra.perihal && (
-                    <div className={`font-black uppercase text-xs sm:text-sm tracking-tight leading-snug mt-2.5 mb-1 print:text-black ${
-                      isDarkMode ? 'text-white' : 'text-black'
-                    }`}>
+                    <div className="font-black uppercase text-xs sm:text-sm tracking-tight leading-snug mt-2.5 mb-1 text-black">
                       {bra.perihal}
                     </div>
                   )}
@@ -617,14 +577,10 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                 <div className="space-y-4">
                   {bra.sections.map((section, idx) => (
                     <div key={idx} className="flex items-start text-justify leading-relaxed">
-                      <span className={`font-black text-xs sm:text-sm tracking-wider uppercase w-12 sm:w-14 shrink-0 print:text-black ${
-                        isDarkMode ? 'text-amber-400' : 'text-black'
-                      }`}>
+                      <span className="font-black text-xs sm:text-sm tracking-wider uppercase w-12 sm:w-14 shrink-0 text-black">
                         {section.kode} :
                       </span>
-                      <div className={`flex-1 whitespace-pre-line uppercase font-normal text-xs sm:text-[12.5px] leading-relaxed print:text-black ${
-                        isDarkMode ? 'text-slate-200' : 'text-black'
-                      }`}>
+                      <div className="flex-1 whitespace-pre-line uppercase font-normal text-xs sm:text-[12.5px] leading-relaxed text-black">
                         {section.isi}
                       </div>
                     </div>
@@ -633,49 +589,45 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               </div>
 
               {/* TWB di sudut kanan bawah area telegram tepat di atas garis pembatas */}
-              <div className={`text-right font-black text-xs sm:text-sm tracking-wider uppercase pt-4 pr-1 print:text-black ${
-                isDarkMode ? 'text-amber-400' : 'text-black'
-              }`}>
+              <div className="text-right font-black text-xs sm:text-sm tracking-wider uppercase pt-4 pr-1 text-black">
                 TWB {bra.twb}
               </div>
             </div>
 
             {/* Bottom Footer Section: SMC / Pengirim with Barcode & SENKOM Signatures */}
-            <div className={`grid grid-cols-12 divide-x-2 print:divide-black print:bg-white ${
-              isDarkMode ? 'divide-slate-700 bg-slate-900' : 'divide-black bg-white'
-            }`}>
+            <div className="grid grid-cols-12 divide-x-2 divide-black bg-white text-black">
               {/* Left Column: Pengirim (SMC) with QR Barcode */}
               <div className="col-span-7 sm:col-span-7 p-2.5 flex flex-col justify-between">
                 <div>
                   <div className="space-y-1">
                     <div className="flex">
-                      <span className={`w-20 font-bold uppercase shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-700'}`}>PENGIRIM</span>
+                      <span className="w-20 font-bold uppercase shrink-0 text-black">PENGIRIM</span>
                       <span className="mr-1">:</span>
-                      <span className={`font-bold uppercase text-[11px] sm:text-xs print:text-black ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                      <span className="font-bold uppercase text-[11px] sm:text-xs text-black">
                         {bra.pengirim}
                       </span>
                     </div>
 
                     <div className="flex">
-                      <span className={`w-20 font-bold uppercase shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-700'}`}>Nama</span>
+                      <span className="w-20 font-bold uppercase shrink-0 text-black">Nama</span>
                       <span className="mr-1">:</span>
-                      <span className={`font-bold uppercase text-[11px] sm:text-xs print:text-black ${isDarkMode ? 'text-slate-100' : 'text-black'}`}>
+                      <span className="font-bold uppercase text-[11px] sm:text-xs text-black">
                         {bra.nama_smc}
                       </span>
                     </div>
 
                     <div className="flex">
-                      <span className={`w-20 font-bold uppercase shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-700'}`}>Pangkat</span>
+                      <span className="w-20 font-bold uppercase shrink-0 text-black">Pangkat</span>
                       <span className="mr-1">:</span>
-                      <span className={`uppercase text-[11px] sm:text-xs print:text-black ${isDarkMode ? 'text-slate-300' : 'text-black'}`}>
+                      <span className="uppercase text-[11px] sm:text-xs text-black">
                         {bra.pangkat_smc}
                       </span>
                     </div>
 
                     <div className="flex">
-                      <span className={`w-20 font-bold uppercase shrink-0 print:text-black ${isDarkMode ? 'text-slate-400' : 'text-gray-700'}`}>Jabatan</span>
+                      <span className="w-20 font-bold uppercase shrink-0 text-black">Jabatan</span>
                       <span className="mr-1">:</span>
-                      <span className={`font-bold uppercase text-[11px] sm:text-xs print:text-black ${isDarkMode ? 'text-slate-200' : 'text-black'}`}>
+                      <span className="font-bold uppercase text-[11px] sm:text-xs text-black">
                         {bra.jabatan_smc}
                       </span>
                     </div>
@@ -683,17 +635,13 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                 </div>
 
                 {/* Tanda Tangan -> BARCODE QR CODE (Requirement 2) with Official Stamp */}
-                <div className={`mt-2 pt-2 border-t print:border-gray-300 ${isDarkMode ? 'border-slate-700' : 'border-gray-300'}`}>
+                <div className="mt-2 pt-2 border-t border-black">
                   <div className="flex items-start justify-between">
                     <div>
-                      <span className={`font-bold uppercase text-[10px] sm:text-[11px] block print:text-black ${
-                        isDarkMode ? 'text-slate-300' : 'text-black'
-                      }`}>
+                      <span className="font-bold uppercase text-[10px] sm:text-[11px] block text-black">
                         Tanda Tangan :
                       </span>
-                      <span className={`text-[9px] font-mono block mt-0.5 print:text-gray-500 ${
-                        isDarkMode ? 'text-slate-400' : 'text-gray-500'
-                      }`}>
+                      <span className="text-[9px] font-mono block mt-0.5 text-gray-600">
                         (Barcode Digital Terverifikasi)
                       </span>
                     </div>
@@ -701,7 +649,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                     {/* Barcode QR Digital (Poin 3: Tanpa Stempel) */}
                     <div className="flex flex-col items-center">
                       {qrDataUrl ? (
-                        <div className="p-1 bg-white border border-gray-400 rounded shadow-sm">
+                        <div className="p-1 bg-white border border-black rounded shadow-sm">
                           <img
                             src={qrDataUrl}
                             alt={`Barcode ${bra.no_bra}`}
@@ -709,16 +657,12 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                           />
                         </div>
                       ) : (
-                        <div className={`w-24 h-24 border border-dashed flex items-center justify-center text-[10px] ${
-                          isDarkMode ? 'border-slate-700 text-slate-500' : 'border-gray-400 text-gray-400'
-                        }`}>
+                        <div className="w-24 h-24 border border-dashed border-gray-400 flex items-center justify-center text-[10px] text-gray-500">
                           Memuat Barcode...
                         </div>
                       )}
 
-                      <div className={`text-[8.5px] font-mono text-center mt-1 print:text-gray-600 ${
-                        isDarkMode ? 'text-slate-400' : 'text-gray-600'
-                      }`}>
+                      <div className="text-[8.5px] font-mono text-center mt-1 text-gray-700">
                         SCAN UNTUK VERIFIKASI
                       </div>
                     </div>
@@ -728,11 +672,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
 
               {/* Right Column: SENKOM Processing Columns */}
               <div className="col-span-5 sm:col-span-5 flex flex-col justify-between">
-                <div className={`grid grid-cols-4 divide-x-2 border-b-2 text-center font-bold py-1 text-[10px] sm:text-[11px] print:border-black print:divide-black print:bg-white print:text-black ${
-                  isDarkMode
-                    ? 'divide-slate-700 border-slate-700 bg-slate-800/80 text-slate-300'
-                    : 'divide-black border-black bg-white text-black'
-                }`}>
+                <div className="grid grid-cols-4 divide-x-2 divide-black border-b-2 border-black text-center font-bold py-1 text-[10px] sm:text-[11px] bg-white text-black">
                   <div>T. W. T</div>
                   <div>T. W. K</div>
                   <div>SISTEM</div>
@@ -740,27 +680,17 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                 </div>
 
                 {/* Empty operator logging rows for SENKOM */}
-                <div className={`grid grid-cols-4 divide-x-2 flex-1 min-h-[120px] print:divide-black print:bg-white ${
-                  isDarkMode ? 'divide-slate-700 bg-slate-900' : 'divide-black bg-white'
-                }`}>
-                  <div className={`p-1 text-center font-mono text-[10px] print:text-gray-700 ${
-                    isDarkMode ? 'text-slate-400' : 'text-gray-700'
-                  }`}>
+                <div className="grid grid-cols-4 divide-x-2 divide-black flex-1 min-h-[110px] bg-white text-black">
+                  <div className="p-1 text-center font-mono text-[10px] text-black">
                     {bra.twt || ''}
                   </div>
-                  <div className={`p-1 text-center font-mono text-[10px] print:text-gray-700 ${
-                    isDarkMode ? 'text-slate-400' : 'text-gray-700'
-                  }`}>
+                  <div className="p-1 text-center font-mono text-[10px] text-black">
                     {bra.twk || ''}
                   </div>
-                  <div className={`p-1 text-center font-mono text-[10px] print:text-gray-700 ${
-                    isDarkMode ? 'text-slate-400' : 'text-gray-700'
-                  }`}>
+                  <div className="p-1 text-center font-mono text-[10px] text-black">
                     {bra.sistem || ''}
                   </div>
-                  <div className={`p-1 text-center font-mono text-[10px] print:text-gray-700 ${
-                    isDarkMode ? 'text-slate-400' : 'text-gray-700'
-                  }`}>
+                  <div className="p-1 text-center font-mono text-[10px] text-black">
                     {bra.paraf || ''}
                   </div>
                 </div>
@@ -770,9 +700,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
         </div>
 
         {/* Footer tiny text */}
-        <div className={`mt-2 text-right text-[8px] font-mono print:text-gray-500 ${
-          isDarkMode ? 'text-slate-500' : 'text-gray-400'
-        }`}>
+        <div className="mt-2 text-right text-[8px] font-mono text-gray-600">
           SISTEM QR SAR • KANTOR PENCARIAN DAN PERTOLONGAN KENDARI • DOKUMEN ELEKTRONIK RESMI
         </div>
       </div>

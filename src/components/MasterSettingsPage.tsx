@@ -571,13 +571,37 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
         throw new Error('Struktur data cadangan tidak valid.');
       }
 
-      const totalOperasi = Array.isArray(parsedData.operasi_sar) ? parsedData.operasi_sar.length : 0;
-      const totalBra = Array.isArray(parsedData.bra_sar) ? parsedData.bra_sar.length : 0;
-      const totalKorban = Array.isArray(parsedData.korban) ? parsedData.korban.length : 0;
-      const totalRenops = Array.isArray(parsedData.renops) ? parsedData.renops.length : 0;
-      const totalLapbang = Array.isArray(parsedData.lapbang) ? parsedData.lapbang.length : 0;
-      const totalAlut = Array.isArray(parsedData.master_alut) ? parsedData.master_alut.length : 0;
-      const totalTim = Array.isArray(parsedData.master_tim) ? parsedData.master_tim.length : 0;
+      // Deteksi struktur data (bisa dibungkus dalam .data atau langsung, dan fallback ke .stats)
+      const dataRoot = (parsedData.data && typeof parsedData.data === 'object') ? parsedData.data : parsedData;
+      const statsRoot = (parsedData.stats && typeof parsedData.stats === 'object') ? parsedData.stats : null;
+
+      const arrOperasi = Array.isArray(dataRoot.operasi)
+        ? dataRoot.operasi
+        : (Array.isArray(dataRoot.operasi_sar) ? dataRoot.operasi_sar : []);
+      const arrBra = Array.isArray(dataRoot.bra_sar)
+        ? dataRoot.bra_sar
+        : (Array.isArray(dataRoot.bra) ? dataRoot.bra : []);
+      const arrKorban = Array.isArray(dataRoot.korban) ? dataRoot.korban : [];
+      const arrRenops = Array.isArray(dataRoot.renops) ? dataRoot.renops : [];
+      const arrLapbang = Array.isArray(dataRoot.laporan_harian)
+        ? dataRoot.laporan_harian
+        : (Array.isArray(dataRoot.lapbang) ? dataRoot.lapbang : []);
+      const arrAlut = Array.isArray(dataRoot.master_alut) ? dataRoot.master_alut : [];
+      const arrTim = Array.isArray(dataRoot.master_tim) ? dataRoot.master_tim : [];
+      const importedSettings = (dataRoot.app_settings && typeof dataRoot.app_settings === 'object')
+        ? dataRoot.app_settings
+        : (parsedData.app_settings && typeof parsedData.app_settings === 'object' ? parsedData.app_settings : null);
+
+      const totalOperasi = arrOperasi.length || (statsRoot?.total_operasi ?? 0);
+      const totalBra = arrBra.length || (statsRoot?.total_bra_sar ?? 0);
+      const totalKorban = arrKorban.length || (statsRoot?.total_korban ?? 0);
+      const totalRenops = arrRenops.length || (statsRoot?.total_renops ?? 0);
+      const totalLapbang = arrLapbang.length || (statsRoot?.total_laporan_harian ?? 0);
+      const totalAlut = arrAlut.length || (statsRoot?.total_master_alut ?? 0);
+      const totalTim = arrTim.length || (statsRoot?.total_master_tim ?? 0);
+
+      const satkerNote = importedSettings?.satker_nama ? `• Satker: ${importedSettings.satker_nama}\n` : '';
+      const logoNote = importedSettings?.logo_url ? `• Logo Satker: Ditemukan & Siap Diterapkan Langsung\n` : '';
 
       const confirmed = await showConfirmDialog(
         'Konfirmasi Pemulihan Database',
@@ -587,8 +611,10 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
         `• ${totalKorban} Data Korban\n` +
         `• ${totalRenops} Rencana Operasi\n` +
         `• ${totalLapbang} Laporan Perkembangan\n` +
-        `• ${totalAlut} Master Alut & ${totalTim} Master Tim\n\n` +
-        `Apakah Anda yakin ingin memulihkan (import) database ini ke sistem? Data yang ada akan diperbarui.`
+        `• ${totalAlut} Master Alut & ${totalTim} Master Tim\n` +
+        satkerNote +
+        logoNote +
+        `\nApakah Anda yakin ingin memulihkan (import) database ini ke sistem? Data yang ada akan diperbarui dan diterapkan langsung.`
       );
 
       if (!confirmed) {
@@ -608,13 +634,27 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
         throw new Error(result.error || 'Gagal memulihkan database.');
       }
 
-      // Refresh data
+      // Terapkan pengaturan satker dan logo langsung ke aplikasi
+      const finalSettings = result.settings || importedSettings;
+      if (finalSettings) {
+        setSettings((prev) => ({ ...prev, ...finalSettings }));
+        if (finalSettings.logo_url) {
+          localStorage.setItem('sar_custom_logo_url', finalSettings.logo_url);
+        }
+        if (Array.isArray(finalSettings.pejabat_list) && finalSettings.pejabat_list.length > 0) {
+          setPejabatList(finalSettings.pejabat_list);
+        }
+        // Kirim event global agar seluruh komponen (Header, Dokumen BRA, dll) langsung memakai logo & satker baru
+        window.dispatchEvent(new CustomEvent('satker-settings-updated', { detail: finalSettings }));
+      }
+
+      // Refresh seluruh data sistem
       await onRefreshData();
       await fetchSettingsAndPejabat();
 
       showSuccessAlert(
         'Database Berhasil Dipulihkan!',
-        `Semua data Operasi SAR, BRA SAR, Rencana Operasi, dan Pengaturan telah berhasil disinkronkan ke dalam aplikasi.`
+        `Sinkronisasi tuntas: ${result.stats?.operasi ?? totalOperasi} Operasi SAR, ${result.stats?.bra_sar ?? totalBra} BRA SAR, Master Data, dan Pengaturan Satker/Logo telah langsung diterapkan ke aplikasi.`
       );
     } catch (err: any) {
       showErrorAlert('Gagal Memulihkan Database', err.message || 'Terjadi kesalahan pemulihan.');

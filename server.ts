@@ -859,6 +859,7 @@ async function startServer() {
         success: true,
         message: 'Basis data berhasil dipulihkan secara penuh.',
         stats: result.stats,
+        settings: result.settings,
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });

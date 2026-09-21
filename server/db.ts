@@ -1565,6 +1565,7 @@ class Database {
   public restoreFullDatabase(importedPayload: any): {
     success: boolean;
     stats?: any;
+    settings?: any;
     error?: string;
   } {
     try {
@@ -1573,7 +1574,7 @@ class Database {
       }
 
       // If the payload was wrapped inside { data: DatabaseSchema, ... }
-      const incomingData: DatabaseSchema = importedPayload.data && typeof importedPayload.data === 'object'
+      const incomingData: any = importedPayload.data && typeof importedPayload.data === 'object'
         ? importedPayload.data
         : importedPayload;
 
@@ -1581,15 +1582,22 @@ class Database {
       const newDb: DatabaseSchema = {
         master_alut: Array.isArray(incomingData.master_alut) ? incomingData.master_alut : this.data.master_alut || [],
         master_tim: Array.isArray(incomingData.master_tim) ? incomingData.master_tim : this.data.master_tim || [],
-        operasi: Array.isArray(incomingData.operasi) ? incomingData.operasi : [],
+        sar_units: Array.isArray(incomingData.sar_units) ? incomingData.sar_units : this.data.sar_units || [],
+        operasi: Array.isArray(incomingData.operasi)
+          ? incomingData.operasi
+          : (Array.isArray(incomingData.operasi_sar) ? incomingData.operasi_sar : []),
         korban: Array.isArray(incomingData.korban) ? incomingData.korban : [],
         detail_tim_berangkat: Array.isArray(incomingData.detail_tim_berangkat) ? incomingData.detail_tim_berangkat : [],
         detail_unsur: Array.isArray(incomingData.detail_unsur) ? incomingData.detail_unsur : [],
         detail_alut: Array.isArray(incomingData.detail_alut) ? incomingData.detail_alut : [],
         renops: Array.isArray(incomingData.renops) ? incomingData.renops : [],
         renops_sru: Array.isArray(incomingData.renops_sru) ? incomingData.renops_sru : [],
-        laporan_harian: Array.isArray(incomingData.laporan_harian) ? incomingData.laporan_harian : [],
-        bra_sar: Array.isArray(incomingData.bra_sar) ? incomingData.bra_sar : [],
+        laporan_harian: Array.isArray(incomingData.laporan_harian)
+          ? incomingData.laporan_harian
+          : (Array.isArray(incomingData.lapbang) ? incomingData.lapbang : []),
+        bra_sar: Array.isArray(incomingData.bra_sar)
+          ? incomingData.bra_sar
+          : (Array.isArray(incomingData.bra) ? incomingData.bra : []),
         app_settings: incomingData.app_settings && typeof incomingData.app_settings === 'object'
           ? { ...this.data.app_settings, ...incomingData.app_settings }
           : this.data.app_settings,
@@ -1609,6 +1617,7 @@ class Database {
           master_alut: this.data.master_alut.length,
           master_tim: this.data.master_tim.length,
         },
+        settings: this.data.app_settings,
       };
     } catch (err: any) {
       return { success: false, error: err.message || 'Gagal memproses data pemulihan basis data.' };

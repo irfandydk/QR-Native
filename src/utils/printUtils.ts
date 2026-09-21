@@ -21,7 +21,7 @@ export const getPageSizeCss = (pageSize: string = 'A4'): string => {
 export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100) => `
   @page {
     size: ${getPageSizeCss(pageSize)};
-    margin: 8mm 10mm 8mm 10mm;
+    margin: 6mm 8mm 6mm 8mm;
   }
   *, *::before, *::after {
     box-sizing: border-box;
@@ -36,6 +36,7 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     font-size: 11px;
     line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
   }
   .print-wrapper {
     width: 100%;
@@ -43,7 +44,7 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     margin: 0 auto;
     background: #ffffff !important;
     color: #000000 !important;
-    padding: 10px;
+    padding: 0;
     transform-origin: top center;
     ${scale !== 100 ? `transform: scale(${scale / 100});` : ''}
   }
@@ -51,43 +52,85 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 auto !important;
-    padding: 0 !important;
+    padding: 4px 6px !important;
     border: none !important;
     box-shadow: none !important;
     background: #ffffff !important;
     color: #000000 !important;
+    min-height: auto !important;
   }
   .print\\:hidden, .no-print, button {
     display: none !important;
   }
-  /* Table & Border overrides to guarantee high contrast black lines */
+
+  /* Standalone Grid and Flexbox definitions for print & standalone HTML */
+  .grid { display: grid !important; }
+  .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+  .grid-cols-12 { grid-template-columns: repeat(12, minmax(0, 1fr)) !important; }
+  .col-span-4 { grid-column: span 4 / span 4 !important; }
+  .col-span-5 { grid-column: span 5 / span 5 !important; }
+  .col-span-7 { grid-column: span 7 / span 7 !important; }
+  .col-span-8 { grid-column: span 8 / span 8 !important; }
+  .sm\\:col-span-4 { grid-column: span 4 / span 4 !important; }
+  .sm\\:col-span-5 { grid-column: span 5 / span 5 !important; }
+  .sm\\:col-span-7 { grid-column: span 7 / span 7 !important; }
+  .sm\\:col-span-8 { grid-column: span 8 / span 8 !important; }
+
+  .flex { display: flex !important; }
+  .flex-col { flex-direction: column !important; }
+  .flex-1 { flex: 1 1 0% !important; }
+  .items-center { align-items: center !important; }
+  .items-start { align-items: flex-start !important; }
+  .justify-between { justify-content: space-between !important; }
+  .justify-center { justify-content: center !important; }
+  .text-center { text-align: center !important; }
+  .text-right { text-align: right !important; }
+  .text-justify { text-align: justify !important; }
+  .shrink-0 { flex-shrink: 0 !important; }
+  .uppercase { text-transform: uppercase !important; }
+  .font-bold { font-weight: 700 !important; }
+  .font-black, .font-extrabold { font-weight: 900 !important; }
+
+  /* Pure black border overrides matching official telegram standard */
+  .border, .border-2, .border-t, .border-b, .border-l, .border-r,
   table, tr, td, th {
     border-color: #000000 !important;
   }
-  .border, .border-2, .border-t, .border-b, .border-l, .border-r,
-  .divide-y, .divide-y-2, .divide-x, .divide-x-2 {
-    border-color: #000000 !important;
-  }
-  .divide-y > :not([hidden]) ~ :not([hidden]),
+  .border-2 { border: 2px solid #000000 !important; }
+  .border-t-2 { border-top: 2px solid #000000 !important; }
+  .border-b-2 { border-bottom: 2px solid #000000 !important; }
+  .border-t { border-top: 1px solid #000000 !important; }
+  .border-b { border-bottom: 1px solid #000000 !important; }
   .divide-y-2 > :not([hidden]) ~ :not([hidden]) {
-    border-top-color: #000000 !important;
+    border-top: 2px solid #000000 !important;
   }
-  .divide-x > :not([hidden]) ~ :not([hidden]),
   .divide-x-2 > :not([hidden]) ~ :not([hidden]) {
-    border-left-color: #000000 !important;
+    border-left: 2px solid #000000 !important;
   }
-  /* Ensure all text in document is solid black */
-  p, span, div, h1, h2, h3, h4, strong {
+  .divide-y > :not([hidden]) ~ :not([hidden]) {
+    border-top: 1px solid #000000 !important;
+  }
+  .divide-x > :not([hidden]) ~ :not([hidden]) {
+    border-left: 1px solid #000000 !important;
+  }
+
+  /* Force background and text */
+  p, span, div, h1, h2, h3, h4, strong, td, th {
     color: #000000 !important;
   }
-  .text-amber-500, .text-amber-600, .text-orange-500, .text-orange-600,
-  .text-slate-400, .text-slate-500, .text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900,
-  .text-gray-400, .text-gray-500, .text-gray-600, .text-gray-700, .text-gray-800, .text-gray-900 {
-    color: #000000 !important;
-  }
-  .bg-slate-900, .bg-slate-800, .bg-slate-850, .bg-slate-950, .bg-slate-50, .bg-gray-50, .bg-white {
+  .bg-white, .bg-slate-900, .bg-slate-850, .bg-slate-800, .bg-slate-50 {
     background-color: #ffffff !important;
   }
+
+  /* Vertical writing mode for SENKOM label */
+  .senkom-vertical-label {
+    writing-mode: vertical-rl !important;
+    transform: rotate(180deg) !important;
+    text-orientation: mixed !important;
+    white-space: nowrap !important;
+  }
+
   img {
     max-width: 100%;
     page-break-inside: avoid;
@@ -117,13 +160,13 @@ export const printElement = (
 
     const iframe = document.createElement('iframe');
     iframe.id = 'basarnas-print-iframe';
+    // Berikan lebar nyata (850px) agar media query desktop (sm:) aktif dan layout sama persis dengan preview
     iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    iframe.style.border = '0';
-    iframe.style.visibility = 'hidden';
+    iframe.style.left = '-99999px';
+    iframe.style.top = '0';
+    iframe.style.width = '850px';
+    iframe.style.height = '1200px';
+    iframe.style.border = 'none';
 
     document.body.appendChild(iframe);
 
@@ -173,22 +216,43 @@ export const printElement = (
     `);
     iframeDoc.close();
 
-    // Beri jeda sejenak untuk rendering gambar / QR code
+    // Tunggu gambar (Logo & QR Code) selesai dimuat di iframe sebelum trigger print
+    const checkImagesLoaded = () => {
+      const images = Array.from(iframeDoc.images);
+      return Promise.all(
+        images.map(
+          (img) =>
+            new Promise((imgResolve) => {
+              if (img.complete) {
+                imgResolve(true);
+              } else {
+                img.onload = () => imgResolve(true);
+                img.onerror = () => imgResolve(true);
+              }
+            })
+        )
+      );
+    };
+
     setTimeout(() => {
-      try {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        resolve(true);
-      } catch (err) {
-        console.error('Iframe print error, falling back:', err);
-        window.print();
-        resolve(true);
-      } finally {
+      checkImagesLoaded().then(() => {
         setTimeout(() => {
-          iframe.remove();
-        }, 3000);
-      }
-    }, 450);
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            resolve(true);
+          } catch (err) {
+            console.error('Iframe print error, falling back:', err);
+            window.print();
+            resolve(true);
+          } finally {
+            setTimeout(() => {
+              iframe.remove();
+            }, 3000);
+          }
+        }, 150);
+      });
+    }, 250);
   });
 };
 
@@ -290,4 +354,3 @@ export const downloadDocumentHtml = (
   link.click();
   URL.revokeObjectURL(link.href);
 };
-
