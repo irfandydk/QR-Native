@@ -4,7 +4,8 @@
  */
 
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
+import { BASARNAS_EMBLEM_SVG_URI } from '../components/BasarnasLogo';
 
 export const getPageSizeCss = (pageSize: string = 'A4'): string => {
   switch (pageSize.toUpperCase()) {
@@ -147,6 +148,7 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     position: relative !important;
     text-align: center !important;
     display: flex !important;
+    flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
     page-break-inside: avoid !important;
@@ -154,27 +156,18 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     page-break-after: auto !important;
     break-after: auto !important;
     margin-bottom: 6px !important;
-    min-height: 58px !important;
+    min-height: 50px !important;
   }
-  .bra-kop-center-box {
-    position: relative !important;
-    display: inline-flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-align: center !important;
-  }
-  .bra-kop-logo {
-    position: absolute !important;
-    right: 100% !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    margin-right: 14px !important;
+  .bra-kop-agency {
     display: flex !important;
     align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    margin-top: 4px !important;
   }
   .bra-kop-title {
     text-align: center !important;
+    width: 100% !important;
   }
   .bra-table-wrapper {
     width: 100% !important;
@@ -302,22 +295,11 @@ export const printElement = (
       return;
     }
 
-    // Ambil stylesheet aplikasi yang aktif
+    // Ambil semua stylesheet dan tag style aplikasi yang aktif
     let stylesHtml = '';
-    const styleSheets = Array.from(document.styleSheets);
-    for (const sheet of styleSheets) {
-      try {
-        if (sheet.cssRules) {
-          const rules = Array.from(sheet.cssRules)
-            .map((r) => r.cssText)
-            .join('\n');
-          stylesHtml += `<style>${rules}</style>`;
-        }
-      } catch (e) {
-        if (sheet.href) {
-          stylesHtml += `<link rel="stylesheet" href="${sheet.href}">`;
-        }
-      }
+    const styleTags = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'));
+    for (const tag of styleTags) {
+      stylesHtml += tag.outerHTML + '\n';
     }
 
     iframeDoc.open();
@@ -332,7 +314,7 @@ export const printElement = (
             ${getBasePrintStyles(pageSize, scale)}
           </style>
         </head>
-        <body>
+        <body style="background: #ffffff !important; margin: 0; padding: 0;">
           <div class="print-wrapper">
             ${element.outerHTML}
           </div>
@@ -367,15 +349,15 @@ export const printElement = (
             iframe.contentWindow?.print();
             resolve(true);
           } catch (err) {
-            console.error('Iframe print error, falling back:', err);
+            console.error('Iframe print error, falling back to window.print:', err);
             window.print();
             resolve(true);
           } finally {
             setTimeout(() => {
               iframe.remove();
-            }, 3000);
+            }, 3500);
           }
-        }, 150);
+        }, 180);
       });
     }, 250);
   });
@@ -482,7 +464,9 @@ export const downloadDocumentHtml = (
 
 /**
  * Ekspor Dokumen Resmi BRA SAR langsung ke format PDF.
- * Menggunakan html2canvas dan jsPDF dengan segmentasi multi-halaman berpresisi tinggi.
+ * Menggunakan html2canvas dan jsPDF dengan segmentasi multi-halaman berpresisi tinggi,
+ * mempertahankan margin standar Tata Naskah Dinas (Kiri 15mm, Kanan 12mm, Atas 12mm, Bawah 12mm)
+ * serta memotong dokumen pada batas baris tabel alami tanpa memotong teks di tengah.
  */
 export const exportDocumentToPdf = async (
   elementId: string,
@@ -509,96 +493,207 @@ export const exportDocumentToPdf = async (
   const key = pageSize.toUpperCase();
   const targetPaper = paperDimensions[key] || paperDimensions.A4;
 
-  const marginX = 10; // 10mm left & right
-  const marginY = 10; // 10mm top & bottom
-  const usableWidth = targetPaper.width - marginX * 2;
-  const usableHeight = targetPaper.height - marginY * 2;
-
-  // Render canvas menggunakan html2canvas
-  // Normalisasi transform di onclone agar render tidak terpengaruh zoom/scale preview
-  const canvas = await html2canvas(element, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: '#ffffff',
-    logging: false,
-    windowWidth: element.scrollWidth,
-    onclone: (clonedDoc) => {
-      const clonedEl = clonedDoc.getElementById(elementId);
-      if (clonedEl) {
-        clonedEl.style.transform = 'none';
-        clonedEl.style.boxShadow = 'none';
-        clonedEl.style.border = 'none';
-        clonedEl.style.margin = '0';
-      }
-    },
-  });
+  // Standar Tata Naskah Dinas Basarnas:
+  // Atas: 12mm, Bawah: 12mm, Kiri: 15mm, Kanan: 12mm
+  const marginLeft = 15;
+  const marginRight = 12;
+  const marginTop = 12;
+  const marginBottom = 12;
+  const usableWidth = targetPaper.width - marginLeft - marginRight;
+  const usableHeight = targetPaper.height - marginTop - marginBottom;
 
   const cleanFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
 
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: targetPaper.format,
+  // Buat offscreen container untuk rendering yang bersih dan terisolasi dari viewport/scroll
+  const offscreenContainer = document.createElement('div');
+  offscreenContainer.style.position = 'fixed';
+  offscreenContainer.style.top = '0';
+  offscreenContainer.style.left = '-10000px';
+  offscreenContainer.style.width = '840px';
+  offscreenContainer.style.backgroundColor = '#ffffff';
+  offscreenContainer.style.zIndex = '-99999';
+  offscreenContainer.style.pointerEvents = 'none';
+  offscreenContainer.style.opacity = '1';
+
+  // Klon elemen dokumen
+  const clonedEl = element.cloneNode(true) as HTMLElement;
+  clonedEl.style.width = '800px';
+  clonedEl.style.maxWidth = '800px';
+  clonedEl.style.minWidth = '800px';
+  clonedEl.style.transform = 'none';
+  clonedEl.style.boxShadow = 'none';
+  clonedEl.style.border = 'none';
+  clonedEl.style.margin = '0';
+  clonedEl.style.padding = '20px 24px';
+  clonedEl.style.backgroundColor = '#ffffff';
+  clonedEl.style.color = '#000000';
+
+  // Sanitasi SEMUA gambar di clonedEl agar tidak ada tainted canvas atau CORS issue
+  const images = clonedEl.querySelectorAll('img');
+  images.forEach((img) => {
+    // Jika ada gambar eksternal yang bukan data URI atau gagal dimuat, gantikan dengan SVG resmi
+    if (!img.src || (!img.src.startsWith('data:') && !img.src.startsWith('blob:'))) {
+      img.src = BASARNAS_EMBLEM_SVG_URI;
+    }
   });
 
-  const totalContentHeightInPdf = (canvas.height * usableWidth) / canvas.width;
+  offscreenContainer.appendChild(clonedEl);
+  document.body.appendChild(offscreenContainer);
 
-  if (totalContentHeightInPdf <= usableHeight) {
-    // Muat dalam 1 halaman
-    const imgData = canvas.toDataURL('image/jpeg', 0.98);
-    pdf.addImage(imgData, 'JPEG', marginX, marginY, usableWidth, totalContentHeightInPdf);
-  } else {
-    // Multi-halaman: iris canvas per halaman dengan tinggi terukur
-    const sliceHeightInPixels = Math.floor((usableHeight * canvas.width) / usableWidth);
-    const totalPages = Math.ceil(canvas.height / sliceHeightInPixels);
+  try {
+    // Beri jeda kecil agar browser sempat melakukan reflow dan layout lengkap
+    await new Promise((r) => setTimeout(r, 60));
 
-    for (let page = 0; page < totalPages; page++) {
-      const currentSliceHeight = Math.min(
-        sliceHeightInPixels,
-        canvas.height - page * sliceHeightInPixels
-      );
-
-      const sliceCanvas = document.createElement('canvas');
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = currentSliceHeight;
-
-      const ctx = sliceCanvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
-        ctx.drawImage(
-          canvas,
-          0,
-          page * sliceHeightInPixels,
-          canvas.width,
-          currentSliceHeight,
-          0,
-          0,
-          sliceCanvas.width,
-          currentSliceHeight
-        );
+    // Rekam posisi vertikal setiap baris agar pemotongan halaman tidak memotong teks/baris
+    const rowNodes = clonedEl.querySelectorAll(
+      '.bra-kop, .bra-top-header, .bra-upper-section, .bra-no-header, .bra-section-row, .bra-twb-row, .bra-footer-section'
+    );
+    const containerRect = clonedEl.getBoundingClientRect();
+    const clonedHeight = containerRect.height;
+    const bps: number[] = [];
+    rowNodes.forEach((node) => {
+      const r = node.getBoundingClientRect();
+      const offsetBottom = r.bottom - containerRect.top;
+      if (offsetBottom > 10) {
+        bps.push(offsetBottom);
       }
+    });
+    const recordedBreakpoints = bps.sort((a, b) => a - b);
 
-      const sliceImgData = sliceCanvas.toDataURL('image/jpeg', 0.98);
-      const renderHeightInPdf = (currentSliceHeight * usableWidth) / canvas.width;
+    // Render canvas dengan opsi paling stabil
+    let canvas: HTMLCanvasElement;
+    try {
+      canvas = await html2canvas(clonedEl, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: 1024,
+      });
+    } catch (primaryCanvasError) {
+      console.warn('html2canvas utama gagal, mencoba fallback rendering:', primaryCanvasError);
+      canvas = await html2canvas(element, {
+        scale: 1.5,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+    }
 
-      if (page > 0) {
-        pdf.addPage(targetPaper.format, 'portrait');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: targetPaper.format,
+    });
+
+    const totalContentHeightInPdf = (canvas.height * usableWidth) / canvas.width;
+
+    // Jika konten muat dalam 1 halaman (atau sedikit melebihi batas hingga 5%),
+    // muat pada 1 halaman utuh sesuai konvensi naskah dinas resmi
+    if (totalContentHeightInPdf <= usableHeight * 1.05) {
+      const renderHeight = Math.min(usableHeight, totalContentHeightInPdf);
+      let imgData: string;
+      try {
+        imgData = canvas.toDataURL('image/jpeg', 0.98);
+      } catch {
+        imgData = canvas.toDataURL('image/png');
       }
+      pdf.addImage(imgData, 'JPEG', marginLeft, marginTop, usableWidth, renderHeight);
+    } else {
+      // Hitung konversi tinggi piksel kanvas ke tinggi halaman PDF
+      const pageHeightInPixels = Math.floor((usableHeight * canvas.width) / usableWidth);
+      const scaleRatio = clonedHeight > 0 ? canvas.height / clonedHeight : 1;
+      const canvasBreakpoints = recordedBreakpoints.map((bp) => bp * scaleRatio);
 
-      pdf.addImage(sliceImgData, 'JPEG', marginX, marginY, usableWidth, renderHeightInPdf);
+      let currentY = 0;
+      let pageIndex = 0;
+
+      while (currentY < canvas.height) {
+        const remainingHeight = canvas.height - currentY;
+        const targetEndY = currentY + pageHeightInPixels;
+
+        let sliceHeight: number;
+        if (remainingHeight <= pageHeightInPixels) {
+          sliceHeight = remainingHeight;
+        } else {
+          // Cari breakpoint terdekat sebelum targetEndY (minimal 65% tinggi halaman agar tidak terlalu kosong)
+          const minAcceptableY = currentY + pageHeightInPixels * 0.65;
+          const validBp = canvasBreakpoints
+            .filter((bp) => bp <= targetEndY && bp >= minAcceptableY)
+            .pop();
+
+          if (validBp && validBp > currentY) {
+            sliceHeight = Math.floor(validBp - currentY);
+          } else {
+            sliceHeight = pageHeightInPixels;
+          }
+        }
+
+        if (sliceHeight <= 0 || isNaN(sliceHeight)) {
+          sliceHeight = remainingHeight;
+        }
+
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceHeight;
+
+        const ctx = sliceCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+          ctx.drawImage(
+            canvas,
+            0,
+            currentY,
+            canvas.width,
+            sliceHeight,
+            0,
+            0,
+            sliceCanvas.width,
+            sliceHeight
+          );
+        }
+
+        let sliceImgData: string;
+        try {
+          sliceImgData = sliceCanvas.toDataURL('image/jpeg', 0.98);
+        } catch {
+          sliceImgData = sliceCanvas.toDataURL('image/png');
+        }
+        const renderHeightInPdf = (sliceHeight * usableWidth) / canvas.width;
+
+        if (pageIndex > 0) {
+          pdf.addPage(targetPaper.format, 'portrait');
+        }
+
+        pdf.addImage(sliceImgData, 'JPEG', marginLeft, marginTop, usableWidth, renderHeightInPdf);
+
+        currentY += sliceHeight;
+        pageIndex++;
+      }
+    }
+
+    // Trigger unduh dengan dukungan native jsPDF dan fallback Blob URL untuk kehandalan penuh
+    try {
+      pdf.save(cleanFilename);
+    } catch (saveErr) {
+      console.warn('Fallback ke blob download:', saveErr);
+      const pdfBlob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = blobUrl;
+      downloadLink.download = cleanFilename;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    }
+  } finally {
+    // Bersihkan elemen kloning offscreen dari DOM
+    if (offscreenContainer.parentNode) {
+      offscreenContainer.parentNode.removeChild(offscreenContainer);
     }
   }
-
-  // Trigger unduh menggunakan blob untuk kompatibilitas penuh di lingkungan iframe AI Studio
-  const pdfBlob = pdf.output('blob');
-  const blobUrl = URL.createObjectURL(pdfBlob);
-  const downloadLink = document.createElement('a');
-  downloadLink.href = blobUrl;
-  downloadLink.download = cleanFilename;
-  document.body.appendChild(downloadLink);
-  downloadLink.click();
-  document.body.removeChild(downloadLink);
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
 };

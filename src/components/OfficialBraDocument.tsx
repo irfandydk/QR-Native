@@ -497,21 +497,18 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
           transformOrigin: 'top center',
         }}
       >
-        {/* Header Kop: Logo di samping kiri tulisan (jarak dekat & proporsional), Judul BRA SAR & BADAN NASIONAL PENCARIAN DAN PERTOLONGAN tetap tepat di tengah */}
+        {/* Header Kop: Judul BRA SAR dan Logo persis di samping BADAN NASIONAL PENCARIAN DAN PERTOLONGAN */}
         <div
-          className="bra-kop relative flex items-center justify-center pb-2.5 mb-2.5 print:pb-1.5 print:mb-1.5 border-b-2 border-black text-black break-inside-avoid break-after-auto min-h-[64px]"
+          className="bra-kop relative flex flex-col items-center justify-center pb-2.5 mb-2.5 print:pb-1.5 print:mb-1.5 border-b-2 border-black text-black break-inside-avoid break-after-auto"
           style={{ pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakAfter: 'auto', breakAfter: 'auto' }}
         >
-          <div className="bra-kop-center-box relative inline-flex flex-col items-center justify-center text-center">
-            {/* Logo diposisikan langsung di samping kiri teks judul dengan jarak proporsional dan ukuran sedikit lebih besar */}
-            <div className="bra-kop-logo absolute right-full top-1/2 -translate-y-1/2 mr-3 sm:mr-4 print:mr-3.5 flex items-center shrink-0">
-              <BasarnasLogo size={62} logoUrl={currentLogo} className="shrink-0 drop-shadow-none" />
-            </div>
-            <div className="bra-kop-title text-center">
-              <h1 className="text-xl sm:text-2xl font-black tracking-wider uppercase leading-tight text-black m-0 p-0 text-center">
-                BRA SAR
-              </h1>
-              <h2 className="text-xs sm:text-[13px] font-bold tracking-wider uppercase mt-0.5 text-black m-0 p-0 text-center whitespace-nowrap">
+          <div className="bra-kop-title text-center w-full">
+            <h1 className="text-xl sm:text-2xl font-black tracking-wider uppercase leading-tight text-black m-0 p-0 text-center">
+              BRA SAR
+            </h1>
+            <div className="bra-kop-agency flex items-center justify-center gap-3 sm:gap-4 mt-1.5">
+              <BasarnasLogo size={52} logoUrl={currentLogo} className="shrink-0 drop-shadow-none" />
+              <h2 className="text-xs sm:text-sm md:text-[15px] font-bold tracking-wider uppercase text-black m-0 p-0 text-center">
                 BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
               </h2>
             </div>
@@ -810,6 +807,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               position: relative !important;
               text-align: center !important;
               display: flex !important;
+              flex-direction: column !important;
               align-items: center !important;
               justify-content: center !important;
               page-break-inside: avoid !important;
@@ -817,27 +815,18 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               page-break-after: auto !important;
               break-after: auto !important;
               margin-bottom: 6px !important;
-              min-height: 58px !important;
+              min-height: 50px !important;
             }
-            .bra-kop-center-box {
-              position: relative !important;
-              display: inline-flex !important;
-              flex-direction: column !important;
-              align-items: center !important;
-              justify-content: center !important;
-              text-align: center !important;
-            }
-            .bra-kop-logo {
-              position: absolute !important;
-              right: 100% !important;
-              top: 50% !important;
-              transform: translateY(-50%) !important;
-              margin-right: 14px !important;
+            .bra-kop-agency {
               display: flex !important;
               align-items: center !important;
+              justify-content: center !important;
+              gap: 12px !important;
+              margin-top: 4px !important;
             }
             .bra-kop-title {
               text-align: center !important;
+              width: 100% !important;
             }
             .bra-table-wrapper {
               width: 100% !important;
