@@ -123,7 +123,7 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
       case 'SAR_UMUM':
       default:
         return {
-          label: 'BRA SAR UMUM',
+          label: 'BRA SAR OPERASI SAR',
           bg: 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
           icon: <FileText className="w-3.5 h-3.5" />,
         };
@@ -178,7 +178,7 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-md transition-all hover:scale-105"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>+ Buat BRA SAR Umum</span>
+              <span>+ Buat BRA Operasi SAR</span>
             </button>
             <button
               onClick={() => onCreateBra('PERGERAKAN_KAPAL')}
@@ -253,7 +253,7 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
             }`}
           >
             <div className="flex items-center justify-between text-slate-400 text-xs font-medium">
-              <span>BRA SAR Umum</span>
+              <span>BRA SAR Operasi SAR</span>
               <FileText className="w-4 h-4 text-amber-500" />
             </div>
             <div className="mt-2 flex items-baseline gap-2">
@@ -342,7 +342,7 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
                   : cat === 'MAPEL'
                   ? 'Mapel'
                   : cat === 'SAR_UMUM'
-                  ? 'SAR Umum'
+                  ? 'Operasi SAR'
                   : 'Kapal'}
               </button>
             ))}

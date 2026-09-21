@@ -529,8 +529,8 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
                     <FileText className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold">3. Hasil Pencarian & Evaluasi Lapangan</h3>
-                    <p className="text-xs text-slate-400">Deskripsi tindakan tim SAR gabungan, hasil temuan, dan kendala</p>
+                    <h3 className="text-sm font-bold">3. Hasil Pencarian atau Perkembangan Operasi SAR</h3>
+                    <p className="text-xs text-slate-400">Deskripsi tindakan tim SAR gabungan, hasil temuan, dan perkembangan operasi</p>
                   </div>
                 </div>
 
@@ -575,10 +575,10 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="block font-semibold mb-1 text-slate-400">Kendala Lapangan (Jika ada)</label>
+                      <label className="block font-semibold mb-1 text-slate-400">Hasil Pencarian atau Perkembangan Operasi SAR</label>
                       <input
                         type="text"
-                        placeholder="Contoh: Gelombang tinggi 2m, jarak pandang terbatas..."
+                        placeholder="Contoh: Tim SAR gabungan menyisir sektor A seluas 5 NM, hasil nihil / korban dievakuasi..."
                         value={kendalaInput}
                         onChange={(e) => setKendalaInput(e.target.value)}
                         className={`w-full px-2.5 py-1.5 rounded-lg border ${

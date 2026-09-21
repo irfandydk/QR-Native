@@ -3,7 +3,8 @@
  * Menjamin 100% konsistensi antara Tampilan Preview dan Hasil Cetak/Download PDF.
  */
 
-import html2pdf from 'html2pdf.js';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export const getPageSizeCss = (pageSize: string = 'A4'): string => {
   switch (pageSize.toUpperCase()) {
@@ -143,11 +144,37 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
 
   /* Multi-page flow: Natural document flow across pages without blank pages */
   .bra-kop {
+    position: relative !important;
+    text-align: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     page-break-after: auto !important;
     break-after: auto !important;
     margin-bottom: 6px !important;
+    min-height: 58px !important;
+  }
+  .bra-kop-center-box {
+    position: relative !important;
+    display: inline-flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  .bra-kop-logo {
+    position: absolute !important;
+    right: 100% !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    margin-right: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+  .bra-kop-title {
+    text-align: center !important;
   }
   .bra-table-wrapper {
     width: 100% !important;
@@ -454,8 +481,8 @@ export const downloadDocumentHtml = (
 };
 
 /**
- * Ekspor Dokumen Resmi BRA SAR langsung ke format PDF menggunakan html2pdf.js.
- * Memaksimalkan muatan halaman pertama dan menjamin kelancaran multi-page flow.
+ * Ekspor Dokumen Resmi BRA SAR langsung ke format PDF.
+ * Menggunakan html2canvas dan jsPDF dengan segmentasi multi-halaman berpresisi tinggi.
  */
 export const exportDocumentToPdf = async (
   elementId: string,
@@ -467,69 +494,111 @@ export const exportDocumentToPdf = async (
     throw new Error(`Elemen #${elementId} tidak ditemukan.`);
   }
 
-  // Format jsPDF
-  const jsPdfFormat = (() => {
-    switch (pageSize.toUpperCase()) {
-      case 'F4':
-      case 'FOLIO':
-        return [215, 330] as [number, number];
-      case 'LEGAL':
-        return 'legal';
-      case 'LETTER':
-        return 'letter';
-      case 'A4':
-      default:
-        return 'a4';
-    }
-  })();
+  // Format dimensi fisik kertas dalam satuan milimeter (mm)
+  const paperDimensions: Record<
+    string,
+    { width: number; height: number; format: string | [number, number] }
+  > = {
+    A4: { width: 210, height: 297, format: 'a4' },
+    F4: { width: 215, height: 330, format: [215, 330] },
+    FOLIO: { width: 215, height: 330, format: [215, 330] },
+    LETTER: { width: 215.9, height: 279.4, format: 'letter' },
+    LEGAL: { width: 215.9, height: 355.6, format: 'legal' },
+  };
 
-  // Simpan style asli sebelum ekspor
-  const prevTransform = element.style.transform;
-  const prevBoxShadow = element.style.boxShadow;
-  const prevBorder = element.style.border;
+  const key = pageSize.toUpperCase();
+  const targetPaper = paperDimensions[key] || paperDimensions.A4;
 
-  // Normalisasi scale / transform untuk rendering html2canvas yang tajam dan akurat
-  element.style.transform = 'none';
-  element.style.boxShadow = 'none';
-  element.style.border = 'none';
+  const marginX = 10; // 10mm left & right
+  const marginY = 10; // 10mm top & bottom
+  const usableWidth = targetPaper.width - marginX * 2;
+  const usableHeight = targetPaper.height - marginY * 2;
+
+  // Render canvas menggunakan html2canvas
+  // Normalisasi transform di onclone agar render tidak terpengaruh zoom/scale preview
+  const canvas = await html2canvas(element, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#ffffff',
+    logging: false,
+    windowWidth: element.scrollWidth,
+    onclone: (clonedDoc) => {
+      const clonedEl = clonedDoc.getElementById(elementId);
+      if (clonedEl) {
+        clonedEl.style.transform = 'none';
+        clonedEl.style.boxShadow = 'none';
+        clonedEl.style.border = 'none';
+        clonedEl.style.margin = '0';
+      }
+    },
+  });
 
   const cleanFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
 
-  const opt = {
-    margin: [12, 12, 12, 15] as [number, number, number, number],
-    filename: cleanFilename,
-    image: { type: 'jpeg' as const, quality: 0.98 },
-    enableLinks: true,
-    html2canvas: {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      windowWidth: element.scrollWidth,
-    },
-    jsPDF: {
-      unit: 'mm',
-      format: jsPdfFormat,
-      orientation: 'portrait' as const,
-    },
-    pagebreak: {
-      mode: ['css', 'legacy'],
-      avoid: [
-        '.bra-kop',
-        '.bra-top-header',
-        '.bra-upper-section',
-        '.bra-no-header',
-        '.bra-twb-row',
-        '.bra-footer-section',
-      ],
-    },
-  };
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: targetPaper.format,
+  });
 
-  try {
-    await (html2pdf() as any).set(opt).from(element).save();
-  } finally {
-    element.style.transform = prevTransform;
-    element.style.boxShadow = prevBoxShadow;
-    element.style.border = prevBorder;
+  const totalContentHeightInPdf = (canvas.height * usableWidth) / canvas.width;
+
+  if (totalContentHeightInPdf <= usableHeight) {
+    // Muat dalam 1 halaman
+    const imgData = canvas.toDataURL('image/jpeg', 0.98);
+    pdf.addImage(imgData, 'JPEG', marginX, marginY, usableWidth, totalContentHeightInPdf);
+  } else {
+    // Multi-halaman: iris canvas per halaman dengan tinggi terukur
+    const sliceHeightInPixels = Math.floor((usableHeight * canvas.width) / usableWidth);
+    const totalPages = Math.ceil(canvas.height / sliceHeightInPixels);
+
+    for (let page = 0; page < totalPages; page++) {
+      const currentSliceHeight = Math.min(
+        sliceHeightInPixels,
+        canvas.height - page * sliceHeightInPixels
+      );
+
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = canvas.width;
+      sliceCanvas.height = currentSliceHeight;
+
+      const ctx = sliceCanvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+        ctx.drawImage(
+          canvas,
+          0,
+          page * sliceHeightInPixels,
+          canvas.width,
+          currentSliceHeight,
+          0,
+          0,
+          sliceCanvas.width,
+          currentSliceHeight
+        );
+      }
+
+      const sliceImgData = sliceCanvas.toDataURL('image/jpeg', 0.98);
+      const renderHeightInPdf = (currentSliceHeight * usableWidth) / canvas.width;
+
+      if (page > 0) {
+        pdf.addPage(targetPaper.format, 'portrait');
+      }
+
+      pdf.addImage(sliceImgData, 'JPEG', marginX, marginY, usableWidth, renderHeightInPdf);
+    }
   }
+
+  // Trigger unduh menggunakan blob untuk kompatibilitas penuh di lingkungan iframe AI Studio
+  const pdfBlob = pdf.output('blob');
+  const blobUrl = URL.createObjectURL(pdfBlob);
+  const downloadLink = document.createElement('a');
+  downloadLink.href = blobUrl;
+  downloadLink.download = cleanFilename;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
 };

@@ -2142,7 +2142,7 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
                 }`}>
                   <div className="font-bold text-emerald-400">4. Arsip Telegram BRA SAR</div>
                   <p className="text-slate-400 text-[11px] mt-1">
-                    Arsip lengkap naskah telegram BRA MAPEL, Pergerakan Kapal, dan SAR Umum beserta tanda tangan QR digital terverifikasi.
+                    Arsip lengkap naskah telegram BRA MAPEL, Pergerakan Kapal, dan BRA SAR Operasi SAR beserta tanda tangan QR digital terverifikasi.
                   </p>
                 </div>
 
