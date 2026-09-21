@@ -13,10 +13,12 @@ import {
   Trash2,
   ZoomIn,
   ZoomOut,
+  FileText,
+  Loader2,
 } from 'lucide-react';
 import { BraSar } from '../types';
 import { BasarnasLogo } from './BasarnasLogo';
-import { printElement, downloadDocumentHtml } from '../utils/printUtils';
+import { printElement, downloadDocumentHtml, exportDocumentToPdf } from '../utils/printUtils';
 import { showToast, showConfirmDialog } from '../utils/alerts';
 import { useTheme } from '../context/ThemeContext';
 
@@ -68,6 +70,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
   const { isDarkMode, accentColors } = useTheme();
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
+  const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
   const [pageSize, setPageSize] = useState<'A4' | 'F4' | 'LETTER' | 'LEGAL'>('A4');
   const [pageScale, setPageScale] = useState<number>(100);
   const [currentLogo, setCurrentLogo] = useState<string>(
@@ -239,6 +242,24 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
     showToast(`File Dokumen HTML (${pageSize}) Berhasil Diunduh!`, 'success');
   };
 
+  const handleExportPdf = async () => {
+    try {
+      setIsExportingPdf(true);
+      showToast(`Mempersiapkan File PDF (${pageSize})...`, 'info');
+      await exportDocumentToPdf(
+        'official-bra-document',
+        `BRA_SAR_${bra.no_bra.replace(/\//g, '_')}`,
+        pageSize
+      );
+      showToast(`Dokumen PDF BRA SAR (${pageSize}) berhasil diunduh!`, 'success');
+    } catch (err: any) {
+      console.error('Gagal mengekspor PDF:', err);
+      showToast('Gagal membuat PDF. Silakan gunakan tombol Cetak untuk opsi cetak PDF browser.', 'error');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const handleDownloadQr = () => {
     if (!qrDataUrl) return;
     const link = document.createElement('a');
@@ -377,6 +398,28 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
           >
             <FileDown className="w-3.5 h-3.5 text-slate-400" />
             <span className="hidden sm:inline">HTML</span>
+          </button>
+
+          {/* Export PDF Button (html2pdf.js) */}
+          <button
+            onClick={handleExportPdf}
+            disabled={isExportingPdf}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 active:scale-95 rounded-lg shadow-md transition-all ${
+              isExportingPdf ? 'opacity-70 cursor-wait' : 'hover:scale-[1.02]'
+            }`}
+            title={`Unduh Dokumen BRA SAR Langsung dalam Format PDF (${pageSize})`}
+          >
+            {isExportingPdf ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Membuat PDF...</span>
+              </>
+            ) : (
+              <>
+                <FileText className="w-3.5 h-3.5" />
+                <span>Unduh PDF</span>
+              </>
+            )}
           </button>
 
           <button
@@ -612,13 +655,16 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                   {bra.sections.map((section, idx) => (
                     <div
                       key={idx}
-                      className="bra-section-row flex items-start text-justify leading-relaxed print:leading-normal text-xs sm:text-[12.5px] break-inside-avoid break-after-auto"
-                      style={{ pageBreakInside: 'avoid', breakInside: 'avoid', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+                      className="bra-section-row flex items-start text-justify leading-relaxed print:leading-normal text-xs sm:text-[12.5px] break-after-auto"
+                      style={{ pageBreakInside: 'auto', breakInside: 'auto', pageBreakAfter: 'auto', breakAfter: 'auto' }}
                     >
                       <span className="font-black text-xs sm:text-sm tracking-wider uppercase w-12 sm:w-14 shrink-0 text-black">
                         {section.kode} :
                       </span>
-                      <div className="flex-1 whitespace-pre-line uppercase font-normal text-xs sm:text-[12.5px] leading-relaxed print:leading-normal text-black">
+                      <div
+                        className="flex-1 whitespace-pre-line uppercase font-normal text-xs sm:text-[12.5px] leading-relaxed print:leading-normal text-black"
+                        style={{ pageBreakInside: 'auto', breakInside: 'auto', pageBreakAfter: 'auto', breakAfter: 'auto' }}
+                      >
                         {section.isi}
                       </div>
                     </div>
@@ -814,10 +860,18 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               min-height: 0 !important;
             }
             .bra-section-row {
-              page-break-inside: avoid !important;
-              break-inside: avoid !important;
+              page-break-inside: auto !important;
+              break-inside: auto !important;
               page-break-after: auto !important;
               break-after: auto !important;
+            }
+            .bra-section-row > div {
+              page-break-inside: auto !important;
+              break-inside: auto !important;
+              page-break-after: auto !important;
+              break-after: auto !important;
+              orphans: 2;
+              widows: 2;
             }
             .bra-twb-row {
               page-break-inside: avoid !important;

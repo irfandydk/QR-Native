@@ -3,6 +3,8 @@
  * Menjamin 100% konsistensi antara Tampilan Preview dan Hasil Cetak/Download PDF.
  */
 
+import html2pdf from 'html2pdf.js';
+
 export const getPageSizeCss = (pageSize: string = 'A4'): string => {
   switch (pageSize.toUpperCase()) {
     case 'F4':
@@ -191,10 +193,18 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     min-height: 0 !important;
   }
   .bra-section-row {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
     page-break-after: auto !important;
     break-after: auto !important;
+  }
+  .bra-section-row > div {
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
+    orphans: 2;
+    widows: 2;
   }
   .bra-twb-row {
     page-break-inside: avoid !important;
@@ -441,4 +451,85 @@ export const downloadDocumentHtml = (
   link.download = filename;
   link.click();
   URL.revokeObjectURL(link.href);
+};
+
+/**
+ * Ekspor Dokumen Resmi BRA SAR langsung ke format PDF menggunakan html2pdf.js.
+ * Memaksimalkan muatan halaman pertama dan menjamin kelancaran multi-page flow.
+ */
+export const exportDocumentToPdf = async (
+  elementId: string,
+  filename = 'dokumen.pdf',
+  pageSize: string = 'A4'
+): Promise<void> => {
+  const element = document.getElementById(elementId);
+  if (!element) {
+    throw new Error(`Elemen #${elementId} tidak ditemukan.`);
+  }
+
+  // Format jsPDF
+  const jsPdfFormat = (() => {
+    switch (pageSize.toUpperCase()) {
+      case 'F4':
+      case 'FOLIO':
+        return [215, 330] as [number, number];
+      case 'LEGAL':
+        return 'legal';
+      case 'LETTER':
+        return 'letter';
+      case 'A4':
+      default:
+        return 'a4';
+    }
+  })();
+
+  // Simpan style asli sebelum ekspor
+  const prevTransform = element.style.transform;
+  const prevBoxShadow = element.style.boxShadow;
+  const prevBorder = element.style.border;
+
+  // Normalisasi scale / transform untuk rendering html2canvas yang tajam dan akurat
+  element.style.transform = 'none';
+  element.style.boxShadow = 'none';
+  element.style.border = 'none';
+
+  const cleanFilename = filename.toLowerCase().endsWith('.pdf') ? filename : `${filename}.pdf`;
+
+  const opt = {
+    margin: [12, 12, 12, 15] as [number, number, number, number],
+    filename: cleanFilename,
+    image: { type: 'jpeg' as const, quality: 0.98 },
+    enableLinks: true,
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      windowWidth: element.scrollWidth,
+    },
+    jsPDF: {
+      unit: 'mm',
+      format: jsPdfFormat,
+      orientation: 'portrait' as const,
+    },
+    pagebreak: {
+      mode: ['css', 'legacy'],
+      avoid: [
+        '.bra-kop',
+        '.bra-top-header',
+        '.bra-upper-section',
+        '.bra-no-header',
+        '.bra-twb-row',
+        '.bra-footer-section',
+      ],
+    },
+  };
+
+  try {
+    await (html2pdf() as any).set(opt).from(element).save();
+  } finally {
+    element.style.transform = prevTransform;
+    element.style.boxShadow = prevBoxShadow;
+    element.style.border = prevBorder;
+  }
 };
