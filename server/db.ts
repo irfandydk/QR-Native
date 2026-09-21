@@ -1,10 +1,122 @@
 import fs from 'fs';
 import path from 'path';
-import { DatabaseSchema, MasterAlut, MasterTim, Operasi, Korban, DetailUnsur, DetailAlut, DetailTimBerangkat, Renops, RenopsSRU, LaporanHarian, BraSar, Pejabat, AppSettings } from '../src/types';
+import { DatabaseSchema, MasterAlut, MasterTim, Operasi, Korban, DetailUnsur, DetailAlut, DetailTimBerangkat, Renops, RenopsSRU, LaporanHarian, BraSar, Pejabat, AppSettings, SarUnit } from '../src/types';
 import { generateLaporanAwalWA, generateRenopsWA, generateLapbangWA } from '../src/utils/templates';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
+
+export const INITIAL_SAR_UNITS: SarUnit[] = [
+  {
+    id_unit: 1,
+    nama_unit: 'Kansar Kendari (Kantor Utama)',
+    jenis_unit: 'KANTOR_SAR',
+    wilayah: 'Kota Kendari / Konawe Selatan',
+    latitude: -4.084194,
+    longitude: 122.428389,
+    koordinat_dms: '04° 05\' 03" S - 122° 25\' 42" E',
+    alamat: 'Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan, Sultra',
+    no_telp: '(0401) 3122115 / Emergency 115',
+    is_default: true,
+  },
+  {
+    id_unit: 2,
+    nama_unit: 'Pos SAR Kolaka',
+    jenis_unit: 'POS_SAR',
+    wilayah: 'Kabupaten Kolaka',
+    latitude: -4.053889,
+    longitude: 121.604167,
+    koordinat_dms: '04° 03\' 14" S - 121° 36\' 15" E',
+    alamat: 'Kompleks Pelabuhan Ferry Kolaka, Jl. Dermaga Ferry Kolaka, Kel. Kolakaasi, Kec. Latambaga, Kab. Kolaka',
+    no_telp: '0811-4091-115',
+    is_default: false,
+  },
+  {
+    id_unit: 3,
+    nama_unit: 'Pos SAR Baubau',
+    jenis_unit: 'POS_SAR',
+    wilayah: 'Kota Baubau & Buton',
+    latitude: -5.463889,
+    longitude: 122.604167,
+    koordinat_dms: '05° 27\' 50" S - 122° 36\' 15" E',
+    alamat: 'Kawasan Pelabuhan Murhum / Jembatan Batu, Kel. Batulo, Kec. Wolio, Kota Baubau, Sulawesi Tenggara',
+    no_telp: '0811-4092-115',
+    is_default: false,
+  },
+  {
+    id_unit: 4,
+    nama_unit: 'Pos SAR Wakatobi',
+    jenis_unit: 'POS_SAR',
+    wilayah: 'Kabupaten Wakatobi',
+    latitude: -5.326389,
+    longitude: 123.588889,
+    koordinat_dms: '05° 19\' 35" S - 123° 35\' 20" E',
+    alamat: 'Kawasan Pelabuhan Mandati / Pangulubelo, Wangi-Wangi Selatan, Kab. Wakatobi, Sulawesi Tenggara',
+    no_telp: '0811-4093-115',
+    is_default: false,
+  },
+  {
+    id_unit: 5,
+    nama_unit: 'Pos SAR Konawe Utara',
+    jenis_unit: 'POS_SAR',
+    wilayah: 'Kabupaten Konawe Utara',
+    latitude: -3.513889,
+    longitude: 122.180556,
+    koordinat_dms: '03° 30\' 50" S - 122° 10\' 50" E',
+    alamat: 'Jl. Poros Trans Sulawesi Kendari - Morowali, Wanggudu / Kec. Asera, Kab. Konawe Utara, Sulawesi Tenggara',
+    no_telp: '0811-4094-115',
+    is_default: false,
+  },
+  {
+    id_unit: 6,
+    nama_unit: 'Unit Siaga SAR Muna',
+    jenis_unit: 'UNIT_SIAGA',
+    wilayah: 'Kabupaten Muna',
+    latitude: -4.836111,
+    longitude: 122.719444,
+    koordinat_dms: '04° 50\' 10" S - 122° 43\' 10" E',
+    alamat: 'Kawasan Pelabuhan Nusantara Raha / Jl. By Pass, Kota Raha, Kab. Muna, Sulawesi Tenggara',
+    no_telp: '0811-4095-115',
+    is_default: false,
+  },
+  {
+    id_unit: 7,
+    nama_unit: 'Unit Siaga SAR Konawe',
+    jenis_unit: 'UNIT_SIAGA',
+    wilayah: 'Kabupaten Konawe',
+    latitude: -3.905556,
+    longitude: 122.047222,
+    koordinat_dms: '03° 54\' 20" S - 122° 02\' 50" E',
+    alamat: 'Jl. Poros Kendari - Kolaka, Kota Unaaha, Kab. Konawe, Sulawesi Tenggara',
+    no_telp: '0811-4096-115',
+    is_default: false,
+  },
+  {
+    id_unit: 8,
+    nama_unit: 'Unit Siaga SAR Kolaka Utara',
+    jenis_unit: 'UNIT_SIAGA',
+    wilayah: 'Kabupaten Kolaka Utara',
+    latitude: -3.425000,
+    longitude: 120.897000,
+    koordinat_dms: '03° 25\' 30" S - 120° 53\' 49" E',
+    alamat: 'Kawasan Pelabuhan Penyeberangan Tobaku / Jl. Poros Lasusua, Kec. Lasusua, Kab. Kolaka Utara',
+    no_telp: '0811-4097-115',
+    is_default: false,
+  },
+  {
+    id_unit: 9,
+    nama_unit: 'Dermaga SAR Kendari (KN SAR / RB)',
+    jenis_unit: 'KN_SAR',
+    wilayah: 'Kota Kendari (Bungkutoko)',
+    latitude: -3.974167,
+    longitude: 122.585000,
+    koordinat_dms: '03° 58\' 27" S - 122° 35\' 06" E',
+    alamat: 'Kawasan Pelabuhan Bungkutoko (Pangkalan KN SAR Pacitan / RB 210 / RB 307), Kota Kendari',
+    no_telp: '(0401) 3122115',
+    is_default: false,
+  },
+];
+
 
 const INITIAL_PEJABAT: Pejabat[] = [
   {
@@ -75,9 +187,11 @@ const INITIAL_MASTER_TIM: MasterTim[] = [
   { id_tim: 4, nama_tim: 'Pos SAR Wakatobi' },
   { id_tim: 5, nama_tim: 'Pos SAR Konawe Utara' },
   { id_tim: 6, nama_tim: 'Unit Siaga SAR Muna' },
-  { id_tim: 7, nama_tim: 'ABK KN SAR Pacitan' },
-  { id_tim: 8, nama_tim: 'ABK RB 210' },
-  { id_tim: 9, nama_tim: 'ABK RB 307' },
+  { id_tim: 7, nama_tim: 'Unit Siaga SAR Konawe' },
+  { id_tim: 8, nama_tim: 'Unit Siaga SAR Kolaka Utara' },
+  { id_tim: 9, nama_tim: 'ABK KN SAR Pacitan' },
+  { id_tim: 10, nama_tim: 'ABK RB 210' },
+  { id_tim: 11, nama_tim: 'ABK RB 307' },
 ];
 
 function createSeedData(): DatabaseSchema {
@@ -202,6 +316,7 @@ function createSeedData(): DatabaseSchema {
   return {
     master_alut: INITIAL_MASTER_ALUT,
     master_tim: INITIAL_MASTER_TIM,
+    sar_units: INITIAL_SAR_UNITS,
     operasi: [seedOperasi],
     korban: seedKorban,
     detail_tim_berangkat: seedTimBerangkat,
@@ -236,6 +351,16 @@ class Database {
         if (!parsed.bra_sar) {
           parsed.bra_sar = [];
         }
+        if (!parsed.sar_units || parsed.sar_units.length < 8 || (parsed.sar_units[0] && parsed.sar_units[0].latitude === -4.017778)) {
+          parsed.sar_units = INITIAL_SAR_UNITS;
+          this.data = parsed;
+          this.saveData();
+        }
+        if (!parsed.master_tim || parsed.master_tim.length < 10) {
+          parsed.master_tim = INITIAL_MASTER_TIM;
+          this.data = parsed;
+          this.saveData();
+        }
         return parsed;
       } catch (err) {
         console.error('Failed to parse db.json, generating seed data', err);
@@ -253,6 +378,69 @@ class Database {
     }
     fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
   }
+
+  // --- Sar Units (Kantor SAR, POS SAR, Unit Siaga SAR) ---
+  public getSarUnits(): SarUnit[] {
+    if (!this.data.sar_units || this.data.sar_units.length === 0) {
+      this.data.sar_units = INITIAL_SAR_UNITS;
+      this.saveData();
+    }
+    return this.data.sar_units;
+  }
+
+  public addSarUnit(unit: Omit<SarUnit, 'id_unit'>): SarUnit {
+    const list = this.getSarUnits();
+    const nextId = list.reduce((max, u) => Math.max(max, u.id_unit), 0) + 1;
+    const newItem: SarUnit = {
+      ...unit,
+      id_unit: nextId,
+    };
+    if (newItem.is_default) {
+      list.forEach((u) => (u.is_default = false));
+    }
+    list.push(newItem);
+    this.saveData();
+    return newItem;
+  }
+
+  public updateSarUnit(id_unit: number, updates: Partial<SarUnit>): SarUnit | null {
+    const list = this.getSarUnits();
+    const item = list.find((u) => u.id_unit === id_unit);
+    if (!item) return null;
+
+    if (updates.is_default) {
+      list.forEach((u) => (u.is_default = false));
+    }
+
+    Object.assign(item, updates);
+    this.saveData();
+    return item;
+  }
+
+  public deleteSarUnit(id_unit: number): boolean {
+    const list = this.getSarUnits();
+    const initialLen = list.length;
+    this.data.sar_units = list.filter((u) => u.id_unit !== id_unit);
+    if (this.data.sar_units.length === initialLen) return false;
+    this.saveData();
+    return true;
+  }
+
+  public setDefaultSarUnit(id_unit: number): boolean {
+    const list = this.getSarUnits();
+    let found = false;
+    list.forEach((u) => {
+      if (u.id_unit === id_unit) {
+        u.is_default = true;
+        found = true;
+      } else {
+        u.is_default = false;
+      }
+    });
+    if (found) this.saveData();
+    return found;
+  }
+
 
   // Master Alut
   public getMasterAlut(): MasterAlut[] {
@@ -778,6 +966,83 @@ class Database {
     };
   }
 
+  public updateRenops(
+    id_renops: number,
+    renopsData: Partial<Renops>,
+    sruList?: Omit<RenopsSRU, 'id_sru' | 'id_renops'>[],
+    updatedUnsur?: DetailUnsur[],
+    updatedAlut?: DetailAlut[]
+  ): Renops | null {
+    const renopsIndex = this.data.renops.findIndex(r => r.id_renops === id_renops);
+    if (renopsIndex === -1) return null;
+
+    const currentRenops = this.data.renops[renopsIndex];
+    const id_operasi = currentRenops.id_operasi;
+
+    if (sruList) {
+      this.data.renops_sru = this.data.renops_sru.filter(s => s.id_renops !== id_renops);
+      const newSrus: RenopsSRU[] = sruList.map((s, idx) => ({
+        ...s,
+        id_sru: this.data.renops_sru.reduce((max, item) => Math.max(max, item.id_sru), 0) + idx + 1,
+        id_renops,
+      }));
+      this.data.renops_sru.push(...newSrus);
+    }
+
+    if (updatedUnsur && updatedUnsur.length > 0) {
+      this.data.detail_unsur = this.data.detail_unsur.filter(u => u.id_operasi !== id_operasi);
+      updatedUnsur.forEach((u, idx) => {
+        this.data.detail_unsur.push({
+          id_detail_unsur: this.data.detail_unsur.reduce((max, item) => Math.max(max, item.id_detail_unsur || 0), 0) + idx + 1,
+          id_operasi,
+          nama_unsur: u.nama_unsur,
+          jumlah_personil: Number(u.jumlah_personil) || 1,
+        });
+      });
+    }
+
+    if (updatedAlut && updatedAlut.length > 0) {
+      this.data.detail_alut = this.data.detail_alut.filter(a => a.id_operasi !== id_operasi);
+      updatedAlut.forEach((a, idx) => {
+        this.data.detail_alut.push({
+          id_detail_alut: this.data.detail_alut.reduce((max, item) => Math.max(max, item.id_detail_alut || 0), 0) + idx + 1,
+          id_operasi,
+          id_alut: a.id_alut,
+          nama_alut: a.nama_alut,
+          satuan: a.satuan || 'Unit',
+          jumlah_alut: Number(a.jumlah_alut) || 1,
+        });
+      });
+    }
+
+    const mergedRenops: Renops = {
+      ...currentRenops,
+      ...renopsData,
+    };
+
+    const srus = this.data.renops_sru.filter(s => s.id_renops === id_renops);
+    const op = this.populateOperasi(this.data.operasi.find(o => o.id_operasi === id_operasi)!);
+
+    if (!renopsData.full_text_wa) {
+      mergedRenops.full_text_wa = generateRenopsWA(
+        op,
+        mergedRenops,
+        srus,
+        op.korban,
+        op.detail_unsur,
+        op.detail_alut
+      );
+    }
+
+    this.data.renops[renopsIndex] = mergedRenops;
+    this.saveData();
+
+    return {
+      ...mergedRenops,
+      srus,
+    };
+  }
+
   public deleteRenops(id_renops: number): boolean {
     const initialLen = this.data.renops.length;
     this.data.renops = this.data.renops.filter(r => r.id_renops !== id_renops);
@@ -866,6 +1131,87 @@ class Database {
     this.saveData();
 
     return newLaporan;
+  }
+
+  public updateLaporanHarian(
+    id_laporan: number,
+    laporanData: Partial<LaporanHarian>,
+    updatedKorban?: { id_korban: number; status_korban: Korban['status_korban'] }[],
+    updatedUnsur?: DetailUnsur[],
+    updatedAlut?: DetailAlut[]
+  ): LaporanHarian | null {
+    const laporanIndex = this.data.laporan_harian.findIndex(l => l.id_laporan === id_laporan);
+    if (laporanIndex === -1) return null;
+
+    const currentLaporan = this.data.laporan_harian[laporanIndex];
+    const id_operasi = currentLaporan.id_operasi;
+    const isPenutupan = (laporanData.jenis_laporan || currentLaporan.jenis_laporan) === 'PENUTUPAN';
+
+    if (updatedKorban && updatedKorban.length > 0) {
+      updatedKorban.forEach(uk => {
+        const k = this.data.korban.find(item => item.id_korban === uk.id_korban);
+        if (k) {
+          k.status_korban = uk.status_korban;
+        }
+      });
+    }
+
+    if (updatedUnsur && updatedUnsur.length > 0) {
+      this.data.detail_unsur = this.data.detail_unsur.filter(u => u.id_operasi !== id_operasi);
+      updatedUnsur.forEach((u, idx) => {
+        this.data.detail_unsur.push({
+          id_detail_unsur: this.data.detail_unsur.reduce((max, item) => Math.max(max, item.id_detail_unsur || 0), 0) + idx + 1,
+          id_operasi,
+          nama_unsur: u.nama_unsur,
+          jumlah_personil: Number(u.jumlah_personil) || 1,
+        });
+      });
+    }
+
+    if (updatedAlut && updatedAlut.length > 0) {
+      this.data.detail_alut = this.data.detail_alut.filter(a => a.id_operasi !== id_operasi);
+      updatedAlut.forEach((a, idx) => {
+        this.data.detail_alut.push({
+          id_detail_alut: this.data.detail_alut.reduce((max, item) => Math.max(max, item.id_detail_alut || 0), 0) + idx + 1,
+          id_operasi,
+          id_alut: a.id_alut,
+          nama_alut: a.nama_alut,
+          satuan: a.satuan || 'Unit',
+          jumlah_alut: Number(a.jumlah_alut) || 1,
+        });
+      });
+    }
+
+    const op = this.data.operasi.find(o => o.id_operasi === id_operasi);
+    if (op) {
+      if (isPenutupan) {
+        op.status = 'CLOSED';
+        op.waktu_selesai = laporanData.waktu_debrief || currentLaporan.waktu_debrief || new Date().toISOString();
+      }
+    }
+
+    const mergedLaporan: LaporanHarian = {
+      ...currentLaporan,
+      ...laporanData,
+    };
+
+    const populatedOp = this.populateOperasi(op!);
+
+    if (!laporanData.full_text_wa) {
+      mergedLaporan.full_text_wa = generateLapbangWA(
+        populatedOp,
+        mergedLaporan,
+        populatedOp.korban,
+        populatedOp.detail_unsur,
+        populatedOp.detail_alut,
+        isPenutupan
+      );
+    }
+
+    this.data.laporan_harian[laporanIndex] = mergedLaporan;
+    this.saveData();
+
+    return mergedLaporan;
   }
 
   public deleteLaporanHarian(id_laporan: number): { success: boolean; rolledBack: boolean } {

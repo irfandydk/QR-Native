@@ -27,30 +27,32 @@ interface FormSitrepModalProps {
   isOpen: boolean;
   operasi: Operasi;
   masterAlut?: MasterAlut[];
+  editSitrep?: LaporanHarian | null;
   onClose: () => void;
-  onSuccess: (newLaporan: LaporanHarian) => void;
+  onSuccess: (laporan: LaporanHarian) => void;
 }
 
 export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
   isOpen,
   operasi,
   masterAlut = [],
+  editSitrep,
   onClose,
   onSuccess,
 }) => {
   const { isDarkMode } = useTheme();
+  const isEditing = !!editSitrep?.id_laporan;
   const now = new Date();
 
   // Helper for datetime-local
   const getLocalDateTimeString = (dateObj: Date) => {
-    const tzOffset = dateObj.getTimezoneOffset() * 60000;
-    return new Date(dateObj.getTime() - tzOffset).toISOString().slice(0, 16);
+    try {
+      const tzOffset = dateObj.getTimezoneOffset() * 60000;
+      return new Date(dateObj.getTime() - tzOffset).toISOString().slice(0, 16);
+    } catch {
+      return new Date().toISOString().slice(0, 16);
+    }
   };
-
-  // Day calculation
-  const hariKe = useMemo(() => {
-    return hitungHariKe(operasi.waktu_berangkat || operasi.waktu_lapor, now);
-  }, [operasi.waktu_berangkat, operasi.waktu_lapor]);
 
   const [waktuLaporan, setWaktuLaporan] = useState<string>(getLocalDateTimeString(now));
   const [isiLaporan, setIsLaporan] = useState<string>(
@@ -91,6 +93,72 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
   const [copiedPreview, setCopiedPreview] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [confirmCloseChecked, setConfirmCloseChecked] = useState<boolean>(false);
+
+  // Sync state on modal open or editSitrep change
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    if (editSitrep) {
+      if (editSitrep.waktu_laporan) {
+        try {
+          const d = new Date(editSitrep.waktu_laporan);
+          const tzOffset = d.getTimezoneOffset() * 60000;
+          setWaktuLaporan(new Date(d.getTime() - tzOffset).toISOString().slice(0, 16));
+        } catch {
+          setWaktuLaporan(getLocalDateTimeString(new Date()));
+        }
+      } else {
+        setWaktuLaporan(getLocalDateTimeString(new Date()));
+      }
+
+      setIsLaporan(editSitrep.isi_laporan || '');
+      const penutupan = editSitrep.jenis_laporan === 'PENUTUPAN';
+      setIsPenutupan(penutupan);
+      setConfirmCloseChecked(penutupan);
+
+      if (editSitrep.waktu_debrief) {
+        try {
+          const d = new Date(editSitrep.waktu_debrief);
+          const tzOffset = d.getTimezoneOffset() * 60000;
+          setWaktuDebrief(new Date(d.getTime() - tzOffset).toISOString().slice(0, 16));
+        } catch {
+          setWaktuDebrief(getLocalDateTimeString(new Date()));
+        }
+      } else {
+        setWaktuDebrief(getLocalDateTimeString(new Date()));
+      }
+    } else {
+      setWaktuLaporan(getLocalDateTimeString(new Date()));
+      setIsLaporan(
+        'Tim SAR Gabungan telah melaksanakan penyisiran sesuai Rencana Operasi. Hingga sore hari pencarian dihentikan sementara dengan hasil NIHIL dan akan dilanjutkan esok hari sesuai Renops Harian.'
+      );
+      setIsPenutupan(false);
+      setConfirmCloseChecked(false);
+      setWaktuDebrief(getLocalDateTimeString(new Date()));
+    }
+
+    setVictimStatuses(
+      (operasi.korban || []).map((k) => ({
+        id_korban: k.id_korban,
+        nama_korban: k.nama_korban,
+        status_korban: k.status_korban,
+      }))
+    );
+    setUnsurList(operasi.detail_unsur ? JSON.parse(JSON.stringify(operasi.detail_unsur)) : []);
+    setAlutList(operasi.detail_alut ? JSON.parse(JSON.stringify(operasi.detail_alut)) : []);
+    setErrorMsg('');
+  }, [isOpen, editSitrep, operasi]);
+
+  // Day calculation
+  const hariKe = useMemo(() => {
+    if (editSitrep?.hari_ke) return editSitrep.hari_ke;
+    try {
+      const d = new Date(waktuLaporan);
+      return hitungHariKe(operasi.waktu_berangkat || operasi.waktu_lapor, isNaN(d.getTime()) ? new Date() : d);
+    } catch {
+      return hitungHariKe(operasi.waktu_berangkat || operasi.waktu_lapor, new Date());
+    }
+  }, [editSitrep, operasi.waktu_berangkat, operasi.waktu_lapor, waktuLaporan]);
 
   // Live WA text preview
   const liveWaText = useMemo(() => {
@@ -204,8 +272,13 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
         waktu_laporan: new Date(waktuLaporan).toISOString(),
       };
 
-      const res = await fetch(`/api/operasi/${operasi.id_operasi}/laporan`, {
-        method: 'POST',
+      const url = isEditing
+        ? `/api/laporan/${editSitrep!.id_laporan}`
+        : `/api/operasi/${operasi.id_operasi}/laporan`;
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           laporan: laporanPayload,
@@ -221,8 +294,10 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
       }
 
       await showSuccessAlert(
-        isPenutupan ? 'Operasi SAR Ditutup & Lapbang Tersimpan!' : 'Laporan Perkembangan Berhasil Disimpan!',
-        `Laporan Perkembangan Harian (${hariKe}) berhasil disimpan.`
+        isEditing
+          ? (isPenutupan ? 'Laporan Penutupan Berhasil Diperbarui!' : 'Laporan Perkembangan Berhasil Diperbarui!')
+          : (isPenutupan ? 'Operasi SAR Ditutup & Lapbang Tersimpan!' : 'Laporan Perkembangan Berhasil Disimpan!'),
+        `Laporan ${isPenutupan ? 'Penutupan Operasi' : 'Perkembangan Harian'} (${hariKe}) berhasil ${isEditing ? 'diperbarui' : 'disimpan'}.`
       );
 
       onSuccess(result.data);
@@ -264,18 +339,30 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded-md border ${
-                  isPenutupan
+                  isEditing
+                    ? 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+                    : isPenutupan
                     ? 'bg-red-500/10 text-red-500 border-red-500/20'
                     : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                 }`}>
-                  {isPenutupan ? 'LAPBANG PENUTUPAN OPS' : `LAPBANG HARIAN • ${hariKe}`}
+                  {isEditing
+                    ? `EDIT ${isPenutupan ? 'PENUTUPAN' : 'LAPBANG'} • ${hariKe}`
+                    : isPenutupan
+                    ? 'LAPBANG PENUTUPAN OPS'
+                    : `LAPBANG HARIAN • ${hariKe}`}
                 </span>
                 <span className="text-xs text-slate-400 font-mono hidden sm:inline">
                   {formatTW(new Date(waktuLaporan).toISOString())}
                 </span>
               </div>
               <h2 className="text-base sm:text-lg font-black tracking-tight leading-tight truncate max-w-md sm:max-w-xl">
-                {isPenutupan ? 'Laporan Perkembangan & Terminasi Operasi SAR' : 'Laporan Perkembangan (SITREP / Lapbang)'}
+                {isEditing
+                  ? isPenutupan
+                    ? `Edit Laporan Penutupan Operasi SAR (${hariKe})`
+                    : `Edit Laporan Perkembangan (${hariKe})`
+                  : isPenutupan
+                  ? 'Laporan Perkembangan & Terminasi Operasi SAR'
+                  : 'Laporan Perkembangan (SITREP / Lapbang)'}
               </h2>
             </div>
           </div>
@@ -300,13 +387,23 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
               onClick={() => handleSubmit()}
               disabled={isSubmitting}
               className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2 text-white text-xs font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 ${
-                isPenutupan
+                isEditing
+                  ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/30'
+                  : isPenutupan
                   ? 'bg-red-600 hover:bg-red-500 shadow-red-600/30'
                   : 'bg-orange-600 hover:bg-orange-500 shadow-orange-600/30'
               }`}
             >
-              {isPenutupan ? <Lock className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-              <span>{isSubmitting ? 'Menyimpan...' : isPenutupan ? 'Tutup Operasi & Simpan' : 'Simpan Lapbang'}</span>
+              {isPenutupan && !isEditing ? <Lock className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+              <span>
+                {isSubmitting
+                  ? 'Menyimpan...'
+                  : isEditing
+                  ? 'Simpan Perubahan'
+                  : isPenutupan
+                  ? 'Tutup Operasi & Simpan'
+                  : 'Simpan Lapbang'}
+              </span>
             </button>
           </div>
         </div>

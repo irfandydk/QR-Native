@@ -164,6 +164,229 @@ async function startServer() {
     }
   });
 
+  // Google Maps Configuration Endpoint
+  app.get('/api/config/maps', (req, res) => {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDoOh6pAKgDBgmtXsW7QBS2uW0UOBCAYHc';
+    res.json({
+      success: true,
+      apiKey,
+    });
+  });
+
+  // --- SAR Units (Kantor SAR, POS SAR, Unit Siaga SAR) Endpoints ---
+  app.get('/api/sar-units', (req, res) => {
+    try {
+      const units = db.getSarUnits();
+      res.json({ success: true, data: units });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/sar-units', (req, res) => {
+    try {
+      const { nama_unit, jenis_unit, wilayah, latitude, longitude, koordinat_dms, alamat, no_telp, is_default } = req.body;
+      if (!nama_unit || !jenis_unit || latitude === undefined || longitude === undefined) {
+        return res.status(400).json({ success: false, error: 'Nama unit, jenis unit, latitude dan longitude wajib diisi' });
+      }
+      const unit = db.addSarUnit({
+        nama_unit: nama_unit.trim(),
+        jenis_unit,
+        wilayah: (wilayah || '').trim(),
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        koordinat_dms: koordinat_dms || '',
+        alamat: alamat || '',
+        no_telp: no_telp || '',
+        is_default: !!is_default,
+      });
+      res.json({ success: true, data: unit });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.put('/api/sar-units/:id', (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const updated = db.updateSarUnit(id, req.body);
+      if (!updated) {
+        return res.status(404).json({ success: false, error: 'Unit SAR tidak ditemukan' });
+      }
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.delete('/api/sar-units/:id', (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const ok = db.deleteSarUnit(id);
+      if (!ok) {
+        return res.status(404).json({ success: false, error: 'Unit SAR tidak ditemukan' });
+      }
+      res.json({ success: true, message: 'Unit SAR berhasil dihapus' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/sar-units/:id/set-default', (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const ok = db.setDefaultSarUnit(id);
+      if (!ok) {
+        return res.status(404).json({ success: false, error: 'Unit SAR tidak ditemukan' });
+      }
+      res.json({ success: true, message: 'Pangkalan default berhasil diset' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Calculate route distance via Google Directions / Distance Matrix proxy or fallback
+  app.post('/api/maps/calculate-route', async (req, res) => {
+    try {
+      const { originLat, originLng, destLat, destLng, mode = 'driving' } = req.body;
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyDoOh6pAKgDBgmtXsW7QBS2uW0UOBCAYHc';
+
+      if (originLat === undefined || originLng === undefined || destLat === undefined || destLng === undefined) {
+        return res.status(400).json({ success: false, error: 'Koordinat asal dan tujuan wajib disertakan' });
+      }
+
+      // Try Google Maps Directions API
+      try {
+        const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originLat},${originLng}&destination=${destLat},${destLng}&mode=${mode}&key=${apiKey}`;
+        const fetchRes = await fetch(url);
+        const data = await fetchRes.json();
+
+        if (data.status === 'OK' && data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          const leg = route.legs[0];
+          const distanceMeters = leg.distance.value;
+          const distanceKm = Math.round((distanceMeters / 1000) * 10) / 10;
+          const distanceNm = Math.round((distanceKm * 0.539957) * 10) / 10;
+          const durationSeconds = leg.duration.value;
+          const durationMinutes = Math.round(durationSeconds / 60);
+
+          return res.json({
+            success: true,
+            source: 'google_directions',
+            distanceKm,
+            distanceNm,
+            distanceText: leg.distance.text,
+            durationMinutes,
+            durationText: leg.duration.text,
+            startAddress: leg.start_address,
+            endAddress: leg.end_address,
+            polyline: route.overview_polyline?.points,
+          });
+        }
+      } catch (gErr) {
+        console.warn('Google Directions API call failed, falling back to calculation:', gErr);
+      }
+
+      // Fallback: Haversine distance with road curvature factor (approx 1.35x for road network)
+      const R = 6371;
+      const dLat = ((destLat - originLat) * Math.PI) / 180;
+      const dLon = ((destLng - originLng) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((originLat * Math.PI) / 180) *
+          Math.cos((destLat * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const straightKm = R * c;
+      const roadFactor = 1.32; // Road network winding factor
+      const roadKm = Math.round((straightKm * roadFactor) * 10) / 10;
+      const roadNm = Math.round((roadKm * 0.539957) * 10) / 10;
+      const avgSpeedKmh = 45; // Rescue vehicle average speed
+      const durationMins = Math.round((roadKm / avgSpeedKmh) * 60);
+
+      const hours = Math.floor(durationMins / 60);
+      const mins = durationMins % 60;
+      const durationText = hours > 0 ? `${hours} Jam ${mins} Menit` : `${mins} Menit`;
+
+      res.json({
+        success: true,
+        source: 'estimated_road_network',
+        distanceKm: roadKm,
+        distanceNm: roadNm,
+        distanceText: `${roadKm} km`,
+        durationMinutes: durationMins,
+        durationText,
+        straightKm: Math.round(straightKm * 10) / 10,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Reverse Geocode endpoint (Google Maps API with Nominatim / Local Gazetteer Fallback)
+  app.post('/api/maps/reverse-geocode', async (req, res) => {
+    try {
+      const { lat, lng } = req.body;
+      if (lat === undefined || lng === undefined) {
+        return res.status(400).json({ success: false, error: 'Latitude dan longitude wajib diisi' });
+      }
+
+      const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_API_KEY;
+
+      // 1. Try Google Geocoding API if key is present
+      if (apiKey) {
+        try {
+          const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
+          const gRes = await fetch(gUrl);
+          const gData = await gRes.json();
+          if (gData.status === 'OK' && gData.results && gData.results.length > 0) {
+            return res.json({
+              success: true,
+              address: gData.results[0].formatted_address,
+              source: 'google',
+            });
+          }
+        } catch {
+          // silently move to fallback
+        }
+      }
+
+      // 2. Fallback to OpenStreetMap Nominatim
+      try {
+        const osmUrl = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=14&addressdetails=1`;
+        const osmRes = await fetch(osmUrl, {
+          headers: {
+            'User-Agent': 'BasarnasSARApp/1.0 (rescuer-support@basarnas.go.id)',
+          },
+        });
+        if (osmRes.ok) {
+          const osmData = await osmRes.json();
+          if (osmData && (osmData.display_name || osmData.name)) {
+            const addr = osmData.display_name || osmData.name;
+            return res.json({
+              success: true,
+              address: addr,
+              source: 'osm',
+            });
+          }
+        }
+      } catch {
+        // silently move to fallback
+      }
+
+      // 3. Fallback: Format coordinates descriptor
+      const dms = `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? 'E' : 'W'}`;
+      res.json({
+        success: true,
+        address: `Wilayah Koordinat (${dms})`,
+        source: 'coordinates',
+      });
+    } catch (err: any) {
+      res.json({ success: true, address: 'Lokasi Titik Koordinat LKP', source: 'fallback' });
+    }
+  });
+
   // Master Alut
   app.get('/api/master/alut', (req, res) => {
     try {
@@ -472,6 +695,33 @@ async function startServer() {
     }
   });
 
+  app.put('/api/renops/:id', (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { renops, srus, detail_unsur, detail_alut } = req.body;
+
+      if (!renops) {
+        return res.status(400).json({ success: false, error: 'Data renops wajib diisi' });
+      }
+
+      const updated = db.updateRenops(
+        id,
+        renops,
+        srus,
+        detail_unsur,
+        detail_alut
+      );
+
+      if (!updated) {
+        return res.status(404).json({ success: false, error: 'Renops tidak ditemukan' });
+      }
+
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   app.delete('/api/renops/:id', (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
@@ -504,6 +754,33 @@ async function startServer() {
       );
 
       res.status(201).json({ success: true, data: created });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.put('/api/laporan/:id', (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { laporan, updated_korban, detail_unsur, detail_alut } = req.body;
+
+      if (!laporan) {
+        return res.status(400).json({ success: false, error: 'Data laporan wajib diisi' });
+      }
+
+      const updated = db.updateLaporanHarian(
+        id,
+        laporan,
+        updated_korban,
+        detail_unsur,
+        detail_alut
+      );
+
+      if (!updated) {
+        return res.status(404).json({ success: false, error: 'Laporan tidak ditemukan' });
+      }
+
+      res.json({ success: true, data: updated });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }

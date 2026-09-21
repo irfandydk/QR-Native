@@ -34,6 +34,7 @@ import {
   FileCode,
   HardDrive,
   FileCheck,
+  Navigation,
 } from 'lucide-react';
 import { MasterAlut, MasterTim, Pejabat, AppSettings } from '../types';
 import { useTheme } from '../context/ThemeContext';

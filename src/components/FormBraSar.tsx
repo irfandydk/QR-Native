@@ -28,6 +28,8 @@ import {
   getDefaultBraTemplate,
   buildBraSectionsFromRenops,
   buildBraSectionsFromSitrep,
+  buildBraSectionsFromPenutupan,
+  buildBraSectionsFromLaporanAwal,
 } from '../utils/braUtils';
 import { OfficialBraDocument } from './OfficialBraDocument';
 import { showSuccessAlert, showErrorAlert, showWarningAlert, showToast } from '../utils/alerts';
@@ -200,8 +202,8 @@ export const FormBraSar: React.FC<FormBraSarProps> = ({
     applyTemplate(kategori, opId);
   };
 
-  // Muat rekomendasi otomatis dari Laporan Terakhir operasi terkait
-  const handleLoadRecommendation = (type: 'RENOPS' | 'SITREP' | 'INISIASI') => {
+  // Muat rekomendasi otomatis dari Laporan Terkait operasi
+  const handleLoadRecommendation = (type: 'RENOPS' | 'SITREP' | 'INISIASI' | 'PENUTUPAN', specificItem?: any) => {
     const selectedOp = operasiList.find((o) => o.id_operasi === selectedOperasiId);
     if (!selectedOp) {
       showWarningAlert('Pilih Operasi SAR', 'Silakan pilih Operasi SAR terlebih dahulu pada dropdown di atas.');
@@ -212,39 +214,67 @@ export const FormBraSar: React.FC<FormBraSarProps> = ({
     const twuStr = formatMilitaryTW(now, 'H');
     const twbStr = formatMilitaryTW(new Date(now.getTime() - 15 * 60000), 'H');
 
-    if (type === 'RENOPS') {
-      const renopsList = selectedOp.renops || [];
+    if (type === 'INISIASI') {
+      const res = buildBraSectionsFromLaporanAwal(selectedOp, twbStr, twuStr);
+      setSections(res.sections);
+      setPerihal(res.perihal);
+      setAksi(res.aksi);
+      setInfo(res.info);
+      setTwu(twuStr);
+      setTwb(twbStr);
+      showToast('Rekomendasi Berita SAR untuk Laporan Awal berhasil dimuat!', 'success');
+    } else if (type === 'RENOPS') {
+      const renopsList = [...(selectedOp.renops || [])].sort((a, b) => (b.id_renops || 0) - (a.id_renops || 0));
       if (renopsList.length === 0) {
         showWarningAlert('Data Belum Ada', 'Belum ada Rencana Operasi (Renops) yang dibuat untuk operasi SAR ini.');
         return;
       }
-      const latestRenops = renopsList[renopsList.length - 1];
-      const res = buildBraSectionsFromRenops(selectedOp, latestRenops, twbStr, twuStr);
+      const targetRenops = specificItem || renopsList[0];
+      const res = buildBraSectionsFromRenops(selectedOp, targetRenops, twbStr, twuStr);
       setSections(res.sections);
       setPerihal(res.perihal);
       setAksi(res.aksi);
       setInfo(res.info);
       setTwu(twuStr);
       setTwb(twbStr);
-      showToast(`Rekomendasi Rencana Operasi Hari Ke-${latestRenops.hari_ke || 1} berhasil dimuat!`, 'success');
+      showToast(`Rekomendasi Rencana Operasi ${targetRenops.hari_ke || ''} berhasil dimuat!`, 'success');
     } else if (type === 'SITREP') {
-      const sitrepList = (selectedOp.laporan as any) || [];
+      const sitrepList = [...(selectedOp.laporan_harian || [])].sort((a, b) => (b.id_laporan || 0) - (a.id_laporan || 0));
       if (sitrepList.length === 0) {
         showWarningAlert('Data Belum Ada', 'Belum ada Laporan Perkembangan (Lapbang) yang dibuat untuk operasi SAR ini.');
         return;
       }
-      const latestSitrep = sitrepList[sitrepList.length - 1];
-      const res = buildBraSectionsFromSitrep(selectedOp, latestSitrep, twbStr, twuStr);
+      const targetSitrep = specificItem || sitrepList[0];
+      if (targetSitrep.jenis_laporan === 'PENUTUPAN') {
+        const res = buildBraSectionsFromPenutupan(selectedOp, targetSitrep, twbStr, twuStr);
+        setSections(res.sections);
+        setPerihal(res.perihal);
+        setAksi(res.aksi);
+        setInfo(res.info);
+        setTwu(twuStr);
+        setTwb(twbStr);
+        showToast('Rekomendasi Laporan Penutupan Operasi berhasil dimuat!', 'success');
+      } else {
+        const res = buildBraSectionsFromSitrep(selectedOp, targetSitrep, twbStr, twuStr);
+        setSections(res.sections);
+        setPerihal(res.perihal);
+        setAksi(res.aksi);
+        setInfo(res.info);
+        setTwu(twuStr);
+        setTwb(twbStr);
+        showToast(`Rekomendasi Laporan Perkembangan ${targetSitrep.hari_ke || ''} berhasil dimuat!`, 'success');
+      }
+    } else if (type === 'PENUTUPAN') {
+      const sitrepList = [...(selectedOp.laporan_harian || [])].filter(l => l.jenis_laporan === 'PENUTUPAN');
+      const closingSitrep = sitrepList[0] || null;
+      const res = buildBraSectionsFromPenutupan(selectedOp, closingSitrep, twbStr, twuStr);
       setSections(res.sections);
       setPerihal(res.perihal);
       setAksi(res.aksi);
       setInfo(res.info);
       setTwu(twuStr);
       setTwb(twbStr);
-      showToast(`Rekomendasi Laporan Perkembangan Hari Ke-${latestSitrep.hari_ke || 1} berhasil dimuat!`, 'success');
-    } else if (type === 'INISIASI') {
-      applyTemplate('SAR_UMUM', selectedOperasiId);
-      showToast('Rekomendasi Laporan Awal berhasil dimuat!', 'success');
+      showToast('Rekomendasi Laporan Penutupan Operasi berhasil dimuat!', 'success');
     }
   };
 
@@ -867,66 +897,154 @@ MOHON BANTUAN BCC UNTUK PEMANTAUAN MELALUI IMSAR DAN GPS TRACKING TTK`,
           </div>
 
           {/* Quick Recommendation from selected Operasi SAR reports */}
-          {selectedOperasiId && (
-            <div className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in transition-colors ${
-              isDarkMode
-                ? 'bg-amber-950/20 border-amber-500/30 text-amber-200'
-                : 'bg-amber-50 border-amber-200 text-amber-900'
-            }`}>
-              <div className="flex items-center gap-2 text-xs">
-                <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-                <div>
-                  <span className="font-bold">Rekomendasi Isi Telegram Otomatis:</span>
-                  <p className={`text-[11px] ${isDarkMode ? 'text-amber-300/80' : 'text-amber-700'}`}>
-                    Muat teks rekomendasi bagian AAA, BBB, CCC sesuai data laporan terbaru operasi ini:
-                  </p>
+          {selectedOperasiId && (() => {
+            const selectedOp = operasiList.find((o) => o.id_operasi === selectedOperasiId);
+            const renopsList = selectedOp?.renops || [];
+            const sitrepList = (selectedOp?.laporan_harian || []).filter(l => l.jenis_laporan !== 'PENUTUPAN');
+            const penutupanList = (selectedOp?.laporan_harian || []).filter(l => l.jenis_laporan === 'PENUTUPAN');
+
+            return (
+              <div className={`p-4 rounded-xl border flex flex-col gap-3 animate-in fade-in transition-colors ${
+                isDarkMode
+                  ? 'bg-amber-950/20 border-amber-500/30 text-amber-200'
+                  : 'bg-amber-50/80 border-amber-200 text-amber-900'
+              }`}>
+                <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                    <div>
+                      <span className="font-bold">Muat Format Otomatis Berdasarkan Laporan Operasi:</span>
+                      <p className={`text-[11px] ${isDarkMode ? 'text-amber-300/80' : 'text-amber-700'}`}>
+                        Pilih sumber laporan untuk menghasilkan naskah Berita SAR standar Basarnas:
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-amber-500/20">
+                  {/* 1. Laporan Awal (Inisiasi) */}
+                  <button
+                    type="button"
+                    onClick={() => handleLoadRecommendation('INISIASI')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1.5 shadow-sm ${
+                      isDarkMode
+                        ? 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-amber-500/40'
+                        : 'bg-white hover:bg-amber-100/60 text-slate-800 border-slate-300'
+                    }`}
+                    title="Muat naskah Telegram Laporan Awal (AAA: Pelapor & LKP, BBB: Tim & Alut, CCC: Unsur & Cuaca, DDD: Lapbang Menyusul)"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Laporan Awal (Inisiasi)</span>
+                  </button>
+
+                  {/* 2. Renops (Rencana Operasi) */}
+                  {renopsList.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleLoadRecommendation('RENOPS')}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1.5 shadow-sm ${
+                          isDarkMode
+                            ? 'bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 border-amber-500/40'
+                            : 'bg-white hover:bg-amber-100 text-amber-900 border-amber-300'
+                        }`}
+                        title="Muat Rencana Operasi terakhir"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Renops Terakhir ({renopsList[renopsList.length - 1].hari_ke || 'H.1'})</span>
+                      </button>
+
+                      {renopsList.length > 1 && (
+                        <select
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              const r = renopsList.find(item => item.id_renops === parseInt(val, 10));
+                              if (r) handleLoadRecommendation('RENOPS', r);
+                            }
+                          }}
+                          defaultValue=""
+                          className={`text-xs rounded-lg px-2 py-1.5 border transition-colors focus:outline-none ${
+                            isDarkMode
+                              ? 'bg-slate-800 text-slate-200 border-slate-700'
+                              : 'bg-white text-slate-800 border-slate-300 shadow-sm'
+                          }`}
+                        >
+                          <option value="" disabled>Pilih Renops Harian...</option>
+                          {renopsList.map((r, idx) => (
+                            <option key={r.id_renops || idx} value={r.id_renops}>
+                              {r.hari_ke || `Hari Ke-${idx + 1}`} ({r.tanggal_laporan || 'Renops'})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 3. Lapbang (Laporan Perkembangan) */}
+                  {sitrepList.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleLoadRecommendation('SITREP')}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1.5 shadow-sm ${
+                          isDarkMode
+                            ? 'bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 border-amber-500/40'
+                            : 'bg-white hover:bg-amber-100 text-amber-900 border-amber-300'
+                        }`}
+                        title="Muat Laporan Perkembangan terakhir"
+                      >
+                        <Send className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Lapbang Terakhir ({sitrepList[sitrepList.length - 1].hari_ke || 'H.1'})</span>
+                      </button>
+
+                      {sitrepList.length > 1 && (
+                        <select
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                              const s = sitrepList.find(item => item.id_laporan === parseInt(val, 10));
+                              if (s) handleLoadRecommendation('SITREP', s);
+                            }
+                          }}
+                          defaultValue=""
+                          className={`text-xs rounded-lg px-2 py-1.5 border transition-colors focus:outline-none ${
+                            isDarkMode
+                              ? 'bg-slate-800 text-slate-200 border-slate-700'
+                              : 'bg-white text-slate-800 border-slate-300 shadow-sm'
+                          }`}
+                        >
+                          <option value="" disabled>Pilih Lapbang Harian...</option>
+                          {sitrepList.map((s, idx) => (
+                            <option key={s.id_laporan || idx} value={s.id_laporan}>
+                              {s.hari_ke || `Hari Ke-${idx + 1}`} ({s.waktu_laporan ? new Date(s.waktu_laporan).toLocaleDateString('id-ID') : 'Lapbang'})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 4. Penutupan Operasi (if exists or op status is CLOSED) */}
+                  {(penutupanList.length > 0 || selectedOp?.status === 'CLOSED') && (
+                    <button
+                      type="button"
+                      onClick={() => handleLoadRecommendation('PENUTUPAN', penutupanList[0])}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1.5 shadow-sm ${
+                        isDarkMode
+                          ? 'bg-red-900/30 hover:bg-red-900/50 text-red-200 border-red-500/40'
+                          : 'bg-red-50 hover:bg-red-100 text-red-900 border-red-300'
+                      }`}
+                      title="Muat naskah Telegram Penutupan Operasi SAR (Debriefing & Pengembalian Unsur)"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5 text-red-500" />
+                      <span>Penutupan Operasi SAR</span>
+                    </button>
+                  )}
                 </div>
               </div>
-
-              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleLoadRecommendation('RENOPS')}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1 ${
-                    isDarkMode
-                      ? 'bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 border-amber-500/40'
-                      : 'bg-white hover:bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
-                  }`}
-                  title="Otomatis isi AAA-DDD dari Rencana Operasi terakhir"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>Rencana Operasi (Renops)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleLoadRecommendation('SITREP')}
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1 ${
-                    isDarkMode
-                      ? 'bg-amber-600/30 hover:bg-amber-600/50 text-amber-200 border-amber-500/40'
-                      : 'bg-white hover:bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
-                  }`}
-                  title="Otomatis isi AAA-EEE dari Laporan Perkembangan terakhir"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Lap. Perkembangan (Lapbang)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleLoadRecommendation('INISIASI')}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${
-                    isDarkMode
-                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300 shadow-sm'
-                  }`}
-                  title="Isi dari data Laporan Awal"
-                >
-                  Laporan Awal
-                </button>
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Card 2: Format Militer TWU & TWB */}

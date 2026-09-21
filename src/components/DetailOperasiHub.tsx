@@ -61,7 +61,10 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
 
   // Modals
   const [showRenopsModal, setShowRenopsModal] = useState(false);
+  const [editingRenops, setEditingRenops] = useState<Renops | null>(null);
+
   const [showSitrepModal, setShowSitrepModal] = useState(false);
+  const [editingSitrep, setEditingSitrep] = useState<LaporanHarian | null>(null);
 
   // View Text Modal
   const [viewModalData, setViewModalData] = useState<{
@@ -452,7 +455,10 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
             </h2>
             {!isClosed && (
               <button
-                onClick={() => setShowRenopsModal(true)}
+                onClick={() => {
+                  setEditingRenops(null);
+                  setShowRenopsModal(true);
+                }}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r ${accentColors.gradient} text-white rounded-lg text-xs font-semibold shadow-md`}
               >
                 <PlusCircle className="w-3.5 h-3.5" />
@@ -469,7 +475,10 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
               <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Belum ada Rencana Operasi yang dibuat untuk operasi ini.</p>
               {!isClosed && (
                 <button
-                  onClick={() => setShowRenopsModal(true)}
+                  onClick={() => {
+                    setEditingRenops(null);
+                    setShowRenopsModal(true);
+                  }}
                   className={`px-4 py-2 bg-gradient-to-r ${accentColors.gradient} text-white rounded-lg text-xs font-semibold shadow`}
                 >
                   + Buat Renops H.1 Sekarang
@@ -544,6 +553,22 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
                     isDarkMode ? 'border-slate-800' : 'border-slate-100'
                   }`}>
                     <button
+                      onClick={() => {
+                        setEditingRenops(r);
+                        setShowRenopsModal(true);
+                      }}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                        isDarkMode
+                          ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30'
+                          : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
+                      }`}
+                      title="Edit Rencana Operasi"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>Edit Renops</span>
+                    </button>
+
+                    <button
                       onClick={() => handleCopyText(`renops-${r.id_renops}`, r.full_text_wa)}
                       className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                         isDarkMode
@@ -566,6 +591,20 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
                           title: `RENCANA OPS SAR ${r.hari_ke.toUpperCase()}`,
                           subtitle: operasi.nama_operasi,
                           text: r.full_text_wa,
+                          onSave: async (newText: string) => {
+                            const res = await fetch(`/api/renops/${r.id_renops}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                renops: { full_text_wa: newText },
+                              }),
+                            });
+                            const d = await res.json();
+                            if (!res.ok || !d.success) {
+                              throw new Error(d.error || 'Gagal menyimpan perubahan');
+                            }
+                            await onRefreshOperasi(operasi.id_operasi);
+                          },
                         })
                       }
                       className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r ${accentColors.gradient} hover:opacity-95 text-white rounded-lg text-xs font-semibold shadow-md transition-colors`}
@@ -592,7 +631,10 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
             </h2>
             {!isClosed && (
               <button
-                onClick={() => setShowSitrepModal(true)}
+                onClick={() => {
+                  setEditingSitrep(null);
+                  setShowSitrepModal(true);
+                }}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r ${accentColors.gradient} text-white rounded-lg text-xs font-semibold shadow-md`}
               >
                 <PlusCircle className="w-3.5 h-3.5" />
@@ -609,7 +651,10 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
               <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Belum ada Laporan Perkembangan yang dibuat.</p>
               {!isClosed && (
                 <button
-                  onClick={() => setShowSitrepModal(true)}
+                  onClick={() => {
+                    setEditingSitrep(null);
+                    setShowSitrepModal(true);
+                  }}
                   className={`px-4 py-2 bg-gradient-to-r ${accentColors.gradient} text-white rounded-lg text-xs font-semibold shadow`}
                 >
                   + Buat Lapbang H.1 Sekarang
@@ -684,6 +729,22 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
 
                     <div className="flex items-center justify-end gap-2 pt-1">
                       <button
+                        onClick={() => {
+                          setEditingSitrep(l);
+                          setShowSitrepModal(true);
+                        }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                          isDarkMode
+                            ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30'
+                            : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
+                        }`}
+                        title={isPenutupan ? 'Edit Laporan Penutupan' : 'Edit Laporan Perkembangan'}
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>{isPenutupan ? 'Edit Penutupan' : 'Edit Lapbang'}</span>
+                      </button>
+
+                      <button
                         onClick={() => handleCopyText(`sitrep-${l.id_laporan}`, l.full_text_wa)}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                           isDarkMode
@@ -708,6 +769,20 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
                               : `LAPBANG OPS SAR ${l.hari_ke.toUpperCase()}`,
                             subtitle: operasi.nama_operasi,
                             text: l.full_text_wa,
+                            onSave: async (newText: string) => {
+                              const res = await fetch(`/api/laporan/${l.id_laporan}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  laporan: { full_text_wa: newText },
+                                }),
+                              });
+                              const d = await res.json();
+                              if (!res.ok || !d.success) {
+                                throw new Error(d.error || 'Gagal menyimpan perubahan');
+                              }
+                              await onRefreshOperasi(operasi.id_operasi);
+                            },
                           })
                         }
                         className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r ${accentColors.gradient} hover:opacity-95 text-white rounded-lg text-xs font-semibold shadow-md transition-colors`}
@@ -872,7 +947,11 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
         isOpen={showRenopsModal}
         operasi={operasi}
         masterAlut={masterAlut}
-        onClose={() => setShowRenopsModal(false)}
+        editRenops={editingRenops}
+        onClose={() => {
+          setShowRenopsModal(false);
+          setEditingRenops(null);
+        }}
         onSuccess={async () => {
           await onRefreshOperasi(operasi.id_operasi);
         }}
@@ -883,7 +962,11 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
         isOpen={showSitrepModal}
         operasi={operasi}
         masterAlut={masterAlut}
-        onClose={() => setShowSitrepModal(false)}
+        editSitrep={editingSitrep}
+        onClose={() => {
+          setShowSitrepModal(false);
+          setEditingSitrep(null);
+        }}
         onSuccess={async () => {
           await onRefreshOperasi(operasi.id_operasi);
         }}

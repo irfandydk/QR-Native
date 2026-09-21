@@ -30,48 +30,43 @@ interface FormRenopsModalProps {
   isOpen: boolean;
   operasi: Operasi;
   masterAlut: MasterAlut[];
+  editRenops?: Renops | null;
   onClose: () => void;
-  onSuccess: (newRenops: Renops) => void;
+  onSuccess: (renops: Renops) => void;
 }
 
 export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
   isOpen,
   operasi,
   masterAlut,
+  editRenops,
   onClose,
   onSuccess,
 }) => {
   const { isDarkMode } = useTheme();
+  const isEditing = !!editRenops?.id_renops;
 
   // Target report date default: today (WITA)
   const now = new Date();
   const todayDateStr = now.toISOString().split('T')[0];
 
-  const [tanggalLaporan, setTanggalLaporan] = useState<string>(todayDateStr);
-
-  // Auto-calculated H-day
-  const hariKe = useMemo(() => {
-    return hitungHariKe(operasi.waktu_berangkat || operasi.waktu_lapor, tanggalLaporan);
-  }, [operasi.waktu_berangkat, operasi.waktu_lapor, tanggalLaporan]);
-
-  // Briefing Time & Start Time default: 07:00 & 07:30 WITA
-  const getInitialTime = (hours: number, minutes: number) => {
-    const d = new Date(tanggalLaporan);
-    d.setHours(hours, minutes, 0, 0);
-    const tzOffset = d.getTimezoneOffset() * 60000;
-    const local = new Date(d.getTime() - tzOffset);
-    return local.toISOString().slice(0, 16);
+  const getInitialTime = (dateStr: string, hours: number, minutes: number) => {
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return new Date().toISOString().slice(0, 16);
+      d.setHours(hours, minutes, 0, 0);
+      const tzOffset = d.getTimezoneOffset() * 60000;
+      const local = new Date(d.getTime() - tzOffset);
+      return local.toISOString().slice(0, 16);
+    } catch {
+      return new Date().toISOString().slice(0, 16);
+    }
   };
 
-  const [waktuBriefing, setWaktuBriefing] = useState<string>(getInitialTime(7, 0));
-  const [waktuMulaiOps, setWaktuMulaiOps] = useState<string>(getInitialTime(7, 30));
+  const [tanggalLaporan, setTanggalLaporan] = useState<string>(todayDateStr);
+  const [waktuBriefing, setWaktuBriefing] = useState<string>(getInitialTime(todayDateStr, 7, 0));
+  const [waktuMulaiOps, setWaktuMulaiOps] = useState<string>(getInitialTime(todayDateStr, 7, 30));
   const [cuaca, setCuaca] = useState<string>(operasi.cuaca || 'Cerah Berawan, Angin Barat 5-15 Kts, Gelombang 0.5 - 1.25 M');
-
-  // Update briefing times when date changes
-  useEffect(() => {
-    setWaktuBriefing(getInitialTime(7, 0));
-    setWaktuMulaiOps(getInitialTime(7, 30));
-  }, [tanggalLaporan]);
 
   // SRU list
   const [srus, setSrus] = useState<Omit<RenopsSRU, 'id_sru' | 'id_renops'>[]>([
@@ -96,6 +91,83 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
   const [alutList, setAlutList] = useState<DetailAlut[]>(
     operasi.detail_alut ? JSON.parse(JSON.stringify(operasi.detail_alut)) : []
   );
+
+  // Sync state when modal opens or editRenops changes
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (editRenops) {
+      const tgl = editRenops.tanggal_laporan || todayDateStr;
+      setTanggalLaporan(tgl);
+
+      if (editRenops.waktu_briefing) {
+        try {
+          const d = new Date(editRenops.waktu_briefing);
+          const tzOffset = d.getTimezoneOffset() * 60000;
+          setWaktuBriefing(new Date(d.getTime() - tzOffset).toISOString().slice(0, 16));
+        } catch {
+          setWaktuBriefing(getInitialTime(tgl, 7, 0));
+        }
+      } else {
+        setWaktuBriefing(getInitialTime(tgl, 7, 0));
+      }
+
+      if (editRenops.waktu_mulai_ops) {
+        try {
+          const d = new Date(editRenops.waktu_mulai_ops);
+          const tzOffset = d.getTimezoneOffset() * 60000;
+          setWaktuMulaiOps(new Date(d.getTime() - tzOffset).toISOString().slice(0, 16));
+        } catch {
+          setWaktuMulaiOps(getInitialTime(tgl, 7, 30));
+        }
+      } else {
+        setWaktuMulaiOps(getInitialTime(tgl, 7, 30));
+      }
+
+      setCuaca(editRenops.cuaca || operasi.cuaca || 'Cerah Berawan, Angin Barat 5-15 Kts, Gelombang 0.5 - 1.25 M');
+
+      if (editRenops.srus && editRenops.srus.length > 0) {
+        setSrus(
+          editRenops.srus.map((s) => ({
+            nama_sru: s.nama_sru,
+            koordinat_area: s.koordinat_area,
+            luas_area: s.luas_area,
+            pola_pencarian: s.pola_pencarian,
+          }))
+        );
+      }
+    } else {
+      // Create new mode defaults
+      setTanggalLaporan(todayDateStr);
+      setWaktuBriefing(getInitialTime(todayDateStr, 7, 0));
+      setWaktuMulaiOps(getInitialTime(todayDateStr, 7, 30));
+      setCuaca(operasi.cuaca || 'Cerah Berawan, Angin Barat 5-15 Kts, Gelombang 0.5 - 1.25 M');
+      setSrus([
+        {
+          nama_sru: 'SRU 1 (Tim Rescue Kansar Kendari)',
+          koordinat_area: `A: ${operasi.koordinat || '03° 58\' 30" S - 122° 35\' 12" E'}\nB: 03° 58' 30" S - 122° 40' 00" E\nC: 04° 03' 00" S - 122° 40' 00" E\nD: 04° 03' 00" S - 122° 35' 12" E`,
+          luas_area: '10 Nm²',
+          pola_pencarian: 'Parallel Track Search',
+        },
+        {
+          nama_sru: 'SRU 2 (Unsur Gabungan & Nelayan)',
+          koordinat_area: 'Penyisiran visual di sepanjang pesisir pantai dan pulau terdekat',
+          luas_area: '6 Nm²',
+          pola_pencarian: 'Creeping Line Search',
+        },
+      ]);
+    }
+
+    setUnsurList(operasi.detail_unsur ? JSON.parse(JSON.stringify(operasi.detail_unsur)) : []);
+    setAlutList(operasi.detail_alut ? JSON.parse(JSON.stringify(operasi.detail_alut)) : []);
+    setErrorMsg('');
+  }, [isOpen, editRenops, operasi]);
+
+  // Auto-calculated H-day
+  const hariKe = useMemo(() => {
+    if (editRenops?.hari_ke) return editRenops.hari_ke;
+    return hitungHariKe(operasi.waktu_berangkat || operasi.waktu_lapor, tanggalLaporan);
+  }, [editRenops, operasi.waktu_berangkat, operasi.waktu_lapor, tanggalLaporan]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -204,8 +276,13 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
         full_text_wa: liveWaText,
       };
 
-      const res = await fetch(`/api/operasi/${operasi.id_operasi}/renops`, {
-        method: 'POST',
+      const url = isEditing
+        ? `/api/renops/${editRenops!.id_renops}`
+        : `/api/operasi/${operasi.id_operasi}/renops`;
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           renops: renopsPayload,
@@ -221,8 +298,8 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
       }
 
       await showSuccessAlert(
-        'Renops Berhasil Disimpan!',
-        `Rencana Operasi SAR untuk ${hariKe} (${tanggalLaporan}) berhasil disimpan ke database.`
+        isEditing ? 'Renops Berhasil Diperbarui!' : 'Renops Berhasil Disimpan!',
+        `Rencana Operasi SAR untuk ${hariKe} (${tanggalLaporan}) berhasil ${isEditing ? 'diperbarui' : 'disimpan'} ke database.`
       );
 
       onSuccess(result.data);
@@ -263,15 +340,19 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
             </button>
             <div>
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded-md">
-                  RENOPS SAR • {hariKe}
+                <span className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded-md border ${
+                  isEditing
+                    ? 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+                    : 'bg-orange-500/10 text-orange-500 border-orange-500/20'
+                }`}>
+                  {isEditing ? `EDIT RENOPS • ${hariKe}` : `RENOPS SAR • ${hariKe}`}
                 </span>
                 <span className="text-xs text-slate-400 font-mono hidden sm:inline">
                   {formatTW(new Date(waktuBriefing).toISOString())}
                 </span>
               </div>
               <h2 className="text-base sm:text-lg font-black tracking-tight leading-tight truncate max-w-md sm:max-w-xl">
-                Rencana Operasi SAR Harian
+                {isEditing ? `Edit Rencana Operasi SAR ${hariKe}` : 'Rencana Operasi SAR Harian'}
               </h2>
             </div>
           </div>
@@ -295,10 +376,14 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
               type="button"
               onClick={() => handleSubmit()}
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-orange-600/30 transition-all disabled:opacity-50"
+              className={`inline-flex items-center gap-2 px-4 sm:px-5 py-2 text-white text-xs font-bold rounded-xl shadow-lg transition-all disabled:opacity-50 ${
+                isEditing
+                  ? 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/30'
+                  : 'bg-orange-600 hover:bg-orange-500 shadow-orange-600/30'
+              }`}
             >
               <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Renops'}</span>
+              <span>{isSubmitting ? 'Menyimpan...' : (isEditing ? 'Simpan Perubahan' : 'Simpan Renops')}</span>
             </button>
           </div>
         </div>

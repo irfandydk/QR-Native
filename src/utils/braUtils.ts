@@ -64,6 +64,88 @@ export function getSectionCode(index: number): string {
 }
 
 /**
+ * Generate sections for Laporan Awal (Initial SAR Report)
+ * Minimal standard format:
+ * AAA : PADA TW (TW LAPOR) TERIMA INFO DARI (PELAPOR,HUBUNGAN,NO HP) BAHWA TELAH TERJADI (OPERASI SAR) DI ( LOKASI KEJADIAN) PADA (KOORDINAT)
+ * BBB : TERSEBUT AAA DIATAS MAKA (TIM YANG BERANGKAT) DIBERANGKATKAN MENUJU LKP DENGAN MENGGUNAKAN (ALUT) DENGAN ETA (ETA)
+ * CCC : UNSUR TERLIBAT DAN ALUT SERTA CUACA
+ * DDD : LAPORAN PERKEMBANGAN MENYUSUL KMA KA KPP KENDARI KRM TTK HBS
+ */
+export function buildBraSectionsFromLaporanAwal(
+  operasi: Operasi,
+  twbStr: string = formatMilitaryTW(new Date(Date.now() - 15 * 60000), 'H'),
+  twuStr: string = formatMilitaryTW(new Date(), 'H')
+): { sections: BraSection[]; perihal: string; aksi: string; info: string } {
+  const twLapor = operasi.waktu_lapor ? formatMilitaryTW(new Date(operasi.waktu_lapor), 'H') : twbStr;
+  const twBerangkat = operasi.waktu_berangkat ? formatMilitaryTW(new Date(operasi.waktu_berangkat), 'H') : twuStr;
+
+  const pelapor = (operasi.nama_pelapor || 'BAPAK POLSEK').toUpperCase();
+  const hubungan = (operasi.hubungan_pelapor || 'INSTANSI TERKAIT').toUpperCase();
+  const noHp = operasi.no_telp_pelapor ? `HP ${operasi.no_telp_pelapor}` : 'HP. -';
+  const infoPelapor = `${pelapor} (${hubungan} / ${noHp})`;
+
+  const namaOps = (operasi.nama_operasi || 'KECELAKAAN KAPAL / KONDISI MEMBAHAYAKAN MANUSIA').toUpperCase();
+  const lokasi = (operasi.lokasi_kejadian || 'PERAIRAN SULAWESI TENGGARA').toUpperCase();
+  const koordinat = (operasi.koordinat || '03° 58\' 30" S - 122° 35\' 12" E').toUpperCase();
+
+  const timBerangkat = (operasi.tim_berangkat || 'TIM RESCUE KANSAR KENDARI').toUpperCase();
+
+  // Alut & Palsar ringkas untuk BBB
+  const alutList = operasi.detail_alut || [];
+  const alutRingkas = alutList.length > 0
+    ? alutList.map(a => `${a.jumlah_alut} ${a.satuan.toUpperCase()} ${a.nama_alut.toUpperCase()}`).join(' KMA ')
+    : '1 UNIT RESCUE CAR DAN 1 UNIT RUBBER BOAT';
+
+  let eta = 'PADA KESEMPATAN PERTAMA';
+  if (operasi.eta_tiba) {
+    eta = `TW ${formatMilitaryTW(new Date(operasi.eta_tiba), 'H')}`;
+  } else if (operasi.eta_lokasi || operasi.jarak) {
+    eta = `ESTIMASI ${operasi.eta_lokasi || 'PERJALANAN'} (JARAK ± ${operasi.jarak || ''})`.trim();
+  }
+
+  // Unsur detail untuk CCC
+  const unsurList = operasi.detail_unsur || [];
+  const unsurFormatted = unsurList.length > 0
+    ? unsurList.map((u: any) => `* ${u.nama_unsur.toUpperCase()} : ${u.jumlah_personil} ORANG`).join('\n')
+    : `* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD POLDA SULTRA : 3 ORANG\n* MASYARAKAT DAN KELUARGA : 5 ORANG`;
+
+  // Alut detail untuk CCC
+  const alutFormatted = alutList.length > 0
+    ? alutList.map((a: any) => `• ${a.jumlah_alut} ${a.satuan.toUpperCase()} ${a.nama_alut.toUpperCase()}`).join('\n')
+    : `• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT\n• 1 SET PALSAR MEDIS\n• 1 SET PALSAR KOMUNIKASI`;
+
+  const cuaca = (operasi.cuaca || 'CERAH BERAWAN').toUpperCase();
+  const gelombang = (operasi.gelombang || '0.5 - 1.25 METER').toUpperCase();
+  const angin = (operasi.angin || 'TIMUR LAUT - TENGGARA, 5-15 KNOTS').toUpperCase();
+
+  const sections: BraSection[] = [
+    {
+      kode: 'AAA',
+      isi: `PADA TW ${twLapor} TERIMA INFO DARI ${infoPelapor} BAHWA TELAH TERJADI ${namaOps} DI ${lokasi} PADA KOORDINAT ${koordinat} TTK`,
+    },
+    {
+      kode: 'BBB',
+      isi: `TERSEBUT AAA DIATAS MAKA PADA TW ${twBerangkat} ${timBerangkat} DIBERANGKATKAN MENUJU LKP DENGAN MENGGUNAKAN ${alutRingkas} DENGAN ETA ${eta} TTK`,
+    },
+    {
+      kode: 'CCC',
+      isi: `UNSUR SAR TERLIBAT TTK DUA\n${unsurFormatted}\n\nALUT DAN PALSAR TTK DUA\n${alutFormatted}\n\nKONDISI CUACA TTK DUA\n• CUACA : ${cuaca}\n• ANGIN : ${angin}\n• GELOMBANG : ${gelombang}`,
+    },
+    {
+      kode: 'DDD',
+      isi: `LAPORAN PERKEMBANGAN MENYUSUL KMA KA KPP KENDARI KRM TTK HBS`,
+    },
+  ];
+
+  return {
+    sections,
+    perihal: `LAPORAN AWAL ${namaOps} TTK`,
+    aksi: 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN',
+    info: 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN',
+  };
+}
+
+/**
  * Generate sections from Renops (Rencana Operasi)
  */
 export function buildBraSectionsFromRenops(
@@ -72,23 +154,27 @@ export function buildBraSectionsFromRenops(
   twbStr: string = formatMilitaryTW(new Date(Date.now() - 15 * 60000), 'H'),
   twuStr: string = formatMilitaryTW(new Date(), 'H')
 ): { sections: BraSection[]; perihal: string; aksi: string; info: string } {
-  const hariKe = renops.hari_ke || 1;
+  const hariKe = renops.hari_ke || 'H.1';
   const namaOps = (operasi.nama_operasi || 'OPERASI SAR').toUpperCase();
-  const perihal = `RENCANA OPERASI SAR HARI KE ${hariKe} ${namaOps} TTK`;
+  const perihal = `RENCANA OPERASI SAR ${hariKe.toUpperCase()} ${namaOps} TTK`;
 
   // SRU Formatted
+  const sruSource = (renops.srus && Array.isArray(renops.srus) && renops.srus.length > 0)
+    ? renops.srus
+    : (renops.sru && Array.isArray(renops.sru) && renops.sru.length > 0 ? renops.sru : []);
+
   let sruText = '';
-  if (renops.sru && Array.isArray(renops.sru) && renops.sru.length > 0) {
-    sruText = renops.sru.map((s: any, idx: number) => {
+  if (sruSource.length > 0) {
+    sruText = sruSource.map((s: any) => {
       const parts = [];
       if (s.nama_sru) parts.push(`* ${s.nama_sru.toUpperCase()}`);
       if (s.pola_pencarian) parts.push(`POLA: ${s.pola_pencarian.toUpperCase()}`);
       if (s.luas_area) parts.push(`LUAS: ${s.luas_area.toUpperCase()}`);
-      if (s.koordinat_area) parts.push(`AREA/KOORDINAT: ${s.koordinat_area.toUpperCase()}`);
+      if (s.koordinat_area) parts.push(`AREA: ${s.koordinat_area.toUpperCase().replace(/\n/g, ' / ')}`);
       return parts.join(' KMA ');
     }).join('\n');
   } else {
-    sruText = `* SRU 1: POLA PARALLEL TRACK LUAS 10 NM² DISEPUTARAN LKP\n* SRU 2: PENYISIRAN PESISIR PANTAI`;
+    sruText = `* SRU 1: POLA PARALLEL TRACK SEARCH LUAS 10 NM² DISEPUTARAN LKP\n* SRU 2: PENYISIRAN PESISIR PANTAI`;
   }
 
   // Unsur
@@ -107,14 +193,17 @@ export function buildBraSectionsFromRenops(
     ? alutList.map((a: any) => `• ${a.jumlah_alut} ${a.satuan.toUpperCase()} ${a.nama_alut.toUpperCase()}`).join('\n')
     : `• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT\n• 1 SET PALSAR KOMUNIKASI`;
 
+  const briefingTW = renops.waktu_briefing ? formatMilitaryTW(new Date(renops.waktu_briefing), 'H') : twbStr;
+  const mulaiTW = renops.waktu_mulai_ops ? formatMilitaryTW(new Date(renops.waktu_mulai_ops), 'H') : twuStr;
+
   const cuaca = (renops.cuaca || operasi.cuaca || 'CERAH BERAWAN').toUpperCase();
-  const gelombang = (renops.tinggi_gelombang || operasi.gelombang || '0.5 - 1.25 M').toUpperCase();
+  const gelombang = (renops.tinggi_gelombang || operasi.gelombang || '0.5 - 1.25 METER').toUpperCase();
   const angin = (renops.arah_angin || operasi.angin || 'TIMUR LAUT - TENGGARA, 5-15 KNOTS').toUpperCase();
 
   const sections: BraSection[] = [
     {
       kode: 'AAA',
-      isi: `PD TW ${twbStr} TIM SAR GABUNGAN MELAKSANAKAN BRIEFING PEMBAGIAN SEKTOR PENCARIAN RENCANA OPERASI SAR HARI KE ${hariKe} TERHADAP ${namaOps} DENGAN WAKTU MULAI PERGERAKAN TW ${twuStr} TTK`,
+      isi: `PADA TW ${briefingTW} TIM SAR GABUNGAN MELAKSANAKAN BRIEFING PEMBAGIAN SEKTOR PENCARIAN RENCANA OPERASI SAR ${hariKe.toUpperCase()} TERHADAP ${namaOps} DENGAN WAKTU MULAI PERGERAKAN TW ${mulaiTW} TTK`,
     },
     {
       kode: 'BBB',
@@ -126,7 +215,7 @@ export function buildBraSectionsFromRenops(
     },
     {
       kode: 'DDD',
-      isi: `DMKN SBG RENCANA OPERASI HARI KE ${hariKe} KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS`,
+      isi: `DMKN SBG RENCANA OPERASI ${hariKe.toUpperCase()} KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS`,
     },
   ];
 
@@ -147,14 +236,22 @@ export function buildBraSectionsFromSitrep(
   twbStr: string = formatMilitaryTW(new Date(Date.now() - 15 * 60000), 'H'),
   twuStr: string = formatMilitaryTW(new Date(), 'H')
 ): { sections: BraSection[]; perihal: string; aksi: string; info: string } {
-  const hariKe = sitrep.hari_ke || 1;
+  const hariKe = sitrep.hari_ke || 'H.1';
   const namaOps = (operasi.nama_operasi || 'OPERASI SAR').toUpperCase();
-  const perihal = `LAPORAN PERKEMBANGAN HARI KE ${hariKe} ${namaOps} TTK`;
+  const isPenutupan = sitrep.jenis_laporan === 'PENUTUPAN';
+  const perihal = isPenutupan
+    ? `LAPORAN PERKEMBANGAN DAN PENUTUPAN OPERASI SAR ${namaOps} TTK`
+    : `LAPORAN PERKEMBANGAN ${hariKe.toUpperCase()} ${namaOps} TTK`;
 
   // Status korban
-  const selamat = sitrep.korban_selamat_update !== undefined ? sitrep.korban_selamat_update : (operasi.korban_selamat || 0);
-  const md = sitrep.korban_meninggal_update !== undefined ? sitrep.korban_meninggal_update : (operasi.korban_meninggal || 0);
-  const dp = sitrep.korban_hilang_update !== undefined ? sitrep.korban_hilang_update : (operasi.korban_hilang || 0);
+  const victims = operasi.korban || [];
+  let selamat = victims.filter(k => (k.status_korban as any) === 'S' || (k.status_korban as any) === 'Selamat').length;
+  let md = victims.filter(k => (k.status_korban as any) === 'MD' || (k.status_korban as any) === 'Meninggal Dunia').length;
+  let dp = victims.filter(k => (k.status_korban as any) === 'DP' || (k.status_korban as any) === 'Dalam Pencarian' || (k.status_korban as any) === 'H').length;
+
+  if (sitrep.korban_selamat_update !== undefined) selamat = sitrep.korban_selamat_update;
+  if (sitrep.korban_meninggal_update !== undefined) md = sitrep.korban_meninggal_update;
+  if (sitrep.korban_hilang_update !== undefined) dp = sitrep.korban_hilang_update;
 
   // Unsur & Alut
   const unsurList = (sitrep.detail_unsur && sitrep.detail_unsur.length > 0)
@@ -173,16 +270,18 @@ export function buildBraSectionsFromSitrep(
 
   const isiLaporan = sitrep.isi_laporan
     ? sitrep.isi_laporan.toUpperCase()
-    : `PENCARIAN HARI KE ${hariKe} TELAH DILAKSANAKAN SESUAI RENCANA OPERASI DENGAN HASIL SEMENTARA KORBAN BELUM DITEMUKAN (NIHIL)`;
+    : `PENCARIAN ${hariKe.toUpperCase()} TELAH DILAKSANAKAN SESUAI RENCANA OPERASI DENGAN HASIL KORBAN BELUM DITEMUKAN (NIHIL)`;
+
+  const laporTW = sitrep.waktu_laporan ? formatMilitaryTW(new Date(sitrep.waktu_laporan), 'H') : twbStr;
 
   const sections: BraSection[] = [
     {
       kode: 'AAA',
-      isi: `PD TW ${twbStr} TERIMA INFO DARI OSC TIM SAR GABUNGAN BAHWA ${isiLaporan} TTK`,
+      isi: `PADA TW ${laporTW} TERIMA INFO DARI OSC TIM SAR GABUNGAN BAHWA ${isiLaporan} TTK`,
     },
     {
       kode: 'BBB',
-      isi: `DATA PERKEMBANGAN KORBAN TTK DUA\n* KORBAN SELAMAT : ${selamat} ORANG\n* KORBAN MENINGGAL DUNIA : ${md} ORANG\n* KORBAN DALAM PENCARIAN (DP) : ${dp} ORANG\n* TOTAL POB : ${operasi.pob || (selamat + md + dp)} ORANG`,
+      isi: `DATA REKAPITULASI KORBAN TTK DUA\n* KORBAN SELAMAT : ${selamat} ORANG\n* KORBAN MENINGGAL DUNIA : ${md} ORANG\n* KORBAN DALAM PENCARIAN (DP) : ${dp} ORANG\n* TOTAL POB : ${operasi.pob || (selamat + md + dp)} ORANG`,
     },
     {
       kode: 'CCC',
@@ -190,13 +289,77 @@ export function buildBraSectionsFromSitrep(
     },
     {
       kode: 'DDD',
-      isi: sitrep.status_operasi === 'SELESAI'
+      isi: isPenutupan
         ? `OPERASI SAR DINYATAKAN DITUTUP DAN SELURUH UNSUR DIKEMBALIKAN KE KESATUAN MASING-MASING KMA UCAPAN TERIMA KASIH ATAS KERJASAMANYA TTK HBS`
-        : `PD TW ${twuStr} PENCARIAN DIHENTIKAN SEMENTARA DENGAN HASIL NIHIL KMA OPERASI AKAN DILANJUTKAN KEMBALI BESOK PAGI PADA TW 0700 H TTK`,
+        : `PADA TW ${twuStr} PENCARIAN DIHENTIKAN SEMENTARA DENGAN HASIL NIHIL KMA OPERASI AKAN DILANJUTKAN KEMBALI BESOK PAGI PADA TW 0700 H TTK`,
     },
     {
       kode: 'EEE',
-      isi: `DMKN SBG LAPORAN PERKEMBANGAN HARI KE ${hariKe} KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS`,
+      isi: `DMKN SBG LAPORAN PERKEMBANGAN ${hariKe.toUpperCase()} KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS`,
+    },
+  ];
+
+  return {
+    sections,
+    perihal,
+    aksi: 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN',
+    info: 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN',
+  };
+}
+
+/**
+ * Generate sections from Penutupan Operasi SAR
+ */
+export function buildBraSectionsFromPenutupan(
+  operasi: Operasi,
+  sitrep?: any,
+  twbStr: string = formatMilitaryTW(new Date(Date.now() - 15 * 60000), 'H'),
+  twuStr: string = formatMilitaryTW(new Date(), 'H')
+): { sections: BraSection[]; perihal: string; aksi: string; info: string } {
+  const namaOps = (operasi.nama_operasi || 'OPERASI SAR').toUpperCase();
+  const perihal = `LAPORAN PENUTUPAN OPERASI SAR ${namaOps} TTK`;
+
+  const victims = operasi.korban || [];
+  const selamat = victims.filter(k => (k.status_korban as any) === 'S' || (k.status_korban as any) === 'Selamat').length;
+  const md = victims.filter(k => (k.status_korban as any) === 'MD' || (k.status_korban as any) === 'Meninggal Dunia').length;
+  const dp = victims.filter(k => (k.status_korban as any) === 'DP' || (k.status_korban as any) === 'Dalam Pencarian' || (k.status_korban as any) === 'H').length;
+
+  const unsurList = operasi.detail_unsur || [];
+  const unsurFormatted = unsurList.length > 0
+    ? unsurList.map((u: any) => `* ${u.nama_unsur.toUpperCase()} : ${u.jumlah_personil} ORANG`).join('\n')
+    : `* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG\n* MASYARAKAT : 5 ORANG`;
+
+  const alutList = operasi.detail_alut || [];
+  const alutFormatted = alutList.length > 0
+    ? alutList.map((a: any) => `• ${a.jumlah_alut} ${a.satuan.toUpperCase()} ${a.nama_alut.toUpperCase()}`).join('\n')
+    : `• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT`;
+
+  const waktuDebrief = sitrep?.waktu_debrief
+    ? formatMilitaryTW(new Date(sitrep.waktu_debrief), 'H')
+    : operasi.waktu_selesai
+      ? formatMilitaryTW(new Date(operasi.waktu_selesai), 'H')
+      : twuStr;
+
+  const isiLaporan = sitrep?.isi_laporan
+    ? sitrep.isi_laporan.toUpperCase()
+    : `SELURUH KORBAN TELAH BERHASIL DITEMUKAN / DIEVAKUASI DAN OPERASI SAR DINYATAKAN SELESAI`;
+
+  const sections: BraSection[] = [
+    {
+      kode: 'AAA',
+      isi: `PADA TW ${waktuDebrief} TIM SAR GABUNGAN MELAKSANAKAN DEBRIEFING DAN EVALUASI PENUTUPAN OPERASI SAR TERHADAP ${namaOps} KMA HASIL AKHIR ${isiLaporan} TTK`,
+    },
+    {
+      kode: 'BBB',
+      isi: `HASIL AKHIR REKAPITULASI KORBAN TTK DUA\n* KORBAN SELAMAT : ${selamat} ORANG\n* KORBAN MENINGGAL DUNIA : ${md} ORANG\n* KORBAN DALAM PENCARIAN (DP) : ${dp} ORANG\n* TOTAL POB : ${operasi.pob || (selamat + md + dp)} ORANG`,
+    },
+    {
+      kode: 'CCC',
+      isi: `UNSUR SAR TERLIBAT TTK DUA\n${unsurFormatted}\n\nALUT DAN PALSAR TTK DUA\n${alutFormatted}`,
+    },
+    {
+      kode: 'DDD',
+      isi: `PADA TW ${waktuDebrief} OPERASI SAR DINYATAKAN DITUTUP DAN SELURUH UNSUR POTENSI SAR DIKEMBALIKAN KE KESATUAN MASING-MASING DENGAN UCAPAN TERIMA KASIH ATAS KERJASAMANYA KMA KA KPP KENDARI KRM TTK HBS`,
     },
   ];
 
@@ -282,62 +445,65 @@ export function getDefaultBraTemplate(
       created_at: now.toISOString(),
     };
   } else if (kategori === 'SAR_UMUM') {
-    // If an operation is selected, check if it has a latest Renops or Sitrep!
+    // If an operation is selected, smart-check its latest progress report (Penutupan / Sitrep / Renops / Laporan Awal)
     let smartSections: BraSection[] = [];
     let smartPerihal = operasi?.nama_operasi || 'KECELAKAAN KAPAL MOB 1 ORANG HILANG DI PERAIRAN TELUK PASARWAJO';
     let smartAksi = 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
-    let smartInfo = 'POLRES DAN BPBD SETEMPAT';
+    let smartInfo = 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN';
 
-    const latestRenops = (operasi?.renops && operasi.renops.length > 0)
-      ? operasi.renops[operasi.renops.length - 1]
-      : null;
-    const latestSitrep = (operasi?.laporan && operasi.laporan.length > 0)
-      ? (operasi.laporan as any)[(operasi.laporan as any).length - 1]
-      : null;
+    const renopsList = [...(operasi?.renops || [])].sort((a, b) => (b.id_renops || 0) - (a.id_renops || 0));
+    const latestRenops = renopsList[0] || null;
+
+    const sitrepList = [...(operasi?.laporan_harian || [])].sort((a, b) => (b.id_laporan || 0) - (a.id_laporan || 0));
+    const latestSitrep = sitrepList[0] || null;
 
     if (latestSitrep) {
-      const res = buildBraSectionsFromSitrep(operasi!, latestSitrep, twb, twu);
-      smartSections = res.sections;
-      smartPerihal = res.perihal;
-      smartAksi = res.aksi;
-      smartInfo = res.info;
+      if (latestSitrep.jenis_laporan === 'PENUTUPAN') {
+        const res = buildBraSectionsFromPenutupan(operasi!, latestSitrep, twb, twu);
+        smartSections = res.sections;
+        smartPerihal = res.perihal;
+        smartAksi = res.aksi;
+        smartInfo = res.info;
+      } else {
+        const res = buildBraSectionsFromSitrep(operasi!, latestSitrep, twb, twu);
+        smartSections = res.sections;
+        smartPerihal = res.perihal;
+        smartAksi = res.aksi;
+        smartInfo = res.info;
+      }
     } else if (latestRenops) {
       const res = buildBraSectionsFromRenops(operasi!, latestRenops, twb, twu);
       smartSections = res.sections;
       smartPerihal = res.perihal;
       smartAksi = res.aksi;
       smartInfo = res.info;
+    } else if (operasi) {
+      const res = buildBraSectionsFromLaporanAwal(operasi, twb, twu);
+      smartSections = res.sections;
+      smartPerihal = res.perihal;
+      smartAksi = res.aksi;
+      smartInfo = res.info;
     } else {
-      // Unsur terlibat list
-      const unsurListFormatted = operasi?.detail_unsur && operasi.detail_unsur.length > 0
-        ? operasi.detail_unsur.map(u => `* ${u.nama_unsur.toUpperCase()} : ${u.jumlah_personil} ORANG`).join('\n')
-        : `* SMC DAN STAF : 7 ORANG\n* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 4 ORANG\n* TNI AL : 2 ORANG\n* BPBD : 5 ORANG\n* MASYARAKAT : 5 ORANG`;
-
-      // Alut list
-      const alutListFormatted = operasi?.detail_alut && operasi.detail_alut.length > 0
-        ? operasi.detail_alut.map(a => `• ${a.jumlah_alut} ${a.satuan.toUpperCase()} ${a.nama_alut.toUpperCase()}`).join('\n')
-        : `• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT\n• 1 UNIT AQUA EYE\n• 1 SET PALSAR MEDIS\n• 1 SET PALSAR KOMUNIKASI\n• 4 UNIT LONGBOAT MASYARAKAT`;
-
-      const cuaca = operasi?.cuaca ? operasi.cuaca.toUpperCase() : 'CERAH BERAWAN';
-
-      smartSections = [
+      // Generic fallback
+      const sections: BraSection[] = [
         {
           kode: 'AAA',
-          isi: `PD TW ${twb} TERIMA INFORMASI DARI OSC TIM SAR GABUNGAN MELAKSANAKAN BRIEFING SELANJUTNYA MELAKSANAKAN PENCARIAN TERHADAP ${operasi?.nama_operasi ? operasi.nama_operasi.toUpperCase() : 'KORBAN HILANG'}\nPADA TW ${twu} TIM MELAKSANAKAN PENCARIAN SEKALIGUS BERKOORDINASI DENGAN NELAYAN SETEMPAT PADA TW 1200 H TIM ISTIRAHAT SHOLAT DAN MAKAN KMA SELANJUTNYA PENCARIAN DILANJUTKAN PADA TW 1300 H TTK`,
+          isi: `PADA TW ${twb} TERIMA INFO DARI KELUARGA KORBAN BAHWA TELAH TERJADI KECELAKAAN KAPAL LONGBOAT DENGAN POB 1 ORANG DI PERAIRAN SULTRA PADA KOORDINAT 03° 58' 30" S - 122° 35' 12" E TTK`,
         },
         {
           kode: 'BBB',
-          isi: `UNSUR SAR TERLIBAT :\n${unsurListFormatted}\n\nALUT DAN PALSAR :\n${alutListFormatted}\n\nKONDISI CUACA :\n• CUACA: ${cuaca}`,
+          isi: `TERSEBUT AAA DIATAS MAKA PADA TW ${twu} TIM RESCUE KANSAR KENDARI DIBERANGKATKAN MENUJU LKP DENGAN MENGGUNAKAN 1 UNIT RESCUE CAR DAN 1 UNIT RUBBER BOAT DENGAN ESTIMASI PERJALANAN 2 JAM TTK`,
         },
         {
           kode: 'CCC',
-          isi: `PD TW ${twu} PENCARIAN TERHADAP KORBAN MASIH NIHIL DAN TIM SAR GABUNGAN MELAKSANAKAN BRIEFING EVALUASI SEKALIGUS PENUTUPAN SEMENTARA OPERASI SAR. DAN PENCARIAN AKAN DILANJUTKAN KEMBALI BESOK PADA TW 0700 H TTK`,
+          isi: `UNSUR SAR TERLIBAT TTK DUA\n* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG\n* MASYARAKAT : 5 ORANG\n\nALUT DAN PALSAR TTK DUA\n• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT\n• 1 SET PALSAR MEDIS\n\nKONDISI CUACA TTK DUA\n• CUACA : CERAH BERAWAN\n• ANGIN : TIMUR LAUT - TENGGARA, 5-15 KNOTS\n• GELOMBANG : 0.5 - 1.25 METER`,
         },
         {
           kode: 'DDD',
-          isi: `DMKN SBG LAPORAN KMA KA KPP KENDARI SELAKU SMC KIRIM TTK HBS`,
+          isi: `LAPORAN PERKEMBANGAN MENYUSUL KMA KA KPP KENDARI KRM TTK HBS`,
         },
       ];
+      smartSections = sections;
     }
 
     return {

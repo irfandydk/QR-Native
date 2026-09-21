@@ -187,6 +187,21 @@ export interface Pejabat {
   is_default_smc?: boolean;
 }
 
+export type JenisSatuanSar = 'KANTOR_SAR' | 'POS_SAR' | 'UNIT_SIAGA' | 'KN_SAR';
+
+export interface SarUnit {
+  id_unit: number;
+  nama_unit: string;
+  jenis_unit: JenisSatuanSar;
+  wilayah: string;
+  latitude: number;
+  longitude: number;
+  koordinat_dms: string;
+  alamat?: string;
+  no_telp?: string;
+  is_default?: boolean;
+}
+
 export interface AppSettings {
   logo_url?: string;
   satker_kode?: string;
@@ -223,6 +238,7 @@ export type ThemePalette = 'orange' | 'navy' | 'emerald' | 'gold';
 export interface DatabaseSchema {
   master_alut: MasterAlut[];
   master_tim: MasterTim[];
+  sar_units?: SarUnit[];
   operasi: Operasi[];
   korban: Korban[];
   detail_tim_berangkat: DetailTimBerangkat[];

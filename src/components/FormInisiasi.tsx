@@ -22,6 +22,7 @@ import {
   RotateCcw,
   CloudSun,
   Waves,
+  Car,
 } from 'lucide-react';
 import { MasterAlut, MasterTim, Operasi, Korban, DetailUnsur, DetailAlut } from '../types';
 import { generateLaporanAwalWA } from '../utils/templates';
@@ -604,24 +605,24 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
               </div>
             </div>
 
-            {/* Waktu Kejadian & Waktu Lapor (Dropdown Pickers) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            {/* Waktu Kejadian & Waktu Lapor (Modern Google-Style Sequential Pickers) */}
+            <div className="space-y-3 pt-2">
               <DateTimeInput24H
                 id="input-waktu-kejadian"
-                label="Waktu Kejadian"
+                label="1.1 Waktu Kejadian (Time of Incident)"
                 value={waktuKejadian}
                 onChange={(val) => setWaktuKejadian(val)}
                 required
-                helpText="Waktu estimasi insiden berlangsung (WITA / UTC+8)"
+                helpText="Waktu estimasi awal insiden terjadi (WITA / UTC+8)"
               />
 
               <DateTimeInput24H
                 id="input-waktu-lapor"
-                label="Waktu Lapor"
+                label="1.2 Waktu Lapor / Terima Info (Time of Report)"
                 value={waktuLapor}
                 onChange={(val) => setWaktuLapor(val)}
                 required
-                helpText="Waktu info resmi diterima Kantor SAR (WITA / UTC+8)"
+                helpText="Waktu saat informasi resmi diterima oleh Kansar Kendari (WITA / UTC+8)"
               />
             </div>
           </div>
@@ -642,42 +643,43 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                     2. Pelaksanaan SAR & Tim Berangkat
                   </h2>
                   <p className="text-[11px] text-slate-400">
-                    Waktu pergerakan tim rescue, estimasi tiba, dan jarak tempuh
+                    Waktu pergerakan tim rescue, estimasi tiba, dan jarak tempuh jalur jalan raya
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Waktu Berangkat & ETA Tiba */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Waktu Berangkat & ETA Tiba (Sequential Modern Pickers) */}
+            <div className="space-y-3">
               <DateTimeInput24H
                 id="input-waktu-berangkat"
-                label="Waktu Tim Berangkat"
+                label="2.1 Waktu Tim Berangkat (Time of Departure)"
                 value={waktuBerangkat}
                 onChange={(val) => setWaktuBerangkat(val)}
                 required
-                helpText="Waktu tim rescue mulai bergerak menuju LKP"
+                helpText="Waktu tim rescue mulai bergerak dari pangkalan menuju LKP"
                 quickAddHours={[1, 2]}
               />
 
               <DateTimeInput24H
                 id="input-eta-tiba"
-                label="Estimasi Tiba di LKP (ETA)"
+                label="2.2 Estimasi Waktu Tiba di LKP (ETA)"
                 value={etaTiba}
                 onChange={(val) => setEtaTiba(val)}
                 required
-                helpText="Perkiraan waktu tiba di lokasi kejadian"
+                helpText="Perkiraan waktu tim rescue tiba di lokasi kejadian (LKP)"
                 quickAddHours={[1, 2, 3]}
               />
             </div>
 
             {/* Tim Berangkat selector */}
-            <div className={`p-3.5 rounded-xl border space-y-2 ${innerBoxClass}`}>
+            <div className={`p-4 rounded-xl border space-y-2.5 ${innerBoxClass}`}>
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Pilih Tim / Unit Siaga SAR yang Diberangkatkan:
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-orange-500" />
+                  <span>Pilih Tim / Unit Siaga SAR yang Diberangkatkan:</span>
                 </label>
-                <span className="text-[10px] text-orange-500 font-bold">
+                <span className="text-[10px] text-orange-500 font-bold px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20">
                   {selectedTimIds.length} Tim Terpilih
                 </span>
               </div>
@@ -706,54 +708,118 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
             </div>
 
             {/* Jarak Tempuh & Estimasi Waktu Tempuh */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-              <div>
-                <label className={labelClass}>Jarak Tempuh ke Lokasi</label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={jarakAngka}
-                    onChange={(e) => setJarakAngka(e.target.value)}
-                    placeholder="15"
-                    className={`flex-1 ${inputClass}`}
-                  />
-                  <select
-                    value={jarakSatuan}
-                    onChange={(e) => setJarakSatuan(e.target.value)}
-                    className={`w-28 ${inputClass} font-semibold cursor-pointer`}
-                  >
-                    <option value="Nm">Nm (Mil Laut)</option>
-                    <option value="Km">Km (Kilometer)</option>
-                  </select>
+            <div
+              className={`p-4 sm:p-5 rounded-2xl border transition-all ${
+                isDarkMode
+                  ? 'bg-slate-950/80 border-orange-500/30'
+                  : 'bg-gradient-to-br from-orange-50/60 to-amber-50/30 border-orange-200 shadow-sm'
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-orange-500/20">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-500">
+                    <Car className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white block">
+                      Ukuran Jarak Tempuh & Estimasi Waktu Perjalanan
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Jarak dan estimasi waktu tempuh menuju lokasi kejadian (LKP)
+                    </span>
+                  </div>
                 </div>
+                <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 px-2.5 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 shrink-0">
+                  Jarak & ETA
+                </span>
               </div>
 
-              <div>
-                <label className={labelClass}>Estimasi Waktu Tempuh</label>
-                <input
-                  type="text"
-                  value={etaLokasi}
-                  onChange={(e) => setEtaLokasi(e.target.value)}
-                  placeholder="Contoh: 1 Jam 30 Menit"
-                  className={inputClass}
-                />
-                {/* Quick preset pills */}
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {['30 Menit', '45 Menit', '1 Jam', '1 Jam 30 Menit', '2 Jam', '3 Jam'].map((et) => (
-                    <button
-                      key={et}
-                      type="button"
-                      onClick={() => setEtaLokasi(et)}
-                      className={`text-[9px] px-1.5 py-0.5 rounded border transition-colors ${
-                        etaLokasi === et
-                          ? 'bg-orange-500/20 text-orange-500 border-orange-500/40 font-bold'
-                          : 'bg-slate-200/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:border-slate-400'
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                {/* 1. Jarak Tempuh Input with Integrated Unit Selector */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Jarak Tempuh ke LKP
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {jarakSatuan === 'Km' ? 'Jalur Darat (Km)' : 'Jalur Laut (Nm)'}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-stretch rounded-xl border overflow-hidden shadow-xs focus-within:ring-2 focus-within:ring-orange-500 transition-all">
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={jarakAngka}
+                      onChange={(e) => setJarakAngka(e.target.value)}
+                      placeholder="0.0"
+                      className={`min-w-0 flex-1 text-base sm:text-lg font-bold font-mono px-3.5 py-2.5 outline-none ${
+                        isDarkMode
+                          ? 'bg-slate-900 text-white placeholder-slate-600'
+                          : 'bg-white text-slate-900 placeholder-slate-300'
                       }`}
-                    >
-                      {et}
-                    </button>
-                  ))}
+                    />
+                    <div className="border-l border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800/80 flex items-center shrink-0">
+                      <select
+                        value={jarakSatuan}
+                        onChange={(e) => setJarakSatuan(e.target.value)}
+                        className={`px-3 py-2 text-xs font-bold bg-transparent outline-none cursor-pointer text-slate-700 dark:text-slate-200`}
+                      >
+                        <option value="Km" className={isDarkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
+                          Kilometer (Km)
+                        </option>
+                        <option value="Nm" className={isDarkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-900'}>
+                          Mil Laut (Nm)
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Estimasi Waktu Tempuh Input with Quick Preset Chips */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Estimasi Waktu Tempuh Perjalanan
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Format: Jam & Menit
+                    </span>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={etaLokasi}
+                    onChange={(e) => setEtaLokasi(e.target.value)}
+                    placeholder="Contoh: 1 Jam 30 Menit"
+                    className={`w-full text-xs sm:text-sm font-semibold px-3.5 py-2.5 rounded-xl border outline-none transition-all focus:ring-2 ${accentColors.ring} ${
+                      isDarkMode
+                        ? 'bg-slate-900 border-slate-700 text-white focus:border-orange-500'
+                        : 'bg-white border-slate-300 text-slate-900 focus:border-orange-500 shadow-xs'
+                    }`}
+                  />
+
+                  {/* Preset Pills with wrap */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-slate-400 mr-0.5">Pintasan:</span>
+                    {['30 Menit', '45 Menit', '1 Jam', '1 Jam 30 Menit', '2 Jam', '3 Jam'].map((et) => (
+                      <button
+                        key={et}
+                        type="button"
+                        onClick={() => setEtaLokasi(et)}
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                          etaLokasi === et
+                            ? 'bg-orange-500 text-white border-orange-500 font-bold shadow-xs'
+                            : isDarkMode
+                            ? 'bg-slate-900 text-slate-400 border-slate-700 hover:text-slate-200 hover:border-slate-600'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-xs'
+                        }`}
+                      >
+                        {et}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -775,7 +841,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                     3. Lokasi Kejadian & Titik Koordinat (LKP)
                   </h2>
                   <p className="text-[11px] text-slate-400">
-                    Posisi duga Last Known Position (LKP)
+                    Deskripsi lokasi insiden dan format koordinat resmi Basarnas
                   </p>
                 </div>
               </div>
@@ -785,25 +851,8 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                 onClick={() => setShowDmsHelper(!showDmsHelper)}
                 className="text-xs font-bold text-orange-500 hover:text-orange-600 underline cursor-pointer"
               >
-                {showDmsHelper ? 'Tutup Builder DMS' : '📐 Generator DMS'}
+                {showDmsHelper ? 'Tutup Konverter DMS' : '📐 Generator Segmented DMS'}
               </button>
-            </div>
-
-            <div>
-              <label className={labelClass}>
-                Deskripsi Lokasi / Wilayah Perairan <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={lokasiKejadian}
-                  onChange={(e) => setLokasiKejadian(e.target.value)}
-                  placeholder="Contoh: Perairan Karang Kapota, Kab. Wakatobi, Sulawesi Tenggara"
-                  className={inputClass}
-                />
-                <MapPin className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
-              </div>
             </div>
 
             {/* DMS Helper Box */}
@@ -816,41 +865,41 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                   {/* Lintang */}
                   <div className="space-y-1">
                     <span className="text-slate-500 dark:text-slate-400 font-semibold">Lintang (Latitude):</span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <input
                         type="text"
                         value={latDeg}
                         onChange={(e) => setLatDeg(e.target.value)}
-                        className={`w-12 px-2 py-1 border rounded text-center font-mono ${
+                        className={`w-12 px-2 py-1.5 border rounded-lg text-center font-mono ${
                           isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}
-                        placeholder="03"
+                        placeholder="04"
                       />
                       <span className="font-bold">°</span>
                       <input
                         type="text"
                         value={latMin}
                         onChange={(e) => setLatMin(e.target.value)}
-                        className={`w-12 px-2 py-1 border rounded text-center font-mono ${
+                        className={`w-12 px-2 py-1.5 border rounded-lg text-center font-mono ${
                           isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}
-                        placeholder="58"
+                        placeholder="05"
                       />
                       <span className="font-bold">'</span>
                       <input
                         type="text"
                         value={latSec}
                         onChange={(e) => setLatSec(e.target.value)}
-                        className={`w-12 px-2 py-1 border rounded text-center font-mono ${
+                        className={`w-12 px-2 py-1.5 border rounded-lg text-center font-mono ${
                           isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}
-                        placeholder="30"
+                        placeholder="03"
                       />
                       <span className="font-bold">"</span>
                       <select
                         value={latDir}
                         onChange={(e) => setLatDir(e.target.value)}
-                        className={`px-2 py-1 border rounded font-bold ${
+                        className={`px-2 py-1.5 border rounded-lg font-bold ${
                           isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}
                       >
@@ -863,12 +912,12 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                   {/* Bujur */}
                   <div className="space-y-1">
                     <span className="text-slate-500 dark:text-slate-400 font-semibold">Bujur (Longitude):</span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <input
                         type="text"
                         value={lonDeg}
                         onChange={(e) => setLonDeg(e.target.value)}
-                        className={`w-14 px-2 py-1 border rounded text-center font-mono ${
+                        className={`w-14 px-2 py-1.5 border rounded-lg text-center font-mono ${
                           isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}
                         placeholder="122"
@@ -878,26 +927,26 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                         type="text"
                         value={lonMin}
                         onChange={(e) => setLonMin(e.target.value)}
-                        className={`w-12 px-2 py-1 border rounded text-center font-mono ${
+                        className={`w-12 px-2 py-1.5 border rounded-lg text-center font-mono ${
                           isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}
-                        placeholder="35"
+                        placeholder="25"
                       />
                       <span className="font-bold">'</span>
                       <input
                         type="text"
                         value={lonSec}
                         onChange={(e) => setLonSec(e.target.value)}
-                        className={`w-12 px-2 py-1 border rounded text-center font-mono ${
+                        className={`w-12 px-2 py-1.5 border rounded-lg text-center font-mono ${
                           isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}
-                        placeholder="12"
+                        placeholder="42"
                       />
                       <span className="font-bold">"</span>
                       <select
                         value={lonDir}
                         onChange={(e) => setLonDir(e.target.value)}
-                        className={`px-2 py-1 border rounded font-bold ${
+                        className={`px-2 py-1.5 border rounded-lg font-bold ${
                           isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}
                       >
@@ -920,22 +969,44 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
               </div>
             )}
 
+            {/* Format Teks Koordinat Resmi Basarnas */}
             <div>
               <label className={labelClass}>
-                Format Teks Koordinat Resmi Basarnas
+                Format Teks Koordinat Resmi Basarnas <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 required
                 value={koordinat}
                 onChange={(e) => setKoordinat(e.target.value)}
-                placeholder={'03° 58\' 30" S - 122° 35\' 12" E'}
-                className={`w-full px-3 py-2 text-xs font-mono font-bold tracking-wider rounded-xl border outline-none focus:ring-2 ${accentColors.ring} ${
+                placeholder={'04° 05\' 03" S - 122° 25\' 42" E'}
+                className={`w-full px-3.5 py-2.5 text-xs sm:text-sm font-mono font-bold tracking-wider rounded-xl border outline-none transition-all focus:ring-2 ${accentColors.ring} ${
                   isDarkMode
-                    ? 'bg-slate-950 border-slate-700 text-emerald-400'
-                    : 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                    ? 'bg-slate-950 border-slate-700 text-emerald-400 focus:border-emerald-500'
+                    : 'bg-emerald-50/50 border-emerald-300 text-emerald-800 focus:border-emerald-500'
                 }`}
               />
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                Contoh: 04° 05' 03" S - 122° 25' 42" E
+              </p>
+            </div>
+
+            {/* Deskripsi Lokasi Wilayah Perairan */}
+            <div>
+              <label className={labelClass}>
+                Deskripsi Lokasi / Wilayah Kejadian <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  value={lokasiKejadian}
+                  onChange={(e) => setLokasiKejadian(e.target.value)}
+                  placeholder="Contoh: Perairan Karang Kapota, Kab. Wakatobi, Sulawesi Tenggara"
+                  className={inputClass}
+                />
+                <MapPin className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2.5 pointer-events-none" />
+              </div>
             </div>
           </div>
 
