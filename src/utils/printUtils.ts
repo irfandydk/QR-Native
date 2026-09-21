@@ -21,7 +21,7 @@ export const getPageSizeCss = (pageSize: string = 'A4'): string => {
 export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100) => `
   @page {
     size: ${getPageSizeCss(pageSize)};
-    margin: 6mm 8mm 6mm 8mm;
+    margin: 15mm 15mm 15mm 20mm; /* Standar Tata Naskah Dinas: Atas 15mm, Kanan 15mm, Bawah 15mm, Kiri 20mm */
   }
   *, *::before, *::after {
     box-sizing: border-box;
@@ -39,12 +39,12 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     -webkit-font-smoothing: antialiased;
   }
   .print-wrapper {
-    width: 100%;
-    max-width: ${pageSize === 'F4' || pageSize === 'LEGAL' ? '850px' : '820px'};
+    width: 100% !important;
+    max-width: 100% !important;
     margin: 0 auto;
     background: #ffffff !important;
     color: #000000 !important;
-    padding: 0;
+    padding: 0 !important;
     transform-origin: top center;
     ${scale !== 100 ? `transform: scale(${scale / 100});` : ''}
   }
@@ -52,12 +52,14 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 auto !important;
-    padding: 4px 6px !important;
+    padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
     background: #ffffff !important;
     color: #000000 !important;
     min-height: auto !important;
+    height: auto !important;
+    transform: none !important;
   }
   .print\\:hidden, .no-print, button {
     display: none !important;
@@ -131,56 +133,40 @@ export const getBasePrintStyles = (pageSize: string = 'A4', scale: number = 100)
     white-space: nowrap !important;
   }
 
-  /* Page break rules for official BRA SAR document */
-  /* Prevent KOP from being separated alone on page 1 without table content */
+  /* Multi-page flow: Natural document flow across pages without blank pages */
   .bra-kop {
-    page-break-after: avoid !important;
-    break-after: avoid-page !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    margin-bottom: 6px !important;
   }
-  .bra-top-header {
-    page-break-after: avoid !important;
-    break-after: avoid-page !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-  .bra-upper-section {
-    page-break-after: avoid !important;
-    break-after: avoid-page !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-  .bra-no-header {
-    page-break-after: avoid !important;
-    break-after: avoid !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  /* Multi-page flow: Allow table and body to break across pages cleanly */
-  .bra-main-layout {
-    display: table !important;
+  .bra-table-wrapper {
     width: 100% !important;
     page-break-inside: auto !important;
     break-inside: auto !important;
   }
-  .bra-senkom-col {
-    display: table-cell !important;
-    width: 28px !important;
-    vertical-align: top !important;
-  }
-  .bra-table-col {
-    display: table-cell !important;
-    width: auto !important;
-    vertical-align: top !important;
+  .bra-table-box {
+    border: 2px solid #000000 !important;
+    box-decoration-break: clone !important;
+    -webkit-box-decoration-break: clone !important;
     page-break-inside: auto !important;
     break-inside: auto !important;
+  }
+  .bra-top-header {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .bra-upper-section {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .bra-no-header {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
   .bra-body-container {
-    min-height: 0 !important;
     page-break-inside: auto !important;
     break-inside: auto !important;
+    min-height: 0 !important;
   }
   .bra-section-row {
     page-break-inside: avoid !important;

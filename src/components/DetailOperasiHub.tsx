@@ -591,20 +591,6 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
                           title: `RENCANA OPS SAR ${r.hari_ke.toUpperCase()}`,
                           subtitle: operasi.nama_operasi,
                           text: r.full_text_wa,
-                          onSave: async (newText: string) => {
-                            const res = await fetch(`/api/renops/${r.id_renops}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({
-                                renops: { full_text_wa: newText },
-                              }),
-                            });
-                            const d = await res.json();
-                            if (!res.ok || !d.success) {
-                              throw new Error(d.error || 'Gagal menyimpan perubahan');
-                            }
-                            await onRefreshOperasi(operasi.id_operasi);
-                          },
                         })
                       }
                       className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r ${accentColors.gradient} hover:opacity-95 text-white rounded-lg text-xs font-semibold shadow-md transition-colors`}
@@ -769,20 +755,6 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
                               : `LAPBANG OPS SAR ${l.hari_ke.toUpperCase()}`,
                             subtitle: operasi.nama_operasi,
                             text: l.full_text_wa,
-                            onSave: async (newText: string) => {
-                              const res = await fetch(`/api/laporan/${l.id_laporan}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  laporan: { full_text_wa: newText },
-                                }),
-                              });
-                              const d = await res.json();
-                              if (!res.ok || !d.success) {
-                                throw new Error(d.error || 'Gagal menyimpan perubahan');
-                              }
-                              await onRefreshOperasi(operasi.id_operasi);
-                            },
                           })
                         }
                         className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r ${accentColors.gradient} hover:opacity-95 text-white rounded-lg text-xs font-semibold shadow-md transition-colors`}

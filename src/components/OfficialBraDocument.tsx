@@ -450,49 +450,40 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
           pageSize === 'F4' || pageSize === 'LEGAL' ? 'max-w-[850px]' : 'max-w-4xl'
         }`}
         style={{
-          minHeight: pageSize === 'LEGAL' ? '1200px' : pageSize === 'F4' ? '1100px' : '960px',
           transform: pageScale !== 100 ? `scale(${pageScale / 100})` : undefined,
           transformOrigin: 'top center',
         }}
       >
-        {/* Header: Basarnas Logo on Left + Titles (KOP) - Samping Kiri */}
-        <div className="bra-kop flex items-center justify-between pb-3 mb-2 border-b-2 border-black text-black">
-          {/* Samping Kiri: Logo Basarnas */}
-          <div className="w-16 shrink-0 flex items-center justify-start">
-            <BasarnasLogo size={56} logoUrl={currentLogo} />
-          </div>
-
-          {/* Tengah: Judul Dokumen BRA SAR & Basarnas */}
-          <div className="flex-1 text-center px-2">
-            <h1 className="text-xl sm:text-2xl font-black tracking-wide uppercase leading-tight text-black">
+        {/* Header: Basarnas Logo di samping kiri judul BRA SAR (berdekatan & rapi di tengah) */}
+        <div className="bra-kop flex items-center justify-center gap-3.5 sm:gap-4 pb-2.5 mb-2.5 border-b-2 border-black text-black">
+          <BasarnasLogo size={52} logoUrl={currentLogo} className="shrink-0 drop-shadow-none" />
+          <div className="text-left">
+            <h1 className="text-xl sm:text-2xl font-black tracking-wider uppercase leading-tight text-black m-0 p-0">
               BRA SAR
             </h1>
-            <h2 className="text-xs sm:text-sm font-bold tracking-wider uppercase mt-0.5 text-black">
+            <h2 className="text-xs sm:text-[13px] font-bold tracking-wider uppercase mt-0.5 text-black m-0 p-0">
               BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
             </h2>
           </div>
-
-          {/* Samping Kanan: Spacer Penyeimbang agar judul tepat di tengah */}
-          <div className="w-16 shrink-0" aria-hidden="true" />
         </div>
 
-        {/* Main Body Grid Container with Left SENKOM Note */}
-        <div className="bra-main-layout flex w-full">
+        {/* Main Body Container with Left SENKOM Note */}
+        <div className="bra-table-wrapper relative pl-6 sm:pl-7 w-full">
           {/* Left Vertical Side Label: RUANGAN DILUAR GARIS TEBAL DI ISI OLEH DINAS SENKOM */}
           <div
-            className="bra-senkom-col w-7 sm:w-8 shrink-0 flex items-center justify-center border-r-2 border-transparent mr-1 select-none senkom-vertical-label"
+            className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center select-none pointer-events-none senkom-vertical-label"
             style={{
               writingMode: 'vertical-rl',
               transform: 'rotate(180deg)',
             }}
           >
-            <span className="text-[9px] sm:text-[10px] font-bold tracking-widest uppercase text-center leading-none text-black">
+            <span className="text-[8.5px] sm:text-[9px] font-bold tracking-widest uppercase text-center leading-none text-black whitespace-nowrap">
               RUANGAN DILUAR GARIS TEBAL DI ISI OLEH DINAS SENKOM
             </span>
           </div>
 
           {/* Right Main Table Box (Thick Borders as per standard) */}
-          <div className="bra-table-col flex-1 border-2 border-black divide-y-2 divide-black text-[11px] sm:text-xs bg-white text-black">
+          <div className="bra-table-box border-2 border-black divide-y-2 divide-black text-[11px] sm:text-xs bg-white text-black w-full">
             {/* SENKOM Top Header Row */}
             <div className="bra-top-header grid grid-cols-5 divide-x-2 divide-black text-center font-bold bg-white text-black">
               <div className="py-1 px-1">Panggilan</div>
@@ -562,7 +553,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
 
             {/* Telegram Body Sections (AAA, BBB, CCC, etc.) */}
             {/* Bagian Nomor dan Judul di atas AAA tanpa kotak/kolom pembatas */}
-            <div className="bra-body-container border-t-2 border-black p-3 sm:p-4 min-h-[360px] flex flex-col justify-between bg-white text-black">
+            <div className="bra-body-container border-t-2 border-black p-3 sm:p-4 bg-white text-black">
               <div>
                 {/* Bagian NO dan Judul langsung di atas AAA tanpa tulisan Segera di sampingnya */}
                 <div className="bra-no-header mb-3.5">
@@ -590,7 +581,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
                 </div>
 
                 {/* Isian Bagian Telegram: AAA, BBB, CCC, dll. */}
-                <div className="space-y-4">
+                <div className="space-y-3.5 bra-sections-list">
                   {bra.sections.map((section, idx) => (
                     <div key={idx} className="bra-section-row flex items-start text-justify leading-relaxed">
                       <span className="font-black text-xs sm:text-sm tracking-wider uppercase w-12 sm:w-14 shrink-0 text-black">
@@ -605,7 +596,7 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
               </div>
 
               {/* TWB di sudut kanan bawah area telegram tepat di atas garis pembatas */}
-              <div className="bra-twb-row text-right font-black text-xs sm:text-sm tracking-wider uppercase pt-4 pr-1 text-black">
+              <div className="bra-twb-row text-right font-black text-xs sm:text-sm tracking-wider uppercase pt-3 pr-1 text-black">
                 TWB {bra.twb}
               </div>
             </div>
@@ -724,45 +715,48 @@ export const OfficialBraDocument: React.FC<OfficialBraDocumentProps> = ({
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
             .bra-kop {
-              page-break-after: avoid !important;
-              break-after: avoid-page !important;
               page-break-inside: avoid !important;
               break-inside: avoid !important;
+              margin-bottom: 6px !important;
             }
-            .bra-top-header, .bra-upper-section, .bra-no-header {
-              page-break-after: avoid !important;
-              break-after: avoid-page !important;
-              page-break-inside: avoid !important;
-              break-inside: avoid !important;
-            }
-            .bra-main-layout {
-              display: table !important;
+            .bra-table-wrapper {
               width: 100% !important;
               page-break-inside: auto !important;
               break-inside: auto !important;
             }
-            .bra-senkom-col {
-              display: table-cell !important;
-              width: 28px !important;
-              vertical-align: top !important;
-            }
-            .bra-table-col {
-              display: table-cell !important;
-              width: auto !important;
-              vertical-align: top !important;
+            .bra-table-box {
+              border: 2px solid #000000 !important;
+              box-decoration-break: clone !important;
+              -webkit-box-decoration-break: clone !important;
               page-break-inside: auto !important;
               break-inside: auto !important;
+            }
+            .bra-top-header {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            .bra-upper-section {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            .bra-no-header {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
             }
             .bra-body-container {
-              min-height: 0 !important;
               page-break-inside: auto !important;
               break-inside: auto !important;
+              min-height: 0 !important;
             }
             .bra-section-row {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
             }
-            .bra-twb-row, .bra-footer-section {
+            .bra-twb-row {
+              page-break-inside: avoid !important;
+              break-inside: avoid !important;
+            }
+            .bra-footer-section {
               page-break-inside: avoid !important;
               break-inside: avoid !important;
             }

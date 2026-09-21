@@ -83,14 +83,17 @@ export const showWarningAlert = async (title: string, text?: string) => {
  */
 export const showConfirmDialog = async (
   title: string,
-  text: string,
+  textOrHtml: string,
   confirmButtonText = 'Ya, Lanjutkan',
   isDanger = true
 ): Promise<boolean> => {
   const styles = getThemeStyles();
+  const isHtml = textOrHtml.includes('<') || textOrHtml.includes('\n');
   const result = await Swal.fire({
     title,
-    text,
+    ...(isHtml
+      ? { html: textOrHtml.includes('<') ? textOrHtml : textOrHtml.replace(/\n/g, '<br/>') }
+      : { text: textOrHtml }),
     icon: isDanger ? 'warning' : 'question',
     showCancelButton: true,
     confirmButtonColor: isDanger ? '#dc2626' : styles.confirmButtonColor,
@@ -104,6 +107,18 @@ export const showConfirmDialog = async (
   });
 
   return result.isConfirmed;
+};
+
+/**
+ * Menampilkan SweetAlert Konfirmasi Aksi dengan Rich HTML
+ */
+export const showHtmlConfirmDialog = async (
+  title: string,
+  html: string,
+  confirmButtonText = 'Ya, Lanjutkan',
+  isDanger = true
+): Promise<boolean> => {
+  return showConfirmDialog(title, html, confirmButtonText, isDanger);
 };
 
 /**

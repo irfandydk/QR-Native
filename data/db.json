@@ -127,6 +127,116 @@
       "nama_tim": "ABK RB 307"
     }
   ],
+  "sar_units": [
+    {
+      "id_unit": 1,
+      "nama_unit": "Kansar Kendari (Kantor Utama)",
+      "jenis_unit": "KANTOR_SAR",
+      "wilayah": "Kota Kendari / Konawe Selatan",
+      "latitude": -4.084194,
+      "longitude": 122.428389,
+      "koordinat_dms": "04° 05' 03\" S - 122° 25' 42\" E",
+      "alamat": "Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan, Sultra",
+      "no_telp": "(0401) 3122115 / Emergency 115",
+      "is_default": true
+    },
+    {
+      "id_unit": 2,
+      "nama_unit": "Pos SAR Kolaka",
+      "jenis_unit": "POS_SAR",
+      "wilayah": "Kabupaten Kolaka",
+      "latitude": -4.053889,
+      "longitude": 121.604167,
+      "koordinat_dms": "04° 03' 14\" S - 121° 36' 15\" E",
+      "alamat": "Kompleks Pelabuhan Ferry Kolaka, Jl. Dermaga Ferry Kolaka, Kel. Kolakaasi, Kec. Latambaga, Kab. Kolaka",
+      "no_telp": "0811-4091-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 3,
+      "nama_unit": "Pos SAR Baubau",
+      "jenis_unit": "POS_SAR",
+      "wilayah": "Kota Baubau & Buton",
+      "latitude": -5.463889,
+      "longitude": 122.604167,
+      "koordinat_dms": "05° 27' 50\" S - 122° 36' 15\" E",
+      "alamat": "Kawasan Pelabuhan Murhum / Jembatan Batu, Kel. Batulo, Kec. Wolio, Kota Baubau, Sulawesi Tenggara",
+      "no_telp": "0811-4092-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 4,
+      "nama_unit": "Pos SAR Wakatobi",
+      "jenis_unit": "POS_SAR",
+      "wilayah": "Kabupaten Wakatobi",
+      "latitude": -5.326389,
+      "longitude": 123.588889,
+      "koordinat_dms": "05° 19' 35\" S - 123° 35' 20\" E",
+      "alamat": "Kawasan Pelabuhan Mandati / Pangulubelo, Wangi-Wangi Selatan, Kab. Wakatobi, Sulawesi Tenggara",
+      "no_telp": "0811-4093-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 5,
+      "nama_unit": "Pos SAR Konawe Utara",
+      "jenis_unit": "POS_SAR",
+      "wilayah": "Kabupaten Konawe Utara",
+      "latitude": -3.513889,
+      "longitude": 122.180556,
+      "koordinat_dms": "03° 30' 50\" S - 122° 10' 50\" E",
+      "alamat": "Jl. Poros Trans Sulawesi Kendari - Morowali, Wanggudu / Kec. Asera, Kab. Konawe Utara, Sulawesi Tenggara",
+      "no_telp": "0811-4094-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 6,
+      "nama_unit": "Unit Siaga SAR Muna",
+      "jenis_unit": "UNIT_SIAGA",
+      "wilayah": "Kabupaten Muna",
+      "latitude": -4.836111,
+      "longitude": 122.719444,
+      "koordinat_dms": "04° 50' 10\" S - 122° 43' 10\" E",
+      "alamat": "Kawasan Pelabuhan Nusantara Raha / Jl. By Pass, Kota Raha, Kab. Muna, Sulawesi Tenggara",
+      "no_telp": "0811-4095-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 7,
+      "nama_unit": "Unit Siaga SAR Konawe",
+      "jenis_unit": "UNIT_SIAGA",
+      "wilayah": "Kabupaten Konawe",
+      "latitude": -3.905556,
+      "longitude": 122.047222,
+      "koordinat_dms": "03° 54' 20\" S - 122° 02' 50\" E",
+      "alamat": "Jl. Poros Kendari - Kolaka, Kota Unaaha, Kab. Konawe, Sulawesi Tenggara",
+      "no_telp": "0811-4096-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 8,
+      "nama_unit": "Unit Siaga SAR Kolaka Utara",
+      "jenis_unit": "UNIT_SIAGA",
+      "wilayah": "Kabupaten Kolaka Utara",
+      "latitude": -3.425,
+      "longitude": 120.897,
+      "koordinat_dms": "03° 25' 30\" S - 120° 53' 49\" E",
+      "alamat": "Kawasan Pelabuhan Penyeberangan Tobaku / Jl. Poros Lasusua, Kec. Lasusua, Kab. Kolaka Utara",
+      "no_telp": "0811-4097-115",
+      "is_default": false
+    },
+    {
+      "id_unit": 9,
+      "nama_unit": "Dermaga SAR Kendari (KN SAR / RB)",
+      "jenis_unit": "KN_SAR",
+      "wilayah": "Kota Kendari (Bungkutoko)",
+      "latitude": -3.974167,
+      "longitude": 122.585,
+      "koordinat_dms": "03° 58' 27\" S - 122° 35' 06\" E",
+      "alamat": "Kawasan Pelabuhan Bungkutoko (Pangkalan KN SAR Pacitan / RB 210 / RB 307), Kota Kendari",
+      "no_telp": "(0401) 3122115",
+      "is_default": false
+    }
+  ],
   "operasi": [
     {
       "nama_operasi": "operasi sar kecelakaan kapal di kendari",
@@ -454,115 +564,5 @@
     "admin_password": "Kendari2026",
     "admin_email": "irfandydk@gmail.com",
     "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Logo_Basarnas.svg/300px-Logo_Basarnas.svg.png"
-  },
-  "sar_units": [
-    {
-      "id_unit": 1,
-      "nama_unit": "Kansar Kendari (Kantor Utama)",
-      "jenis_unit": "KANTOR_SAR",
-      "wilayah": "Kota Kendari / Konawe Selatan",
-      "latitude": -4.084194,
-      "longitude": 122.428389,
-      "koordinat_dms": "04° 05' 03\" S - 122° 25' 42\" E",
-      "alamat": "Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan, Sultra",
-      "no_telp": "(0401) 3122115 / Emergency 115",
-      "is_default": true
-    },
-    {
-      "id_unit": 2,
-      "nama_unit": "Pos SAR Kolaka",
-      "jenis_unit": "POS_SAR",
-      "wilayah": "Kabupaten Kolaka",
-      "latitude": -4.053889,
-      "longitude": 121.604167,
-      "koordinat_dms": "04° 03' 14\" S - 121° 36' 15\" E",
-      "alamat": "Kompleks Pelabuhan Ferry Kolaka, Jl. Dermaga Ferry Kolaka, Kel. Kolakaasi, Kec. Latambaga, Kab. Kolaka",
-      "no_telp": "0811-4091-115",
-      "is_default": false
-    },
-    {
-      "id_unit": 3,
-      "nama_unit": "Pos SAR Baubau",
-      "jenis_unit": "POS_SAR",
-      "wilayah": "Kota Baubau & Buton",
-      "latitude": -5.463889,
-      "longitude": 122.604167,
-      "koordinat_dms": "05° 27' 50\" S - 122° 36' 15\" E",
-      "alamat": "Kawasan Pelabuhan Murhum / Jembatan Batu, Kel. Batulo, Kec. Wolio, Kota Baubau, Sulawesi Tenggara",
-      "no_telp": "0811-4092-115",
-      "is_default": false
-    },
-    {
-      "id_unit": 4,
-      "nama_unit": "Pos SAR Wakatobi",
-      "jenis_unit": "POS_SAR",
-      "wilayah": "Kabupaten Wakatobi",
-      "latitude": -5.326389,
-      "longitude": 123.588889,
-      "koordinat_dms": "05° 19' 35\" S - 123° 35' 20\" E",
-      "alamat": "Kawasan Pelabuhan Mandati / Pangulubelo, Wangi-Wangi Selatan, Kab. Wakatobi, Sulawesi Tenggara",
-      "no_telp": "0811-4093-115",
-      "is_default": false
-    },
-    {
-      "id_unit": 5,
-      "nama_unit": "Pos SAR Konawe Utara",
-      "jenis_unit": "POS_SAR",
-      "wilayah": "Kabupaten Konawe Utara",
-      "latitude": -3.513889,
-      "longitude": 122.180556,
-      "koordinat_dms": "03° 30' 50\" S - 122° 10' 50\" E",
-      "alamat": "Jl. Poros Trans Sulawesi Kendari - Morowali, Wanggudu / Kec. Asera, Kab. Konawe Utara, Sulawesi Tenggara",
-      "no_telp": "0811-4094-115",
-      "is_default": false
-    },
-    {
-      "id_unit": 6,
-      "nama_unit": "Unit Siaga SAR Muna",
-      "jenis_unit": "UNIT_SIAGA",
-      "wilayah": "Kabupaten Muna",
-      "latitude": -4.836111,
-      "longitude": 122.719444,
-      "koordinat_dms": "04° 50' 10\" S - 122° 43' 10\" E",
-      "alamat": "Kawasan Pelabuhan Nusantara Raha / Jl. By Pass, Kota Raha, Kab. Muna, Sulawesi Tenggara",
-      "no_telp": "0811-4095-115",
-      "is_default": false
-    },
-    {
-      "id_unit": 7,
-      "nama_unit": "Unit Siaga SAR Konawe",
-      "jenis_unit": "UNIT_SIAGA",
-      "wilayah": "Kabupaten Konawe",
-      "latitude": -3.905556,
-      "longitude": 122.047222,
-      "koordinat_dms": "03° 54' 20\" S - 122° 02' 50\" E",
-      "alamat": "Jl. Poros Kendari - Kolaka, Kota Unaaha, Kab. Konawe, Sulawesi Tenggara",
-      "no_telp": "0811-4096-115",
-      "is_default": false
-    },
-    {
-      "id_unit": 8,
-      "nama_unit": "Unit Siaga SAR Kolaka Utara",
-      "jenis_unit": "UNIT_SIAGA",
-      "wilayah": "Kabupaten Kolaka Utara",
-      "latitude": -3.425,
-      "longitude": 120.897,
-      "koordinat_dms": "03° 25' 30\" S - 120° 53' 49\" E",
-      "alamat": "Kawasan Pelabuhan Penyeberangan Tobaku / Jl. Poros Lasusua, Kec. Lasusua, Kab. Kolaka Utara",
-      "no_telp": "0811-4097-115",
-      "is_default": false
-    },
-    {
-      "id_unit": 9,
-      "nama_unit": "Dermaga SAR Kendari (KN SAR / RB)",
-      "jenis_unit": "KN_SAR",
-      "wilayah": "Kota Kendari (Bungkutoko)",
-      "latitude": -3.974167,
-      "longitude": 122.585,
-      "koordinat_dms": "03° 58' 27\" S - 122° 35' 06\" E",
-      "alamat": "Kawasan Pelabuhan Bungkutoko (Pangkalan KN SAR Pacitan / RB 210 / RB 307), Kota Kendari",
-      "no_telp": "(0401) 3122115",
-      "is_default": false
-    }
-  ]
+  }
 }

@@ -1595,36 +1595,53 @@ class Database {
         return { success: false, error: 'Format berkas cadangan tidak valid (harus berupa JSON).' };
       }
 
-      // If the payload was wrapped inside { data: DatabaseSchema, ... }
-      const incomingData: any = importedPayload.data && typeof importedPayload.data === 'object'
-        ? importedPayload.data
-        : importedPayload;
+      // If the payload was wrapped inside { data: DatabaseSchema, ... } or { database: ... } or { backup: ... }
+      let incomingData: any = importedPayload;
+      if (importedPayload.data && typeof importedPayload.data === 'object' && !Array.isArray(importedPayload.data)) {
+        incomingData = importedPayload.data;
+      } else if (importedPayload.database && typeof importedPayload.database === 'object') {
+        incomingData = importedPayload.database;
+      } else if (importedPayload.backup && typeof importedPayload.backup === 'object') {
+        incomingData = importedPayload.backup;
+      }
+
+      const getArr = (keys: string[], defaultFallback: any[] = []): any[] => {
+        for (const k of keys) {
+          if (Array.isArray(incomingData[k]) && incomingData[k].length > 0) {
+            return incomingData[k];
+          }
+          if (Array.isArray(importedPayload[k]) && importedPayload[k].length > 0) {
+            return importedPayload[k];
+          }
+        }
+        for (const k of keys) {
+          if (Array.isArray(incomingData[k])) return incomingData[k];
+          if (Array.isArray(importedPayload[k])) return importedPayload[k];
+        }
+        return defaultFallback;
+      };
 
       // Validate minimally that essential collections exist or can be salvaged
       const newDb: DatabaseSchema = {
-        master_alut: Array.isArray(incomingData.master_alut) ? incomingData.master_alut : this.data.master_alut || [],
-        master_tim: Array.isArray(incomingData.master_tim) ? incomingData.master_tim : this.data.master_tim || [],
-        sar_units: Array.isArray(incomingData.sar_units) ? incomingData.sar_units : this.data.sar_units || [],
-        operasi: Array.isArray(incomingData.operasi)
-          ? incomingData.operasi
-          : (Array.isArray(incomingData.operasi_sar) ? incomingData.operasi_sar : []),
-        korban: Array.isArray(incomingData.korban) ? incomingData.korban : [],
-        detail_tim_berangkat: Array.isArray(incomingData.detail_tim_berangkat) ? incomingData.detail_tim_berangkat : [],
-        detail_unsur: Array.isArray(incomingData.detail_unsur) ? incomingData.detail_unsur : [],
-        detail_alut: Array.isArray(incomingData.detail_alut) ? incomingData.detail_alut : [],
-        renops: Array.isArray(incomingData.renops) ? incomingData.renops : [],
-        renops_sru: Array.isArray(incomingData.renops_sru) ? incomingData.renops_sru : [],
-        laporan_harian: Array.isArray(incomingData.laporan_harian)
-          ? incomingData.laporan_harian
-          : (Array.isArray(incomingData.lapbang) ? incomingData.lapbang : []),
-        bra_sar: Array.isArray(incomingData.bra_sar)
-          ? incomingData.bra_sar
-          : (Array.isArray(incomingData.bra) ? incomingData.bra : []),
+        master_alut: getArr(['master_alut', 'alut', 'masterAlut'], this.data.master_alut || []),
+        master_tim: getArr(['master_tim', 'tim', 'masterTim'], this.data.master_tim || []),
+        sar_units: getArr(['sar_units', 'units', 'sarUnits'], this.data.sar_units || []),
+        operasi: getArr(['operasi', 'operasi_sar', 'operasis', 'operations', 'data_operasi'], this.data.operasi || []),
+        korban: getArr(['korban', 'korbans', 'data_korban', 'victims'], this.data.korban || []),
+        detail_tim_berangkat: getArr(['detail_tim_berangkat', 'tim_berangkat'], this.data.detail_tim_berangkat || []),
+        detail_unsur: getArr(['detail_unsur', 'unsur_terlibat', 'unsur'], this.data.detail_unsur || []),
+        detail_alut: getArr(['detail_alut', 'alut_terlibat'], this.data.detail_alut || []),
+        renops: getArr(['renops', 'rencana_operasi'], this.data.renops || []),
+        renops_sru: getArr(['renops_sru', 'sru'], this.data.renops_sru || []),
+        laporan_harian: getArr(['laporan_harian', 'lapbang', 'sitrep', 'laporans'], this.data.laporan_harian || []),
+        bra_sar: getArr(['bra_sar', 'bra', 'brasar', 'naskah_bra'], this.data.bra_sar || []),
         app_settings: incomingData.app_settings && typeof incomingData.app_settings === 'object'
           ? { ...this.getAppSettings(), ...incomingData.app_settings }
           : (incomingData.settings && typeof incomingData.settings === 'object'
               ? { ...this.getAppSettings(), ...incomingData.settings }
-              : this.getAppSettings()),
+              : (importedPayload.app_settings && typeof importedPayload.app_settings === 'object'
+                  ? { ...this.getAppSettings(), ...importedPayload.app_settings }
+                  : this.getAppSettings())),
       };
 
       // Ensure all bra_sar records retain or get the active logo

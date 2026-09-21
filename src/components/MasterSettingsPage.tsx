@@ -571,50 +571,98 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
         throw new Error('Struktur data cadangan tidak valid.');
       }
 
-      // Deteksi struktur data (bisa dibungkus dalam .data atau langsung, dan fallback ke .stats)
-      const dataRoot = (parsedData.data && typeof parsedData.data === 'object') ? parsedData.data : parsedData;
-      const statsRoot = (parsedData.stats && typeof parsedData.stats === 'object') ? parsedData.stats : null;
+      // Deteksi fleksibel struktur data (bisa dibungkus dalam .data, .database, .backup, atau root langsung)
+      let dataRoot: any = parsedData;
+      if (parsedData.data && typeof parsedData.data === 'object' && !Array.isArray(parsedData.data)) {
+        dataRoot = parsedData.data;
+      } else if (parsedData.database && typeof parsedData.database === 'object') {
+        dataRoot = parsedData.database;
+      } else if (parsedData.backup && typeof parsedData.backup === 'object') {
+        dataRoot = parsedData.backup;
+      }
 
-      const arrOperasi = Array.isArray(dataRoot.operasi)
-        ? dataRoot.operasi
-        : (Array.isArray(dataRoot.operasi_sar) ? dataRoot.operasi_sar : []);
-      const arrBra = Array.isArray(dataRoot.bra_sar)
-        ? dataRoot.bra_sar
-        : (Array.isArray(dataRoot.bra) ? dataRoot.bra : []);
-      const arrKorban = Array.isArray(dataRoot.korban) ? dataRoot.korban : [];
-      const arrRenops = Array.isArray(dataRoot.renops) ? dataRoot.renops : [];
-      const arrLapbang = Array.isArray(dataRoot.laporan_harian)
-        ? dataRoot.laporan_harian
-        : (Array.isArray(dataRoot.lapbang) ? dataRoot.lapbang : []);
-      const arrAlut = Array.isArray(dataRoot.master_alut) ? dataRoot.master_alut : [];
-      const arrTim = Array.isArray(dataRoot.master_tim) ? dataRoot.master_tim : [];
+      const statsRoot = (parsedData.stats && typeof parsedData.stats === 'object')
+        ? parsedData.stats
+        : (dataRoot.stats && typeof dataRoot.stats === 'object' ? dataRoot.stats : null);
+
+      const findArr = (...keys: string[]): any[] => {
+        for (const k of keys) {
+          if (Array.isArray(dataRoot[k]) && dataRoot[k].length > 0) return dataRoot[k];
+          if (Array.isArray(parsedData[k]) && parsedData[k].length > 0) return parsedData[k];
+        }
+        for (const k of keys) {
+          if (Array.isArray(dataRoot[k])) return dataRoot[k];
+          if (Array.isArray(parsedData[k])) return parsedData[k];
+        }
+        return [];
+      };
+
+      const arrOperasi = findArr('operasi', 'operasi_sar', 'operasis', 'operations', 'data_operasi');
+      const arrBra = findArr('bra_sar', 'bra', 'brasar', 'bra_sars', 'naskah_bra');
+      const arrKorban = findArr('korban', 'korbans', 'data_korban', 'victims');
+      const arrRenops = findArr('renops', 'rencana_operasi', 'renop');
+      const arrLapbang = findArr('laporan_harian', 'lapbang', 'sitrep', 'laporans');
+      const arrAlut = findArr('master_alut', 'alut', 'aluts', 'masterAlut');
+      const arrTim = findArr('master_tim', 'tim', 'tims', 'masterTim');
+      const arrUnits = findArr('sar_units', 'units', 'sarUnits', 'pangkalan');
+
       const importedSettings = (dataRoot.app_settings && typeof dataRoot.app_settings === 'object')
         ? dataRoot.app_settings
-        : (parsedData.app_settings && typeof parsedData.app_settings === 'object' ? parsedData.app_settings : null);
+        : (dataRoot.settings && typeof dataRoot.settings === 'object'
+            ? dataRoot.settings
+            : (parsedData.app_settings && typeof parsedData.app_settings === 'object'
+                ? parsedData.app_settings
+                : (parsedData.settings && typeof parsedData.settings === 'object' ? parsedData.settings : null)));
 
-      const totalOperasi = arrOperasi.length || (statsRoot?.total_operasi ?? 0);
-      const totalBra = arrBra.length || (statsRoot?.total_bra_sar ?? 0);
-      const totalKorban = arrKorban.length || (statsRoot?.total_korban ?? 0);
-      const totalRenops = arrRenops.length || (statsRoot?.total_renops ?? 0);
-      const totalLapbang = arrLapbang.length || (statsRoot?.total_laporan_harian ?? 0);
-      const totalAlut = arrAlut.length || (statsRoot?.total_master_alut ?? 0);
-      const totalTim = arrTim.length || (statsRoot?.total_master_tim ?? 0);
+      const totalOperasi = arrOperasi.length || statsRoot?.total_operasi || statsRoot?.operasi || statsRoot?.total_ops || 0;
+      const totalBra = arrBra.length || statsRoot?.total_bra_sar || statsRoot?.bra_sar || statsRoot?.total_bra || statsRoot?.bra || 0;
+      const totalKorban = arrKorban.length || statsRoot?.total_korban || statsRoot?.korban || 0;
+      const totalRenops = arrRenops.length || statsRoot?.total_renops || statsRoot?.renops || 0;
+      const totalLapbang = arrLapbang.length || statsRoot?.total_laporan_harian || statsRoot?.total_lapbang || statsRoot?.laporan_harian || statsRoot?.lapbang || 0;
+      const totalAlut = arrAlut.length || statsRoot?.total_master_alut || statsRoot?.master_alut || statsRoot?.alut || 0;
+      const totalTim = arrTim.length || statsRoot?.total_master_tim || statsRoot?.master_tim || statsRoot?.tim || 0;
+      const totalUnits = arrUnits.length || statsRoot?.total_sar_units || statsRoot?.sar_units || 0;
 
-      const satkerNote = importedSettings?.satker_nama ? `• Satker: ${importedSettings.satker_nama}\n` : '';
-      const logoNote = importedSettings?.logo_url ? `• Logo Satker: Ditemukan & Siap Diterapkan Langsung\n` : '';
+      const sampleOp = arrOperasi[0]?.nama_operasi ? arrOperasi[0].nama_operasi : '';
+      const sampleBra = arrBra[0]?.no_bra ? arrBra[0].no_bra : '';
+      const satkerName = importedSettings?.satker_nama || '';
+      const hasCustomLogo = Boolean(importedSettings?.logo_url);
+
+      const confirmHtml = `
+        <div style="text-align: left; font-size: 13px; line-height: 1.6; margin-top: 4px;">
+          <p style="margin: 0 0 10px 0; color: #64748b; font-weight: 500;">
+            Berkas cadangan berhasil dibaca dan diverifikasi. Berikut rincian data real yang terdeteksi di dalam berkas:
+          </p>
+          <div style="background: rgba(249, 115, 22, 0.08); border: 1px solid rgba(249, 115, 22, 0.25); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 12px;">
+              <div>🚁 <b>Operasi SAR:</b> <span style="color: #ea580c; font-weight: 700;">${totalOperasi} Data</span></div>
+              <div>📄 <b>Naskah BRA SAR:</b> <span style="color: #ea580c; font-weight: 700;">${totalBra} Naskah</span></div>
+              <div>👥 <b>Data Korban:</b> <span style="color: #ea580c; font-weight: 700;">${totalKorban} Orang</span></div>
+              <div>📋 <b>Rencana Operasi:</b> <span style="color: #ea580c; font-weight: 700;">${totalRenops} Renops</span></div>
+              <div>📝 <b>Laporan Harian:</b> <span style="color: #ea580c; font-weight: 700;">${totalLapbang} Lapbang</span></div>
+              <div>🛠️ <b>Alut & Tim:</b> <span style="color: #ea580c; font-weight: 700;">${totalAlut} Alut • ${totalTim} Tim</span></div>
+              ${totalUnits > 0 ? `<div>⚓ <b>Pangkalan/Unit:</b> <span style="color: #ea580c; font-weight: 700;">${totalUnits} Unit</span></div>` : ''}
+            </div>
+            ${satkerName || sampleOp || sampleBra || hasCustomLogo ? `
+              <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(249, 115, 22, 0.3); font-size: 11px; color: #475569;">
+                ${satkerName ? `<div>🏢 <b>Satker:</b> ${satkerName}</div>` : ''}
+                ${sampleOp ? `<div>🎯 <b>Contoh Operasi:</b> ${sampleOp}</div>` : ''}
+                ${sampleBra ? `<div>🏷️ <b>Contoh BRA:</b> ${sampleBra}</div>` : ''}
+                ${hasCustomLogo ? `<div>✨ <b>Logo Satker:</b> Terdeteksi & siap diterapkan langsung</div>` : ''}
+              </div>
+            ` : ''}
+          </div>
+          <p style="font-size: 12px; color: #64748b; margin: 0;">
+            Apakah Anda yakin ingin memulihkan (import) database ini ke sistem? Seluruh koleksi akan disinkronkan secara instan.
+          </p>
+        </div>
+      `;
 
       const confirmed = await showConfirmDialog(
         'Konfirmasi Pemulihan Database',
-        `Ditemukan data cadangan:\n` +
-        `• ${totalOperasi} Operasi SAR\n` +
-        `• ${totalBra} Naskah BRA SAR\n` +
-        `• ${totalKorban} Data Korban\n` +
-        `• ${totalRenops} Rencana Operasi\n` +
-        `• ${totalLapbang} Laporan Perkembangan\n` +
-        `• ${totalAlut} Master Alut & ${totalTim} Master Tim\n` +
-        satkerNote +
-        logoNote +
-        `\nApakah Anda yakin ingin memulihkan (import) database ini ke sistem? Data yang ada akan diperbarui dan diterapkan langsung.`
+        confirmHtml,
+        'Ya, Pulihkan Sekarang',
+        false
       );
 
       if (!confirmed) {
@@ -647,6 +695,17 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
         // Kirim event global agar seluruh komponen (Header, Dokumen BRA, dll) langsung memakai logo & satker baru
         window.dispatchEvent(new CustomEvent('satker-settings-updated', { detail: finalSettings }));
       }
+
+      showSuccessAlert(
+        'Database Berhasil Dipulihkan',
+        `Database telah berhasil dipulihkan secara penuh:\n` +
+        `• ${result.stats?.operasi ?? totalOperasi} Operasi SAR\n` +
+        `• ${result.stats?.bra_sar ?? totalBra} Naskah BRA SAR\n` +
+        `• ${result.stats?.korban ?? totalKorban} Data Korban\n` +
+        `• ${result.stats?.renops ?? totalRenops} Rencana Operasi\n` +
+        `• ${result.stats?.laporan_harian ?? totalLapbang} Laporan Perkembangan\n` +
+        `• ${result.stats?.master_alut ?? totalAlut} Alut & ${result.stats?.master_tim ?? totalTim} Tim SAR`
+      );
 
       // Refresh seluruh data sistem
       await onRefreshData();
