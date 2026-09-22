@@ -216,6 +216,16 @@ export interface AppSettings {
   admin_username?: string;
   admin_password?: string;
   admin_email?: string;
+  admin_nama?: string;
+  admin_nip?: string;
+  admin_jabatan?: string;
+  admin_pangkat?: string;
+  admin_no_hp?: string;
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_user?: string;
+  smtp_pass?: string;
+  smtp_from?: string;
   reset_token?: string;
   reset_token_expiry?: string;
 }
@@ -230,6 +240,9 @@ export interface UserSession {
   roleTitle: string;
   pangkat: string;
   jabatan: string;
+  email?: string;
+  username?: string;
+  no_hp?: string;
   avatar?: string;
   loginAt: string;
 }

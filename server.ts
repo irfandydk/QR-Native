@@ -72,14 +72,18 @@ async function startServer() {
         });
       }
 
+      const settings = db.getAppSettings();
       const user = {
         id: 'USR-ADMIN',
-        nama: 'Administrator SAR',
-        nip: '198805122010121001',
+        nama: settings.admin_nama || 'AMIRUDDIN AS, S.Sos.',
+        nip: settings.admin_nip || '197405101998031002',
         role: 'ADMIN',
         roleTitle: 'Administrator SAR',
-        pangkat: 'Penata Muda (III/a)',
-        jabatan: 'Pengelola Sistem Komando KPP Kendari',
+        pangkat: settings.admin_pangkat || 'PEMBINA (IV/a)',
+        jabatan: settings.admin_jabatan || 'Kepala Kantor / Administrator Utama KPP Kendari',
+        email: settings.admin_email || 'irfandydk@gmail.com',
+        username: settings.admin_username || 'admin',
+        no_hp: settings.admin_no_hp || '0811-4091-115',
         loginAt: new Date().toISOString(),
       };
 
@@ -87,6 +91,73 @@ async function startServer() {
         success: true,
         message: 'Login berhasil.',
         user,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get('/api/auth/profile', (req, res) => {
+    try {
+      const settings = db.getAppSettings();
+      res.json({
+        success: true,
+        data: {
+          id: 'USR-ADMIN',
+          nama: settings.admin_nama || 'AMIRUDDIN AS, S.Sos.',
+          nip: settings.admin_nip || '197405101998031002',
+          role: 'ADMIN',
+          roleTitle: 'Administrator SAR',
+          pangkat: settings.admin_pangkat || 'PEMBINA (IV/a)',
+          jabatan: settings.admin_jabatan || 'Kepala Kantor / Administrator Utama KPP Kendari',
+          email: settings.admin_email || 'irfandydk@gmail.com',
+          username: settings.admin_username || 'admin',
+          no_hp: settings.admin_no_hp || '0811-4091-115',
+          smtp_host: settings.smtp_host || '',
+          smtp_port: settings.smtp_port || 587,
+          smtp_user: settings.smtp_user || '',
+          smtp_from: settings.smtp_from || '',
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.put('/api/auth/profile', (req, res) => {
+    try {
+      const { nama, nip, jabatan, pangkat, email, username, no_hp, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from } = req.body;
+      const updateData: any = {};
+      if (nama !== undefined) updateData.admin_nama = String(nama).trim();
+      if (nip !== undefined) updateData.admin_nip = String(nip).trim();
+      if (jabatan !== undefined) updateData.admin_jabatan = String(jabatan).trim();
+      if (pangkat !== undefined) updateData.admin_pangkat = String(pangkat).trim();
+      if (email !== undefined) updateData.admin_email = String(email).trim();
+      if (username !== undefined) updateData.admin_username = String(username).trim();
+      if (no_hp !== undefined) updateData.admin_no_hp = String(no_hp).trim();
+      if (smtp_host !== undefined) updateData.smtp_host = String(smtp_host).trim();
+      if (smtp_port !== undefined) updateData.smtp_port = Number(smtp_port) || 587;
+      if (smtp_user !== undefined) updateData.smtp_user = String(smtp_user).trim();
+      if (smtp_pass !== undefined && smtp_pass !== '••••••••') updateData.smtp_pass = String(smtp_pass).trim();
+      if (smtp_from !== undefined) updateData.smtp_from = String(smtp_from).trim();
+
+      const updated = db.updateAppSettings(updateData);
+
+      res.json({
+        success: true,
+        message: 'Data profil administrator berhasil diperbarui.',
+        data: {
+          id: 'USR-ADMIN',
+          nama: updated.admin_nama,
+          nip: updated.admin_nip,
+          jabatan: updated.admin_jabatan,
+          pangkat: updated.admin_pangkat,
+          email: updated.admin_email,
+          username: updated.admin_username,
+          no_hp: updated.admin_no_hp,
+          role: 'ADMIN',
+          roleTitle: 'Administrator SAR',
+        },
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -111,21 +182,28 @@ async function startServer() {
     }
   });
 
-  app.post('/api/auth/forgot-password', (req, res) => {
+  // Reset password to default 'Kendari2026'
+  app.post('/api/auth/reset-default', (req, res) => {
     try {
-      const originHost = `${req.protocol}://${req.get('host')}`;
-      const resetInfo = db.generateResetToken(originHost);
-
-      // In production/mock, this simulates email dispatch to irfandydk@gmail.com
-      console.log(`[AUTH] Password reset requested. Reset link generated for ${resetInfo.email}: ${resetInfo.resetLink}`);
-
+      const result = db.resetToDefaultPassword();
       res.json({
         success: true,
-        message: `Link reset kata sandi telah berhasil dikirim ke email resmi (${resetInfo.email}). Silakan periksa kotak masuk atau spam email Anda.`,
-        email: resetInfo.email,
-        resetToken: resetInfo.token,
-        resetLink: resetInfo.resetLink,
-        expiresAt: resetInfo.expiresAt,
+        message: 'Kata sandi administrator berhasil dikembalikan ke standar sistem "Kendari2026".',
+        password: result.password,
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Forgot password endpoint: directly resets password to default 'Kendari2026'
+  app.post('/api/auth/forgot-password', (req, res) => {
+    try {
+      const result = db.resetToDefaultPassword();
+      res.json({
+        success: true,
+        message: 'Kata sandi administrator telah direset ke kata sandi standar "Kendari2026".',
+        password: result.password,
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -152,11 +230,176 @@ async function startServer() {
 
   app.get('/api/auth/config', (req, res) => {
     try {
+      const settings = db.getAppSettings();
       res.json({
         success: true,
         data: {
-          username: 'admin',
-          email: db.getAdminEmail(),
+          username: settings.admin_username || 'admin',
+          email: settings.admin_email || 'irfandydk@gmail.com',
+          nama: settings.admin_nama || 'AMIRUDDIN AS, S.Sos.',
+          nip: settings.admin_nip || '197405101998031002',
+          jabatan: settings.admin_jabatan || 'Kepala Kantor / Administrator Utama KPP Kendari',
+          pangkat: settings.admin_pangkat || 'PEMBINA (IV/a)',
+          no_hp: settings.admin_no_hp || '0811-4091-115',
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // --- Rekapitulasi Laporan & Monitoring Analytics Endpoint ---
+  app.get(['/api/laporan/stats', '/api/monitoring/stats'], (req, res) => {
+    try {
+      const operasiList = db.getAllOperasi();
+
+      let totalPob = 0;
+      let totalSelamat = 0;
+      let totalMeninggal = 0;
+      let totalHilang = 0; // DP / H
+      let totalPersonilPotensi = 0;
+      let totalHariOperasi = 0;
+
+      const potensiByUnsurMap: Record<string, { nama: string; totalPersonil: number; countOperasi: number }> = {};
+      const jenisKejadianMap: Record<string, number> = {};
+
+      const operasiDetails = operasiList.map(op => {
+        // Korban per operasi
+        const korbanList = op.korban || [];
+        const s = korbanList.filter(k => k.status_korban === 'S').length;
+        const md = korbanList.filter(k => k.status_korban === 'MD').length;
+        const dp = korbanList.filter(k => k.status_korban === 'DP' || k.status_korban === 'H').length;
+        const opPob = korbanList.length > 0 ? korbanList.length : (op.jumlah_pob || 0);
+
+        totalPob += opPob;
+        totalSelamat += s;
+        totalMeninggal += md;
+        totalHilang += dp;
+
+        // Potensi per operasi
+        const unsurList = op.detail_unsur || [];
+        const personilOp = unsurList.reduce((sum, u) => sum + (Number(u.jumlah_personil) || 0), 0);
+        totalPersonilPotensi += personilOp;
+
+        unsurList.forEach(u => {
+          const key = (u.nama_unsur || 'Unsur Gabungan').trim();
+          if (!potensiByUnsurMap[key]) {
+            potensiByUnsurMap[key] = { nama: key, totalPersonil: 0, countOperasi: 0 };
+          }
+          potensiByUnsurMap[key].totalPersonil += (Number(u.jumlah_personil) || 0);
+          potensiByUnsurMap[key].countOperasi += 1;
+        });
+
+        // Durasi hari per operasi
+        let hariKeCount = 1;
+        if (op.renops && op.renops.length > 0) {
+          op.renops.forEach(r => {
+            const match = (r.hari_ke || '').match(/H\.?(\d+)/i);
+            if (match) {
+              hariKeCount = Math.max(hariKeCount, parseInt(match[1], 10));
+            }
+          });
+        }
+        if (op.laporan_harian && op.laporan_harian.length > 0) {
+          op.laporan_harian.forEach(l => {
+            const match = (l.hari_ke || '').match(/H\.?(\d+)/i);
+            if (match) {
+              hariKeCount = Math.max(hariKeCount, parseInt(match[1], 10));
+            }
+          });
+        }
+        if (op.waktu_lapor || op.waktu_berangkat) {
+          const start = new Date(op.waktu_lapor || op.waktu_berangkat).getTime();
+          const end = op.waktu_selesai ? new Date(op.waktu_selesai).getTime() : Date.now();
+          if (!isNaN(start) && end > start) {
+            const daysFromDates = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+            hariKeCount = Math.max(hariKeCount, daysFromDates);
+          }
+        }
+        totalHariOperasi += hariKeCount;
+
+        // Categorize incident
+        const namaLower = (op.nama_operasi || '').toLowerCase();
+        let kategori = 'Lain-lain';
+        if (namaLower.includes('kapal') || namaLower.includes('perahu') || namaLower.includes('nelayan') || namaLower.includes('longboat') || namaLower.includes('kmm')) {
+          kategori = 'Kecelakaan Kapal (KMM)';
+        } else if (namaLower.includes('tenggelam') || namaLower.includes('sungai') || namaLower.includes('pantai') || namaLower.includes('danau') || namaLower.includes('membahayakan')) {
+          kategori = 'Kondisi Membahayakan Manusia (KMM)';
+        } else if (namaLower.includes('hutan') || namaLower.includes('gunung') || namaLower.includes('hilang') || namaLower.includes('tersesat')) {
+          kategori = 'Orang Hilang / Tersesat';
+        } else if (namaLower.includes('banjir') || namaLower.includes('longsor') || namaLower.includes('gempa') || namaLower.includes('bencana')) {
+          kategori = 'Bencana Alam (KND)';
+        } else if (namaLower.includes('pesawat') || namaLower.includes('udara')) {
+          kategori = 'Kecelakaan Pesawat Udara (KPU)';
+        }
+        jenisKejadianMap[kategori] = (jenisKejadianMap[kategori] || 0) + 1;
+
+        return {
+          id_operasi: op.id_operasi,
+          nama_operasi: op.nama_operasi,
+          status: op.status,
+          lokasi_kejadian: op.lokasi_kejadian,
+          koordinat: op.koordinat,
+          waktu_lapor: op.waktu_lapor,
+          waktu_berangkat: op.waktu_berangkat,
+          waktu_selesai: op.waktu_selesai,
+          durasi_hari: hariKeCount,
+          kategori,
+          korban_stats: {
+            total: opPob,
+            selamat: s,
+            meninggal: md,
+            hilang: dp,
+          },
+          potensi_stats: {
+            total_personil: personilOp,
+            jumlah_unsur: unsurList.length,
+            unsur_list: unsurList.map(u => ({ nama: u.nama_unsur, personil: u.jumlah_personil })),
+          },
+          alut_count: (op.detail_alut || []).length,
+          renops_count: (op.renops || []).length,
+          laporan_count: (op.laporan_harian || []).length,
+        };
+      });
+
+      const totalOperasi = operasiList.length;
+      const operasiAktif = operasiList.filter(o => o.status === 'OPEN').length;
+      const operasiSelesai = operasiList.filter(o => o.status === 'CLOSED').length;
+      const rataRataHari = totalOperasi > 0 ? Number((totalHariOperasi / totalOperasi).toFixed(1)) : 0;
+      const rateSelamat = totalPob > 0 ? Number(((totalSelamat / totalPob) * 100).toFixed(1)) : 0;
+
+      // Top potensi sorted by total personil
+      const potensiTopList = Object.values(potensiByUnsurMap)
+        .sort((a, b) => b.totalPersonil - a.totalPersonil);
+
+      res.json({
+        success: true,
+        data: {
+          timestamp: new Date().toISOString(),
+          operasi_summary: {
+            total: totalOperasi,
+            aktif: operasiAktif,
+            selesai: operasiSelesai,
+            jenis_kejadian: jenisKejadianMap,
+          },
+          korban_summary: {
+            total_pob: totalPob,
+            selamat: totalSelamat,
+            meninggal: totalMeninggal,
+            hilang: totalHilang,
+            persentase_selamat: rateSelamat,
+          },
+          potensi_summary: {
+            total_personil: totalPersonilPotensi,
+            total_entitas_unsur: Object.keys(potensiByUnsurMap).length,
+            top_unsur: potensiTopList,
+          },
+          durasi_summary: {
+            total_hari: totalHariOperasi,
+            rata_rata_hari: rataRataHari,
+            max_hari: Math.max(0, ...operasiDetails.map(o => o.durasi_hari)),
+          },
+          operasi_details: operasiDetails,
         },
       });
     } catch (err: any) {

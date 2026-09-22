@@ -45,6 +45,8 @@ interface MasterSettingsPageProps {
   masterAlut: MasterAlut[];
   masterTim: MasterTim[];
   onRefreshData: () => Promise<void>;
+  initialTab?: 'alut' | 'tim' | 'pejabat' | 'satker' | 'keamanan' | 'backup' | 'admin';
+  onUpdateCurrentUser?: (user: any) => void;
 }
 
 export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
@@ -52,11 +54,24 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
   masterAlut,
   masterTim,
   onRefreshData,
+  initialTab = 'alut',
+  onUpdateCurrentUser,
 }) => {
   const { isDarkMode, accentColors } = useTheme();
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'alut' | 'tim' | 'pejabat' | 'satker' | 'keamanan' | 'backup'>('alut');
+  const [activeTab, setActiveTab] = useState<'alut' | 'tim' | 'pejabat' | 'satker' | 'keamanan' | 'backup'>(
+    initialTab === 'admin' ? 'keamanan' : initialTab
+  );
+
+  // Sync initialTab if changed from outside
+  useEffect(() => {
+    if (initialTab === 'admin') {
+      setActiveTab('keamanan');
+    } else if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Database Backup / Restore states
   const [isExporting, setIsExporting] = useState(false);
@@ -67,6 +82,25 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
   const [searchAlut, setSearchAlut] = useState('');
   const [searchTim, setSearchTim] = useState('');
   const [searchPejabat, setSearchPejabat] = useState('');
+
+  // Admin Profile & System Settings states (Poin 1, 2, 4)
+  const [adminNama, setAdminNama] = useState('AMIRUDDIN AS, S.Sos.');
+  const [adminNip, setAdminNip] = useState('197405101998031002');
+  const [adminJabatan, setAdminJabatan] = useState('Kepala Kantor / Administrator Utama KPP Kendari');
+  const [adminPangkat, setAdminPangkat] = useState('PEMBINA (IV/a)');
+  const [adminUsername, setAdminUsername] = useState('admin');
+  const [adminEmail, setAdminEmail] = useState('irfandydk@gmail.com');
+  const [adminNoHp, setAdminNoHp] = useState('0811-4091-115');
+
+  // SMTP Email Settings
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState<number>(587);
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPass, setSmtpPass] = useState('');
+  const [smtpFrom, setSmtpFrom] = useState('');
+  const [isSavingAdminProfile, setIsSavingAdminProfile] = useState(false);
+  const [isTestingSmtp, setIsTestingSmtp] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState<string | null>(null);
 
   // Password management states
   const [oldPassword, setOldPassword] = useState('');
@@ -125,18 +159,38 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
   const fetchSettingsAndPejabat = async () => {
     try {
       setLoadingPejabat(true);
-      const [setRes, pejRes] = await Promise.all([
+      const [setRes, pejRes, profRes] = await Promise.all([
         fetch('/api/settings'),
         fetch('/api/settings/pejabat'),
+        fetch('/api/auth/profile'),
       ]);
 
-      const [setData, pejData] = await Promise.all([setRes.json(), pejRes.json()]);
+      const [setData, pejData, profData] = await Promise.all([
+        setRes.json(),
+        pejRes.json(),
+        profRes.json().catch(() => ({ success: false })),
+      ]);
 
       if (setData.success && setData.data) {
         setSettings((prev) => ({ ...prev, ...setData.data }));
       }
       if (pejData.success && Array.isArray(pejData.data)) {
         setPejabatList(pejData.data);
+      }
+      if (profData.success && profData.data) {
+        const p = profData.data;
+        if (p.nama) setAdminNama(p.nama);
+        if (p.nip) setAdminNip(p.nip);
+        if (p.jabatan) setAdminJabatan(p.jabatan);
+        if (p.pangkat) setAdminPangkat(p.pangkat);
+        if (p.username) setAdminUsername(p.username);
+        if (p.email) setAdminEmail(p.email);
+        if (p.no_hp) setAdminNoHp(p.no_hp);
+        if (p.smtp_host) setSmtpHost(p.smtp_host);
+        if (p.smtp_port) setSmtpPort(p.smtp_port);
+        if (p.smtp_user) setSmtpUser(p.smtp_user);
+        if (p.smtp_user) setSmtpPass('••••••••');
+        if (p.smtp_from) setSmtpFrom(p.smtp_from);
       }
     } catch (err) {
       console.error('Failed to load settings or pejabat:', err);
@@ -148,6 +202,90 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
   useEffect(() => {
     fetchSettingsAndPejabat();
   }, []);
+
+  // Save Admin Profile Handler (Poin 1, 2, 3)
+  const handleSaveAdminProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adminNama.trim()) {
+      showErrorAlert('Validasi Gagal', 'Nama Administrator wajib diisi.');
+      return;
+    }
+    if (!adminNip.trim()) {
+      showErrorAlert('Validasi Gagal', 'NIP Administrator wajib diisi.');
+      return;
+    }
+
+    setIsSavingAdminProfile(true);
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama: adminNama.trim(),
+          nip: adminNip.trim(),
+          jabatan: adminJabatan.trim(),
+          pangkat: adminPangkat.trim(),
+          username: adminUsername.trim() || 'admin',
+          email: adminEmail.trim() || 'irfandydk@gmail.com',
+          no_hp: adminNoHp.trim(),
+          smtp_host: smtpHost.trim(),
+          smtp_port: Number(smtpPort) || 587,
+          smtp_user: smtpUser.trim(),
+          smtp_pass: smtpPass === '••••••••' ? undefined : smtpPass.trim(),
+          smtp_from: smtpFrom.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Gagal menyimpan profil administrator.');
+      }
+
+      // Notify parent & application
+      if (onUpdateCurrentUser && data.data) {
+        onUpdateCurrentUser(data.data);
+      }
+      window.dispatchEvent(new CustomEvent('qr_sar_admin_updated', { detail: data.data }));
+
+      await showSuccessAlert(
+        'Data Admin Disimpan!',
+        `Data Administrator (${adminNama} - NIP. ${adminNip}) dan pengaturan terkait berhasil diperbarui di database.`
+      );
+    } catch (err: any) {
+      showErrorAlert('Gagal Menyimpan', err.message || 'Terjadi kesalahan sistem.');
+    } finally {
+      setIsSavingAdminProfile(false);
+    }
+  };
+
+  // Test SMTP Email Delivery
+  const handleTestSmtp = async () => {
+    setIsTestingSmtp(true);
+    setTestEmailResult(null);
+    try {
+      const target = adminEmail.trim() || 'irfandydk@gmail.com';
+      const res = await fetch('/api/auth/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetEmail: target }),
+      });
+      const data = await res.json();
+      if (data.success && data.sent) {
+        setTestEmailResult(`Email berhasil terkirim ke ${target} via ${data.smtpHost || 'SMTP Server'}!`);
+        showToast(`Email uji berhasil terkirim ke ${target}`, 'success');
+      } else if (data.success) {
+        setTestEmailResult(`Uji coba selesai: ${data.message}`);
+        showToast('Uji email selesai diproses', 'info');
+      } else {
+        throw new Error(data.error || 'Gagal mengirim email.');
+      }
+    } catch (err: any) {
+      setTestEmailResult(`Gagal mengirim: ${err.message}`);
+      showErrorAlert('Gagal Uji Email', err.message);
+    } finally {
+      setIsTestingSmtp(false);
+    }
+  };
 
   // --- ALUT HANDLERS ---
   const handleCreateAlut = async (e: React.FormEvent) => {
@@ -1786,7 +1924,292 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
               </div>
             </div>
 
-            {/* Change Password Form Card */}
+            {/* SECTION 1: PROFIL & DATA ADMINISTRATOR UTAMA (Poin 1, 2, 3) */}
+            <div className={`p-6 rounded-2xl border ${
+              isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+            }`}>
+              <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm sm:text-base">Data Profil Administrator Sistem</h3>
+                    <p className="text-xs text-slate-400">
+                      Kelola identitas resmi, NIP kepegawaian, dan kontak administrator yang tampil di header dan dokumen operasional
+                    </p>
+                  </div>
+                </div>
+                <span className="hidden sm:inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-orange-500/10 text-orange-500 border border-orange-500/25">
+                  AKUN RESMI KPP KENDARI
+                </span>
+              </div>
+
+              <form onSubmit={handleSaveAdminProfile} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Nama Lengkap Admin */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      Nama Lengkap Administrator (dengan Gelar) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={adminNama}
+                      onChange={(e) => setAdminNama(e.target.value)}
+                      placeholder="Contoh: AMIRUDDIN AS, S.Sos."
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  {/* NIP Admin */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      Nomor Induk Pegawai (NIP) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={adminNip}
+                      onChange={(e) => setAdminNip(e.target.value)}
+                      placeholder="Contoh: 197405101998031002"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Pangkat / Golongan */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      Pangkat / Golongan Ruang
+                    </label>
+                    <input
+                      type="text"
+                      value={adminPangkat}
+                      onChange={(e) => setAdminPangkat(e.target.value)}
+                      placeholder="Contoh: PEMBINA (IV/a)"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Jabatan Resmi */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      Jabatan Resmi Administrator
+                    </label>
+                    <input
+                      type="text"
+                      value={adminJabatan}
+                      onChange={(e) => setAdminJabatan(e.target.value)}
+                      placeholder="Contoh: Kepala Kantor / Administrator Utama KPP Kendari"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  {/* No HP / WhatsApp */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      Nomor Handphone / WhatsApp Siaga
+                    </label>
+                    <input
+                      type="text"
+                      value={adminNoHp}
+                      onChange={(e) => setAdminNoHp(e.target.value)}
+                      placeholder="Contoh: 0811-4091-115"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Email Resmi */}
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      Email Pemulihan Sandi & Notifikasi <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="irfandydk@gmail.com"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-3 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSavingAdminProfile}
+                    className="inline-flex items-center gap-2 px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-orange-600/30 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>{isSavingAdminProfile ? 'Menyimpan Profil...' : 'Simpan Profil Administrator'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* SECTION 2: KONFIGURASI PENGIRIMAN EMAIL SMTP (Poin 4: Reset Password ke Email) */}
+            <div className={`p-6 rounded-2xl border ${
+              isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+            }`}>
+              <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">
+                    <Mail className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm sm:text-base">Pengaturan Server Email SMTP (Reset Kata Sandi)</h3>
+                    <p className="text-xs text-slate-400">
+                      Konfigurasikan akun email pengirim (SMTP) agar tautan dan token reset password terkirim langsung ke inbox email resmi
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      SMTP Host
+                    </label>
+                    <input
+                      type="text"
+                      value={smtpHost}
+                      onChange={(e) => setSmtpHost(e.target.value)}
+                      placeholder="smtp.gmail.com"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      SMTP Port
+                    </label>
+                    <input
+                      type="number"
+                      value={smtpPort}
+                      onChange={(e) => setSmtpPort(Number(e.target.value))}
+                      placeholder="587"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      Sender Name / From Address
+                    </label>
+                    <input
+                      type="text"
+                      value={smtpFrom}
+                      onChange={(e) => setSmtpFrom(e.target.value)}
+                      placeholder='"QR SAR Basarnas" <noreply@basarnas.go.id>'
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      SMTP Username / Email Pengirim
+                    </label>
+                    <input
+                      type="text"
+                      value={smtpUser}
+                      onChange={(e) => setSmtpUser(e.target.value)}
+                      placeholder="irfandydk@gmail.com atau akun smtp basarnas"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                      SMTP Password / App Password
+                    </label>
+                    <input
+                      type="password"
+                      value={smtpPass}
+                      onChange={(e) => setSmtpPass(e.target.value)}
+                      placeholder="Sandi aplikasi (App Password)"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
+                        isDarkMode
+                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
+                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {testEmailResult && (
+                  <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-400 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{testEmailResult}</span>
+                  </div>
+                )}
+
+                <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={handleTestSmtp}
+                    disabled={isTestingSmtp}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 transition-all cursor-pointer"
+                  >
+                    <Send className={`w-3.5 h-3.5 ${isTestingSmtp ? 'animate-spin' : ''}`} />
+                    <span>{isTestingSmtp ? 'Mengirim Email Uji...' : 'Uji Kirim Email Sekarang'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveAdminProfile}
+                    disabled={isSavingAdminProfile}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-cyan-600/30 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Simpan Pengaturan SMTP</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 3: GANTI KATA SANDI ADMINISTRATOR */}
             <div className={`p-6 rounded-2xl border ${
               isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
             }`}>
@@ -1900,7 +2323,7 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
               </form>
             </div>
 
-            {/* Email Reset Testing & Info Card */}
+            {/* SECTION 4: EMAIL RESET TESTING & INFO CARD (Poin 4) */}
             <div className={`p-6 rounded-2xl border ${
               isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
             }`}>
@@ -1912,7 +2335,7 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
                   <div>
                     <h3 className="font-bold text-sm">Layanan Pemulihan Email Darurat</h3>
                     <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">
-                      Fitur lupa kata sandi di halaman login terhubung langsung ke email resmi <strong className="text-cyan-400">irfandydk@gmail.com</strong>. Anda dapat menguji pengiriman link pemulihan kapan saja.
+                      Fitur lupa kata sandi di halaman login terhubung langsung ke email resmi <strong className="text-cyan-400">{adminEmail || 'irfandydk@gmail.com'}</strong>. Anda dapat menguji pengiriman link pemulihan kapan saja.
                     </p>
                   </div>
                 </div>

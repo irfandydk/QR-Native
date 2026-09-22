@@ -26,6 +26,7 @@ export const BASARNAS_EMBLEM_SVG_URI = `data:image/svg+xml;utf8,${encodeURICompo
 `)}`;
 
 export const DEFAULT_BASARNAS_LOGO_URL = BASARNAS_EMBLEM_SVG_URI;
+export const DEFAULT_BASARNAS_LOGO = 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Logo_Basarnas.svg/300px-Logo_Basarnas.svg.png';
 
 export const BasarnasLogo: React.FC<BasarnasLogoProps> = ({ className = '', size = 56, logoUrl }) => {
   const [hasError, setHasError] = React.useState<boolean>(false);

@@ -558,6 +558,11 @@ class Database {
         admin_username: 'admin',
         admin_password: 'Kendari2026',
         admin_email: 'irfandydk@gmail.com',
+        admin_nama: 'AMIRUDDIN AS, S.Sos.',
+        admin_nip: '197405101998031002',
+        admin_jabatan: 'Kepala Kantor / Administrator Utama KPP Kendari',
+        admin_pangkat: 'PEMBINA (IV/a)',
+        admin_no_hp: '0811-4091-115',
       };
       this.saveData();
     } else {
@@ -580,6 +585,26 @@ class Database {
       }
       if (!this.data.app_settings.admin_email) {
         this.data.app_settings.admin_email = 'irfandydk@gmail.com';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.admin_nama) {
+        this.data.app_settings.admin_nama = 'AMIRUDDIN AS, S.Sos.';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.admin_nip) {
+        this.data.app_settings.admin_nip = '197405101998031002';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.admin_jabatan) {
+        this.data.app_settings.admin_jabatan = 'Kepala Kantor / Administrator Utama KPP Kendari';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.admin_pangkat) {
+        this.data.app_settings.admin_pangkat = 'PEMBINA (IV/a)';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.admin_no_hp) {
+        this.data.app_settings.admin_no_hp = '0811-4091-115';
         shouldSave = true;
       }
       if (shouldSave) {
@@ -675,6 +700,15 @@ class Database {
     });
 
     return { success: true };
+  }
+
+  public resetToDefaultPassword(): { success: boolean; password: string } {
+    this.updateAppSettings({
+      admin_password: 'Kendari2026',
+      reset_token: undefined,
+      reset_token_expiry: undefined,
+    });
+    return { success: true, password: 'Kendari2026' };
   }
 
   public getPejabatList(): Pejabat[] {
@@ -1564,6 +1598,8 @@ class Database {
       total_bra_sar: number;
       total_master_alut: number;
       total_master_tim: number;
+      total_sar_units: number;
+      total_pejabat: number;
     };
     data: DatabaseSchema;
   } {
@@ -1579,6 +1615,8 @@ class Database {
         total_bra_sar: (this.data.bra_sar || []).length,
         total_master_alut: (this.data.master_alut || []).length,
         total_master_tim: (this.data.master_tim || []).length,
+        total_sar_units: (this.data.sar_units || []).length,
+        total_pejabat: (this.data.app_settings?.pejabat_list || []).length,
       },
       data: JSON.parse(JSON.stringify(this.data)),
     };
@@ -1666,6 +1704,8 @@ class Database {
           bra_sar: (this.data.bra_sar || []).length,
           master_alut: this.data.master_alut.length,
           master_tim: this.data.master_tim.length,
+          sar_units: (this.data.sar_units || []).length,
+          pejabat: (this.data.app_settings?.pejabat_list || []).length,
         },
         settings: this.data.app_settings,
       };

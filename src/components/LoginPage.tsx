@@ -8,15 +8,13 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Mail,
   HelpCircle,
   CheckCircle2,
   X,
   RefreshCw,
-  Send,
 } from 'lucide-react';
 import { UserSession } from '../types';
-import { showSuccessAlert, showErrorAlert, showToast } from '../utils/alerts';
+import { showSuccessAlert, showErrorAlert } from '../utils/alerts';
 import { useTheme } from '../context/ThemeContext';
 import { BasarnasLogo } from './BasarnasLogo';
 
@@ -35,24 +33,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [satkerLogo, setSatkerLogo] = useState<string | null>(null);
   const [satkerName, setSatkerName] = useState<string>('KPP KENDARI');
 
-  // Forgot password & Reset states
+  // Direct default password reset state
   const [showForgotModal, setShowForgotModal] = useState(false);
-  const [isSendingReset, setIsSendingReset] = useState(false);
-  const [resetSentInfo, setResetSentInfo] = useState<{
-    email: string;
-    resetToken?: string;
-    resetLink?: string;
-    message?: string;
-  } | null>(null);
+  const [isResettingDefault, setIsResettingDefault] = useState(false);
 
-  // Direct reset inputs
-  const [inputResetToken, setInputResetToken] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [isSubmittingReset, setIsSubmittingReset] = useState(false);
-
-  // Load global satker settings & check for URL reset token
+  // Load global satker settings
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -73,22 +58,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     loadSettings();
     const handleUpdate = () => loadSettings();
     window.addEventListener('satker-settings-updated', handleUpdate);
-
-    // Check if ?resetToken= is present in URL
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const urlToken = params.get('resetToken');
-      if (urlToken) {
-        setInputResetToken(urlToken);
-        setShowForgotModal(true);
-        setResetSentInfo({
-          email: 'irfandydk@gmail.com',
-          resetToken: urlToken,
-          message: 'Token reset otomatis terdeteksi dari tautan email. Silakan buat kata sandi baru Anda.',
-        });
-      }
-    }
-
     return () => window.removeEventListener('satker-settings-updated', handleUpdate);
   }, []);
 
@@ -148,94 +117,31 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  // Handler for Forgot Password request
-  const handleRequestPasswordReset = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setIsSendingReset(true);
+  // Handler for direct Reset to Default Password 'Kendari2026'
+  const handleResetToDefault = async () => {
+    setIsResettingDefault(true);
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      const res = await fetch('/api/auth/reset-default', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'irfandydk@gmail.com' }),
       });
 
       const data = await res.json();
 
       if (data.success) {
-        setResetSentInfo({
-          email: data.email || 'irfandydk@gmail.com',
-          resetToken: data.resetToken,
-          resetLink: data.resetLink,
-          message: data.message,
-        });
-        if (data.resetToken) {
-          setInputResetToken(data.resetToken);
-        }
-        showToast('Link reset password berhasil dikirim ke irfandydk@gmail.com', 'success');
-      } else {
-        throw new Error(data.error || 'Gagal memproses permintaan reset.');
-      }
-    } catch (err: any) {
-      showErrorAlert('Gagal Mengirim Link Reset', err.message || 'Terjadi kesalahan sistem.');
-    } finally {
-      setIsSendingReset(false);
-    }
-  };
-
-  // Handler for Submitting New Password using Token
-  const handleSubmitNewPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!inputResetToken.trim()) {
-      showErrorAlert('Token Wajib Diisi', 'Silakan masukkan token reset yang dikirim ke email.');
-      return;
-    }
-
-    if (!newPassword || newPassword.length < 4) {
-      showErrorAlert('Kata Sandi Terlalu Pendek', 'Kata sandi baru minimal harus 4 karakter.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      showErrorAlert('Konfirmasi Tidak Sesuai', 'Konfirmasi kata sandi baru tidak sama.');
-      return;
-    }
-
-    setIsSubmittingReset(true);
-    try {
-      const res = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          token: inputResetToken.trim(),
-          newPassword: newPassword.trim(),
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        // Clear query parameters in URL if any
-        if (typeof window !== 'undefined' && window.location.search) {
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
+        setPassword('Kendari2026');
         setShowForgotModal(false);
-        setResetSentInfo(null);
-        setInputResetToken('');
-        setNewPassword('');
-        setConfirmPassword('');
-        setPassword(newPassword.trim());
         await showSuccessAlert(
-          'Kata Sandi Berhasil Direset',
-          'Kata sandi administrator telah berhasil diperbarui. Silakan login sekarang.'
+          'Kata Sandi Direset ke Default',
+          'Kata sandi akun administrator telah dikembalikan ke kata sandi standar sistem: "Kendari2026". Form login telah diisi secara otomatis.'
         );
       } else {
         throw new Error(data.error || 'Gagal mereset kata sandi.');
       }
     } catch (err: any) {
-      showErrorAlert('Gagal Reset Kata Sandi', err.message || 'Terjadi kesalahan server.');
+      showErrorAlert('Gagal Reset Kata Sandi', err.message || 'Terjadi kesalahan sistem.');
     } finally {
-      setIsSubmittingReset(false);
+      setIsResettingDefault(false);
     }
   };
 
@@ -406,185 +312,70 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm">Pemulihan Kata Sandi</h3>
-                  <p className="text-[11px] text-slate-400">Reset password admin QR SAR Kendari</p>
+                  <h3 className="font-bold text-sm">Pemulihan Kata Sandi Administrator</h3>
+                  <p className="text-[11px] text-slate-400">Kembalikan kata sandi ke standar sistem</p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setShowForgotModal(false);
-                  setResetSentInfo(null);
-                }}
-                className="text-slate-400 hover:text-slate-200 p-1 rounded-lg"
+                onClick={() => setShowForgotModal(false)}
+                className="text-slate-400 hover:text-slate-200 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* If Link Not Sent Yet, Show Email Dispatch Form */}
-            {!resetSentInfo ? (
-              <div className="space-y-4 text-xs">
-                <div className="p-3.5 rounded-xl bg-orange-500/10 border border-orange-500/20 space-y-2">
-                  <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-bold">
-                    <Mail className="w-4 h-4" />
-                    <span>Kirim Tautan Reset ke Email</span>
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                    Tautan dan kode verifikasi reset kata sandi akan otomatis dikirimkan ke alamat email administrator:
-                  </p>
-                  <div className="p-2.5 rounded-lg bg-white/70 dark:bg-slate-950/60 font-mono font-bold text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-between">
-                    <span>irfandydk@gmail.com</span>
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  </div>
+            {/* Direct Reset to Default Kendari2026 */}
+            <div className="space-y-4 text-xs">
+              <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 space-y-3">
+                <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-bold text-sm">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Reset ke Password Standar</span>
                 </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowForgotModal(false)}
-                    className={`px-4 py-2 rounded-xl font-semibold border ${
-                      isDarkMode
-                        ? 'border-slate-700 text-slate-300 hover:bg-slate-800'
-                        : 'border-slate-300 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRequestPasswordReset()}
-                    disabled={isSendingReset}
-                    className="inline-flex items-center gap-1.5 px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold shadow-md shadow-orange-600/25 disabled:opacity-50 cursor-pointer"
-                  >
-                    {isSendingReset ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Mengirim...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-3.5 h-3.5" />
-                        <span>Kirim Link Reset Password</span>
-                      </>
-                    )}
-                  </button>
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
+                  Untuk kelancaran penugasan operasional SAR, Anda dapat langsung mengembalikan kata sandi akun administrator (<strong>admin</strong>) ke kata sandi standar sistem:
+                </p>
+                <div className="p-3 rounded-lg bg-white dark:bg-slate-950 font-mono text-center border border-orange-500/30">
+                  <span className="text-[11px] text-slate-400 uppercase tracking-wider block mb-0.5 font-sans font-medium">Password Default Sistem:</span>
+                  <span className="text-base font-black text-orange-600 dark:text-orange-400 tracking-wider">Kendari2026</span>
                 </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
+                  Setelah menekan tombol reset, kata sandi di sistem akan otomatis diperbarui dan form login akan langsung terisi dengan kata sandi tersebut.
+                </p>
               </div>
-            ) : (
-              /* If Sent, Show Direct Reset Form */
-              <div className="space-y-4 text-xs">
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-start gap-2.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <p className="font-bold text-emerald-600 dark:text-emerald-400">
-                      Link Reset Telah Dikirim!
-                    </p>
-                    <p className="text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
-                      Link dan token pemulihan telah dikirim ke <strong>{resetSentInfo.email}</strong>. Anda dapat langsung memasukkan kata sandi baru di bawah:
-                    </p>
-                  </div>
-                </div>
 
-                <form onSubmit={handleSubmitNewPassword} className="space-y-3">
-                  <div>
-                    <label className="block text-slate-400 mb-1 font-semibold">
-                      Token / Kode Verifikasi
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={inputResetToken}
-                      onChange={(e) => setInputResetToken(e.target.value)}
-                      placeholder="Masukkan token dari email (contoh: SAR-XYZ-123)"
-                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold ${
-                        isDarkMode
-                          ? 'bg-slate-950 border-slate-700 text-white focus:border-orange-500'
-                          : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-orange-500'
-                      }`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 mb-1 font-semibold">
-                      Kata Sandi Baru
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showNewPassword ? 'text' : 'password'}
-                        required
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Minimal 4 karakter"
-                        className={`w-full pl-3 pr-9 py-2 rounded-xl border ${
-                          isDarkMode
-                            ? 'bg-slate-950 border-slate-700 text-white focus:border-orange-500'
-                            : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-orange-500'
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                        className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-200 cursor-pointer"
-                      >
-                        {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-400 mb-1 font-semibold">
-                      Konfirmasi Kata Sandi Baru
-                    </label>
-                    <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Ulangi kata sandi baru"
-                      className={`w-full px-3 py-2 rounded-xl border ${
-                        isDarkMode
-                          ? 'bg-slate-950 border-slate-700 text-white focus:border-orange-500'
-                          : 'bg-slate-50 border-slate-300 text-slate-900 focus:border-orange-500'
-                      }`}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() => handleRequestPasswordReset()}
-                      disabled={isSendingReset}
-                      className="text-[11px] text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-1"
-                    >
-                      <RefreshCw className={`w-3 h-3 ${isSendingReset ? 'animate-spin' : ''}`} />
-                      <span>Kirim ulang link</span>
-                    </button>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowForgotModal(false)}
-                        className={`px-3.5 py-1.5 rounded-xl font-semibold border ${
-                          isDarkMode
-                            ? 'border-slate-700 text-slate-300'
-                            : 'border-slate-300 text-slate-700'
-                        }`}
-                      >
-                        Batal
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isSubmittingReset}
-                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-md shadow-emerald-600/25 disabled:opacity-50 cursor-pointer"
-                      >
-                        {isSubmittingReset ? 'Menyimpan...' : 'Simpan Sandi Baru'}
-                      </button>
-                    </div>
-                  </div>
-                </form>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotModal(false)}
+                  className={`px-4 py-2 rounded-xl font-semibold border cursor-pointer ${
+                    isDarkMode
+                      ? 'border-slate-700 text-slate-300 hover:bg-slate-800'
+                      : 'border-slate-300 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetToDefault}
+                  disabled={isResettingDefault}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold shadow-md shadow-orange-600/25 disabled:opacity-50 cursor-pointer transition-all"
+                >
+                  {isResettingDefault ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Mereset Sandi...</span>
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Reset ke "Kendari2026"</span>
+                    </>
+                  )}
+                </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}

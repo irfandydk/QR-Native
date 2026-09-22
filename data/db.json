@@ -563,6 +563,16 @@
     "admin_username": "admin",
     "admin_password": "Kendari2026",
     "admin_email": "irfandydk@gmail.com",
-    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Logo_Basarnas.svg/300px-Logo_Basarnas.svg.png"
+    "admin_nama": "Irfandy",
+    "admin_nip": "199903212020121002",
+    "admin_jabatan": "Pranata Pencarian dan Pertolongan Terampil",
+    "admin_pangkat": "Pengatur Muda Tk.I (II/b)",
+    "admin_no_hp": "085215906543",
+    "logo_url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Logo_Basarnas.svg/300px-Logo_Basarnas.svg.png",
+    "smtp_host": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_user": "comanderzipan@gmail.com",
+    "smtp_pass": "Kendari2026",
+    "smtp_from": "QR SAR BASARNAS"
   }
 }

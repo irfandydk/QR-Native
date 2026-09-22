@@ -290,12 +290,12 @@ export const DashboardList: React.FC<DashboardListProps> = ({
           </div>
 
           <button
-            id="btn-tambah-laporan-awal"
+            id="btn-tambah-operasi-baru"
             onClick={onNewOperasi}
-            className={`inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r ${accentColors.gradient} hover:opacity-95 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-600/25 border border-orange-500/30 transition-all hover:scale-[1.02] active:scale-[0.98]`}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r ${accentColors.gradient} hover:opacity-95 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-600/25 border border-orange-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer`}
           >
             <PlusCircle className="w-4 h-4" />
-            <span>Tambah Laporan Awal</span>
+            <span>Operasi Baru</span>
           </button>
         </div>
       </div>

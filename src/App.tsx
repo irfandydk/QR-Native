@@ -5,6 +5,8 @@ import { FormInisiasi } from './components/FormInisiasi';
 import { DetailOperasiHub } from './components/DetailOperasiHub';
 import { MasterDataModal } from './components/MasterDataModal';
 import { MasterSettingsPage } from './components/MasterSettingsPage';
+import { MasterDataPage } from './components/MasterDataPage';
+import { AdminSettingsPage } from './components/AdminSettingsPage';
 import { BraArchivePage } from './components/BraArchivePage';
 import { ViewLaporanModal } from './components/ViewLaporanModal';
 import { FormBraSar } from './components/FormBraSar';
@@ -12,6 +14,8 @@ import { OfficialBraDocument } from './components/OfficialBraDocument';
 import { BasarnasLogo } from './components/BasarnasLogo';
 import { BraListModal } from './components/BraListModal';
 import { LoginPage } from './components/LoginPage';
+import { Sidebar, ActiveNavView } from './components/Sidebar';
+import { MapPlottingPage } from './components/MapPlottingPage';
 import { useTheme } from './context/ThemeContext';
 import { showToast } from './utils/alerts';
 import { Operasi, MasterAlut, MasterTim, BraSar, KategoriBra, UserSession } from './types';
@@ -28,7 +32,12 @@ export default function App() {
     }
   });
 
-  const [view, setView] = useState<'dashboard' | 'form-inisiasi' | 'detail-hub' | 'form-bra' | 'view-bra' | 'master-settings' | 'bra-archive'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'form-inisiasi' | 'detail-hub' | 'form-bra' | 'view-bra' | 'master-data' | 'admin-settings' | 'master-settings' | 'bra-archive' | 'map-plotting'>('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+  const [masterDataInitialTab, setMasterDataInitialTab] = useState<'alut' | 'tim' | 'pejabat' | 'pangkalan'>('alut');
+  const [adminSettingsInitialTab, setAdminSettingsInitialTab] = useState<'admin' | 'satker' | 'backup'>('admin');
+  const [masterSettingsInitialTab, setMasterSettingsInitialTab] = useState<'alut' | 'tim' | 'pejabat' | 'satker' | 'keamanan' | 'backup' | 'admin'>('alut');
   const [selectedOperasiId, setSelectedOperasiId] = useState<number | null>(null);
   const [editingOperasi, setEditingOperasi] = useState<Operasi | null>(null);
 
@@ -92,6 +101,23 @@ export default function App() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Synchronize currentUser if updated from Admin Settings
+  useEffect(() => {
+    const handleAdminUpdated = (e: any) => {
+      if (e.detail) {
+        setCurrentUser((prev) => {
+          const next = prev ? { ...prev, ...e.detail } : e.detail;
+          try {
+            localStorage.setItem('basarnas_user_session', JSON.stringify(next));
+          } catch {}
+          return next;
+        });
+      }
+    };
+    window.addEventListener('qr_sar_admin_updated', handleAdminUpdated);
+    return () => window.removeEventListener('qr_sar_admin_updated', handleAdminUpdated);
+  }, []);
 
   // Handle URL query for Direct QR Code Scan verification (?viewBra=123 or ?bra=123)
   useEffect(() => {
@@ -284,182 +310,259 @@ export default function App() {
   const currentOperasi = operasiList.find((o) => o.id_operasi === selectedOperasiId) || null;
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${
+    <div className={`min-h-screen flex font-sans transition-colors duration-200 ${
       isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
     } selection:bg-orange-500 selection:text-white`}>
-      {/* Universal Top Navigation Header */}
-      <Header
+      {/* Left Sidebar Navigation (Pengaturan Admin, Master Data, Laporan, BRA SAR, Ploting Peta) */}
+      <Sidebar
+        currentView={view as ActiveNavView}
+        onNavigate={(navView, tab) => {
+          if (navView === 'admin-settings') {
+            if (tab) setAdminSettingsInitialTab(tab as any);
+            setView('admin-settings');
+          } else if (navView === 'master-data') {
+            if (tab) setMasterDataInitialTab(tab as any);
+            setView('master-data');
+          } else if (navView === 'master-settings') {
+            // Smart router: keep backward compatibility
+            if (tab === 'keamanan' || tab === 'admin') {
+              setAdminSettingsInitialTab('admin');
+              setView('admin-settings');
+            } else if (tab === 'satker') {
+              setAdminSettingsInitialTab('satker');
+              setView('admin-settings');
+            } else if (tab === 'backup') {
+              setAdminSettingsInitialTab('backup');
+              setView('admin-settings');
+            } else {
+              setMasterDataInitialTab((tab as any) || 'alut');
+              setView('master-data');
+            }
+          } else {
+            setView(navView as any);
+          }
+          if (navView === 'dashboard') {
+            setSelectedOperasiId(null);
+            setEditingOperasi(null);
+            setActiveBraDoc(null);
+          }
+        }}
         currentUser={currentUser}
         onLogout={handleLogout}
-        onNewOperasi={() => {
-          setEditingOperasi(null);
-          setView('form-inisiasi');
-        }}
-        onOpenMasterData={() => setView('master-settings')}
-        onGoHome={() => {
-          setView('dashboard');
-          setSelectedOperasiId(null);
-          setEditingOperasi(null);
-          setActiveBraDoc(null);
-        }}
-        onCreateBra={(kategori) => handleOpenCreateBra(kategori)}
-        onOpenBraList={() => setView('bra-archive')}
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen((prev) => !prev)}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 pb-16">
-        {loading && operasiList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-            <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-xs text-slate-400 font-medium">Memuat data SAR Kendari...</p>
-          </div>
-        ) : view === 'form-bra' ? (
-          <FormBraSar
-            initialKategori={activeBraKategori}
-            operasiList={operasiList}
-            preselectedOperasiId={preselectedBraOpId}
-            onCancel={() => {
-              setView(selectedOperasiId ? 'detail-hub' : 'dashboard');
-            }}
-            onSaveSuccess={(savedBra) => {
-              setBraList((prev) => [savedBra, ...prev]);
-              setActiveBraDoc(savedBra);
-              setView('view-bra');
-            }}
-          />
-        ) : view === 'bra-archive' ? (
-          <BraArchivePage
-            braList={braList}
-            onSelectBra={(bra) => {
-              setActiveBraDoc(bra);
-              setView('view-bra');
-            }}
-            onCreateBra={(kategori) => handleOpenCreateBra(kategori)}
-            onDeleteBra={handleDeleteBra}
-            onBack={() => setView('dashboard')}
-          />
-        ) : view === 'view-bra' && activeBraDoc ? (
-          <div className="py-6">
-            <OfficialBraDocument
-              bra={activeBraDoc}
-              onClose={() => {
+      {/* Main Container Wrapper with dynamic padding for sidebar */}
+      <div className={`transition-all duration-300 flex-1 flex flex-col min-w-0 ${
+        isSidebarOpen ? 'lg:pl-64' : 'lg:pl-20'
+      }`}>
+        {/* Universal Top Navigation Header (Clean, view-context aware, no duplicate controls) */}
+        <Header
+          currentViewTitle={
+            view === 'dashboard'
+              ? 'DASHBOARD OPERASI SAR'
+              : view === 'map-plotting'
+              ? 'PLOTING PETA GEOSPASIAL SAR'
+              : view === 'bra-archive' || view === 'view-bra' || view === 'form-bra'
+              ? 'BERITA RADIO & ARSIP BRA SAR'
+              : view === 'master-data'
+              ? 'MASTER DATA OPERASIONAL SAR'
+              : view === 'admin-settings'
+              ? 'PENGATURAN SATKER & KEAMANAN ADMIN'
+              : view === 'master-settings'
+              ? 'PENGATURAN SISTEM SAR'
+              : view === 'detail-hub'
+              ? 'PUSAT KENDALI OPERASI SAR'
+              : view === 'form-inisiasi'
+              ? 'INISIASI OPERASI SAR BARU'
+              : 'SISTEM SAR DIGITAL'
+          }
+          currentViewSubtitle={
+            view === 'map-plotting'
+              ? 'PENGUKURAN JARAK, LUAS POLYGON, POLA PENCARIAN IAMSAR & CUSTOM ICON KENDARI'
+              : view === 'admin-settings'
+              ? 'IDENTITAS SATKER, PROFIL ADMIN, SANDI AKUN, SERTA CADANGAN & PEMULIHAN BASIS DATA TERPADU'
+              : view === 'master-data'
+              ? 'MANAJEMEN ARMADA ALUT, PALASAR, TIM RESCUE, PEJABAT SMC & PANGKALAN SAR'
+              : 'KANTOR PENCARIAN DAN PERTOLONGAN (KPP) KELAS A KENDARI • BASARNAS'
+          }
+          onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+        />
+
+        {/* Main Content Area */}
+        <main className="flex-1 pb-16">
+          {loading && operasiList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+              <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-xs text-slate-400 font-medium">Memuat data SAR Kendari...</p>
+            </div>
+          ) : view === 'map-plotting' ? (
+            <MapPlottingPage />
+          ) : view === 'form-bra' ? (
+            <FormBraSar
+              initialKategori={activeBraKategori}
+              operasiList={operasiList}
+              preselectedOperasiId={preselectedBraOpId}
+              onCancel={() => {
+                setView(selectedOperasiId ? 'detail-hub' : 'dashboard');
+              }}
+              onSaveSuccess={(savedBra) => {
+                setBraList((prev) => [savedBra, ...prev]);
+                setActiveBraDoc(savedBra);
+                setView('view-bra');
+              }}
+            />
+          ) : view === 'bra-archive' ? (
+            <BraArchivePage
+              braList={braList}
+              onSelectBra={(bra) => {
+                setActiveBraDoc(bra);
+                setView('view-bra');
+              }}
+              onCreateBra={(kategori) => handleOpenCreateBra(kategori)}
+              onDeleteBra={handleDeleteBra}
+              onBack={() => setView('dashboard')}
+            />
+          ) : view === 'view-bra' && activeBraDoc ? (
+            <div className="py-6">
+              <OfficialBraDocument
+                bra={activeBraDoc}
+                onClose={() => {
+                  if (selectedOperasiId) {
+                    setView('detail-hub');
+                  } else {
+                    setView('bra-archive');
+                  }
+                }}
+                onDelete={() => handleDeleteBra(activeBraDoc.id_bra)}
+                onEdit={() => {
+                  setActiveBraKategori(activeBraDoc.kategori);
+                  setPreselectedBraOpId(activeBraDoc.id_operasi || null);
+                  setView('form-bra');
+                }}
+              />
+            </div>
+          ) : view === 'dashboard' ? (
+            <DashboardList
+              operasiList={operasiList}
+              onSelectOperasi={(id) => {
+                setSelectedOperasiId(id);
+                setView('detail-hub');
+              }}
+              onNewOperasi={() => {
+                setEditingOperasi(null);
+                setView('form-inisiasi');
+              }}
+              onEditOperasi={(op) => {
+                setEditingOperasi(op);
+                setView('form-inisiasi');
+              }}
+              onDeleteOperasi={handleDeleteOperasi}
+              onViewTextWA={(title, subtitle, text) => {
+                setViewLaporanData({
+                  isOpen: true,
+                  title,
+                  subtitle,
+                  text,
+                });
+              }}
+            />
+          ) : view === 'form-inisiasi' ? (
+            <FormInisiasi
+              initialOperasi={editingOperasi}
+              masterAlut={masterAlut}
+              masterTim={masterTim}
+              onBack={() => {
+                setView(selectedOperasiId ? 'detail-hub' : 'dashboard');
+              }}
+              onSaveSuccess={(savedOp) => {
+                fetchData();
+                setSelectedOperasiId(savedOp.id_operasi);
+                setView('detail-hub');
+              }}
+            />
+          ) : view === 'detail-hub' && currentOperasi ? (
+            <DetailOperasiHub
+              operasi={currentOperasi}
+              masterAlut={masterAlut}
+              masterTim={masterTim}
+              onBack={() => {
+                setView('dashboard');
+                setSelectedOperasiId(null);
+              }}
+              onEditOperasi={() => {
+                setEditingOperasi(currentOperasi);
+                setView('form-inisiasi');
+              }}
+              onRefreshOperasi={handleRefreshOperasi}
+              onDeleteOperasi={handleDeleteOperasi}
+              onCreateBraMapel={() => handleOpenCreateBra('MAPEL', currentOperasi.id_operasi)}
+              onCreateBraSarUmum={() => handleOpenCreateBra('SAR_UMUM', currentOperasi.id_operasi)}
+            />
+          ) : view === 'master-data' ? (
+            <MasterDataPage
+              initialTab={masterDataInitialTab}
+              onBack={() => {
                 if (selectedOperasiId) {
                   setView('detail-hub');
                 } else {
-                  setView('bra-archive');
+                  setView('dashboard');
                 }
               }}
-              onDelete={() => handleDeleteBra(activeBraDoc.id_bra)}
-              onEdit={() => {
-                setActiveBraKategori(activeBraDoc.kategori);
-                setPreselectedBraOpId(activeBraDoc.id_operasi || null);
-                setView('form-bra');
+              onRefreshData={fetchData}
+            />
+          ) : view === 'admin-settings' ? (
+            <AdminSettingsPage
+              initialTab={adminSettingsInitialTab}
+              onBack={() => {
+                if (selectedOperasiId) {
+                  setView('detail-hub');
+                } else {
+                  setView('dashboard');
+                }
+              }}
+              onRefreshData={fetchData}
+              onUpdateCurrentUser={(updated) => {
+                setCurrentUser((prev) => {
+                  const nextUser = prev ? { ...prev, ...updated } : updated;
+                  try {
+                    localStorage.setItem('basarnas_user_session', JSON.stringify(nextUser));
+                  } catch {}
+                  return nextUser;
+                });
               }}
             />
-          </div>
-        ) : view === 'dashboard' ? (
-          <DashboardList
-            operasiList={operasiList}
-            onSelectOperasi={(id) => {
-              setSelectedOperasiId(id);
-              setView('detail-hub');
-            }}
-            onNewOperasi={() => {
-              setEditingOperasi(null);
-              setView('form-inisiasi');
-            }}
-            onEditOperasi={(op) => {
-              setEditingOperasi(op);
-              setView('form-inisiasi');
-            }}
-            onDeleteOperasi={handleDeleteOperasi}
-            onViewTextWA={(title, subtitle, text) => {
-              setViewLaporanData({
-                isOpen: true,
-                title,
-                subtitle,
-                text,
-              });
-            }}
-          />
-        ) : view === 'form-inisiasi' ? (
-          <FormInisiasi
-            initialOperasi={editingOperasi}
-            masterAlut={masterAlut}
-            masterTim={masterTim}
-            onBack={() => {
-              setView(selectedOperasiId ? 'detail-hub' : 'dashboard');
-            }}
-            onSaveSuccess={(savedOp) => {
-              fetchData();
-              setSelectedOperasiId(savedOp.id_operasi);
-              setView('detail-hub');
-            }}
-          />
-        ) : view === 'detail-hub' && currentOperasi ? (
-          <DetailOperasiHub
-            operasi={currentOperasi}
-            masterAlut={masterAlut}
-            masterTim={masterTim}
-            onBack={() => {
-              setView('dashboard');
-              setSelectedOperasiId(null);
-            }}
-            onEditOperasi={() => {
-              setEditingOperasi(currentOperasi);
-              setView('form-inisiasi');
-            }}
-            onRefreshOperasi={handleRefreshOperasi}
-            onDeleteOperasi={handleDeleteOperasi}
-            onCreateBraMapel={() => handleOpenCreateBra('MAPEL', currentOperasi.id_operasi)}
-            onCreateBraSarUmum={() => handleOpenCreateBra('SAR_UMUM', currentOperasi.id_operasi)}
-          />
-        ) : view === 'master-settings' ? (
-          <MasterSettingsPage
-            onBack={() => {
-              if (selectedOperasiId) {
-                setView('detail-hub');
-              } else {
-                setView('dashboard');
-              }
-            }}
-            masterAlut={masterAlut}
-            masterTim={masterTim}
-            onRefreshData={fetchData}
-          />
-        ) : (
-          <div className="max-w-7xl mx-auto p-8 text-center">
-            <p className="text-sm text-slate-400">Data operasi tidak ditemukan.</p>
-            <button
-              onClick={() => setView('dashboard')}
-              className="mt-3 px-4 py-2 bg-orange-600 text-white rounded-lg text-xs"
-            >
-              Kembali ke Dashboard
-            </button>
-          </div>
-        )}
-      </main>
+          ) : view === 'master-settings' ? (
+            <MasterDataPage
+              initialTab="alut"
+              onBack={() => setView('dashboard')}
+              onRefreshData={fetchData}
+            />
+          ) : (
+            <div className="max-w-7xl mx-auto p-8 text-center">
+              <p className="text-sm text-slate-400">Data operasi tidak ditemukan.</p>
+              <button
+                onClick={() => setView('dashboard')}
+                className="mt-3 px-4 py-2 bg-orange-600 text-white rounded-lg text-xs"
+              >
+                Kembali ke Dashboard
+              </button>
+            </div>
+          )}
+        </main>
 
-      {/* Footer info banner */}
-      <footer className={`border-t py-4 px-6 text-center text-[11px] transition-colors ${
-        isDarkMode ? 'border-slate-800/80 bg-slate-900/50 text-slate-400' : 'border-slate-200 bg-white text-slate-600 shadow-sm'
-      }`}>
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>
-            <strong>QR SAR System</strong> — Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari • BASARNAS
+        {/* Footer info banner - strictly application name and office name */}
+        <footer className={`border-t py-4 px-6 text-center text-xs transition-colors ${
+          isDarkMode ? 'border-slate-800/80 bg-slate-900/50 text-slate-400' : 'border-slate-200 bg-white text-slate-600 shadow-xs'
+        }`}>
+          <p className="font-medium tracking-wide">
+            <strong className="text-orange-500 font-bold">QR SAR System</strong> — Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari • BASARNAS
           </p>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setView('bra-archive')}
-              className="hover:text-amber-500 transition-colors cursor-pointer font-semibold"
-            >
-              Arsip BRA SAR ({braList.length})
-            </button>
-            <span>•</span>
-            <span>Standar Format WhatsApp "FILE AKTIF"</span>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
 
       {/* BRA SAR List Modal */}
       <BraListModal

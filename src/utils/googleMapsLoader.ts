@@ -1,26 +1,32 @@
-// Helper to reliably load Google Maps JavaScript API SDK in browser
-let googleMapsPromise: Promise<typeof google> | null = null;
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
+
+// Helper to reliably load Google Maps JavaScript API SDK in browser using @googlemaps/js-api-loader
+let loaderPromise: Promise<typeof google> | null = null;
+let isConfigured = false;
 
 export async function loadGoogleMaps(apiKey?: string): Promise<typeof google> {
   if (typeof window === 'undefined') {
     throw new Error('Google Maps can only be loaded in browser environment');
   }
 
-  // If already loaded
-  if ((window as any).google && (window as any).google.maps) {
+  // If already loaded and marker library with AdvancedMarkerElement is ready
+  if ((window as any).google?.maps?.marker?.AdvancedMarkerElement) {
     return (window as any).google;
   }
 
-  if (googleMapsPromise) {
-    return googleMapsPromise;
+  if (loaderPromise) {
+    return loaderPromise;
   }
 
-  googleMapsPromise = new Promise(async (resolve, reject) => {
+  loaderPromise = (async () => {
     try {
-      let key = apiKey || 'AIzaSyDoOh6pAKgDBgmtXsW7QBS2uW0UOBCAYHc';
-      
+      let key =
+        apiKey ||
+        (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY ||
+        'AIzaSyDoOh6pAKgDBgmtXsW7QBS2uW0UOBCAYHc';
+
       // Try to fetch custom key from config if not provided
-      if (!apiKey) {
+      if (!apiKey && !(import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY) {
         try {
           const res = await fetch('/api/config/maps');
           const data = await res.json();
@@ -32,43 +38,33 @@ export async function loadGoogleMaps(apiKey?: string): Promise<typeof google> {
         }
       }
 
-      // Check if script already on page
-      const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
-      if (existingScript) {
-        const interval = setInterval(() => {
-          if ((window as any).google && (window as any).google.maps) {
-            clearInterval(interval);
-            resolve((window as any).google);
-          }
-        }, 100);
-        return;
+      if (!isConfigured) {
+        setOptions({
+          key,
+          v: 'weekly',
+          libraries: ['maps', 'marker', 'places', 'geometry'],
+          solutionChannel: 'gmp_mcp_codeassist_v1_aistudio',
+        });
+        isConfigured = true;
       }
 
-      // Append Google Maps script tag
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-        key
-      )}&libraries=places,geometry&v=weekly`;
-      script.async = true;
-      script.defer = true;
+      // Explicitly import maps and marker libraries
+      await Promise.all([
+        importLibrary('maps'),
+        importLibrary('marker'),
+        importLibrary('geometry'),
+      ]);
 
-      script.onload = () => {
-        if ((window as any).google && (window as any).google.maps) {
-          resolve((window as any).google);
-        } else {
-          reject(new Error('Google Maps script loaded but google.maps is not available'));
-        }
-      };
-
-      script.onerror = (e) => {
-        reject(new Error('Failed to load Google Maps script from Google CDN'));
-      };
-
-      document.head.appendChild(script);
+      return (window as any).google;
     } catch (err) {
-      reject(err);
+      loaderPromise = null;
+      console.error('Failed to initialize Google Maps via @googlemaps/js-api-loader:', err);
+      throw err;
     }
-  });
+  })();
 
-  return googleMapsPromise;
+  return loaderPromise;
 }
+
+export { importLibrary, setOptions };
+
