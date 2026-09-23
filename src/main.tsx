@@ -4,6 +4,26 @@ import App from './App.tsx';
 import './index.css';
 import { ThemeProvider } from './context/ThemeContext.tsx';
 
+// Tier 1 Google Maps Platform Quota Defense listener
+if (typeof window !== 'undefined') {
+  (window as any).gm_authFailure = () => {
+    window.dispatchEvent(new CustomEvent('gmp-quota-exceeded'));
+  };
+  const origError = console.error;
+  console.error = (...args: unknown[]) => {
+    origError.apply(console, args);
+    const msg = args.map((a) => String(a)).join(' ');
+    if (
+      msg.includes('OverQuotaMapError') ||
+      msg.includes('QuotaExceededError') ||
+      msg.includes('Maps Demo Key limit reached') ||
+      msg.includes('daily quota for Maps JavaScript')
+    ) {
+      window.dispatchEvent(new CustomEvent('gmp-quota-exceeded'));
+    }
+  };
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
@@ -11,3 +31,4 @@ createRoot(document.getElementById('root')!).render(
     </ThemeProvider>
   </StrictMode>,
 );
+

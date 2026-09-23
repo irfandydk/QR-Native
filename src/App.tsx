@@ -38,13 +38,64 @@ export default function App() {
     }
   });
 
-  const [view, setView] = useState<'dashboard' | 'form-inisiasi' | 'detail-hub' | 'form-bra' | 'view-bra' | 'master-data' | 'admin-settings' | 'master-settings' | 'bra-archive' | 'map-plotting'>('dashboard');
+  const [isGmpQuotaExceeded, setIsGmpQuotaExceeded] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleQuotaExceeded = () => {
+      setIsGmpQuotaExceeded(true);
+    };
+    window.addEventListener('gmp-quota-exceeded', handleQuotaExceeded);
+    return () => {
+      window.removeEventListener('gmp-quota-exceeded', handleQuotaExceeded);
+    };
+  }, []);
+
+  const [view, setView] = useState<
+    | 'dashboard'
+    | 'form-inisiasi'
+    | 'detail-hub'
+    | 'form-bra'
+    | 'view-bra'
+    | 'master-data'
+    | 'admin-settings'
+    | 'master-settings'
+    | 'bra-archive'
+    | 'map-plotting'
+  >(() => {
+    if (initialQrBraId) return 'dashboard';
+    try {
+      const savedView = localStorage.getItem('basarnas_last_active_view');
+      const validViews = [
+        'dashboard',
+        'form-inisiasi',
+        'detail-hub',
+        'form-bra',
+        'view-bra',
+        'master-data',
+        'admin-settings',
+        'master-settings',
+        'bra-archive',
+        'map-plotting',
+      ];
+      if (savedView && validViews.includes(savedView)) {
+        return savedView as any;
+      }
+    } catch {}
+    return 'dashboard';
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [masterDataInitialTab, setMasterDataInitialTab] = useState<'alut' | 'tim' | 'pejabat' | 'pangkalan'>('alut');
   const [adminSettingsInitialTab, setAdminSettingsInitialTab] = useState<'admin' | 'satker' | 'backup'>('admin');
   const [masterSettingsInitialTab, setMasterSettingsInitialTab] = useState<'alut' | 'tim' | 'pejabat' | 'satker' | 'keamanan' | 'backup' | 'admin'>('alut');
-  const [selectedOperasiId, setSelectedOperasiId] = useState<number | null>(null);
+  const [selectedOperasiId, setSelectedOperasiId] = useState<number | null>(() => {
+    try {
+      const savedOpId = localStorage.getItem('basarnas_last_selected_operasi_id');
+      return savedOpId ? parseInt(savedOpId, 10) : null;
+    } catch {
+      return null;
+    }
+  });
   const [editingOperasi, setEditingOperasi] = useState<Operasi | null>(null);
 
   // BRA SAR states
@@ -206,6 +257,18 @@ export default function App() {
       window.removeEventListener('sar_logo_updated', handleLogoUpdated);
     };
   }, []);
+
+  // Persist current active view and selectedOperasiId on change
+  useEffect(() => {
+    if (!isPublicScanView && view) {
+      try {
+        localStorage.setItem('basarnas_last_active_view', view);
+        if (selectedOperasiId) {
+          localStorage.setItem('basarnas_last_selected_operasi_id', String(selectedOperasiId));
+        }
+      } catch {}
+    }
+  }, [view, selectedOperasiId, isPublicScanView]);
 
   // Handle URL query for Direct QR Code Scan verification (?viewBra=123 or ?bra=123)
   useEffect(() => {
@@ -474,6 +537,31 @@ export default function App() {
       <div className={`transition-all duration-300 flex-1 flex flex-col min-w-0 ${
         isSidebarOpen ? 'lg:pl-64' : 'lg:pl-20'
       }`}>
+        {/* Google Maps Quota Warning Banner */}
+        {isGmpQuotaExceeded && (
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm flex items-center justify-between">
+            <span className="flex-1">
+              Google Maps Platform quota reached. If you are the app owner, visit{' '}
+              <a
+                href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline font-semibold text-amber-950 hover:text-amber-800"
+              >
+                maps developer site
+              </a>{' '}
+              for instructions to update your account.
+            </span>
+            <button
+              onClick={() => setIsGmpQuotaExceeded(false)}
+              className="ml-2 text-amber-900 hover:text-amber-950 font-bold px-1.5 py-0.5 cursor-pointer"
+              title="Tutup pemberitahuan"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Universal Top Navigation Header (Clean, view-context aware, no duplicate controls) */}
         <Header
           currentViewTitle={
@@ -515,7 +603,7 @@ export default function App() {
               <p className="text-xs text-slate-400 font-medium">Memuat data SAR Kendari...</p>
             </div>
           ) : view === 'map-plotting' ? (
-            <MapPlottingPage />
+            <MapPlottingPage appLogoUrl={appLogoUrl} />
           ) : view === 'form-bra' ? (
             <FormBraSar
               initialKategori={activeBraKategori}

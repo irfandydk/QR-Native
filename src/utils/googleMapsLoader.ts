@@ -10,7 +10,7 @@ export async function loadGoogleMaps(apiKey?: string): Promise<typeof google> {
   }
 
   // If already loaded and marker library with AdvancedMarkerElement is ready
-  if ((window as any).google?.maps?.marker?.AdvancedMarkerElement) {
+  if ((window as any).google?.maps?.marker?.AdvancedMarkerElement && (window as any).google?.maps?.Map) {
     return (window as any).google;
   }
 
@@ -22,25 +22,26 @@ export async function loadGoogleMaps(apiKey?: string): Promise<typeof google> {
     try {
       let key =
         apiKey ||
-        (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY ||
-        'AIzaSyDoOh6pAKgDBgmtXsW7QBS2uW0UOBCAYHc';
+        (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_gmaps_api_key') : null) ||
+        'AIzaSyDoOh6pAKgDBgmtXsW7QBS2uW0UOBCAYHc' ||
+        (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY;
 
-      // Try to fetch custom key from config if not provided
-      if (!apiKey && !(import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY) {
+      // If needed, check server configuration
+      if (!key || key.startsWith('AIzaSyDemo')) {
         try {
-          const res = await fetch('/api/config/maps');
+          const res = await fetch('/api/config/maps', { cache: 'no-store' });
           const data = await res.json();
           if (data.success && data.apiKey) {
             key = data.apiKey;
           }
         } catch {
-          // use fallback key
+          // fallback
         }
       }
 
       if (!isConfigured) {
         setOptions({
-          key,
+          key: key || 'AIzaSyDoOh6pAKgDBgmtXsW7QBS2uW0UOBCAYHc',
           v: 'weekly',
           libraries: ['maps', 'marker', 'places', 'geometry'],
           solutionChannel: 'gmp_mcp_codeassist_v1_aistudio',

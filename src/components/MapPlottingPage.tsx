@@ -77,10 +77,15 @@ import { LocationSearchBar, LocationSearchResult } from './gis/LocationSearchBar
 import { PrintMapModal } from './gis/PrintMapModal';
 import { downloadKml, downloadKmz, downloadGeoJson } from '../utils/kmlExportUtils';
 import { showSuccessAlert, showErrorAlert, showToast, showConfirmDialog } from '../utils/alerts';
+import html2canvas from 'html2canvas';
 
 type ActiveTab = 'saved-points' | 'polygon-area' | 'search-pattern' | 'measure-distance';
 
-export const MapPlottingPage: React.FC = () => {
+interface MapPlottingPageProps {
+  appLogoUrl?: string;
+}
+
+export const MapPlottingPage: React.FC<MapPlottingPageProps> = ({ appLogoUrl }) => {
   const { isDarkMode } = useTheme();
 
   // Active view tab
@@ -117,11 +122,11 @@ export const MapPlottingPage: React.FC = () => {
     return [
       {
         id: 'pt-kansar',
-        lat: -4.015,
-        lng: 122.585,
+        lat: -4.037694,
+        lng: 122.486694,
         label: 'Kantor SAR Kendari',
         pointType: 'kantor',
-        description: 'Pusat Komando KPP Kendari, Jl. Bandara Haluoleo',
+        description: 'Pusat Komando KPP Kendari, Jl. Poros Bandara Haluoleo',
       },
       {
         id: 'pt-baubau',
@@ -307,9 +312,10 @@ export const MapPlottingPage: React.FC = () => {
     } catch {}
   }, [savedSearchPatterns]);
 
-  // 4. MEASURE DISTANCE & ETA STATE (Requirement 3: Enable/Disable Form, Mode Jarak Lurus vs Jalur, Heading/Azimuth)
+  // 4. MEASURE DISTANCE & ETA STATE (Requirement 3: Enable/Disable Form, Mode Jarak Lurus vs Jalur, Heading/Azimuth, Unit Knot vs KM/jam)
   const [isRouteFormEnabled, setIsRouteFormEnabled] = useState<boolean>(false);
   const [routeMeasurementMode, setRouteMeasurementMode] = useState<'straight' | 'path'>('straight');
+  const [speedUnit, setSpeedUnit] = useState<'knot' | 'kmh'>('knot');
 
   const [savedDistanceRoutes, setSavedDistanceRoutes] = useState<SavedDistanceRoute[]>(() => {
     try {
@@ -324,10 +330,11 @@ export const MapPlottingPage: React.FC = () => {
         id: 'route_sample_1',
         name: 'Rute Kansar ke LKP Sumber Bahagia',
         points: [
-          { lat: -4.015, lng: 122.585, label: 'WP-1 (Kansar)' },
+          { lat: -4.037694, lng: 122.486694, label: 'WP-1 (Kansar Kendari)' },
           { lat: -3.85, lng: 122.75, label: 'WP-2 (LKP)' },
         ],
         vesselSpeedKnots: 25,
+        speedUnit: 'knot',
         strokeColor: '#059669',
         strokeWeight: 3.5,
         strokeOpacity: 0.9,
@@ -337,12 +344,13 @@ export const MapPlottingPage: React.FC = () => {
   });
 
   const [activeRouteId, setActiveRouteId] = useState<string | null>('route_sample_1');
+  const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
   const [activeRouteName, setActiveRouteName] = useState<string>('Rute Kansar ke LKP Sumber Bahagia');
   const [measurePoints, setMeasurePoints] = useState<LatLngPoint[]>([
-    { lat: -4.015, lng: 122.585, label: 'WP-1 (Kansar)' },
+    { lat: -4.037694, lng: 122.486694, label: 'WP-1 (Kansar Kendari)' },
     { lat: -3.85, lng: 122.75, label: 'WP-2 (LKP)' },
   ]);
-  const [vesselSpeedKnots, setVesselSpeedKnots] = useState(25);
+  const [vesselSpeedKnots, setVesselSpeedKnots] = useState<number | string>(25);
   const [measureStrokeColor, setMeasureStrokeColor] = useState<string>('#059669');
   const [measureStrokeWeight, setMeasureStrokeWeight] = useState<number>(3.5);
   const [measureStrokeOpacity, setMeasureStrokeOpacity] = useState<number>(0.9);
@@ -352,8 +360,8 @@ export const MapPlottingPage: React.FC = () => {
     'hybrid'
   );
   const [centerCoords, setCenterCoords] = useState<{ lat: number; lng: number }>({
-    lat: -4.015,
-    lng: 122.585,
+    lat: -4.037694,
+    lng: 122.486694,
   });
 
   // TASK 7 & 8: Lock/Unlock Point Draggable (Edit Posisi Titik)
@@ -373,6 +381,105 @@ export const MapPlottingPage: React.FC = () => {
   // NEW FEATURE 4: Print Map Modal & Export Menu States
   const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
+  const [mapSnapshotUrl, setMapSnapshotUrl] = useState<string | null>(null);
+  const [isCapturingMap, setIsCapturingMap] = useState<boolean>(false);
+  const [printVisibleData, setPrintVisibleData] = useState<{
+    points: LatLngPoint[];
+    polygons: SavedPolygon[];
+    patterns: SavedSearchPattern[];
+    routes: SavedDistanceRoute[];
+  }>({ points: [], polygons: [], patterns: [], routes: [] });
+
+  // High-Resolution Map Snapshot Capture with Delay & Fallback against black screen
+  const captureCurrentMapSnapshot = async (): Promise<string | null> => {
+    if (!mapElementRef.current) return null;
+    try {
+      // Ensure canvas rendering buffer and markers have settled
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      const canvas = await html2canvas(mapElementRef.current, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 2,
+        logging: false,
+        backgroundColor: '#0f172a',
+        foreignObjectRendering: false,
+        imageTimeout: 15000,
+      });
+      let dataUrl = canvas.toDataURL('image/png');
+
+      // Verify whether the canvas returned a solid black image
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const sample = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
+        if (sample[0] === 0 && sample[1] === 0 && sample[2] === 0 && sample[3] === 255) {
+          // Retry after brief delay
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          const retryCanvas = await html2canvas(mapElementRef.current, {
+            useCORS: true,
+            allowTaint: true,
+            scale: 2,
+            logging: false,
+          });
+          dataUrl = retryCanvas.toDataURL('image/png');
+        }
+      }
+
+      setMapSnapshotUrl(dataUrl);
+      return dataUrl;
+    } catch (err) {
+      console.warn('Gagal menangkap canvas snapshot peta:', err);
+      return null;
+    }
+  };
+
+  // Compute what is currently visible inside the map viewport for the printed document
+  const getVisibleItemsForPrint = () => {
+    const map = mapInstanceRef.current;
+    const bounds = map ? map.getBounds() : null;
+
+    const visiblePoints = savedPoints.filter((p) => {
+      if (p.id && hiddenPointIds.includes(p.id)) return false;
+      if (!bounds) return true;
+      return bounds.contains(new google.maps.LatLng(p.lat, p.lng));
+    });
+
+    const visiblePolygons = savedPolygons.filter((poly) => {
+      if (hiddenPolygonIds.includes(poly.id)) return false;
+      if (!bounds) return true;
+      return poly.points.some((pt) => bounds.contains(new google.maps.LatLng(pt.lat, pt.lng)));
+    });
+
+    const visiblePatterns = savedSearchPatterns.filter((pat) => {
+      if (hiddenPatternIds.includes(pat.id)) return false;
+      if (!bounds) return true;
+      return pat.waypoints.some((wp) => bounds.contains(new google.maps.LatLng(wp.lat, wp.lng)));
+    });
+
+    const visibleRoutes = savedDistanceRoutes.filter((rt) => {
+      if (hiddenRouteIds.includes(rt.id)) return false;
+      if (!bounds) return true;
+      return rt.points.some((pt) => bounds.contains(new google.maps.LatLng(pt.lat, pt.lng)));
+    });
+
+    return {
+      points: visiblePoints,
+      polygons: visiblePolygons,
+      patterns: visiblePatterns,
+      routes: visibleRoutes,
+    };
+  };
+
+  const handleOpenPrintModal = async () => {
+    setIsCapturingMap(true);
+    try {
+      const visibleData = getVisibleItemsForPrint();
+      setPrintVisibleData(visibleData);
+      await captureCurrentMapSnapshot();
+    } finally {
+      setIsCapturingMap(false);
+      setIsPrintModalOpen(true);
+    }
+  };
 
   // Sync fullscreen change with document API
   useEffect(() => {
@@ -632,10 +739,10 @@ export const MapPlottingPage: React.FC = () => {
 
         // Initialize Map using modern mapId for AdvancedMarkerElement support
         const map = new google.maps.Map(mapElementRef.current, {
-          center: { lat: -4.015, lng: 122.585 },
-          zoom: 10,
+          center: { lat: -4.037694, lng: 122.486694 },
+          zoom: 11,
           mapTypeId: basemapType,
-          mapId: 'SAR_KENDARI_MAP', // Enables google.maps.marker.AdvancedMarkerElement!
+          mapId: 'DEMO_MAP_ID', // Universal mapId for AdvancedMarkerElement
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
@@ -1044,9 +1151,12 @@ export const MapPlottingPage: React.FC = () => {
     clearAdvancedMarkers(measureMarkersRef.current);
     measureMarkersRef.current = [];
 
-    // 4A. Render all saved routes (inactive routes rendered with their individual saved styling)
+    const isEditing = isRouteFormEnabled;
+    const isActiveHidden = activeRouteId ? hiddenRouteIds.includes(activeRouteId) : false;
+
+    // 4A. Render all saved routes
     savedDistanceRoutes.forEach((route) => {
-      if (route.id === activeRouteId) return; // Active route is rendered below with interactive handles
+      if (route.id === activeRouteId && (isEditing || !isActiveHidden)) return; // Active route rendered below
       if (route.id && hiddenRouteIds.includes(route.id)) return;
       if (route.points.length < 2) return;
 
@@ -1056,14 +1166,19 @@ export const MapPlottingPage: React.FC = () => {
         strokeOpacity: route.strokeOpacity ?? 0.85,
         strokeWeight: route.strokeWeight || 3.5,
         geodesic: true,
+        clickable: true,
         map,
+      });
+
+      poly.addListener('click', () => {
+        handleSelectSavedRoute(route);
       });
 
       savedRoutesPolylinesRef.current.push(poly);
     });
 
-    // 4B. Render active distance measurement route with custom thickness, color, transparency & draggable vertices
-    if (measurePoints.length >= 2) {
+    // 4B. Render active distance measurement route (locked when viewing, editable when isRouteFormEnabled is true)
+    if (!isActiveHidden && measurePoints.length >= 2) {
       measurePolylineRef.current = new google.maps.Polyline({
         path: measurePoints.map((p) => ({ lat: p.lat, lng: p.lng })),
         strokeColor: measureStrokeColor,
@@ -1074,7 +1189,7 @@ export const MapPlottingPage: React.FC = () => {
       });
     }
 
-    if (activeTab === 'measure-distance') {
+    if (!isActiveHidden && activeTab === 'measure-distance' && measurePoints.length > 0) {
       measurePoints.forEach((pt, index) => {
         const isPointA = index === 0;
         const isPointB = index === 1 && routeMeasurementMode === 'straight';
@@ -1091,23 +1206,29 @@ export const MapPlottingPage: React.FC = () => {
 
         const m = createAdvancedMapMarker(map, {
           position: { lat: pt.lat, lng: pt.lng },
-          title: `${pt.label || `WP-${labelText}`} (${decimalToDms(pt.lat, pt.lng)}) - Geser untuk memindahkan`,
-          draggable: true,
+          title: isEditing
+            ? `${pt.label || `WP-${labelText}`} (${decimalToDms(pt.lat, pt.lng)}) - Geser untuk memindahkan`
+            : `${pt.label || `WP-${labelText}`} (${decimalToDms(pt.lat, pt.lng)}) - Terkunci`,
+          draggable: isEditing,
           contentHtml,
           zIndex: 180,
-          onDrag: (lat, lng) => {
-            if (measurePolylineRef.current) {
-              const currentPath = measurePolylineRef.current.getPath();
-              if (currentPath && currentPath.getLength() > index) {
-                currentPath.setAt(index, new google.maps.LatLng(lat, lng));
+          onDrag: isEditing
+            ? (lat, lng) => {
+                if (measurePolylineRef.current) {
+                  const currentPath = measurePolylineRef.current.getPath();
+                  if (currentPath && currentPath.getLength() > index) {
+                    currentPath.setAt(index, new google.maps.LatLng(lat, lng));
+                  }
+                }
               }
-            }
-          },
-          onDragEnd: (lat, lng) => {
-            setMeasurePoints((prev) =>
-              prev.map((p, i) => (i === index ? { ...p, lat, lng } : p))
-            );
-          },
+            : undefined,
+          onDragEnd: isEditing
+            ? (lat, lng) => {
+                setMeasurePoints((prev) =>
+                  prev.map((p, i) => (i === index ? { ...p, lat, lng } : p))
+                );
+              }
+            : undefined,
         });
 
         if (m) measureMarkersRef.current.push(m);
@@ -1118,6 +1239,7 @@ export const MapPlottingPage: React.FC = () => {
     savedDistanceRoutes,
     activeRouteId,
     hiddenRouteIds,
+    isRouteFormEnabled,
     routeMeasurementMode,
     measureStrokeColor,
     measureStrokeWeight,
@@ -1648,13 +1770,17 @@ export const MapPlottingPage: React.FC = () => {
   }, [measurePoints]);
 
   const estimatedMinutes = useMemo(() => {
-    return distanceMetrics.totalNm > 0 && vesselSpeedKnots > 0
-      ? (distanceMetrics.totalNm / vesselSpeedKnots) * 60
-      : 0;
-  }, [distanceMetrics, vesselSpeedKnots]);
+    const speedNum = Number(vesselSpeedKnots) || 0;
+    if (speedNum <= 0) return 0;
+    if (speedUnit === 'kmh') {
+      return distanceMetrics.totalKm > 0 ? (distanceMetrics.totalKm / speedNum) * 60 : 0;
+    }
+    return distanceMetrics.totalNm > 0 ? (distanceMetrics.totalNm / speedNum) * 60 : 0;
+  }, [distanceMetrics, vesselSpeedKnots, speedUnit]);
 
   const handleStartNewRoute = () => {
     setIsRouteFormEnabled(true);
+    setEditingRouteId(null);
     setActiveRouteId(null);
     setActiveRouteName(`Rute Pengukuran ${savedDistanceRoutes.length + 1}`);
     setMeasurePoints([]);
@@ -1669,24 +1795,50 @@ export const MapPlottingPage: React.FC = () => {
     );
   };
 
-  const handleSaveCurrentRoute = () => {
+  const handleCancelRouteForm = () => {
+    if (editingRouteId) {
+      const orig = savedDistanceRoutes.find((r) => r.id === editingRouteId);
+      if (orig) {
+        setMeasurePoints([...orig.points]);
+        setActiveRouteName(orig.name);
+        setRouteMeasurementMode(orig.mode || 'straight');
+        setVesselSpeedKnots(orig.vesselSpeedKnots || 25);
+        setSpeedUnit(orig.speedUnit || 'knot');
+        setMeasureStrokeColor(orig.strokeColor || '#059669');
+        setMeasureStrokeWeight(orig.strokeWeight || 3.5);
+        setMeasureStrokeOpacity(orig.strokeOpacity ?? 0.9);
+      }
+    } else {
+      setMeasurePoints([]);
+      setActiveRouteId(null);
+    }
+    setIsRouteFormEnabled(false);
+    setEditingRouteId(null);
+    showToast('Pengaturan rute pengukuran ditutup / dibatalkan.', 'info');
+  };
+
+  const handleSaveCurrentRoute = async () => {
     if (measurePoints.length < 2) {
       showErrorAlert('Rute Belum Lengkap', 'Rute pengukuran membutuhkan minimal 2 titik sudut.');
       return;
     }
 
-    const routeId = activeRouteId || `route_${Date.now()}`;
+    const speedNum = Number(vesselSpeedKnots) > 0 ? Number(vesselSpeedKnots) : 25;
+    const targetId = editingRouteId || activeRouteId || `route_${Date.now()}`;
     const name = activeRouteName.trim() || `Rute ${savedDistanceRoutes.length + 1}`;
 
     const newRoute: SavedDistanceRoute = {
-      id: routeId,
+      id: targetId,
       name,
       points: measurePoints,
-      vesselSpeedKnots,
+      vesselSpeedKnots: speedNum,
+      speedUnit,
       mode: routeMeasurementMode,
       headingDeg: straightAzimuthMetrics ? straightAzimuthMetrics.azimuthDeg : undefined,
       headingFormatted: straightAzimuthMetrics ? straightAzimuthMetrics.azimuthFormatted : undefined,
       headingName: straightAzimuthMetrics ? straightAzimuthMetrics.compassDir : undefined,
+      totalDistanceNm: distanceMetrics.totalNm,
+      totalDistanceKm: distanceMetrics.totalKm,
       strokeColor: measureStrokeColor,
       strokeWeight: measureStrokeWeight,
       strokeOpacity: measureStrokeOpacity,
@@ -1697,35 +1849,66 @@ export const MapPlottingPage: React.FC = () => {
       }),
     };
 
-    const updatedRoutes = activeRouteId
-      ? savedDistanceRoutes.map((r) => (r.id === activeRouteId ? newRoute : r))
+    const isExisting = savedDistanceRoutes.some((r) => r.id === targetId);
+    const updatedRoutes = isExisting
+      ? savedDistanceRoutes.map((r) => (r.id === targetId ? newRoute : r))
       : [newRoute, ...savedDistanceRoutes];
 
     setSavedDistanceRoutes(updatedRoutes);
-    setActiveRouteId(routeId);
+    setActiveRouteId(targetId);
+    setEditingRouteId(null);
+    setIsRouteFormEnabled(false);
 
     try {
       localStorage.setItem('basarnas_saved_distance_routes', JSON.stringify(updatedRoutes));
-      fetch('/api/gis/routes', {
+      await fetch('/api/gis/routes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newRoute),
       });
-    } catch {}
+    } catch (err) {
+      console.error('AJAX sync failed on route save:', err);
+    }
 
     showSuccessAlert(
       'Rute Pengukuran Tersimpan',
-      `Rute "${name}" (${distanceMetrics.totalNm.toFixed(1)} NM) berhasil disimpan dengan gaya garis kustom.`
+      `Rute "${name}" (${distanceMetrics.totalNm.toFixed(1)} NM / ${distanceMetrics.totalKm.toFixed(1)} km) berhasil disimpan ke basis data dengan kecepatan ${speedNum} ${speedUnit === 'kmh' ? 'KM/jam' : 'Knot'}.`
     );
   };
 
   const handleSelectSavedRoute = (route: SavedDistanceRoute) => {
+    // Only activates and centers the route on map in locked read-only mode
+    setActiveRouteId(route.id);
+    setIsRouteFormEnabled(false);
+    setEditingRouteId(null);
+    setActiveRouteName(route.name);
+    setRouteMeasurementMode(route.mode || 'straight');
+    setMeasurePoints([...route.points]);
+    setVesselSpeedKnots(route.vesselSpeedKnots || 25);
+    setSpeedUnit(route.speedUnit || 'knot');
+    setMeasureStrokeColor(route.strokeColor || '#059669');
+    setMeasureStrokeWeight(route.strokeWeight || 3.5);
+    setMeasureStrokeOpacity(route.strokeOpacity ?? 0.9);
+    setHiddenRouteIds((prev) => prev.filter((id) => id !== route.id));
+
+    if (mapInstanceRef.current && route.points.length > 0) {
+      const bounds = new google.maps.LatLngBounds();
+      route.points.forEach((p) => bounds.extend(p));
+      mapInstanceRef.current.fitBounds(bounds);
+    }
+    showToast(`Rute "${route.name}" dipilih & terkunci. Informasi jarak dan ETA ditampilkan.`);
+  };
+
+  const handleEditSavedRoute = (route: SavedDistanceRoute) => {
+    // Explicitly enters edit mode when user clicks Edit button
     setIsRouteFormEnabled(true);
+    setEditingRouteId(route.id);
     setActiveRouteId(route.id);
     setActiveRouteName(route.name);
     setRouteMeasurementMode(route.mode || 'path');
-    setMeasurePoints(route.points);
+    setMeasurePoints([...route.points]);
     setVesselSpeedKnots(route.vesselSpeedKnots || 25);
+    setSpeedUnit(route.speedUnit || 'knot');
     setMeasureStrokeColor(route.strokeColor || '#059669');
     setMeasureStrokeWeight(route.strokeWeight || 3.5);
     setMeasureStrokeOpacity(route.strokeOpacity ?? 0.9);
@@ -1735,25 +1918,31 @@ export const MapPlottingPage: React.FC = () => {
       route.points.forEach((p) => bounds.extend(p));
       mapInstanceRef.current.fitBounds(bounds);
     }
-    showToast(`Rute "${route.name}" aktif.`);
+    showToast(`Mode edit dibuka untuk rute "${route.name}".`, 'info');
   };
 
   const handleDeleteSavedRoute = async (routeId: string, name: string) => {
     const confirmed = await showConfirmDialog(
       'Hapus Rute Tersimpan?',
-      `Apakah Anda yakin ingin menghapus rute "${name}"?`
+      `Apakah Anda yakin ingin menghapus rute "${name}" dari peta dan database?`
     );
     if (confirmed) {
       const updated = savedDistanceRoutes.filter((r) => r.id !== routeId);
       setSavedDistanceRoutes(updated);
       try {
         localStorage.setItem('basarnas_saved_distance_routes', JSON.stringify(updated));
-        fetch(`/api/gis/routes/${routeId}`, { method: 'DELETE' });
-      } catch {}
+        await fetch(`/api/gis/routes/${routeId}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error('AJAX sync failed on route delete:', err);
+      }
 
       if (activeRouteId === routeId) {
         setActiveRouteId(null);
         setMeasurePoints([]);
+      }
+      if (editingRouteId === routeId) {
+        setEditingRouteId(null);
+        setIsRouteFormEnabled(false);
       }
       showToast(`Rute "${name}" telah dihapus.`);
     }
@@ -1821,12 +2010,13 @@ export const MapPlottingPage: React.FC = () => {
           {/* Cetak Peta Button */}
           <button
             type="button"
-            onClick={() => setIsPrintModalOpen(true)}
+            onClick={handleOpenPrintModal}
+            disabled={isCapturingMap}
             className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-950 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center gap-1.5 border border-inherit transition-colors cursor-pointer"
-            title="Cetak Lembar Peta Operasi SAR Resmi"
+            title="Cetak Lembar Peta & Legenda Spasial SAR Resmi"
           >
-            <Printer className="w-3.5 h-3.5 text-orange-500" />
-            <span className="hidden md:inline text-[11px]">Cetak Peta</span>
+            <Printer className={`w-3.5 h-3.5 text-orange-500 ${isCapturingMap ? 'animate-spin' : ''}`} />
+            <span className="hidden md:inline text-[11px]">{isCapturingMap ? 'Memproses Peta...' : 'Cetak Peta'}</span>
           </button>
 
           {/* Ekspor KMZ/KML Dropdown Menu */}
@@ -2697,29 +2887,176 @@ export const MapPlottingPage: React.FC = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-emerald-500 flex items-center gap-1.5">
-                      <Ruler className="w-4 h-4" />
-                      Jarak, Haluan & ETA SAR
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleStartNewRoute}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>+ Tambah / Mulai Ukur Jarak Baru</span>
-                    </button>
+                    <div>
+                      <span className="text-xs font-black uppercase tracking-wider text-emerald-500 flex items-center gap-1.5">
+                        <Ruler className="w-4 h-4" />
+                        Jarak, Haluan &amp; ETA SAR
+                      </span>
+                      {isRouteFormEnabled && (
+                        <span className="text-[10px] font-semibold text-slate-400 block">
+                          {editingRouteId ? '📝 Mode Edit Rute Tersimpan' : '➕ Mode Tambah Rute Baru'}
+                        </span>
+                      )}
+                    </div>
+                    {!isRouteFormEnabled ? (
+                      <button
+                        type="button"
+                        onClick={handleStartNewRoute}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>+ Tambah / Ukur Jarak Baru</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleCancelRouteForm}
+                        className="px-2.5 py-1 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1 cursor-pointer transition-all"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Batal</span>
+                      </button>
+                    )}
                   </div>
 
                   {!isRouteFormEnabled ? (
-                    <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-center space-y-2">
-                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        Form input pengukuran dinonaktifkan.
-                      </p>
-                      <p className="text-[11px] text-slate-400">
-                        Klik tombol <strong>"+ Tambah / Mulai Ukur Jarak Baru"</strong> di atas untuk mengaktifkan input form dan mulai memetakan titik di peta.
-                      </p>
-                    </div>
+                    (() => {
+                      const selectedRoute = savedDistanceRoutes.find((r) => r.id === activeRouteId);
+                      if (selectedRoute) {
+                        const routeMetrics = calculatePolylineDistance(selectedRoute.points);
+                        const rUnit = selectedRoute.speedUnit || 'knot';
+                        const rSpeed = Number(selectedRoute.vesselSpeedKnots) || 25;
+                        const rEtaMinutes =
+                          rUnit === 'kmh'
+                            ? routeMetrics.totalKm > 0 && rSpeed > 0
+                              ? (routeMetrics.totalKm / rSpeed) * 60
+                              : 0
+                            : routeMetrics.totalNm > 0 && rSpeed > 0
+                            ? (routeMetrics.totalNm / rSpeed) * 60
+                            : 0;
+                        const isHidden = hiddenRouteIds.includes(selectedRoute.id);
+
+                        return (
+                          <div className="space-y-3">
+                            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className="w-3.5 h-3.5 rounded-full shrink-0"
+                                    style={{ backgroundColor: selectedRoute.strokeColor || '#059669' }}
+                                  />
+                                  <div>
+                                    <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100">
+                                      {selectedRoute.name}
+                                    </h4>
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                      <span className="px-1.5 py-0.5 rounded bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold">
+                                        🔒 Terkunci (Read-Only)
+                                      </span>
+                                      <span className="text-[10px] text-slate-400">
+                                        {selectedRoute.mode === 'straight' ? 'Jarak Lurus' : 'Jalur Multi-Point'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditSavedRoute(selectedRoute)}
+                                    className="px-2.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-[11px] flex items-center gap-1 shadow-sm cursor-pointer transition-all"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveRouteId(null);
+                                      setMeasurePoints([]);
+                                    }}
+                                    className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                                    title="Tutup detail rute"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Azimuth readout if straight mode */}
+                              {selectedRoute.mode === 'straight' && selectedRoute.headingFormatted && (
+                                <div className="p-2 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-emerald-500/20 flex items-center justify-between text-xs">
+                                  <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+                                    <Compass className="w-3.5 h-3.5 text-emerald-500" />
+                                    Haluan / Azimuth:
+                                  </span>
+                                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                    {selectedRoute.headingFormatted}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Metrics: Total Distance & ETA */}
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-inherit">
+                                  <span className="text-[10px] text-slate-400 block font-semibold">Total Jarak</span>
+                                  <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                                    {routeMetrics.totalNm} <span className="text-xs font-sans">NM</span>
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 block font-mono">
+                                    {routeMetrics.totalKm} km
+                                  </span>
+                                </div>
+
+                                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-inherit">
+                                  <span className="text-[10px] text-slate-400 block font-semibold">Estimasi Tiba (ETA)</span>
+                                  <span className="text-sm font-black text-orange-600 dark:text-orange-400 font-mono">
+                                    {formatDurationIndonesian(rEtaMinutes)}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 block font-mono">
+                                    Kecepatan {rSpeed} {rUnit === 'kmh' ? 'km/h' : 'knot'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Waypoints List (Read-Only) */}
+                              <div className="space-y-1 pt-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                                  Titik Koordinat Rute ({selectedRoute.points.length}):
+                                </span>
+                                <div className="max-h-28 overflow-y-auto space-y-1 font-mono text-[10.5px] scrollbar-thin">
+                                  {selectedRoute.points.map((pt, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="p-1.5 rounded-lg border flex items-center justify-between bg-white dark:bg-slate-950 border-inherit"
+                                    >
+                                      <span className="font-bold text-slate-600 dark:text-slate-400">
+                                        {selectedRoute.mode === 'straight'
+                                          ? idx === 0
+                                            ? 'Titik Asal (A)'
+                                            : 'Titik Tujuan (B)'
+                                          : pt.label || `WP-${idx + 1}`}
+                                      </span>
+                                      <span className="text-slate-400">{decimalToDms(pt.lat, pt.lng)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-center space-y-2">
+                          <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            Pengukuran dalam mode siaga / terkunci.
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            Klik tombol <strong>"+ Tambah / Mulai Ukur Jarak Baru"</strong> di atas atau pilih rute dari daftar di bawah untuk melihat rincian Jarak &amp; ETA.
+                          </p>
+                        </div>
+                      );
+                    })()
                   ) : (
                     <div className="space-y-3">
                       {/* Mode Selector: Jarak Lurus vs Jalur (Requirement 4) */}
@@ -2935,23 +3272,56 @@ export const MapPlottingPage: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Speed Setting */}
+                      {/* Speed Setting with Knot vs KM/jam Toggle */}
                       <div>
-                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">
-                          Kecepatan Kapal / Alut SAR:
-                        </label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[10px] text-slate-400 font-semibold block">
+                            Kecepatan Alut / Kapal SAR:
+                          </label>
+                          <div className="flex items-center gap-1 bg-slate-200 dark:bg-slate-800 p-0.5 rounded-lg text-[10px] font-bold">
+                            <button
+                              type="button"
+                              onClick={() => setSpeedUnit('knot')}
+                              className={`px-2 py-0.5 rounded-md cursor-pointer transition-all ${
+                                speedUnit === 'knot'
+                                  ? 'bg-emerald-600 text-white shadow-xs'
+                                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                              }`}
+                            >
+                              Knot
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setSpeedUnit('kmh')}
+                              className={`px-2 py-0.5 rounded-md cursor-pointer transition-all ${
+                                speedUnit === 'kmh'
+                                  ? 'bg-emerald-600 text-white shadow-xs'
+                                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                              }`}
+                            >
+                              KM/jam
+                            </button>
+                          </div>
+                        </div>
                         <div className="flex items-center gap-2">
                           <input
                             type="number"
-                            min="5"
-                            max="60"
+                            min="1"
+                            max="200"
                             value={vesselSpeedKnots}
-                            onChange={(e) => setVesselSpeedKnots(parseFloat(e.target.value) || 20)}
+                            onChange={(e) => setVesselSpeedKnots(e.target.value)}
+                            onBlur={() => {
+                              if (!vesselSpeedKnots || Number(vesselSpeedKnots) <= 0) {
+                                setVesselSpeedKnots(20);
+                              }
+                            }}
                             className={`w-28 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold ${
                               isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
                             }`}
                           />
-                          <span className="text-xs font-bold text-slate-400">Knots (Kts)</span>
+                          <span className="text-xs font-bold text-slate-400">
+                            {speedUnit === 'knot' ? 'Knots (Kts / NM)' : 'KM / Jam (km/h)'}
+                          </span>
                         </div>
                       </div>
 
@@ -2973,12 +3343,12 @@ export const MapPlottingPage: React.FC = () => {
                             {formatDurationIndonesian(estimatedMinutes)}
                           </span>
                           <span className="text-[10px] text-slate-500 block font-mono">
-                            Pada speed {vesselSpeedKnots} kts
+                            Kecepatan {vesselSpeedKnots || 0} {speedUnit === 'kmh' ? 'km/h' : 'kts'}
                           </span>
                         </div>
                       </div>
 
-                      {/* Action Buttons: Save Route */}
+                      {/* Action Buttons: Save Route, Cancel, and Reset */}
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -2987,7 +3357,14 @@ export const MapPlottingPage: React.FC = () => {
                           className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
                         >
                           <Save className="w-3.5 h-3.5" />
-                          <span>Simpan Rute Ini</span>
+                          <span>{editingRouteId ? 'Perbarui Rute' : 'Simpan Rute Ini'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelRouteForm}
+                          className="py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs cursor-pointer transition-colors"
+                        >
+                          Batal
                         </button>
                         {measurePoints.length > 0 && (
                           <button
@@ -3058,18 +3435,27 @@ export const MapPlottingPage: React.FC = () => {
                     <div className="space-y-2 max-h-56 overflow-y-auto scrollbar-thin">
                       {savedDistanceRoutes.map((route) => {
                         const isCurrentActive = route.id === activeRouteId;
+                        const isCurrentlyEditing = isRouteFormEnabled && route.id === editingRouteId;
                         const isHidden = hiddenRouteIds.includes(route.id);
                         const routeMetrics = calculatePolylineDistance(route.points);
+                        const routeUnit = route.speedUnit || 'knot';
+                        const routeSpeed = Number(route.vesselSpeedKnots) || 25;
                         const routeEtaMinutes =
-                          routeMetrics.totalNm > 0 && (route.vesselSpeedKnots || 25) > 0
-                            ? (routeMetrics.totalNm / (route.vesselSpeedKnots || 25)) * 60
+                          routeUnit === 'kmh'
+                            ? routeMetrics.totalKm > 0 && routeSpeed > 0
+                              ? (routeMetrics.totalKm / routeSpeed) * 60
+                              : 0
+                            : routeMetrics.totalNm > 0 && routeSpeed > 0
+                            ? (routeMetrics.totalNm / routeSpeed) * 60
                             : 0;
 
                         return (
                           <div
                             key={route.id}
                             className={`p-3 rounded-xl border space-y-2 transition-all ${
-                              isCurrentActive
+                              isCurrentlyEditing
+                                ? 'border-amber-500 bg-amber-500/10 ring-1 ring-amber-500'
+                                : isCurrentActive
                                 ? 'border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500'
                                 : isDarkMode
                                 ? 'bg-slate-950 border-slate-800'
@@ -3083,14 +3469,21 @@ export const MapPlottingPage: React.FC = () => {
                                   style={{ backgroundColor: route.strokeColor || '#059669' }}
                                 />
                                 <div className="truncate">
-                                  <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">
-                                    {route.name}
-                                  </h4>
-                                  <span className="text-[10px] text-slate-400">
+                                  <div className="flex items-center gap-1.5">
+                                    <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">
+                                      {route.name}
+                                    </h4>
+                                    {isCurrentlyEditing && (
+                                      <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold text-[9px]">
+                                        Sedang Diedit
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 block truncate">
                                     {route.mode === 'straight' && route.headingFormatted
                                       ? `Haluan: ${route.headingFormatted} • `
                                       : ''}
-                                    {route.points.length} Titik • {routeMetrics.totalNm} NM • ETA:{' '}
+                                    {route.points.length} Titik • {routeMetrics.totalNm} NM ({routeMetrics.totalKm} km) • {routeSpeed} {routeUnit === 'kmh' ? 'KM/jam' : 'Knot'} • ETA:{' '}
                                     {formatDurationIndonesian(routeEtaMinutes)}
                                   </span>
                                 </div>
@@ -3110,6 +3503,22 @@ export const MapPlottingPage: React.FC = () => {
                                 >
                                   {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                 </button>
+                                
+                                {/* Edit Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditSavedRoute(route)}
+                                  className={`px-2 py-1 rounded-lg text-[10px] font-bold cursor-pointer transition-colors ${
+                                    isCurrentlyEditing
+                                      ? 'bg-amber-600 text-white'
+                                      : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-amber-600 hover:text-white'
+                                  }`}
+                                  title="Edit data titik atau parameter rute"
+                                >
+                                  Edit
+                                </button>
+
+                                {/* Select / Activate Button */}
                                 <button
                                   type="button"
                                   onClick={() => handleSelectSavedRoute(route)}
@@ -3118,9 +3527,11 @@ export const MapPlottingPage: React.FC = () => {
                                       ? 'bg-emerald-600 text-white'
                                       : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-emerald-600 hover:text-white'
                                   }`}
+                                  title="Aktifkan &amp; fokuskan rute pada peta"
                                 >
                                   {isCurrentActive ? 'Aktif' : 'Pilih'}
                                 </button>
+
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteSavedRoute(route.id, route.name)}
@@ -3242,11 +3653,12 @@ export const MapPlottingPage: React.FC = () => {
             {/* Quick Print Button */}
             <button
               type="button"
-              onClick={() => setIsPrintModalOpen(true)}
+              onClick={handleOpenPrintModal}
+              disabled={isCapturingMap}
               className="p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-md hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 transition-all cursor-pointer"
-              title="Cetak Lembar Peta Operasi"
+              title="Cetak Lembar Peta & Legenda Operasi"
             >
-              <Printer className="w-5 h-5 text-orange-500" />
+              <Printer className={`w-5 h-5 text-orange-500 ${isCapturingMap ? 'animate-spin' : ''}`} />
             </button>
 
             {/* Reset to Kansar Center */}
@@ -3254,8 +3666,8 @@ export const MapPlottingPage: React.FC = () => {
               type="button"
               onClick={() => {
                 if (mapInstanceRef.current) {
-                  mapInstanceRef.current.panTo({ lat: -4.015, lng: 122.585 });
-                  mapInstanceRef.current.setZoom(10);
+                  mapInstanceRef.current.panTo({ lat: -4.037694, lng: 122.486694 });
+                  mapInstanceRef.current.setZoom(11);
                 }
               }}
               className="p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-md hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 transition-all cursor-pointer"
@@ -3267,16 +3679,19 @@ export const MapPlottingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* PRINT MAP MODAL */}
+      {/* PRINT MAP MODAL - Context-Aware Visible Elements Only */}
       <PrintMapModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
-        savedPoints={savedPoints}
-        savedPolygons={savedPolygons}
-        savedSearchPatterns={savedSearchPatterns}
-        savedDistanceRoutes={savedDistanceRoutes}
+        savedPoints={printVisibleData.points}
+        savedPolygons={printVisibleData.polygons}
+        savedSearchPatterns={printVisibleData.patterns}
+        savedDistanceRoutes={printVisibleData.routes}
         centerCoords={centerCoords}
         basemapType={basemapType}
+        mapSnapshotUrl={mapSnapshotUrl}
+        appLogoUrl={appLogoUrl}
+        onRecaptureSnapshot={captureCurrentMapSnapshot}
       />
     </div>
   );

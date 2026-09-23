@@ -3,13 +3,13 @@ import { SarUnit } from '../types';
 export const DEFAULT_SAR_UNITS: SarUnit[] = [
   {
     id_unit: 1,
-    nama_unit: 'Kansar Kendari (Kantor Utama)',
+    nama_unit: 'Kantor Pencarian & Pertolongan Kendari (Kansar)',
     jenis_unit: 'KANTOR_SAR',
     wilayah: 'Kota Kendari / Konawe Selatan',
-    latitude: -4.084194,
-    longitude: 122.428389,
-    koordinat_dms: '04° 05\' 03" S - 122° 25\' 42" E',
-    alamat: 'Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan, Sultra',
+    latitude: -4.037694,
+    longitude: 122.486694,
+    koordinat_dms: '04° 02\' 16" S - 122° 29\' 12" E',
+    alamat: 'Jl. Poros Bandara Haluoleo, Kel. Baruga, Kec. Baruga, Kota Kendari, Sulawesi Tenggara',
     no_telp: '(0401) 3122115 / Emergency 115',
     is_default: true,
   },
@@ -331,6 +331,7 @@ export interface SavedDistanceRoute {
   mode?: 'straight' | 'path'; // straight (Point-to-Point) vs path (Multi-point)
   points: LatLngPoint[];
   vesselSpeedKnots: number;
+  speedUnit?: 'knot' | 'kmh';
   strokeColor: string;
   strokeWeight: number; // ketebalan garis (1 - 10)
   strokeOpacity: number; // transparansi garis (0.1 - 1.0)
