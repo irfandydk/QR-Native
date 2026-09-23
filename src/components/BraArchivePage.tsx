@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Radio,
   FileText,
@@ -20,6 +20,7 @@ import {
   Sparkles,
   ExternalLink,
   Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { BraSar, KategoriBra } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -31,6 +32,7 @@ interface BraArchivePageProps {
   onSelectBra: (bra: BraSar) => void;
   onCreateBra: (kategori: KategoriBra) => void;
   onDeleteBra?: (id: number) => Promise<void> | void;
+  onRefresh?: () => Promise<void> | void;
   onBack: () => void;
 }
 
@@ -39,6 +41,7 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
   onSelectBra,
   onCreateBra,
   onDeleteBra,
+  onRefresh,
   onBack,
 }) => {
   const { isDarkMode, accentColors } = useTheme();
@@ -46,6 +49,24 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
   const [selectedKategori, setSelectedKategori] = useState<'SEMUA' | KategoriBra>('SEMUA');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Auto-refresh when entering this page
+  useEffect(() => {
+    onRefresh?.();
+  }, [onRefresh]);
+
+  const handleManualRefresh = async () => {
+    if (onRefresh) {
+      setIsRefreshing(true);
+      try {
+        await onRefresh();
+        showToast('Data arsip BRA berhasil disinkronkan!', 'success');
+      } finally {
+        setTimeout(() => setIsRefreshing(false), 400);
+      }
+    }
+  };
 
   // Filtered List - Urutan BRA SAR Terbaru
   const filteredBraList = useMemo(() => {
@@ -164,8 +185,24 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
             </div>
           </div>
 
-          {/* Quick Create Buttons */}
+          {/* Quick Actions & Create Buttons */}
           <div className="flex flex-wrap items-center gap-2">
+            {onRefresh && (
+              <button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                  isDarkMode
+                    ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
+                    : 'border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700'
+                }`}
+                title="Segarkan Data Real-Time"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-orange-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>{isRefreshing ? 'Menyinkronkan...' : 'Segarkan Data'}</span>
+              </button>
+            )}
+
             <button
               onClick={() => onCreateBra('MAPEL')}
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold shadow-md transition-all hover:scale-105"

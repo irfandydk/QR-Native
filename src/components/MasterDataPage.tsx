@@ -74,10 +74,19 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   const loadAllData = async () => {
     try {
       setLoading(true);
+      const timestamp = Date.now();
+      const fetchOpts: RequestInit = {
+        cache: 'no-store',
+        headers: {
+          'Pragma': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      };
+
       const [alutRes, timRes, settingsRes] = await Promise.all([
-        fetch('/api/master/alut'),
-        fetch('/api/master/tim'),
-        fetch('/api/settings'),
+        fetch(`/api/master/alut?_t=${timestamp}`, fetchOpts),
+        fetch(`/api/master/tim?_t=${timestamp}`, fetchOpts),
+        fetch(`/api/settings?_t=${timestamp}`, fetchOpts),
       ]);
 
       const [alutData, timData, settingsData] = await Promise.all([

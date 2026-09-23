@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   Filter,
@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Calendar,
   X,
+  RefreshCw,
 } from 'lucide-react';
 import { Operasi } from '../types';
 import {
@@ -35,6 +36,7 @@ interface DashboardListProps {
   onEditOperasi: (op: Operasi) => void;
   onDeleteOperasi: (id: number) => Promise<void>;
   onViewTextWA: (title: string, subtitle: string, text: string) => void;
+  onRefresh?: () => Promise<void> | void;
 }
 
 const MONTH_NAMES_ID = [
@@ -49,12 +51,31 @@ export const DashboardList: React.FC<DashboardListProps> = ({
   onEditOperasi,
   onDeleteOperasi,
   onViewTextWA,
+  onRefresh,
 }) => {
   const { isDarkMode, themePalette, accentColors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Auto-refresh when entering Dashboard page
+  useEffect(() => {
+    onRefresh?.();
+  }, [onRefresh]);
+
+  const handleManualRefresh = async () => {
+    if (onRefresh) {
+      setIsRefreshing(true);
+      try {
+        await onRefresh();
+        showToast('Data operasi SAR berhasil disinkronkan!', 'success');
+      } finally {
+        setTimeout(() => setIsRefreshing(false), 400);
+      }
+    }
+  };
 
   // Extract distinct list of months from operasiList
   const monthOptions = useMemo(() => {
@@ -288,6 +309,22 @@ export const DashboardList: React.FC<DashboardListProps> = ({
               );
             })}
           </div>
+
+          {onRefresh && (
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                isDarkMode
+                  ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200'
+                  : 'border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-700'
+              }`}
+              title="Segarkan Data Real-Time"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-orange-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isRefreshing ? 'Menyinkronkan...' : 'Segarkan'}</span>
+            </button>
+          )}
 
           <button
             id="btn-tambah-operasi-baru"

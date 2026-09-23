@@ -79,16 +79,25 @@ export default function App() {
     text: '',
   });
 
-  // Fetch all initial data
-  const fetchData = useCallback(async () => {
+  // Fetch all initial/updated data with strict anti-cache guarantees
+  const fetchData = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
+      const timestamp = Date.now();
+      const fetchOpts: RequestInit = {
+        cache: 'no-store',
+        headers: {
+          'Pragma': 'no-cache',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+      };
+
       const [opRes, alutRes, timRes, braRes, setRes] = await Promise.all([
-        fetch('/api/operasi'),
-        fetch('/api/master/alut'),
-        fetch('/api/master/tim'),
-        fetch('/api/bra'),
-        fetch('/api/settings'),
+        fetch(`/api/operasi?_t=${timestamp}`, fetchOpts),
+        fetch(`/api/master/alut?_t=${timestamp}`, fetchOpts),
+        fetch(`/api/master/tim?_t=${timestamp}`, fetchOpts),
+        fetch(`/api/bra?_t=${timestamp}`, fetchOpts),
+        fetch(`/api/settings?_t=${timestamp}`, fetchOpts),
       ]);
 
       const [opData, alutData, timData, braData, setData] = await Promise.all([
@@ -110,14 +119,49 @@ export default function App() {
         } catch {}
       }
     } catch (err) {
-      console.error('Failed to fetch data:', err);
+      console.error('Failed to fetch fresh data:', err);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, []);
 
+  // 1. Fetch data on initial mount
   useEffect(() => {
-    fetchData();
+    fetchData(false);
+  }, [fetchData]);
+
+  // 2. Automatically load fresh data from DB whenever user changes view/page
+  useEffect(() => {
+    fetchData(true);
+  }, [view, fetchData]);
+
+  // 3. Multi-device real-time sync: Auto-fetch on window focus, tab visibility & periodic background polling
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchData(true);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchData(true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Background polling interval every 6 seconds when tab is active
+    const pollingTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchData(true);
+      }
+    }, 6000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(pollingTimer);
+    };
   }, [fetchData]);
 
   // Synchronize currentUser if updated from Admin Settings or across tabs
@@ -495,6 +539,7 @@ export default function App() {
               }}
               onCreateBra={(kategori) => handleOpenCreateBra(kategori)}
               onDeleteBra={handleDeleteBra}
+              onRefresh={() => fetchData(true)}
               onBack={() => setView('dashboard')}
             />
           ) : view === 'view-bra' && activeBraDoc ? (
@@ -532,6 +577,7 @@ export default function App() {
                 setView('form-inisiasi');
               }}
               onDeleteOperasi={handleDeleteOperasi}
+              onRefresh={() => fetchData(true)}
               onViewTextWA={(title, subtitle, text) => {
                 setViewLaporanData({
                   isOpen: true,
