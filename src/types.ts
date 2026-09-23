@@ -273,5 +273,6 @@ export interface DatabaseSchema {
   gis_points?: any[];
   gis_polygons?: any[];
   gis_routes?: any[];
+  gis_search_patterns?: any[];
   gis_custom_icons?: GisCustomIcon[];
 }

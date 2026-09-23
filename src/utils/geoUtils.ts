@@ -265,6 +265,7 @@ export type PointIconType =
   | 'lkp'
   | 'kantor'
   | 'pos_sar'
+  | 'posko_sar'
   | 'rumah'
   | 'kapal'
   | 'perahu'
@@ -294,11 +295,35 @@ export interface LatLngPoint {
 export interface SavedDistanceRoute {
   id: string;
   name: string;
+  mode?: 'straight' | 'path'; // straight (Point-to-Point) vs path (Multi-point)
   points: LatLngPoint[];
   vesselSpeedKnots: number;
   strokeColor: string;
   strokeWeight: number; // ketebalan garis (1 - 10)
   strokeOpacity: number; // transparansi garis (0.1 - 1.0)
+  headingDeg?: number;
+  headingFormatted?: string;
+  headingName?: string;
+  createdAt?: string;
+}
+
+export interface SavedSearchPattern {
+  id: string;
+  name: string;
+  polygonId?: string; // Attached to a specific Polygon (e.g. Polygon 1)
+  polygonName?: string;
+  patternType: SearchPatternType;
+  trackSpacingNm: number;
+  legsCount: number;
+  poskoId?: string;
+  poskoName?: string;
+  color?: string;
+  strokeColor?: string;
+  waypoints: LatLngPoint[];
+  entryPoint?: LatLngPoint;
+  exitPoint?: LatLngPoint;
+  totalDistanceNm?: number;
+  totalDistanceKm?: number;
   createdAt?: string;
 }
 
@@ -395,7 +420,7 @@ export function calculatePolygonArea(coords: LatLngPoint[]): {
   };
 }
 
-export type SearchPatternType = 'expanding_square' | 'parallel_track' | 'creeping_line' | 'esar_jungle' | 'e_sar';
+export type SearchPatternType = 'expanding_square' | 'parallel_track' | 'creeping_line' | 'sector_search' | 'esar_jungle' | 'e_sar';
 
 /**
  * Generate standard IAMSAR & E-SAR Search Pattern Waypoints
@@ -581,6 +606,23 @@ export function generateSearchPatternWaypoints(
         points.push(pEnd);
       }
       return points;
+    } else if (patternType === 'sector_search') {
+      // Sector Search (VS) centered at polygon centroid
+      const radiusKm = Math.min(effWidthKm, effHeightKm) / 2 || searchRadiusNm * kmPerNm;
+      points.push({ lat: midLat, lng: midLng, label: 'Centroid Datum (LKP)' });
+      for (let i = 0; i < 3; i++) {
+        const angle1 = (i * 120 * Math.PI) / 180;
+        const angle2 = ((i * 120 + 120) * Math.PI) / 180;
+        const x1 = radiusKm * Math.sin(angle1);
+        const y1 = radiusKm * Math.cos(angle1);
+        const x2 = radiusKm * Math.sin(angle2);
+        const y2 = radiusKm * Math.cos(angle2);
+
+        points.push({ ...offsetToCoord(x1, y1, midLat, midLng), label: `Sektor ${i + 1} Radius` });
+        points.push({ ...offsetToCoord(x2, y2, midLat, midLng), label: `Sektor ${i + 1} Lintas` });
+        points.push({ lat: midLat, lng: midLng, label: `Kembali ke Datum (Sektor ${i + 1})` });
+      }
+      return points;
     } else {
       // Expanding Square (SS) centered at polygon centroid
       points.push({ lat: midLat, lng: midLng, label: 'Centroid Datum (LKP)' });
@@ -705,7 +747,203 @@ export function generateSearchPatternWaypoints(
         points.push({ ...offsetToCoord(startX, y), label: `Sapu Darat #${i + 1}B` });
       }
     }
+  } else if (patternType === 'sector_search') {
+    // Sector Search (VS) around datum center
+    const radiusKm = searchRadiusNm * kmPerNm;
+    points.push({ ...center, label: 'Datum Center (LKP)' });
+    for (let i = 0; i < 3; i++) {
+      const angle1 = (i * 120 * Math.PI) / 180;
+      const angle2 = ((i * 120 + 120) * Math.PI) / 180;
+      const x1 = radiusKm * Math.sin(angle1);
+      const y1 = radiusKm * Math.cos(angle1);
+      const x2 = radiusKm * Math.sin(angle2);
+      const y2 = radiusKm * Math.cos(angle2);
+
+      points.push({ ...offsetToCoord(x1, y1), label: `Sektor ${i + 1} Radius` });
+      points.push({ ...offsetToCoord(x2, y2), label: `Sektor ${i + 1} Lintas` });
+      points.push({ ...center, label: `Kembali ke Datum (Sektor ${i + 1})` });
+    }
   }
 
   return points;
 }
+
+/**
+ * 16-point Compass wind direction lookup
+ */
+const COMPASS_16_WINDS = [
+  { name: 'Utara', abbr: 'N' },
+  { name: 'Utara Timur Laut', abbr: 'NNE' },
+  { name: 'Timur Laut', abbr: 'NE' },
+  { name: 'Timur Timur Laut', abbr: 'ENE' },
+  { name: 'Timur', abbr: 'E' },
+  { name: 'Timur Menenggara', abbr: 'ESE' },
+  { name: 'Tenggara', abbr: 'SE' },
+  { name: 'Selatan Menenggara', abbr: 'SSE' },
+  { name: 'Selatan', abbr: 'S' },
+  { name: 'Selatan Barat Daya', abbr: 'SSW' },
+  { name: 'Barat Daya', abbr: 'SW' },
+  { name: 'Barat Barat Daya', abbr: 'WSW' },
+  { name: 'Barat', abbr: 'W' },
+  { name: 'Barat Barat Laut', abbr: 'WNW' },
+  { name: 'Barat Laut', abbr: 'NW' },
+  { name: 'Utara Barat Laut', abbr: 'NNW' },
+];
+
+/**
+ * Calculate precise spherical Azimuth/Heading (Forward Bearing) and Reciprocal Bearing between two points
+ * Uses exact spherical geodesy formulas
+ */
+export function calculateAzimuthHeading(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): {
+  azimuthDeg: number;
+  azimuthFormatted: string;
+  reciprocalDeg: number;
+  reciprocalFormatted: string;
+  compassDir: string;
+  compassAbbr: string;
+  distanceKm: number;
+  distanceNm: number;
+  distanceMeters: number;
+} {
+  const R = 6371; // km
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+
+  // Haversine distance
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distanceKm = R * c;
+  const distanceNm = distanceKm * 0.539957;
+  const distanceMeters = Math.round(distanceKm * 1000);
+
+  // Forward Azimuth
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  const θ = Math.atan2(y, x);
+  const azimuthDeg = (Math.round(((θ * 180) / Math.PI + 360) % 360 * 10) / 10);
+  const reciprocalDeg = (Math.round((azimuthDeg + 180) % 360 * 10) / 10);
+
+  const windIndex = Math.round(azimuthDeg / 22.5) % 16;
+  const compassInfo = COMPASS_16_WINDS[windIndex];
+
+  return {
+    azimuthDeg,
+    azimuthFormatted: `${String(Math.floor(azimuthDeg)).padStart(3, '0')}° (${compassInfo.abbr} - ${compassInfo.name})`,
+    reciprocalDeg,
+    reciprocalFormatted: `${String(Math.floor(reciprocalDeg)).padStart(3, '0')}°`,
+    compassDir: compassInfo.name,
+    compassAbbr: compassInfo.abbr,
+    distanceKm: Math.round(distanceKm * 100) / 100,
+    distanceNm: Math.round(distanceNm * 100) / 100,
+    distanceMeters,
+  };
+}
+
+/**
+ * Calculate which Posko SAR is closest to a search polygon,
+ * and determine the closest polygon vertex as the optimal Entry Point and the furthest as Exit Point
+ */
+export function findClosestPoskoToPolygon(
+  allPoints: LatLngPoint[],
+  polygonPoints: LatLngPoint[]
+): {
+  closestPosko: LatLngPoint | null;
+  closestVertexIndex: number;
+  closestVertex: LatLngPoint | null;
+  distanceNm: number;
+  distanceKm: number;
+  bearing: number;
+  headingName: string;
+  exitVertex: LatLngPoint | null;
+} {
+  if (!polygonPoints || polygonPoints.length === 0) {
+    return {
+      closestPosko: null,
+      closestVertexIndex: -1,
+      closestVertex: null,
+      distanceNm: 0,
+      distanceKm: 0,
+      bearing: 0,
+      headingName: '-',
+      exitVertex: null,
+    };
+  }
+
+  // Filter posko candidates: posko_sar, pos_sar, kantor, or names matching pos/kansar/base
+  let poskoList = allPoints.filter(
+    (p) =>
+      p.pointType === 'posko_sar' ||
+      p.pointType === 'pos_sar' ||
+      p.pointType === 'kantor' ||
+      (p.label && /posko|pos\s*sar|kansar|pangkalan|basecamp/i.test(p.label))
+  );
+
+  // Fallback to any saved points or Kansar Kendari if none
+  if (poskoList.length === 0) {
+    poskoList = allPoints.length > 0 ? allPoints : [
+      { id: 'kansar-default', lat: -4.015, lng: 122.585, label: 'Kantor SAR Kendari (Pusat)', pointType: 'kantor' }
+    ];
+  }
+
+  // Polygon Centroid
+  const centroidLat = polygonPoints.reduce((sum, p) => sum + p.lat, 0) / polygonPoints.length;
+  const centroidLng = polygonPoints.reduce((sum, p) => sum + p.lng, 0) / polygonPoints.length;
+
+  let minDistance = Infinity;
+  let bestPosko: LatLngPoint | null = null;
+  let bestVertexIndex = 0;
+
+  poskoList.forEach((posko) => {
+    polygonPoints.forEach((vertex, vIdx) => {
+      const dist = calculateStraightDistance(posko.lat, posko.lng, vertex.lat, vertex.lng);
+      if (dist.km < minDistance) {
+        minDistance = dist.km;
+        bestPosko = posko;
+        bestVertexIndex = vIdx;
+      }
+    });
+  });
+
+  const closestPosko = bestPosko || poskoList[0];
+  const closestVertex = polygonPoints[bestVertexIndex] || polygonPoints[0];
+
+  // Furthest corner is the exit point
+  let maxDist = -1;
+  let exitIdx = (bestVertexIndex + Math.floor(polygonPoints.length / 2)) % polygonPoints.length;
+  polygonPoints.forEach((v, idx) => {
+    const d = calculateStraightDistance(closestVertex.lat, closestVertex.lng, v.lat, v.lng);
+    if (d.km > maxDist) {
+      maxDist = d.km;
+      exitIdx = idx;
+    }
+  });
+  const exitVertex = polygonPoints[exitIdx] || polygonPoints[polygonPoints.length - 1];
+
+  const bearingResult = calculateStraightDistance(
+    closestPosko.lat,
+    closestPosko.lng,
+    closestVertex.lat,
+    closestVertex.lng
+  );
+
+  return {
+    closestPosko,
+    closestVertexIndex: bestVertexIndex,
+    closestVertex,
+    distanceNm: bearingResult.nm,
+    distanceKm: bearingResult.km,
+    bearing: bearingResult.bearing,
+    headingName: bearingResult.headingName,
+    exitVertex,
+  };
+}
+

@@ -256,6 +256,35 @@ export const INITIAL_GIS_ROUTES = [
   },
 ];
 
+export const INITIAL_GIS_SEARCH_PATTERNS = [
+  {
+    id: 'pattern-sample-alpha',
+    name: 'Pola Parallel Track - Search Area Kendari',
+    polygonId: 'poly-default-alpha',
+    polygonName: 'Search Area Sektor Kendari - Saponda',
+    patternType: 'parallel_track',
+    trackSpacingNm: 2.0,
+    legsCount: 5,
+    poskoId: 'pt-kansar',
+    poskoName: 'Kantor SAR Kendari',
+    color: '#0284c7',
+    waypoints: [
+      { lat: -3.87, lng: 122.67, label: 'Entry S (Kansar)' },
+      { lat: -3.87, lng: 122.86, label: 'Leg 1B' },
+      { lat: -3.91, lng: 122.86, label: 'Leg 2A' },
+      { lat: -3.91, lng: 122.67, label: 'Leg 2B' },
+      { lat: -3.95, lng: 122.67, label: 'Leg 3A' },
+      { lat: -3.95, lng: 122.86, label: 'Leg 3B' },
+      { lat: -3.99, lng: 122.86, label: 'Leg 4A' },
+      { lat: -3.99, lng: 122.67, label: 'Leg 4B' },
+      { lat: -4.03, lng: 122.67, label: 'Leg 5A' },
+      { lat: -4.03, lng: 122.86, label: 'Exit E (Selesai)' },
+    ],
+    totalDistanceNm: 58.4,
+    createdAt: '2026-09-22 08:00 WITA',
+  },
+];
+
 function createSeedData(): DatabaseSchema {
   // Current time in WITA
   const now = new Date();
@@ -391,6 +420,7 @@ function createSeedData(): DatabaseSchema {
     gis_points: INITIAL_GIS_POINTS,
     gis_polygons: INITIAL_GIS_POLYGONS,
     gis_routes: INITIAL_GIS_ROUTES,
+    gis_search_patterns: INITIAL_GIS_SEARCH_PATTERNS,
     gis_custom_icons: [],
   };
 }
@@ -438,6 +468,10 @@ class Database {
         }
         if (!parsed.gis_routes || parsed.gis_routes.length === 0) {
           parsed.gis_routes = INITIAL_GIS_ROUTES;
+          shouldSaveGis = true;
+        }
+        if (!parsed.gis_search_patterns || parsed.gis_search_patterns.length === 0) {
+          parsed.gis_search_patterns = INITIAL_GIS_SEARCH_PATTERNS;
           shouldSaveGis = true;
         }
         if (!parsed.gis_custom_icons) {
@@ -1515,6 +1549,7 @@ class Database {
       points: this.data.gis_points || INITIAL_GIS_POINTS,
       polygons: this.data.gis_polygons || INITIAL_GIS_POLYGONS,
       routes: this.data.gis_routes || INITIAL_GIS_ROUTES,
+      search_patterns: this.data.gis_search_patterns || INITIAL_GIS_SEARCH_PATTERNS,
       custom_icons: this.data.gis_custom_icons || [],
     };
   }
@@ -1640,6 +1675,54 @@ class Database {
     const initialLen = this.data.gis_routes.length;
     this.data.gis_routes = this.data.gis_routes.filter((r: any) => r.id !== id);
     if (this.data.gis_routes.length !== initialLen) {
+      this.saveData();
+      return true;
+    }
+    return false;
+  }
+
+  // --- GIS Search Patterns (Attached to Polygons or Custom) ---
+  public getGisSearchPatterns() {
+    return this.data.gis_search_patterns || INITIAL_GIS_SEARCH_PATTERNS;
+  }
+
+  public saveAllGisSearchPatterns(patterns: any[]) {
+    this.data.gis_search_patterns = patterns;
+    this.saveData();
+    return this.data.gis_search_patterns;
+  }
+
+  public addOrUpdateGisSearchPattern(pattern: any) {
+    if (!this.data.gis_search_patterns) this.data.gis_search_patterns = [...INITIAL_GIS_SEARCH_PATTERNS];
+    const idx = this.data.gis_search_patterns.findIndex((p: any) => p.id === pattern.id);
+    if (idx !== -1) {
+      this.data.gis_search_patterns[idx] = { ...this.data.gis_search_patterns[idx], ...pattern };
+    } else {
+      this.data.gis_search_patterns.push(pattern);
+    }
+    this.saveData();
+    return this.data.gis_search_patterns;
+  }
+
+  public updateGisSearchPattern(id: string, updates: any) {
+    if (!this.data.gis_search_patterns) this.data.gis_search_patterns = [...INITIAL_GIS_SEARCH_PATTERNS];
+    const idx = this.data.gis_search_patterns.findIndex((p: any) => p.id === id);
+    if (idx !== -1) {
+      this.data.gis_search_patterns[idx] = { ...this.data.gis_search_patterns[idx], ...updates };
+      this.saveData();
+      return this.data.gis_search_patterns[idx];
+    }
+    const newPat = { id, ...updates };
+    this.data.gis_search_patterns.push(newPat);
+    this.saveData();
+    return newPat;
+  }
+
+  public deleteGisSearchPattern(id: string): boolean {
+    if (!this.data.gis_search_patterns) return false;
+    const initialLen = this.data.gis_search_patterns.length;
+    this.data.gis_search_patterns = this.data.gis_search_patterns.filter((p: any) => p.id !== id);
+    if (this.data.gis_search_patterns.length !== initialLen) {
       this.saveData();
       return true;
     }
@@ -1860,6 +1943,7 @@ class Database {
       total_gis_points?: number;
       total_gis_polygons?: number;
       total_gis_routes?: number;
+      total_gis_search_patterns?: number;
       total_gis_custom_icons?: number;
     };
     data: DatabaseSchema;
@@ -1881,6 +1965,7 @@ class Database {
         total_gis_points: (this.data.gis_points || []).length,
         total_gis_polygons: (this.data.gis_polygons || []).length,
         total_gis_routes: (this.data.gis_routes || []).length,
+        total_gis_search_patterns: (this.data.gis_search_patterns || []).length,
         total_gis_custom_icons: (this.data.gis_custom_icons || []).length,
       },
       data: JSON.parse(JSON.stringify(this.data)),
@@ -1941,6 +2026,7 @@ class Database {
         gis_points: getArr(['gis_points', 'points', 'map_points'], this.data.gis_points || INITIAL_GIS_POINTS),
         gis_polygons: getArr(['gis_polygons', 'polygons', 'search_areas'], this.data.gis_polygons || INITIAL_GIS_POLYGONS),
         gis_routes: getArr(['gis_routes', 'routes', 'distance_routes'], this.data.gis_routes || INITIAL_GIS_ROUTES),
+        gis_search_patterns: getArr(['gis_search_patterns', 'search_patterns', 'patterns'], this.data.gis_search_patterns || INITIAL_GIS_SEARCH_PATTERNS),
         gis_custom_icons: getArr(['gis_custom_icons', 'custom_icons', 'icons'], this.data.gis_custom_icons || []),
         app_settings: incomingData.app_settings && typeof incomingData.app_settings === 'object'
           ? { ...this.getAppSettings(), ...incomingData.app_settings }

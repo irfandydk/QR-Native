@@ -1461,10 +1461,11 @@ Hanya berikan JSON murni tanpa markdown triple backticks.`;
 
   app.post('/api/gis/sync', (req, res) => {
     try {
-      const { points, polygons, routes } = req.body;
+      const { points, polygons, routes, search_patterns } = req.body;
       if (Array.isArray(points)) db.saveAllGisPoints(points);
       if (Array.isArray(polygons)) db.saveAllGisPolygons(polygons);
       if (Array.isArray(routes)) db.saveAllGisRoutes(routes);
+      if (Array.isArray(search_patterns)) db.saveAllGisSearchPatterns(search_patterns);
       res.json({ success: true, data: db.getGisData() });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -1592,6 +1593,47 @@ Hanya berikan JSON murni tanpa markdown triple backticks.`;
       const { id } = req.params;
       const ok = db.deleteGisRoute(id);
       res.json({ success: ok, message: ok ? 'Rute berhasil dihapus' : 'Rute tidak ditemukan' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Search Patterns on Polygons (Add, Update waypoints/parameters, Delete)
+  app.get('/api/gis/search-patterns', (req, res) => {
+    try {
+      res.json({ success: true, data: db.getGisSearchPatterns() });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/gis/search-patterns', (req, res) => {
+    try {
+      const pattern = req.body;
+      if (!pattern.id) pattern.id = `pattern_${Date.now()}`;
+      db.addOrUpdateGisSearchPattern(pattern);
+      res.json({ success: true, data: pattern });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.put('/api/gis/search-patterns/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const updated = db.addOrUpdateGisSearchPattern({ id, ...updates });
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.delete('/api/gis/search-patterns/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const ok = db.deleteGisSearchPattern(id);
+      res.json({ success: ok, message: ok ? 'Pola pencarian berhasil dihapus' : 'Pola pencarian tidak ditemukan' });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }

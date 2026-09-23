@@ -10,6 +10,8 @@ import {
   Edit3,
   Sparkles,
   Layers,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { LatLngPoint, calculatePolygonArea, decimalToDms } from '../../utils/geoUtils';
@@ -56,6 +58,8 @@ interface PolygonManagerProps {
   setFillOpacity: (opacity: number) => void;
 
   savedPolygons: SavedPolygon[];
+  hiddenPolygonIds?: string[];
+  onToggleVisibility?: (id: string) => void;
   onEditSavedPolygon: (polygon: SavedPolygon) => void;
   onDeleteSavedPolygon: (id: string, name: string) => void;
   onFocusPolygon: (points: LatLngPoint[]) => void;
@@ -80,6 +84,8 @@ export const PolygonManager: React.FC<PolygonManagerProps> = ({
   fillOpacity,
   setFillOpacity,
   savedPolygons,
+  hiddenPolygonIds = [],
+  onToggleVisibility,
   onEditSavedPolygon,
   onDeleteSavedPolygon,
   onFocusPolygon,
@@ -380,6 +386,28 @@ export const PolygonManager: React.FC<PolygonManagerProps> = ({
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">
+                        {onToggleVisibility && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleVisibility(poly.id)}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              hiddenPolygonIds.includes(poly.id)
+                                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 hover:text-slate-600'
+                                : 'hover:bg-slate-500/10 text-orange-500 hover:text-orange-600'
+                            }`}
+                            title={
+                              hiddenPolygonIds.includes(poly.id)
+                                ? 'Tampilkan polygon di peta'
+                                : 'Sembunyikan polygon dari peta'
+                            }
+                          >
+                            {hiddenPolygonIds.includes(poly.id) ? (
+                              <EyeOff className="w-3.5 h-3.5" />
+                            ) : (
+                              <Eye className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => onFocusPolygon(poly.points)}

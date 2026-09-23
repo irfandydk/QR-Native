@@ -82,6 +82,17 @@ export function createPointSvgHtml(
           <path d="M${cx - 6} 11 A6 6 0 0 1 ${cx + 6} 11" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" />
         `;
         break;
+      case 'posko_sar':
+        // Tactical Command Post (Pos Komando / Tenda Operasi SAR Taktis)
+        innerContent = `
+          <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
+          <path d="M${cx - 7} 22 L${cx} 12 L${cx + 7} 22 Z" fill="${color}" />
+          <line x1="${cx}" y1="7" x2="${cx}" y2="12" stroke="${color}" stroke-width="1.5" stroke-linecap="round" />
+          <polygon points="${cx},7 ${cx + 4.5},8.5 ${cx},10" fill="#dc2626" />
+          <polygon points="${cx - 2.5},22 ${cx},17.5 ${cx + 2.5},22" fill="#ffffff" />
+          <circle cx="${cx}" cy="16" r="1" fill="${color}" />
+        `;
+        break;
       case 'rumah':
         innerContent = `
           <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />

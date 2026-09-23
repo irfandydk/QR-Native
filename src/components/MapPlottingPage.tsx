@@ -34,6 +34,9 @@ import {
   Unlock,
   Eye,
   EyeOff,
+  Navigation,
+  Tent,
+  CheckCircle2,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -42,12 +45,15 @@ import {
   calculatePolylineDistance,
   calculatePolygonArea,
   generateSearchPatternWaypoints,
+  calculateAzimuthHeading,
+  findClosestPoskoToPolygon,
   LatLngPoint,
   PointIconType,
   SearchPatternType,
   DEFAULT_SAR_UNITS,
   formatDurationIndonesian,
   SavedDistanceRoute,
+  SavedSearchPattern,
 } from '../utils/geoUtils';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import {
@@ -86,6 +92,7 @@ export const MapPlottingPage: React.FC = () => {
   const savedPolygonOverlaysRef = useRef<google.maps.Polygon[]>([]);
   const searchPatternPolylineRef = useRef<google.maps.Polyline | null>(null);
   const searchPatternMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
+  const savedPatternsPolylinesRef = useRef<google.maps.Polyline[]>([]);
   const measurePolylineRef = useRef<google.maps.Polyline | null>(null);
   const measureMarkersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const savedRoutesPolylinesRef = useRef<google.maps.Polyline[]>([]);
@@ -210,6 +217,12 @@ export const MapPlottingPage: React.FC = () => {
                 localStorage.setItem('basarnas_saved_distance_routes', JSON.stringify(json.data.routes));
               } catch {}
             }
+            if (Array.isArray(json.data.search_patterns) && json.data.search_patterns.length > 0) {
+              setSavedSearchPatterns(json.data.search_patterns);
+              try {
+                localStorage.setItem('basarnas_saved_search_patterns', JSON.stringify(json.data.search_patterns));
+              } catch {}
+            }
           }
         }
       } catch (err) {
@@ -234,6 +247,8 @@ export const MapPlottingPage: React.FC = () => {
         if (storedPolys) setSavedPolygons(JSON.parse(storedPolys));
         const storedRoutes = localStorage.getItem('basarnas_saved_distance_routes');
         if (storedRoutes) setSavedDistanceRoutes(JSON.parse(storedRoutes));
+        const storedPatterns = localStorage.getItem('basarnas_saved_search_patterns');
+        if (storedPatterns) setSavedSearchPatterns(JSON.parse(storedPatterns));
       } catch (e) {
         console.warn('Failed to parse restored GIS data in MapPlottingPage:', e);
       }
@@ -252,7 +267,21 @@ export const MapPlottingPage: React.FC = () => {
   const [fillColor, setFillColor] = useState<string>('#ea580c');
   const [fillOpacity, setFillOpacity] = useState<number>(0.2);
 
-  // 3. SEARCH PATTERNS STATE (Requirement 3 & 4)
+  // 3. SEARCH PATTERNS STATE (Requirement 2 & Persistence)
+  const [savedSearchPatterns, setSavedSearchPatterns] = useState<SavedSearchPattern[]>(() => {
+    try {
+      const stored = localStorage.getItem('basarnas_saved_search_patterns');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
+  const [activePatternId, setActivePatternId] = useState<string | null>(null);
+  const [editingPatternId, setEditingPatternId] = useState<string | null>(null);
+  const [patternName, setPatternName] = useState<string>('Pola Lintasan SAR Sektor A');
   const [patternType, setPatternType] = useState<SearchPatternType>('parallel_track');
   const [patternTrackSpacingNm, setPatternTrackSpacingNm] = useState<number | string>(2.0);
   const [patternLegsCount, setPatternLegsCount] = useState<number | string>(5);
@@ -263,7 +292,17 @@ export const MapPlottingPage: React.FC = () => {
   const [patternWaypoints, setPatternWaypoints] = useState<LatLngPoint[]>([]);
   const [patternColor, setPatternColor] = useState('#0284c7');
 
-  // 4. MEASURE DISTANCE & ETA STATE (Requirement 5)
+  // Save search patterns to localStorage whenever changed
+  useEffect(() => {
+    try {
+      localStorage.setItem('basarnas_saved_search_patterns', JSON.stringify(savedSearchPatterns));
+    } catch {}
+  }, [savedSearchPatterns]);
+
+  // 4. MEASURE DISTANCE & ETA STATE (Requirement 3: Enable/Disable Form, Mode Jarak Lurus vs Jalur, Heading/Azimuth)
+  const [isRouteFormEnabled, setIsRouteFormEnabled] = useState<boolean>(false);
+  const [routeMeasurementMode, setRouteMeasurementMode] = useState<'straight' | 'path'>('straight');
+
   const [savedDistanceRoutes, setSavedDistanceRoutes] = useState<SavedDistanceRoute[]>(() => {
     try {
       const stored = localStorage.getItem('basarnas_saved_distance_routes');
@@ -309,19 +348,85 @@ export const MapPlottingPage: React.FC = () => {
     lng: 122.585,
   });
 
-  // TASK 7 & 8: Lock/Unlock Point Draggable & Layer Visibility Toggles
+  // TASK 7 & 8: Lock/Unlock Point Draggable (Edit Posisi Titik)
   const [isPointsDraggableUnlocked, setIsPointsDraggableUnlocked] = useState<boolean>(false);
-  const [layerVisibility, setLayerVisibility] = useState<{
-    points: boolean;
-    polygons: boolean;
-    patterns: boolean;
-    routes: boolean;
-  }>({
-    points: true,
-    polygons: true,
-    patterns: true,
-    routes: true,
+
+  // CARD-LEVEL INDIVIDUAL VISIBILITY TOGGLES (100% independent per-card toggle)
+  const [hiddenPointIds, setHiddenPointIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('gis_hidden_points');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
   });
+
+  const [hiddenPolygonIds, setHiddenPolygonIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('gis_hidden_polygons');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [hiddenRouteIds, setHiddenRouteIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('gis_hidden_routes');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [hiddenPatternIds, setHiddenPatternIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('gis_hidden_patterns');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const togglePointVisibility = (id: string) => {
+    setHiddenPointIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id];
+      try {
+        localStorage.setItem('gis_hidden_points', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const togglePolygonVisibility = (id: string) => {
+    setHiddenPolygonIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id];
+      try {
+        localStorage.setItem('gis_hidden_polygons', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const toggleRouteVisibility = (id: string) => {
+    setHiddenRouteIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id];
+      try {
+        localStorage.setItem('gis_hidden_routes', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const togglePatternVisibility = (id: string) => {
+    setHiddenPatternIds((prev) => {
+      const next = prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id];
+      try {
+        localStorage.setItem('gis_hidden_patterns', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   // REFS FOR AVOIDING STALE CLOSURES IN MAP CLICK EVENTS
   const activeTabRef = useRef(activeTab);
@@ -338,6 +443,12 @@ export const MapPlottingPage: React.FC = () => {
 
   const measurePointsRef = useRef(measurePoints);
   measurePointsRef.current = measurePoints;
+
+  const isRouteFormEnabledRef = useRef(isRouteFormEnabled);
+  isRouteFormEnabledRef.current = isRouteFormEnabled;
+
+  const routeMeasurementModeRef = useRef(routeMeasurementMode);
+  routeMeasurementModeRef.current = routeMeasurementMode;
 
   // CENTRAL MAP & POLYGON CLICK DISPATCHER
   // Ensures clicks on any area (including directly on polygons) register for measurement, polygon drawing, or point placement
@@ -365,14 +476,35 @@ export const MapPlottingPage: React.FC = () => {
       setActivePolygonPoints([...pts, newPt]);
       setIsDrawingPolygon(true);
     } else if (currentTab === 'measure-distance') {
-      // Add distance measurement waypoint
+      if (!isRouteFormEnabledRef.current) {
+        showToast('Klik tombol "+ Tambah / Mulai Ukur Jarak Baru" untuk mengaktifkan pengukuran di peta.');
+        return;
+      }
+      const mode = routeMeasurementModeRef.current;
       const pts = measurePointsRef.current;
-      const newPt: LatLngPoint = {
-        lat: clickedLat,
-        lng: clickedLng,
-        label: `WP-${pts.length + 1}`,
-      };
-      setMeasurePoints([...pts, newPt]);
+
+      if (mode === 'straight') {
+        // Mode Jarak Lurus: Point A and Point B
+        if (pts.length === 0) {
+          const ptA = { lat: clickedLat, lng: clickedLng, label: 'Titik Asal (A)' };
+          setMeasurePoints([ptA]);
+          showToast('Titik Asal (A) ditentukan. Klik peta untuk menentukan Titik Tujuan (B).');
+        } else {
+          const ptA = pts[0];
+          const ptB = { lat: clickedLat, lng: clickedLng, label: 'Titik Tujuan (B)' };
+          setMeasurePoints([ptA, ptB]);
+          const az = calculateAzimuthHeading(ptA.lat, ptA.lng, clickedLat, clickedLng);
+          showToast(`Titik B ditentukan: Haluan ${az.azimuthFormatted}, Jarak ${az.distanceNm} NM`);
+        }
+      } else {
+        // Mode Jalur Multi-Point
+        const newPt: LatLngPoint = {
+          lat: clickedLat,
+          lng: clickedLng,
+          label: `WP-${pts.length + 1}`,
+        };
+        setMeasurePoints([...pts, newPt]);
+      }
     }
   };
 
@@ -449,11 +581,9 @@ export const MapPlottingPage: React.FC = () => {
     clearAdvancedMarkers(pointMarkersRef.current);
     pointMarkersRef.current = [];
 
-    // If points layer is disabled, do not render
-    if (!layerVisibility.points) return;
-
     // Render each saved point with point name label on map
     savedPoints.forEach((point) => {
+      if (point.id && hiddenPointIds.includes(point.id)) return;
       const isBeingDragged = draggedPointId === point.id;
       const canDragThisPoint = isPointsDraggableUnlocked || editingPointId === point.id;
       const contentHtml = createPointMarkerHtml(point, isBeingDragged);
@@ -490,7 +620,7 @@ export const MapPlottingPage: React.FC = () => {
 
       if (marker) pointMarkersRef.current.push(marker);
     });
-  }, [savedPoints, draggedPointId, isMapReady, isPointsDraggableUnlocked, editingPointId, layerVisibility.points]);
+  }, [savedPoints, hiddenPointIds, draggedPointId, isMapReady, isPointsDraggableUnlocked, editingPointId]);
 
   // 1B. RENDER DRAFT POINT MARKER (Requirement 1: Active draggable point with visible name label)
   useEffect(() => {
@@ -559,9 +689,6 @@ export const MapPlottingPage: React.FC = () => {
     savedPolygonOverlaysRef.current.forEach((p) => p.setMap(null));
     savedPolygonOverlaysRef.current = [];
 
-    // Check layer visibility
-    if (!layerVisibility.polygons) return;
-
     // Render active drawing polygon
     if (activePolygonPoints.length >= 2) {
       const activePoly = new google.maps.Polygon({
@@ -627,6 +754,7 @@ export const MapPlottingPage: React.FC = () => {
 
     savedPolygons.forEach((poly) => {
       if (isDrawingPolygon && editingPolygonId === poly.id) return;
+      if (poly.id && hiddenPolygonIds.includes(poly.id)) return;
 
       const overlay = new google.maps.Polygon({
         paths: poly.points.map((p) => ({ lat: p.lat, lng: p.lng })),
@@ -653,13 +781,13 @@ export const MapPlottingPage: React.FC = () => {
     fillColor,
     fillOpacity,
     savedPolygons,
+    hiddenPolygonIds,
     editingPolygonId,
     activeTab,
     isMapReady,
-    layerVisibility.polygons,
   ]);
 
-  // 3. RENDER SEARCH PATTERNS (Requirement 4: corners manual adjustment without numbers)
+  // 3. RENDER SEARCH PATTERNS (Draft & Saved patterns with draggable vertices and visibility toggle)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !isMapReady) return;
@@ -668,11 +796,31 @@ export const MapPlottingPage: React.FC = () => {
       searchPatternPolylineRef.current.setMap(null);
       searchPatternPolylineRef.current = null;
     }
+    savedPatternsPolylinesRef.current.forEach((p) => p.setMap(null));
+    savedPatternsPolylinesRef.current = [];
+
     clearAdvancedMarkers(searchPatternMarkersRef.current);
     searchPatternMarkersRef.current = [];
 
-    if (!layerVisibility.patterns) return;
+    // 3A. Render all saved search patterns (inactive)
+    savedSearchPatterns.forEach((pattern) => {
+      if (pattern.id === editingPatternId) return; // Active edited pattern is handled below
+      if (pattern.id && hiddenPatternIds.includes(pattern.id)) return;
+      if (pattern.waypoints.length < 2) return;
 
+      const poly = new google.maps.Polyline({
+        path: pattern.waypoints.map((p) => ({ lat: p.lat, lng: p.lng })),
+        strokeColor: pattern.strokeColor || '#0284c7',
+        strokeOpacity: 0.85,
+        strokeWeight: 3.5,
+        geodesic: true,
+        map,
+      });
+
+      savedPatternsPolylinesRef.current.push(poly);
+    });
+
+    // 3B. Render active draft/editing search pattern with draggable corner handles
     if (patternWaypoints.length >= 2) {
       searchPatternPolylineRef.current = new google.maps.Polyline({
         path: patternWaypoints.map((p) => ({ lat: p.lat, lng: p.lng })),
@@ -693,9 +841,9 @@ export const MapPlottingPage: React.FC = () => {
         const m = createAdvancedMapMarker(map, {
           position: { lat: wp.lat, lng: wp.lng },
           title: isStart
-            ? `Titik Awal (S) - ${decimalToDms(wp.lat, wp.lng)} - Geser untuk menyesuaikan`
+            ? `Titik Awal Entry (S) - ${decimalToDms(wp.lat, wp.lng)} - Geser untuk menyesuaikan`
             : isEnd
-            ? `Titik Akhir (E) - ${decimalToDms(wp.lat, wp.lng)} - Geser untuk menyesuaikan`
+            ? `Titik Akhir Exit (E) - ${decimalToDms(wp.lat, wp.lng)} - Geser untuk menyesuaikan`
             : `Sudut Lintasan - ${decimalToDms(wp.lat, wp.lng)} - Geser untuk menyesuaikan sudut`,
           draggable: true,
           contentHtml,
@@ -719,7 +867,14 @@ export const MapPlottingPage: React.FC = () => {
         if (m) searchPatternMarkersRef.current.push(m);
       });
     }
-  }, [patternWaypoints, patternColor, isMapReady, layerVisibility.patterns]);
+  }, [
+    patternWaypoints,
+    savedSearchPatterns,
+    editingPatternId,
+    hiddenPatternIds,
+    patternColor,
+    isMapReady,
+  ]);
 
   // 4. RENDER DISTANCE MEASUREMENT & SAVED ROUTES (Requirement 5: custom color, weight, opacity & multiple routes)
   useEffect(() => {
@@ -737,11 +892,10 @@ export const MapPlottingPage: React.FC = () => {
     clearAdvancedMarkers(measureMarkersRef.current);
     measureMarkersRef.current = [];
 
-    if (!layerVisibility.routes) return;
-
     // 4A. Render all saved routes (inactive routes rendered with their individual saved styling)
     savedDistanceRoutes.forEach((route) => {
       if (route.id === activeRouteId) return; // Active route is rendered below with interactive handles
+      if (route.id && hiddenRouteIds.includes(route.id)) return;
       if (route.points.length < 2) return;
 
       const poly = new google.maps.Polyline({
@@ -770,11 +924,22 @@ export const MapPlottingPage: React.FC = () => {
 
     if (activeTab === 'measure-distance') {
       measurePoints.forEach((pt, index) => {
-        const contentHtml = createPolygonVertexSvgHtml(String(index + 1), measureStrokeColor, false);
+        const isPointA = index === 0;
+        const isPointB = index === 1 && routeMeasurementMode === 'straight';
+        const labelText =
+          routeMeasurementMode === 'straight'
+            ? isPointA
+              ? 'A'
+              : isPointB
+              ? 'B'
+              : String(index + 1)
+            : String(index + 1);
+
+        const contentHtml = createPolygonVertexSvgHtml(labelText, measureStrokeColor, false);
 
         const m = createAdvancedMapMarker(map, {
           position: { lat: pt.lat, lng: pt.lng },
-          title: `${pt.label || `WP-${index + 1}`} (${decimalToDms(pt.lat, pt.lng)}) - Geser untuk memindahkan`,
+          title: `${pt.label || `WP-${labelText}`} (${decimalToDms(pt.lat, pt.lng)}) - Geser untuk memindahkan`,
           draggable: true,
           contentHtml,
           zIndex: 180,
@@ -800,12 +965,13 @@ export const MapPlottingPage: React.FC = () => {
     measurePoints,
     savedDistanceRoutes,
     activeRouteId,
+    hiddenRouteIds,
+    routeMeasurementMode,
     measureStrokeColor,
     measureStrokeWeight,
     measureStrokeOpacity,
     activeTab,
     isMapReady,
-    layerVisibility.routes,
   ]);
 
   // START POINT CREATION (Requirement 1 & 2)
@@ -1038,6 +1204,12 @@ export const MapPlottingPage: React.FC = () => {
     return savedPolygons.find((p) => p.id === selectedPolygonForPattern);
   }, [savedPolygons, selectedPolygonForPattern]);
 
+  // Posko SAR & Closest Entry Point Analysis (Requirement 3: Custom Icon Posko & Entry/Exit calculation)
+  const closestPoskoAnalysis = useMemo(() => {
+    if (!selectedPolygonObj || selectedPolygonObj.points.length < 3) return null;
+    return findClosestPoskoToPolygon(savedPoints, selectedPolygonObj.points);
+  }, [savedPoints, selectedPolygonObj]);
+
   const areaSweepDimensionNm = useMemo(() => {
     if (selectedPolygonObj && selectedPolygonObj.points.length >= 3) {
       const lats = selectedPolygonObj.points.map((p) => p.lat);
@@ -1075,14 +1247,45 @@ export const MapPlottingPage: React.FC = () => {
     }
   }, [areaSweepDimensionNm, patternTrackSpacingNm]);
 
-  // SEARCH PATTERN GENERATION (Requirements 3 & 4)
+  // SEARCH PATTERN GENERATION (Flow: User sets parameters first -> Validates -> Generates on Map -> Reviews -> Saves)
   const handleGenerateSearchPattern = (boundPolygon?: SavedPolygon) => {
     const targetPoly =
-      boundPolygon || savedPolygons.find((p) => p.id === selectedPolygonForPattern);
+      boundPolygon || (selectedPolygonForPattern ? savedPolygons.find((p) => p.id === selectedPolygonForPattern) : undefined);
+
+    if (selectedPolygonForPattern && !targetPoly) {
+      showErrorAlert('Area Polygon Tidak Ditemukan', 'Polygon yang dipilih tidak valid. Silakan pilih polygon dari daftar atau gunakan mode datum bebas.');
+      return;
+    }
+
+    if (targetPoly && targetPoly.points.length < 3) {
+      showErrorAlert('Polygon Tidak Lengkap', `Polygon "${targetPoly.name}" memiliki kurang dari 3 titik. Minimal 3 titik diperlukan.`);
+      return;
+    }
+
+    const spacingVal =
+      typeof patternTrackSpacingNm === 'number'
+        ? patternTrackSpacingNm
+        : parseFloat(patternTrackSpacingNm as string);
+
+    if (isNaN(spacingVal) || spacingVal <= 0) {
+      showErrorAlert('Track Spacing Tidak Valid', 'Jarak lintasan (Track Spacing S) harus berupa angka positif lebih dari 0 NM (contoh: 0.5, 1.0, 2.0 NM).');
+      return;
+    }
+
+    const legsVal =
+      typeof patternLegsCount === 'number'
+        ? patternLegsCount
+        : parseInt(patternLegsCount as string, 10);
+
+    if (isNaN(legsVal) || legsVal < 1) {
+      showErrorAlert('Jumlah Lintasan Tidak Valid', 'Jumlah lintasan (legs) harus berupa angka bulat minimal 1.');
+      return;
+    }
 
     // Identify candidate Posko / Bases to determine closest Entry Point
     const poskoCandidates = savedPoints.filter(
       (p) =>
+        p.pointType === 'posko_sar' ||
         p.pointType === 'kantor' ||
         p.pointType === 'pos_sar' ||
         (p.label && p.label.toLowerCase().includes('pos')) ||
@@ -1098,7 +1301,6 @@ export const MapPlottingPage: React.FC = () => {
 
     if (!referencePosko) {
       if (poskoCandidates.length > 0) {
-        // If polygon is present, find which posko is closest to polygon centroid
         const targetLat = targetPoly
           ? targetPoly.points.reduce((acc, p) => acc + p.lat, 0) / targetPoly.points.length
           : patternDatumLat;
@@ -1119,15 +1321,6 @@ export const MapPlottingPage: React.FC = () => {
       }
     }
 
-    const spacingVal =
-      typeof patternTrackSpacingNm === 'number'
-        ? patternTrackSpacingNm
-        : parseFloat(patternTrackSpacingNm as string) || 2.0;
-    const legsVal =
-      typeof patternLegsCount === 'number'
-        ? patternLegsCount
-        : parseInt(patternLegsCount as string, 10) || 5;
-
     const waypoints = generateSearchPatternWaypoints(
       patternType,
       { lat: patternDatumLat, lng: patternDatumLng },
@@ -1138,7 +1331,19 @@ export const MapPlottingPage: React.FC = () => {
       legsVal
     );
 
+    if (!waypoints || waypoints.length < 2) {
+      showErrorAlert('Gagal Membuat Pola', 'Titik koordinat pola tidak mencukupi untuk dirender. Periksa kembali ukuran area dan parameter lintasan.');
+      return;
+    }
+
     setPatternWaypoints(waypoints);
+    if (!editingPatternId && (!patternName || patternName.trim() === '')) {
+      setPatternName(
+        targetPoly
+          ? `Pola ${patternType.toUpperCase()} - ${targetPoly.name}`
+          : `Pola ${patternType.toUpperCase()} Sektor ${savedSearchPatterns.length + 1}`
+      );
+    }
     setActiveTab('search-pattern');
 
     if (mapInstanceRef.current && waypoints.length > 0) {
@@ -1148,19 +1353,146 @@ export const MapPlottingPage: React.FC = () => {
     }
 
     showSuccessAlert(
-      'Pola Pencarian Dihasilkan',
-      `Berhasil membuat lintasan ${patternType.toUpperCase()} (${legsVal} lintasan, S=${spacingVal} NM). Entry point disesuaikan dari ${referencePosko ? referencePosko.label : 'posko terdekat'}. Sudut lintasan dapat disesuaikan manual di peta.`
+      'Pola Pencarian Berhasil Dibuat',
+      `Lintasan ${patternType.toUpperCase()} (${legsVal} lintasan, Track Spacing S=${spacingVal} NM) telah digambar di peta. Anda dapat meninjau dan menggeser titik sudut sebelum mengklik tombol "Simpan ke Database".`
     );
   };
 
   const handleApplySearchPatternToPolygon = (poly: SavedPolygon) => {
     setSelectedPolygonForPattern(poly.id);
-    handleGenerateSearchPattern(poly);
+    setPatternWaypoints([]); // Clear previous pattern to enforce parameter setting flow
+    setEditingPatternId(null);
+    setPatternName(`Pola Lintasan SAR - ${poly.name}`);
+    setActiveTab('search-pattern');
+    showToast(
+      `Area "${poly.name}" dipilih sebagai batas pola. Silakan tentukan parameter lalu klik "Generate Pola di Peta".`,
+      'info'
+    );
   };
 
-  // DISTANCE & ETA METRICS (Requirement 5)
+  // SEARCH PATTERN CRUD (Requirement 2: Simpan, Tambah, Edit ke Database)
+  const handleSaveSearchPattern = async () => {
+    if (patternWaypoints.length < 2) {
+      showErrorAlert('Pola Kosong', 'Silakan buat pola pencarian terlebih dahulu.');
+      return;
+    }
+
+    const patternId = editingPatternId || `pattern_${Date.now()}`;
+    const name = patternName.trim() || `Pola Lintasan SAR ${savedSearchPatterns.length + 1}`;
+    const targetPoly = savedPolygons.find((p) => p.id === selectedPolygonForPattern);
+    const targetPosko = savedPoints.find((p) => p.id === selectedPoskoForPattern);
+
+    const patternMetrics = calculatePolylineDistance(patternWaypoints);
+
+    const payload: SavedSearchPattern = {
+      id: patternId,
+      name,
+      patternType,
+      polygonId: selectedPolygonForPattern || undefined,
+      polygonName: targetPoly ? targetPoly.name : undefined,
+      poskoId: selectedPoskoForPattern !== 'auto' ? selectedPoskoForPattern : undefined,
+      poskoName: targetPosko ? targetPosko.label : closestPoskoAnalysis?.closestPosko ? closestPoskoAnalysis.closestPosko.label : undefined,
+      trackSpacingNm: Number(patternTrackSpacingNm) || 2.0,
+      legsCount: Number(patternLegsCount) || 5,
+      waypoints: patternWaypoints,
+      strokeColor: patternColor,
+      totalDistanceNm: patternMetrics.totalNm,
+      totalDistanceKm: patternMetrics.totalKm,
+      createdAt: new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+    };
+
+    try {
+      if (editingPatternId) {
+        // Update existing pattern
+        await fetch(`/api/gis/search-patterns/${editingPatternId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        setSavedSearchPatterns((prev) =>
+          prev.map((p) => (p.id === editingPatternId ? payload : p))
+        );
+        showSuccessAlert('Pola Diperbarui', `Pola "${name}" berhasil disimpan kembali ke database.`);
+      } else {
+        // Create new pattern
+        await fetch('/api/gis/search-patterns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        setSavedSearchPatterns((prev) => [payload, ...prev]);
+        showSuccessAlert('Pola Disimpan', `Pola "${name}" berhasil disimpan ke database.`);
+      }
+      setEditingPatternId(null);
+    } catch (err: any) {
+      console.error('Failed to save search pattern:', err);
+      showErrorAlert('Gagal Menyimpan', err.message || 'Terjadi kesalahan saat menyimpan ke database.');
+    }
+  };
+
+  const handleEditSavedSearchPattern = (pattern: SavedSearchPattern) => {
+    setEditingPatternId(pattern.id);
+    setPatternName(pattern.name);
+    setPatternType(pattern.patternType);
+    setPatternTrackSpacingNm(pattern.trackSpacingNm || 2.0);
+    setPatternLegsCount(pattern.legsCount || 5);
+    setPatternColor(pattern.strokeColor || '#0284c7');
+    if (pattern.polygonId) setSelectedPolygonForPattern(pattern.polygonId);
+    if (pattern.poskoId) setSelectedPoskoForPattern(pattern.poskoId);
+    setPatternWaypoints(pattern.waypoints);
+    setActiveTab('search-pattern');
+
+    if (mapInstanceRef.current && pattern.waypoints.length > 0) {
+      const bounds = new google.maps.LatLngBounds();
+      pattern.waypoints.forEach((w) => bounds.extend(w));
+      mapInstanceRef.current.fitBounds(bounds);
+    }
+    showToast(`Mode Edit Pola: "${pattern.name}". Geser titik sudut di peta lalu klik Simpan Perubahan.`);
+  };
+
+  const handleDeleteSavedSearchPattern = async (id: string, name: string) => {
+    const confirmed = await showConfirmDialog(
+      'Hapus Pola Pencarian?',
+      `Apakah Anda yakin ingin menghapus pola "${name}"?`
+    );
+    if (confirmed) {
+      setSavedSearchPatterns((prev) => prev.filter((p) => p.id !== id));
+      try {
+        await fetch(`/api/gis/search-patterns/${id}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error('Failed to delete search pattern:', err);
+      }
+      if (editingPatternId === id) {
+        setEditingPatternId(null);
+        setPatternWaypoints([]);
+      }
+      showToast(`Pola "${name}" telah dihapus.`);
+    }
+  };
+
+  const handleFocusSearchPattern = (waypoints: LatLngPoint[]) => {
+    if (!mapInstanceRef.current || waypoints.length === 0) return;
+    const bounds = new google.maps.LatLngBounds();
+    waypoints.forEach((w) => bounds.extend(w));
+    mapInstanceRef.current.fitBounds(bounds);
+  };
+
+  // DISTANCE & AZIMUTH (HEADING) METRICS (Requirement 4: UI Pengukuran Jarak & Heading Azimuth)
   const distanceMetrics = useMemo(() => {
     return calculatePolylineDistance(measurePoints);
+  }, [measurePoints]);
+
+  const straightAzimuthMetrics = useMemo(() => {
+    if (measurePoints.length >= 2) {
+      const ptA = measurePoints[0];
+      const ptB = measurePoints[1];
+      return calculateAzimuthHeading(ptA.lat, ptA.lng, ptB.lat, ptB.lng);
+    }
+    return null;
   }, [measurePoints]);
 
   const estimatedMinutes = useMemo(() => {
@@ -1170,13 +1502,19 @@ export const MapPlottingPage: React.FC = () => {
   }, [distanceMetrics, vesselSpeedKnots]);
 
   const handleStartNewRoute = () => {
+    setIsRouteFormEnabled(true);
     setActiveRouteId(null);
     setActiveRouteName(`Rute Pengukuran ${savedDistanceRoutes.length + 1}`);
     setMeasurePoints([]);
     setMeasureStrokeColor('#059669');
     setMeasureStrokeWeight(3.5);
     setMeasureStrokeOpacity(0.9);
-    showToast('Mode Rute Baru: Klik di peta untuk membuat titik rute pengukuran.');
+    showToast(
+      routeMeasurementMode === 'straight'
+        ? 'Mode Jarak Lurus: Klik Titik Asal (A) dan Titik Tujuan (B) pada peta.'
+        : 'Mode Jalur: Klik pada peta untuk membuat titik-titik rute pengukuran.',
+      'info'
+    );
   };
 
   const handleSaveCurrentRoute = () => {
@@ -1193,6 +1531,10 @@ export const MapPlottingPage: React.FC = () => {
       name,
       points: measurePoints,
       vesselSpeedKnots,
+      mode: routeMeasurementMode,
+      headingDeg: straightAzimuthMetrics ? straightAzimuthMetrics.azimuthDeg : undefined,
+      headingFormatted: straightAzimuthMetrics ? straightAzimuthMetrics.azimuthFormatted : undefined,
+      headingName: straightAzimuthMetrics ? straightAzimuthMetrics.compassDir : undefined,
       strokeColor: measureStrokeColor,
       strokeWeight: measureStrokeWeight,
       strokeOpacity: measureStrokeOpacity,
@@ -1226,8 +1568,10 @@ export const MapPlottingPage: React.FC = () => {
   };
 
   const handleSelectSavedRoute = (route: SavedDistanceRoute) => {
+    setIsRouteFormEnabled(true);
     setActiveRouteId(route.id);
     setActiveRouteName(route.name);
+    setRouteMeasurementMode(route.mode || 'path');
     setMeasurePoints(route.points);
     setVesselSpeedKnots(route.vesselSpeedKnots || 25);
     setMeasureStrokeColor(route.strokeColor || '#059669');
@@ -1315,108 +1659,6 @@ export const MapPlottingPage: React.FC = () => {
             isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
           }`}
         >
-          {/* EXTERNAL CARD: LAYER VISIBILITY & MODE GESER TITIK (Requirement 3: Pindahkan kontrol keluar dari kanvas peta) */}
-          <div className="p-3 bg-white dark:bg-slate-900 border-b border-inherit space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 font-bold text-xs text-slate-800 dark:text-slate-100">
-                <Layers className="w-3.5 h-3.5 text-orange-500" />
-                <span>Layer & Visibilitas Peta</span>
-              </div>
-
-              {/* Mode Geser Titik Marker Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  const next = !isPointsDraggableUnlocked;
-                  setIsPointsDraggableUnlocked(next);
-                  showToast(
-                    next
-                      ? 'Mode Edit Posisi Aktif: Titik marker kini dapat digeser langsung di peta.'
-                      : 'Posisi Titik Dikunci: Marker diamankan dari pergeseran tidak sengaja.',
-                    next ? 'warning' : 'info'
-                  );
-                }}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
-                  isPointsDraggableUnlocked
-                    ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-400 animate-pulse shadow-xs'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-                title={isPointsDraggableUnlocked ? 'Klik untuk mengunci posisi marker' : 'Klik untuk mengizinkan geser marker (Edit Posisi)'}
-              >
-                {isPointsDraggableUnlocked ? (
-                  <>
-                    <Unlock className="w-3 h-3 text-white" />
-                    <span>Mode Geser: AKTIF</span>
-                  </>
-                ) : (
-                  <>
-                    <Lock className="w-3 h-3 text-slate-400" />
-                    <span>Posisi: TERKUNCI</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Layer Checkboxes in 2x2 Clean Grid */}
-            <div className="grid grid-cols-2 gap-1.5 p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
-              {/* Toggle Points */}
-              <label className="flex items-center justify-between gap-1.5 px-1.5 py-1 rounded-md cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate">
-                  <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" />
-                  Titik SAR ({savedPoints.length})
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layerVisibility.points}
-                  onChange={(e) => setLayerVisibility((prev) => ({ ...prev, points: e.target.checked }))}
-                  className="rounded text-orange-600 focus:ring-orange-500 cursor-pointer h-3.5 w-3.5"
-                />
-              </label>
-
-              {/* Toggle Polygons */}
-              <label className="flex items-center justify-between gap-1.5 px-1.5 py-1 rounded-md cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                  Area Poly ({savedPolygons.length})
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layerVisibility.polygons}
-                  onChange={(e) => setLayerVisibility((prev) => ({ ...prev, polygons: e.target.checked }))}
-                  className="rounded text-orange-600 focus:ring-orange-500 cursor-pointer h-3.5 w-3.5"
-                />
-              </label>
-
-              {/* Toggle Search Patterns */}
-              <label className="flex items-center justify-between gap-1.5 px-1.5 py-1 rounded-md cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate">
-                  <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0" />
-                  Pola SAR
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layerVisibility.patterns}
-                  onChange={(e) => setLayerVisibility((prev) => ({ ...prev, patterns: e.target.checked }))}
-                  className="rounded text-orange-600 focus:ring-orange-500 cursor-pointer h-3.5 w-3.5"
-                />
-              </label>
-
-              {/* Toggle Measure Routes */}
-              <label className="flex items-center justify-between gap-1.5 px-1.5 py-1 rounded-md cursor-pointer hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                  Rute ({savedDistanceRoutes.length})
-                </span>
-                <input
-                  type="checkbox"
-                  checked={layerVisibility.routes}
-                  onChange={(e) => setLayerVisibility((prev) => ({ ...prev, routes: e.target.checked }))}
-                  className="rounded text-orange-600 focus:ring-orange-500 cursor-pointer h-3.5 w-3.5"
-                />
-              </label>
-            </div>
-          </div>
-
           {/* TAB HEADERS */}
           <div className="grid grid-cols-4 border-b border-inherit bg-white dark:bg-slate-900 text-xs font-bold">
             <button
@@ -1526,8 +1768,49 @@ export const MapPlottingPage: React.FC = () => {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs text-slate-400 font-bold px-1">
-                        <span>DAFTAR TITIK TERSIMPAN</span>
-                        <span>{savedPoints.length} Titik</span>
+                        <div className="flex items-center gap-1.5">
+                          <span>DAFTAR TITIK TERSIMPAN</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            {savedPoints.length}
+                          </span>
+                        </div>
+
+                        {/* Lock / Unlock Draggable Points for precise safety */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = !isPointsDraggableUnlocked;
+                            setIsPointsDraggableUnlocked(next);
+                            showToast(
+                              next
+                                ? 'Mode Edit Posisi Aktif: Titik marker kini dapat digeser langsung di peta.'
+                                : 'Posisi Titik Dikunci: Marker diamankan dari pergeseran tidak sengaja.',
+                              next ? 'warning' : 'info'
+                            );
+                          }}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 border transition-all cursor-pointer ${
+                            isPointsDraggableUnlocked
+                              ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-400 animate-pulse shadow-xs'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          }`}
+                          title={
+                            isPointsDraggableUnlocked
+                              ? 'Klik untuk mengunci posisi marker'
+                              : 'Klik untuk mengizinkan geser marker (Edit Posisi Titik)'
+                          }
+                        >
+                          {isPointsDraggableUnlocked ? (
+                            <>
+                              <Unlock className="w-3 h-3 text-white" />
+                              <span>Geser: AKTIF</span>
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              <span>Posisi: TERKUNCI</span>
+                            </>
+                          )}
+                        </button>
                       </div>
 
                       {savedPoints.map((pt, idx) => {
@@ -1569,10 +1852,30 @@ export const MapPlottingPage: React.FC = () => {
                                       mapInstanceRef.current.setZoom(13);
                                     }
                                   }}
-                                  className="p-1.5 rounded-lg hover:bg-slate-500/10 text-slate-400 hover:text-orange-500 cursor-pointer"
-                                  title="Fokus di peta"
+                                  className="p-1.5 rounded-lg hover:bg-slate-500/10 text-slate-400 hover:text-orange-500 cursor-pointer transition-colors"
+                                  title="Fokus pada Peta"
                                 >
                                   <Crosshair className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => pt.id && togglePointVisibility(pt.id)}
+                                  className={`p-1.5 rounded-lg hover:bg-slate-500/10 cursor-pointer transition-colors ${
+                                    pt.id && hiddenPointIds.includes(pt.id)
+                                      ? 'text-slate-400 dark:text-slate-600 hover:text-orange-500'
+                                      : 'text-orange-500 hover:text-orange-600'
+                                  }`}
+                                  title={
+                                    pt.id && hiddenPointIds.includes(pt.id)
+                                      ? 'Tampilkan titik di peta'
+                                      : 'Sembunyikan titik dari peta'
+                                  }
+                                >
+                                  {pt.id && hiddenPointIds.includes(pt.id) ? (
+                                    <EyeOff className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <Eye className="w-3.5 h-3.5" />
+                                  )}
                                 </button>
                                 <button
                                   type="button"
@@ -1646,6 +1949,8 @@ export const MapPlottingPage: React.FC = () => {
                 fillOpacity={fillOpacity}
                 setFillOpacity={setFillOpacity}
                 savedPolygons={savedPolygons}
+                hiddenPolygonIds={hiddenPolygonIds}
+                onToggleVisibility={togglePolygonVisibility}
                 onEditSavedPolygon={handleEditSavedPolygon}
                 onDeleteSavedPolygon={handleDeleteSavedPolygon}
                 onFocusPolygon={handleFocusPolygon}
@@ -1661,51 +1966,91 @@ export const MapPlottingPage: React.FC = () => {
                     isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
                   }`}
                 >
-                  <span className="text-xs font-black uppercase tracking-wider text-orange-500 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4" />
-                    Pola Pencarian SAR Standar IAMSAR / E-SAR
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black uppercase tracking-wider text-sky-500 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4" />
+                      Parameter Pola Pencarian SAR (IAMSAR)
+                    </span>
+                    {selectedPolygonForPattern && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        Area Polygon Aktif
+                      </span>
+                    )}
+                  </div>
 
-                  {/* Pattern Selection */}
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {[
-                      {
-                        type: 'parallel_track' as const,
-                        label: 'Parallel Track (PS)',
-                        desc: 'Sapuan sejajar sumbu laut',
-                      },
-                      {
-                        type: 'creeping_line' as const,
-                        label: 'Creeping Line (CS)',
-                        desc: 'Tegak lurus koridor',
-                      },
-                      {
-                        type: 'expanding_square' as const,
-                        label: 'Expanding Square (SS)',
-                        desc: 'Spiral melingkar dari LKP',
-                      },
-                      {
-                        type: 'e_sar' as const,
-                        label: 'E-SAR Hutan (Darat)',
-                        desc: 'Rapat jelajah rimba',
-                      },
-                    ].map((item) => (
-                      <button
-                        key={item.type}
-                        type="button"
-                        onClick={() => setPatternType(item.type)}
-                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                          patternType === item.type
-                            ? 'border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold ring-1 ring-orange-500'
-                            : isDarkMode
-                            ? 'border-slate-800 bg-slate-950 text-slate-300'
-                            : 'border-slate-200 bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <p className="text-xs font-bold">{item.label}</p>
-                        <p className="text-[10px] text-slate-400 leading-tight mt-0.5">{item.desc}</p>
-                      </button>
-                    ))}
+                  {/* LANGKAH 1: PILIH JENIS POLA */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                      <span className="w-4 h-4 rounded-full bg-sky-500 text-white text-[9px] flex items-center justify-center font-bold">1</span>
+                      <span>PILIH TIPE POLA SAR:</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {[
+                        {
+                          type: 'parallel_track' as const,
+                          label: 'Parallel Track (PS)',
+                          desc: 'Sapuan sejajar sumbu utama',
+                        },
+                        {
+                          type: 'creeping_line' as const,
+                          label: 'Creeping Line (CS)',
+                          desc: 'Tegak lurus koridor sempit',
+                        },
+                        {
+                          type: 'expanding_square' as const,
+                          label: 'Expanding Square (SS)',
+                          desc: 'Spiral keluar dari titik LKP',
+                        },
+                        {
+                          type: 'sector_search' as const,
+                          label: 'Sector Search (VS)',
+                          desc: 'Pola 3 sektor segitiga radial',
+                        },
+                        {
+                          type: 'e_sar' as const,
+                          label: 'E-SAR Hutan & Rimba',
+                          desc: 'Sapu darat interval rapat',
+                        },
+                      ].map((item) => (
+                        <button
+                          key={item.type}
+                          type="button"
+                          onClick={() => setPatternType(item.type)}
+                          className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                            patternType === item.type
+                              ? 'border-sky-500 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-bold ring-1 ring-sky-500'
+                              : isDarkMode
+                              ? 'border-slate-800 bg-slate-950 text-slate-300'
+                              : 'border-slate-200 bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          <p className="text-xs font-bold">{item.label}</p>
+                          <p className="text-[10px] text-slate-400 leading-tight mt-0.5">{item.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* LANGKAH 2: BATAS AREA (POLYGON / DATUM BEBAS) */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                      <span className="w-4 h-4 rounded-full bg-sky-500 text-white text-[9px] flex items-center justify-center font-bold">2</span>
+                      <span>BATAS AREA PENCARIAN:</span>
+                    </label>
+                    <select
+                      value={selectedPolygonForPattern}
+                      onChange={(e) => setSelectedPolygonForPattern(e.target.value)}
+                      className={`w-full px-2.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer ${
+                        isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
+                      }`}
+                    >
+                      <option value="">Gunakan Datum Center (Area Bebas)</option>
+                      {savedPolygons.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          Polygon: {p.name} ({p.points.length} Titik Sudut)
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Automatic Calculation Readout (Requirement 3: Automatic legs based on area dimensions & track spacing) */}
@@ -1715,7 +2060,7 @@ export const MapPlottingPage: React.FC = () => {
                       <span className="font-mono">{areaSweepDimensionNm.toFixed(1)} NM</span>
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                      <span>Formula Otomatis:</span>
+                      <span>Kalkulasi Otomatis:</span>
                       <span className="font-mono">
                         {areaSweepDimensionNm.toFixed(1)} NM ÷ {patternTrackSpacingNm || 1} NM ={' '}
                         <strong className="text-amber-600 dark:text-amber-400">
@@ -1725,80 +2070,27 @@ export const MapPlottingPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Pattern Configuration */}
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <label className="text-[10px] text-slate-400 font-semibold block mb-1">
-                        Track Spacing (S):
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0.1"
-                          max="20"
-                          value={patternTrackSpacingNm}
-                          onChange={(e) => {
-                            setPatternTrackSpacingNm(e.target.value);
-                          }}
-                          onBlur={() => {
-                            if (patternTrackSpacingNm === '' || Number(patternTrackSpacingNm) <= 0) {
-                              setPatternTrackSpacingNm(2.0);
-                            }
-                          }}
-                          className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold ${
-                            isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
-                          }`}
-                          placeholder="2.0"
-                        />
-                        <span className="absolute right-2 top-1.5 text-[10px] text-slate-400 font-bold">
-                          NM
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] text-slate-400 font-semibold block mb-1">
-                        Jumlah Lintasan (Otomatis):
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="50"
-                        value={patternLegsCount}
-                        onChange={(e) => {
-                          setPatternLegsCount(e.target.value);
-                        }}
-                        onBlur={() => {
-                          if (patternLegsCount === '' || Number(patternLegsCount) < 1) {
-                            setPatternLegsCount(5);
-                          }
-                        }}
-                        className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold ${
-                          isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
-                        }`}
-                        placeholder="5"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Posko Selection for Entry Point Priority (Requirement 4) */}
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-semibold mb-1 flex items-center justify-between">
-                      <span>Posko / Pangkalan Acuan:</span>
-                      <span className="text-[9px] text-sky-500 font-bold">Entry Point Terdekat</span>
+                  {/* LANGKAH 3: POSKO SAR ACUAN (ENTRY POINT PRIORITY) */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-bold flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <span className="w-4 h-4 rounded-full bg-sky-500 text-white text-[9px] flex items-center justify-center font-bold">3</span>
+                        <span>POSKO SAR / PANGKALAN ACUAN:</span>
+                      </span>
+                      <span className="text-[9px] text-sky-500 font-bold">Titik Awal (Entry Point)</span>
                     </label>
                     <select
                       value={selectedPoskoForPattern}
                       onChange={(e) => setSelectedPoskoForPattern(e.target.value)}
-                      className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer ${
+                      className={`w-full px-2.5 py-2 rounded-xl border text-xs font-semibold cursor-pointer ${
                         isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
                       }`}
                     >
-                      <option value="auto">⚡ Otomatis (Posko / Kansar Terdekat)</option>
+                      <option value="auto">⚡ Otomatis (Cari Posko / Kansar Terdekat)</option>
                       {savedPoints
                         .filter(
                           (p) =>
+                            p.pointType === 'posko_sar' ||
                             p.pointType === 'kantor' ||
                             p.pointType === 'pos_sar' ||
                             (p.label && p.label.toLowerCase().includes('pos')) ||
@@ -1806,50 +2098,155 @@ export const MapPlottingPage: React.FC = () => {
                         )
                         .map((pos) => (
                           <option key={pos.id} value={pos.id}>
-                            {pos.label || 'Posko'} ({(pos.pointType || 'pos_sar').toUpperCase()})
+                            {pos.label || 'Posko SAR'} ({(pos.pointType || 'posko_sar').toUpperCase()})
                           </option>
                         ))}
                     </select>
-                    <p className="text-[10px] text-sky-500/90 leading-tight mt-1">
-                      ℹ️ Entry Point otomatis dipilih dari sudut polygon terdekat dengan Posko ini, dan margin track spacing (S/2) diterapkan pada seluruh batas area.
-                    </p>
                   </div>
 
-                  {/* Bound to Polygon Area Selection (Requirement 6) */}
-                  {savedPolygons.length > 0 && (
-                    <div>
-                      <label className="text-[10px] text-slate-400 font-semibold block mb-1">
-                        Batas Area (Di Dalam Polygon):
-                      </label>
-                      <select
-                        value={selectedPolygonForPattern}
-                        onChange={(e) => setSelectedPolygonForPattern(e.target.value)}
-                        className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer ${
-                          isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
-                        }`}
-                      >
-                        <option value="">Gunakan Datum Center (Bebas)</option>
-                        {savedPolygons.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} ({p.points.length} Titik)
-                          </option>
-                        ))}
-                      </select>
+                  {/* Nearest Posko & Entry/Exit Point Analysis Card (Requirement 3) */}
+                  {closestPoskoAnalysis && closestPoskoAnalysis.closestPosko && (
+                    <div className="p-2.5 rounded-xl bg-sky-500/10 border border-sky-500/20 text-[11px] space-y-1.5 text-sky-900 dark:text-sky-200">
+                      <div className="flex items-center justify-between font-bold text-sky-600 dark:text-sky-400">
+                        <span className="flex items-center gap-1">
+                          <Compass className="w-3.5 h-3.5" />
+                          Analisis Posko SAR & Entry Point:
+                        </span>
+                        <span className="font-mono text-[10px]">
+                          {closestPoskoAnalysis.distanceNm} NM ({closestPoskoAnalysis.distanceKm} km)
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-[10px]">
+                        <div>
+                          <span className="text-slate-400 block">Posko Terdekat:</span>
+                          <span className="font-bold truncate block">{closestPoskoAnalysis.closestPosko.label}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 block">Azimuth ke Entry:</span>
+                          <span className="font-bold font-mono">
+                            {closestPoskoAnalysis.bearing}° ({closestPoskoAnalysis.headingName})
+                          </span>
+                        </div>
+                      </div>
+                      {closestPoskoAnalysis.closestVertex && (
+                        <div className="pt-1 border-t border-sky-500/20 flex items-center justify-between text-[10px]">
+                          <span>Entry Corner: <strong>{decimalToDms(closestPoskoAnalysis.closestVertex.lat, closestPoskoAnalysis.closestVertex.lng)}</strong></span>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* Generate Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleGenerateSearchPattern()}
-                    className="w-full py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 flex items-center justify-center gap-2 cursor-pointer transition-all"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Generate Pola Pencarian di Peta</span>
-                  </button>
+                  {/* LANGKAH 4: PARAMETER LINTASAN (TRACK SPACING & JUMLAH LEGS) */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                      <span className="w-4 h-4 rounded-full bg-sky-500 text-white text-[9px] flex items-center justify-center font-bold">4</span>
+                      <span>JARAK LINTASAN & JUMLAH SAPUAN:</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">
+                          Track Spacing (S):
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0.1"
+                            max="20"
+                            value={patternTrackSpacingNm}
+                            onChange={(e) => {
+                              setPatternTrackSpacingNm(e.target.value);
+                            }}
+                            onBlur={() => {
+                              if (patternTrackSpacingNm === '' || Number(patternTrackSpacingNm) <= 0) {
+                                setPatternTrackSpacingNm(2.0);
+                              }
+                            }}
+                            className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold ${
+                              isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
+                            }`}
+                            placeholder="2.0"
+                          />
+                          <span className="absolute right-2 top-1.5 text-[10px] text-slate-400 font-bold">
+                            NM
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">
+                          Jumlah Lintasan (Legs):
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="50"
+                          value={patternLegsCount}
+                          onChange={(e) => {
+                            setPatternLegsCount(e.target.value);
+                          }}
+                          onBlur={() => {
+                            if (patternLegsCount === '' || Number(patternLegsCount) < 1) {
+                              setPatternLegsCount(5);
+                            }
+                          }}
+                          className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold ${
+                            isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
+                          }`}
+                          placeholder="5"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* LANGKAH 5: IDENTITAS POLA (NAMA & WARNA) */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                      <span className="w-4 h-4 rounded-full bg-sky-500 text-white text-[9px] flex items-center justify-center font-bold">5</span>
+                      <span>NAMA POLA & WARNA GARIS:</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={patternName}
+                      onChange={(e) => setPatternName(e.target.value)}
+                      placeholder="Contoh: Pola Parallel Track Sektor A"
+                      className={`w-full px-2.5 py-2 rounded-xl border text-xs font-semibold ${
+                        isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
+                      }`}
+                    />
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[10px] text-slate-400 font-semibold">Pilihan Warna Lintasan:</span>
+                      <div className="flex items-center gap-1.5">
+                        {['#0284c7', '#ea580c', '#059669', '#dc2626', '#9333ea'].map((c) => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => setPatternColor(c)}
+                            className={`w-5 h-5 rounded-full border-2 cursor-pointer ${
+                              patternColor === c ? 'scale-120 border-white ring-2 ring-sky-500' : 'border-transparent'
+                            }`}
+                            style={{ backgroundColor: c }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ACTION BUTTON: GENERATE POLA DI PETA */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateSearchPattern()}
+                      className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 flex items-center justify-center gap-2 cursor-pointer transition-all"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>{patternWaypoints.length > 0 ? '✨ Generate Ulang Pola di Peta' : '✨ Generate Pola di Peta'}</span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Generated Pattern Readout (Requirement 4: corners manual adjustment without numbers) */}
+                {/* Generated Pattern Readout (Requirement 2 & 4: corners manual adjustment without numbers) */}
                 {patternWaypoints.length > 0 && (
                   <div
                     className={`p-3.5 rounded-2xl border space-y-2.5 ${
@@ -1859,14 +2256,17 @@ export const MapPlottingPage: React.FC = () => {
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-bold text-sky-500 flex items-center gap-1.5">
                         <Move className="w-3.5 h-3.5 animate-pulse" />
-                        Sudut Lintasan ({patternWaypoints.length} Titik)
+                        {editingPatternId ? 'Mode Edit Sudut' : 'Sudut Lintasan'} ({patternWaypoints.length} Titik)
                       </span>
                       <button
                         type="button"
-                        onClick={() => setPatternWaypoints([])}
+                        onClick={() => {
+                          setPatternWaypoints([]);
+                          setEditingPatternId(null);
+                        }}
                         className="text-red-500 hover:text-red-400 text-[11px] font-bold cursor-pointer"
                       >
-                        Hapus Pola
+                        Tutup Pola Aktif
                       </button>
                     </div>
 
@@ -1874,15 +2274,15 @@ export const MapPlottingPage: React.FC = () => {
                       💡 <strong>Penyesuaian Manual:</strong> Titik sudut pada peta tidak diberi nomor dan dapat langsung digeser di peta untuk menyesuaikan sudut dan bentuk lintasan secara presisi.
                     </div>
 
-                    <div className="max-h-48 overflow-y-auto space-y-1.5 font-mono text-[11px] scrollbar-thin">
+                    <div className="max-h-40 overflow-y-auto space-y-1.5 font-mono text-[11px] scrollbar-thin">
                       {patternWaypoints.map((wp, idx) => {
                         const isStart = idx === 0;
                         const isEnd = idx === patternWaypoints.length - 1;
                         const labelTitle = isStart
-                          ? 'Titik Awal (S)'
+                          ? 'Titik Awal Entry (S)'
                           : isEnd
-                          ? 'Titik Akhir (E)'
-                          : 'Sudut Lintasan';
+                          ? 'Titik Akhir Exit (E)'
+                          : `Sudut Lintasan #${idx}`;
 
                         return (
                           <div
@@ -1910,16 +2310,142 @@ export const MapPlottingPage: React.FC = () => {
                         );
                       })}
                     </div>
+
+                    {/* Total Distance Metrics & Save Action */}
+                    <div className="pt-2 border-t border-inherit space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-200">
+                        <span>Total Panjang Lintasan:</span>
+                        <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                          {calculatePolylineDistance(patternWaypoints).totalNm.toFixed(2)} NM ({calculatePolylineDistance(patternWaypoints).totalKm.toFixed(2)} km)
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSaveSearchPattern}
+                          className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          <span>{editingPatternId ? 'Simpan Perubahan Pola' : 'Simpan Pola ke Database'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPatternWaypoints([]);
+                            setEditingPatternId(null);
+                          }}
+                          className="py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer transition-all"
+                        >
+                          Reset
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SAVED SEARCH PATTERNS LIST (Requirement 2: Simpan, Tambah, Edit CRUD) */}
+                {savedSearchPatterns.length > 0 && (
+                  <div
+                    className={`p-4 rounded-2xl border space-y-2.5 ${
+                      isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-400">
+                      <span>POLA PENCARIAN TERSIMPAN</span>
+                      <span>{savedSearchPatterns.length} Pola</span>
+                    </div>
+
+                    <div className="space-y-2 max-h-56 overflow-y-auto scrollbar-thin">
+                      {savedSearchPatterns.map((pattern) => {
+                        const isCurrentlyEditing = editingPatternId === pattern.id;
+                        const isHidden = hiddenPatternIds.includes(pattern.id);
+
+                        return (
+                          <div
+                            key={pattern.id}
+                            className={`p-3 rounded-xl border space-y-2 transition-all ${
+                              isCurrentlyEditing
+                                ? 'border-sky-500 bg-sky-500/5 ring-1 ring-sky-500'
+                                : isDarkMode
+                                ? 'bg-slate-950 border-slate-800'
+                                : 'bg-slate-50 border-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className="w-3 h-3 rounded-full shrink-0"
+                                  style={{ backgroundColor: pattern.strokeColor || '#0284c7' }}
+                                />
+                                <div className="truncate">
+                                  <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 truncate">
+                                    {pattern.name}
+                                  </h4>
+                                  <span className="text-[10px] text-slate-400 block">
+                                    {pattern.polygonName ? `Polygon: ${pattern.polygonName} • ` : ''}
+                                    {pattern.waypoints.length} Titik • {pattern.totalDistanceNm?.toFixed(1) || 0} NM
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                {/* Focus */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleFocusSearchPattern(pattern.waypoints)}
+                                  className="p-1.5 rounded-lg hover:bg-slate-500/10 text-slate-400 hover:text-sky-500 cursor-pointer"
+                                  title="Fokus pada Peta"
+                                >
+                                  <Crosshair className="w-3.5 h-3.5" />
+                                </button>
+                                {/* Visibility Toggle */}
+                                <button
+                                  type="button"
+                                  onClick={() => togglePatternVisibility(pattern.id)}
+                                  className={`p-1.5 rounded-lg hover:bg-slate-500/10 cursor-pointer ${
+                                    isHidden
+                                      ? 'text-slate-400 dark:text-slate-600 hover:text-sky-500'
+                                      : 'text-sky-500 hover:text-sky-600'
+                                  }`}
+                                  title={isHidden ? 'Tampilkan pola di peta' : 'Sembunyikan pola dari peta'}
+                                >
+                                  {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                </button>
+                                {/* Edit */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditSavedSearchPattern(pattern)}
+                                  className="p-1.5 rounded-lg hover:bg-slate-500/10 text-slate-400 hover:text-sky-500 cursor-pointer"
+                                  title="Edit pola (bisa ditarik sudutnya)"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                {/* Delete */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteSavedSearchPattern(pattern.id, pattern.name)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 cursor-pointer"
+                                  title="Hapus pola"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            {/* 4. TAB: MEASURE DISTANCE & ETA (Requirement 5: Save & add multiple routes, custom stroke style) */}
+            {/* 4. TAB: MEASURE DISTANCE & ETA (Requirement 4: UI Pengukuran Jarak & Heading/Azimuth) */}
             {activeTab === 'measure-distance' && (
               <div className="space-y-3.5">
                 <div
-                  className={`p-4 rounded-2xl border space-y-3 ${
+                  className={`p-4 rounded-2xl border space-y-3.5 ${
                     isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
                   }`}
                 >
@@ -1931,212 +2457,346 @@ export const MapPlottingPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleStartNewRoute}
-                      className="px-2.5 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] flex items-center gap-1 shadow-xs cursor-pointer transition-colors"
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>Rute Baru</span>
+                      <span>+ Tambah / Mulai Ukur Jarak Baru</span>
                     </button>
                   </div>
 
-                  {/* Route Name Input */}
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-semibold block mb-1">
-                      Nama Rute Pengukuran:
-                    </label>
-                    <input
-                      type="text"
-                      value={activeRouteName}
-                      onChange={(e) => setActiveRouteName(e.target.value)}
-                      placeholder="Contoh: Rute Kansar ke LKP"
-                      className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-semibold ${
-                        isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
-                      }`}
-                    />
-                  </div>
-
-                  <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-300">
-                    👉 <strong>Klik di atas peta</strong> untuk menambah titik rute pengukuran (bisa diklik di dalam area polygon). Titik rute dapat langsung digeser di peta!
-                  </div>
-
-                  {/* STYLING CUSTOMIZATION: Color, Stroke Weight, Opacity (Requirement 5) */}
-                  <div className="p-3 rounded-xl border border-inherit space-y-2.5 bg-slate-50 dark:bg-slate-950/70">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block">
-                      Kustomisasi Garis Rute (Warna, Tebal, Opasitas)
-                    </span>
-
-                    {/* Color Presets */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
-                        <span>Warna Garis:</span>
-                        <span className="font-mono text-xs font-bold" style={{ color: measureStrokeColor }}>
-                          {measureStrokeColor}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {[
-                          '#059669', // Emerald
-                          '#0284c7', // Sky
-                          '#dc2626', // Red
-                          '#ea580c', // Orange
-                          '#9333ea', // Purple
-                          '#eab308', // Yellow
-                          '#06b6d4', // Cyan
-                        ].map((c) => (
+                  {!isRouteFormEnabled ? (
+                    <div className="p-3.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-center space-y-2">
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        Form input pengukuran dinonaktifkan.
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        Klik tombol <strong>"+ Tambah / Mulai Ukur Jarak Baru"</strong> di atas untuk mengaktifkan input form dan mulai memetakan titik di peta.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Mode Selector: Jarak Lurus vs Jalur (Requirement 4) */}
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">
+                          Mode Pengukuran:
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
                           <button
-                            key={c}
                             type="button"
-                            onClick={() => setMeasureStrokeColor(c)}
-                            className={`w-6 h-6 rounded-full border-2 cursor-pointer transition-transform ${
-                              measureStrokeColor.toLowerCase() === c.toLowerCase()
-                                ? 'scale-115 border-white ring-2 ring-emerald-500'
-                                : 'border-transparent hover:scale-105'
+                            onClick={() => {
+                              setRouteMeasurementMode('straight');
+                              if (measurePoints.length > 2) {
+                                setMeasurePoints(measurePoints.slice(0, 2));
+                              }
+                            }}
+                            className={`p-2 rounded-xl border text-left cursor-pointer transition-all ${
+                              routeMeasurementMode === 'straight'
+                                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold ring-1 ring-emerald-500'
+                                : isDarkMode
+                                ? 'border-slate-800 bg-slate-950 text-slate-300'
+                                : 'border-slate-200 bg-slate-50 text-slate-700'
                             }`}
-                            style={{ backgroundColor: c }}
-                          />
-                        ))}
-                        <input
-                          type="color"
-                          value={measureStrokeColor}
-                          onChange={(e) => setMeasureStrokeColor(e.target.value)}
-                          className="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0"
-                          title="Pilih warna kustom"
-                        />
-                      </div>
-                    </div>
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <Compass className="w-3.5 h-3.5" />
+                              <span className="text-xs font-bold">Jarak Lurus (P-to-P)</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              Kalkulasi Azimuth & Heading
+                            </span>
+                          </button>
 
-                    {/* Stroke Weight */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
-                        <span>Ketebalan Garis:</span>
-                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                          {measureStrokeWeight} px
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="1"
-                        max="10"
-                        step="0.5"
-                        value={measureStrokeWeight}
-                        onChange={(e) => setMeasureStrokeWeight(parseFloat(e.target.value))}
-                        className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
-                      />
-                    </div>
-
-                    {/* Opacity */}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
-                        <span>Transparansi / Opasitas:</span>
-                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                          {Math.round(measureStrokeOpacity * 100)}%
-                        </span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0.2"
-                        max="1"
-                        step="0.05"
-                        value={measureStrokeOpacity}
-                        onChange={(e) => setMeasureStrokeOpacity(parseFloat(e.target.value))}
-                        className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Speed Setting */}
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-semibold block mb-1">
-                      Kecepatan Kapal / Alut SAR:
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="5"
-                        max="60"
-                        value={vesselSpeedKnots}
-                        onChange={(e) => setVesselSpeedKnots(parseFloat(e.target.value) || 20)}
-                        className={`w-28 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold ${
-                          isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
-                        }`}
-                      />
-                      <span className="text-xs font-bold text-slate-400">Knots (Kts)</span>
-                    </div>
-                  </div>
-
-                  {/* Metrics */}
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-inherit">
-                      <span className="text-[10px] text-slate-400 block font-semibold">Total Jarak</span>
-                      <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                        {distanceMetrics.totalNm} <span className="text-xs font-sans">NM</span>
-                      </span>
-                      <span className="text-[10px] text-slate-500 block font-mono">
-                        {distanceMetrics.totalKm} km
-                      </span>
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-inherit">
-                      <span className="text-[10px] text-slate-400 block font-semibold">Estimasi Tiba (ETA)</span>
-                      <span className="text-base font-black text-orange-600 dark:text-orange-400 font-mono">
-                        {formatDurationIndonesian(estimatedMinutes)}
-                      </span>
-                      <span className="text-[10px] text-slate-500 block font-mono">
-                        Pada speed {vesselSpeedKnots} kts
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons: Save Route */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSaveCurrentRoute}
-                      disabled={measurePoints.length < 2}
-                      className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Simpan Rute Ini</span>
-                    </button>
-                    {measurePoints.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setMeasurePoints([])}
-                        className="py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-red-500/10 hover:text-red-500 text-slate-600 dark:text-slate-400 font-bold text-xs cursor-pointer transition-colors"
-                      >
-                        Reset Titik
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Active Waypoints List */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">
-                      Titik Sudut Rute Aktif ({measurePoints.length}):
-                    </span>
-                    <div className="max-h-32 overflow-y-auto space-y-1 font-mono text-[11px] scrollbar-thin">
-                      {measurePoints.map((pt, idx) => (
-                        <div
-                          key={idx}
-                          className="p-1.5 rounded-lg border flex items-center justify-between bg-white dark:bg-slate-950 border-inherit"
-                        >
-                          <span className="font-bold text-slate-500">WP-{idx + 1}</span>
-                          <span className="text-slate-400">{decimalToDms(pt.lat, pt.lng)}</span>
                           <button
                             type="button"
-                            onClick={() =>
-                              setMeasurePoints((prev) => prev.filter((_, i) => i !== idx))
-                            }
-                            className="p-0.5 text-red-500 hover:bg-red-500/10 rounded cursor-pointer"
+                            onClick={() => setRouteMeasurementMode('path')}
+                            className={`p-2 rounded-xl border text-left cursor-pointer transition-all ${
+                              routeMeasurementMode === 'path'
+                                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold ring-1 ring-emerald-500'
+                                : isDarkMode
+                                ? 'border-slate-800 bg-slate-950 text-slate-300'
+                                : 'border-slate-200 bg-slate-50 text-slate-700'
+                            }`}
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <div className="flex items-center gap-1.5">
+                              <Navigation className="w-3.5 h-3.5" />
+                              <span className="text-xs font-bold">Jalur (Multi-point)</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              Rute berliku banyak waypoint
+                            </span>
                           </button>
                         </div>
-                      ))}
+                      </div>
+
+                      {/* Route Name Input */}
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">
+                          Nama Rute Pengukuran:
+                        </label>
+                        <input
+                          type="text"
+                          value={activeRouteName}
+                          onChange={(e) => setActiveRouteName(e.target.value)}
+                          placeholder="Contoh: Jarak Kantor SAR ke Titik LKP"
+                          className={`w-full px-2.5 py-1.5 rounded-xl border text-xs font-semibold ${
+                            isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
+                          }`}
+                        />
+                      </div>
+
+                      {/* HEADING / AZIMUTH METRICS PANEL FOR STRAIGHT DISTANCE (Requirement 4) */}
+                      {routeMeasurementMode === 'straight' && straightAzimuthMetrics && (
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500/10 to-sky-500/10 border border-emerald-500/30 space-y-2 text-emerald-950 dark:text-emerald-100">
+                          <div className="flex items-center justify-between border-b border-emerald-500/20 pb-1.5">
+                            <span className="font-bold text-xs flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                              <Compass className="w-4 h-4 animate-spin-slow" />
+                              Hasil Kalkulasi Heading / Azimuth:
+                            </span>
+                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+                              A → B
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="p-2 rounded-lg bg-white/70 dark:bg-slate-900/70 border border-emerald-500/20">
+                              <span className="text-[10px] text-slate-400 block font-semibold">Heading / Azimuth (Haluan)</span>
+                              <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                                {straightAzimuthMetrics.azimuthFormatted}
+                              </span>
+                              <span className="text-[10px] text-slate-500 block">
+                                {straightAzimuthMetrics.compassDir} ({straightAzimuthMetrics.compassAbbr})
+                              </span>
+                            </div>
+
+                            <div className="p-2 rounded-lg bg-white/70 dark:bg-slate-900/70 border border-emerald-500/20">
+                              <span className="text-[10px] text-slate-400 block font-semibold">Reciprocal (Haluan Balik)</span>
+                              <span className="text-sm font-black text-sky-600 dark:text-sky-400 font-mono">
+                                {straightAzimuthMetrics.reciprocalFormatted}
+                              </span>
+                              <span className="text-[10px] text-slate-500 block font-mono">
+                                B → A
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-1.5 text-center text-xs pt-1">
+                            <div className="p-1.5 rounded-lg bg-white/50 dark:bg-slate-900/50">
+                              <span className="text-[9px] text-slate-400 block">Nautical Miles</span>
+                              <span className="font-bold font-mono text-xs">{straightAzimuthMetrics.distanceNm} NM</span>
+                            </div>
+                            <div className="p-1.5 rounded-lg bg-white/50 dark:bg-slate-900/50">
+                              <span className="text-[9px] text-slate-400 block">Kilometer</span>
+                              <span className="font-bold font-mono text-xs">{straightAzimuthMetrics.distanceKm} km</span>
+                            </div>
+                            <div className="p-1.5 rounded-lg bg-white/50 dark:bg-slate-900/50">
+                              <span className="text-[9px] text-slate-400 block">Meter</span>
+                              <span className="font-bold font-mono text-xs">{straightAzimuthMetrics.distanceMeters.toLocaleString('id-ID')} m</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Instruction helper */}
+                      <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-700 dark:text-emerald-300">
+                        {routeMeasurementMode === 'straight'
+                          ? '👉 Klik 2 titik di atas peta (Titik A dan Titik B). Azimuth/Heading dan jarak akurat akan otomatis dihitung.'
+                          : '👉 Klik pada peta untuk menambah titik-titik rute pengukuran (bisa diklik di dalam area polygon). Titik rute dapat langsung digeser di peta!'}
+                      </div>
+
+                      {/* STYLING CUSTOMIZATION: Color, Stroke Weight, Opacity */}
+                      <div className="p-3 rounded-xl border border-inherit space-y-2.5 bg-slate-50 dark:bg-slate-950/70">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide block">
+                          Kustomisasi Garis Rute (Warna, Tebal, Opasitas)
+                        </span>
+
+                        {/* Color Presets */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
+                            <span>Warna Garis:</span>
+                            <span className="font-mono text-xs font-bold" style={{ color: measureStrokeColor }}>
+                              {measureStrokeColor}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {[
+                              '#059669', // Emerald
+                              '#0284c7', // Sky
+                              '#dc2626', // Red
+                              '#ea580c', // Orange
+                              '#9333ea', // Purple
+                              '#eab308', // Yellow
+                              '#06b6d4', // Cyan
+                            ].map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => setMeasureStrokeColor(c)}
+                                className={`w-6 h-6 rounded-full border-2 cursor-pointer transition-transform ${
+                                  measureStrokeColor.toLowerCase() === c.toLowerCase()
+                                    ? 'scale-115 border-white ring-2 ring-emerald-500'
+                                    : 'border-transparent hover:scale-105'
+                                }`}
+                                style={{ backgroundColor: c }}
+                              />
+                            ))}
+                            <input
+                              type="color"
+                              value={measureStrokeColor}
+                              onChange={(e) => setMeasureStrokeColor(e.target.value)}
+                              className="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0"
+                              title="Pilih warna kustom"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Stroke Weight */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
+                            <span>Ketebalan Garis:</span>
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                              {measureStrokeWeight} px
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="1"
+                            max="10"
+                            step="0.5"
+                            value={measureStrokeWeight}
+                            onChange={(e) => setMeasureStrokeWeight(parseFloat(e.target.value))}
+                            className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
+                          />
+                        </div>
+
+                        {/* Opacity */}
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 font-semibold">
+                            <span>Transparansi / Opasitas:</span>
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                              {Math.round(measureStrokeOpacity * 100)}%
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.2"
+                            max="1"
+                            step="0.05"
+                            value={measureStrokeOpacity}
+                            onChange={(e) => setMeasureStrokeOpacity(parseFloat(e.target.value))}
+                            className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-slate-200 dark:bg-slate-800 rounded-lg"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Speed Setting */}
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-semibold block mb-1">
+                          Kecepatan Kapal / Alut SAR:
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min="5"
+                            max="60"
+                            value={vesselSpeedKnots}
+                            onChange={(e) => setVesselSpeedKnots(parseFloat(e.target.value) || 20)}
+                            className={`w-28 px-3 py-1.5 rounded-xl border text-xs font-mono font-bold ${
+                              isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-slate-50 border-slate-300'
+                            }`}
+                          />
+                          <span className="text-xs font-bold text-slate-400">Knots (Kts)</span>
+                        </div>
+                      </div>
+
+                      {/* Metrics Readout */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-inherit">
+                          <span className="text-[10px] text-slate-400 block font-semibold">Total Jarak</span>
+                          <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                            {distanceMetrics.totalNm} <span className="text-xs font-sans">NM</span>
+                          </span>
+                          <span className="text-[10px] text-slate-500 block font-mono">
+                            {distanceMetrics.totalKm} km
+                          </span>
+                        </div>
+
+                        <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-inherit">
+                          <span className="text-[10px] text-slate-400 block font-semibold">Estimasi Tiba (ETA)</span>
+                          <span className="text-base font-black text-orange-600 dark:text-orange-400 font-mono">
+                            {formatDurationIndonesian(estimatedMinutes)}
+                          </span>
+                          <span className="text-[10px] text-slate-500 block font-mono">
+                            Pada speed {vesselSpeedKnots} kts
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action Buttons: Save Route */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSaveCurrentRoute}
+                          disabled={measurePoints.length < 2}
+                          className="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-600/20 cursor-pointer transition-all"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          <span>Simpan Rute Ini</span>
+                        </button>
+                        {measurePoints.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setMeasurePoints([])}
+                            className="py-2 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-red-500/10 hover:text-red-500 text-slate-600 dark:text-slate-400 font-bold text-xs cursor-pointer transition-colors"
+                          >
+                            Reset Titik
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Active Waypoints List */}
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                          Titik Sudut Rute Aktif ({measurePoints.length}):
+                        </span>
+                        <div className="max-h-32 overflow-y-auto space-y-1 font-mono text-[11px] scrollbar-thin">
+                          {measurePoints.map((pt, idx) => {
+                            const isPointA = idx === 0;
+                            const isPointB = idx === 1 && routeMeasurementMode === 'straight';
+                            const label =
+                              routeMeasurementMode === 'straight'
+                                ? isPointA
+                                  ? 'Titik Awal (A)'
+                                  : isPointB
+                                  ? 'Titik Tujuan (B)'
+                                  : `WP-${idx + 1}`
+                                : `WP-${idx + 1}`;
+
+                            return (
+                              <div
+                                key={idx}
+                                className="p-1.5 rounded-lg border flex items-center justify-between bg-white dark:bg-slate-950 border-inherit"
+                              >
+                                <span className="font-bold text-slate-500">{label}</span>
+                                <span className="text-slate-400">{decimalToDms(pt.lat, pt.lng)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setMeasurePoints((prev) => prev.filter((_, i) => i !== idx))
+                                  }
+                                  className="p-0.5 text-red-500 hover:bg-red-500/10 rounded cursor-pointer"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* SAVED ROUTES LIBRARY (Requirement 5: Manage & switch saved routes) */}
+                {/* SAVED ROUTES LIBRARY (Requirement 1 & 4: Manage & switch saved routes with Eye Visibility) */}
                 {savedDistanceRoutes.length > 0 && (
                   <div
                     className={`p-4 rounded-2xl border space-y-2.5 ${
@@ -2151,6 +2811,7 @@ export const MapPlottingPage: React.FC = () => {
                     <div className="space-y-2 max-h-56 overflow-y-auto scrollbar-thin">
                       {savedDistanceRoutes.map((route) => {
                         const isCurrentActive = route.id === activeRouteId;
+                        const isHidden = hiddenRouteIds.includes(route.id);
                         const routeMetrics = calculatePolylineDistance(route.points);
                         const routeEtaMinutes =
                           routeMetrics.totalNm > 0 && (route.vesselSpeedKnots || 25) > 0
@@ -2179,6 +2840,9 @@ export const MapPlottingPage: React.FC = () => {
                                     {route.name}
                                   </h4>
                                   <span className="text-[10px] text-slate-400">
+                                    {route.mode === 'straight' && route.headingFormatted
+                                      ? `Haluan: ${route.headingFormatted} • `
+                                      : ''}
                                     {route.points.length} Titik • {routeMetrics.totalNm} NM • ETA:{' '}
                                     {formatDurationIndonesian(routeEtaMinutes)}
                                   </span>
@@ -2186,6 +2850,19 @@ export const MapPlottingPage: React.FC = () => {
                               </div>
 
                               <div className="flex items-center gap-1 shrink-0">
+                                {/* Visibility Toggle */}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleRouteVisibility(route.id)}
+                                  className={`p-1.5 rounded-lg hover:bg-slate-500/10 cursor-pointer ${
+                                    isHidden
+                                      ? 'text-slate-400 dark:text-slate-600 hover:text-emerald-500'
+                                      : 'text-emerald-500 hover:text-emerald-600'
+                                  }`}
+                                  title={isHidden ? 'Tampilkan rute di peta' : 'Sembunyikan rute dari peta'}
+                                >
+                                  {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => handleSelectSavedRoute(route)}
