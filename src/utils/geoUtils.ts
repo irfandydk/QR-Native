@@ -137,6 +137,26 @@ export function decimalToDms(lat: number, lng: number): string {
 }
 
 /**
+ * Convert single DMS string (e.g. 03° 59' 24" S or 122° 30' 36" E) to decimal number
+ */
+export function dmsToDecimal(dmsStr: string): number {
+  if (!dmsStr) return NaN;
+  const clean = dmsStr.trim();
+  const match = clean.match(/(\d{1,3})[°\s]+(\d{1,2})['\s]+(\d{1,2}(?:\.\d+)?)["]?\s*([NSEWnsew])?/i);
+  if (match) {
+    const d = parseFloat(match[1]);
+    const m = parseFloat(match[2]);
+    const s = parseFloat(match[3]);
+    const dir = match[4] ? match[4].toUpperCase() : '';
+    let dec = d + m / 60 + s / 3600;
+    if (dir === 'S' || dir === 'W') dec = -dec;
+    return dec;
+  }
+  const num = parseFloat(clean);
+  return isNaN(num) ? NaN : num;
+}
+
+/**
  * Parse DMS string or text to decimal latitude and longitude
  */
 export function parseDmsToDecimal(dmsText: string): { lat: number; lng: number } | null {
@@ -290,6 +310,19 @@ export interface LatLngPoint {
   customColor?: string;
   notes?: string;
   description?: string;
+  createdAt?: string;
+}
+
+export type SavedPoint = LatLngPoint;
+
+export interface SavedPolygon {
+  id: string;
+  name: string;
+  points: LatLngPoint[];
+  strokeColor: string;
+  strokeWeight: number;
+  fillColor: string;
+  fillOpacity: number;
 }
 
 export interface SavedDistanceRoute {
@@ -304,6 +337,8 @@ export interface SavedDistanceRoute {
   headingDeg?: number;
   headingFormatted?: string;
   headingName?: string;
+  totalDistanceNm?: number;
+  totalDistanceKm?: number;
   createdAt?: string;
 }
 
@@ -313,6 +348,7 @@ export interface SavedSearchPattern {
   polygonId?: string; // Attached to a specific Polygon (e.g. Polygon 1)
   polygonName?: string;
   patternType: SearchPatternType;
+  type?: SearchPatternType; // alias
   trackSpacingNm: number;
   legsCount: number;
   poskoId?: string;

@@ -4,6 +4,7 @@ import {
   Compass,
   Ruler,
   Maximize2,
+  Minimize2,
   Trash2,
   Copy,
   Download,
@@ -37,6 +38,10 @@ import {
   Navigation,
   Tent,
   CheckCircle2,
+  PanelLeftClose,
+  PanelLeftOpen,
+  FileDown,
+  ChevronDown,
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import {
@@ -68,6 +73,9 @@ import {
 import { DmsNumericEditor } from './gis/DmsNumericEditor';
 import { PointCreatorCard, PRESET_POINT_ICONS } from './gis/PointCreatorCard';
 import { PolygonManager, SavedPolygon } from './gis/PolygonManager';
+import { LocationSearchBar, LocationSearchResult } from './gis/LocationSearchBar';
+import { PrintMapModal } from './gis/PrintMapModal';
+import { downloadKml, downloadKmz, downloadGeoJson } from '../utils/kmlExportUtils';
 import { showSuccessAlert, showErrorAlert, showToast, showConfirmDialog } from '../utils/alerts';
 
 type ActiveTab = 'saved-points' | 'polygon-area' | 'search-pattern' | 'measure-distance';
@@ -350,6 +358,108 @@ export const MapPlottingPage: React.FC = () => {
 
   // TASK 7 & 8: Lock/Unlock Point Draggable (Edit Posisi Titik)
   const [isPointsDraggableUnlocked, setIsPointsDraggableUnlocked] = useState<boolean>(false);
+
+  // NEW FEATURE 1: Location Search State & Temporary Pin
+  const [searchPin, setSearchPin] = useState<LocationSearchResult | null>(null);
+  const searchMarkerRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+
+  // NEW FEATURE 2: Fullscreen State & Ref
+  const mapWrapperRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  // NEW FEATURE 3: Sidebar Visibility Toggle (Tools Plotting)
+  const [isSidebarVisible, setIsSidebarVisible] = useState<boolean>(true);
+
+  // NEW FEATURE 4: Print Map Modal & Export Menu States
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false);
+
+  // Sync fullscreen change with document API
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          google.maps.event.trigger(mapInstanceRef.current, 'resize');
+        }
+      }, 150);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    const container = mapWrapperRef.current || document.documentElement;
+    if (!document.fullscreenElement) {
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarVisible((prev) => {
+      const next = !prev;
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          google.maps.event.trigger(mapInstanceRef.current, 'resize');
+        }
+      }, 150);
+      return next;
+    });
+  };
+
+  // Location search selection handler
+  const handleSelectLocation = (result: LocationSearchResult) => {
+    setSearchPin(result);
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.panTo({ lat: result.lat, lng: result.lng });
+      mapInstanceRef.current.setZoom(13);
+    }
+    showToast(`Peta beralih ke "${result.name.split(',')[0]}"`, 'info');
+  };
+
+  const handleConvertSearchPinToPoint = () => {
+    if (!searchPin) return;
+    setDraftCoords({ lat: searchPin.lat, lng: searchPin.lng });
+    setPointName(searchPin.name.split(',')[0]);
+    setPointIconType('waypoint');
+    setIsCreatingPoint(true);
+    setEditingPointId(null);
+    setActiveTab('saved-points');
+    if (!isSidebarVisible) {
+      setIsSidebarVisible(true);
+    }
+    showToast('Koordinat lokasi diterapkan ke form pembuatan titik SAR baru.', 'success');
+  };
+
+  // Spatial Export Handlers
+  const handleExportKml = () => {
+    downloadKml(savedPoints, savedPolygons, savedSearchPatterns, savedDistanceRoutes);
+    setIsExportMenuOpen(false);
+    showToast('File KML berhasil diunduh untuk Google Earth / GIS!', 'success');
+  };
+
+  const handleExportKmz = async () => {
+    try {
+      await downloadKmz(savedPoints, savedPolygons, savedSearchPatterns, savedDistanceRoutes);
+      setIsExportMenuOpen(false);
+      showToast('File KMZ terkompresi berhasil diunduh!', 'success');
+    } catch {
+      showErrorAlert('Gagal Ekspor KMZ', 'Terjadi kesalahan saat memproses arsip KMZ.');
+    }
+  };
+
+  const handleExportGeoJson = () => {
+    downloadGeoJson(savedPoints, savedPolygons, savedSearchPatterns, savedDistanceRoutes);
+    setIsExportMenuOpen(false);
+    showToast('File GeoJSON berhasil diunduh!', 'success');
+  };
 
   // CARD-LEVEL INDIVIDUAL VISIBILITY TOGGLES (100% independent per-card toggle)
   const [hiddenPointIds, setHiddenPointIds] = useState<string[]>(() => {
@@ -669,6 +779,48 @@ export const MapPlottingPage: React.FC = () => {
     pointName,
     isMapReady,
   ]);
+
+  // 1C. RENDER TEMPORARY SEARCH RESULT PIN (Feature 1: Pulsing search marker on map)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !isMapReady) return;
+
+    if (searchMarkerRef.current) {
+      removeAdvancedMarker(searchMarkerRef.current);
+      searchMarkerRef.current = null;
+    }
+
+    if (searchPin) {
+      const pinShortName = searchPin.name.split(',')[0];
+      const contentHtml = `
+        <div style="position: relative; display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer;">
+          <div style="position: absolute; width: 42px; height: 42px; border-radius: 50%; background: rgba(234, 88, 12, 0.25); border: 2px solid #ea580c; animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none; top: -5px;"></div>
+          <div style="width: 32px; height: 32px; border-radius: 50%; background: #ea580c; border: 2.5px solid #ffffff; box-shadow: 0 4px 14px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: #ffffff; z-index: 2;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+          </div>
+          <div style="margin-top: 4px; padding: 2px 8px; border-radius: 8px; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(4px); border: 1px solid rgba(234, 88, 12, 0.8); color: #ffffff; font-size: 11px; font-weight: 800; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.35);">
+            🔍 ${pinShortName}
+          </div>
+        </div>
+      `;
+
+      const marker = createAdvancedMapMarker(map, {
+        position: { lat: searchPin.lat, lng: searchPin.lng },
+        title: `Hasil Pencarian: ${searchPin.name} (${decimalToDms(searchPin.lat, searchPin.lng)})`,
+        draggable: false,
+        contentHtml,
+        zIndex: 1200,
+        onClick: () => {
+          showToast(`Lokasi: ${searchPin.name}`, 'info');
+        },
+      });
+
+      searchMarkerRef.current = marker;
+    }
+  }, [searchPin, isMapReady]);
 
   // 2. RENDER POLYGONS & VERTICES (Requirement 2: Ensure polygon allows click-through for distance measurement)
   useEffect(() => {
@@ -1608,31 +1760,48 @@ export const MapPlottingPage: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-68px)] overflow-hidden font-sans">
-      {/* TOP COMPACT BAR: Status & Basemap Switcher */}
+    <div ref={mapWrapperRef} className="flex flex-col h-[calc(100vh-68px)] overflow-hidden font-sans bg-white dark:bg-slate-950">
+      {/* TOP COMPACT BAR: Status, Search, Basemap & Action Controls */}
       <div
-        className={`px-4 py-2 border-b flex items-center justify-between gap-3 text-xs shrink-0 ${
+        className={`px-3 py-2 border-b flex items-center justify-between gap-2.5 text-xs shrink-0 ${
           isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}
       >
-        <div className="flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="font-extrabold tracking-wide text-slate-800 dark:text-slate-200">
-            GIS PLOTTING & RADAR OPERASI SAR KENDARI
-          </span>
-          <span className="hidden md:inline px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 font-mono text-[10px] font-bold">
-            Google Maps v3 + Advanced Markers
-          </span>
+        {/* Left Section: Sidebar Toggle & App Title */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className={`p-1.5 rounded-xl border font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
+              isSidebarVisible
+                ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-inherit'
+                : 'bg-orange-600 hover:bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-600/20'
+            }`}
+            title={isSidebarVisible ? 'Sembunyikan Panel Tools Plotting' : 'Tampilkan Panel Tools Plotting'}
+          >
+            {isSidebarVisible ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+            <span className="hidden sm:inline text-[11px]">
+              {isSidebarVisible ? 'Sembunyikan Tools' : 'Buka Tools Plotting'}
+            </span>
+          </button>
+
+          <div className="hidden xl:flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-extrabold tracking-wide text-slate-800 dark:text-slate-200">
+              GIS RADAR OPERASI SAR KENDARI
+            </span>
+          </div>
         </div>
 
-        {/* Center coordinates & Basemap */}
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 font-mono text-[11px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-950 px-2.5 py-1 rounded-lg border border-inherit">
-            <Compass className="w-3.5 h-3.5 text-orange-500" />
-            <span>Pusat: {decimalToDms(centerCoords.lat, centerCoords.lng)}</span>
-          </div>
+        {/* Center Section: Location Search Bar */}
+        <div className="flex-1 max-w-sm sm:max-w-md mx-1">
+          <LocationSearchBar onSelectLocation={handleSelectLocation} isDarkMode={isDarkMode} />
+        </div>
 
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-inherit">
+        {/* Right Section: Basemap Switcher & Operational Actions */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Basemap Switcher */}
+          <div className="hidden sm:flex items-center gap-0.5 bg-slate-100 dark:bg-slate-950 p-0.5 rounded-xl border border-inherit">
             {(['hybrid', 'satellite', 'roadmap', 'terrain'] as const).map((type) => (
               <button
                 key={type}
@@ -1648,14 +1817,92 @@ export const MapPlottingPage: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {/* Cetak Peta Button */}
+          <button
+            type="button"
+            onClick={() => setIsPrintModalOpen(true)}
+            className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-950 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center gap-1.5 border border-inherit transition-colors cursor-pointer"
+            title="Cetak Lembar Peta Operasi SAR Resmi"
+          >
+            <Printer className="w-3.5 h-3.5 text-orange-500" />
+            <span className="hidden md:inline text-[11px]">Cetak Peta</span>
+          </button>
+
+          {/* Ekspor KMZ/KML Dropdown Menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsExportMenuOpen((prev) => !prev)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-950 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold flex items-center gap-1 border border-inherit transition-colors cursor-pointer"
+              title="Ekspor Layer GIS ke KML / KMZ / GeoJSON"
+            >
+              <FileDown className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="hidden md:inline text-[11px]">Ekspor KMZ/KML</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
+
+            {isExportMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-60 rounded-2xl border shadow-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 p-1.5 z-50 flex flex-col gap-1 text-xs">
+                <div className="px-2.5 py-1 text-[10px] font-bold text-slate-400 uppercase border-b border-inherit">
+                  Pilih Format Ekspor Spasial:
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportKml}
+                  className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-orange-50 dark:hover:bg-slate-800 flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-orange-500 shrink-0" />
+                  <div>
+                    <span className="block text-xs">Google Earth KML (.kml)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Format standar OGC KML 2.2</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportKmz}
+                  className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-slate-800 flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <div>
+                    <span className="block text-xs">Google Earth KMZ (.kmz)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Arsip KML terkompresi ZIP</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportGeoJson}
+                  className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-sky-50 dark:hover:bg-slate-800 flex items-center gap-2 font-bold text-slate-700 dark:text-slate-200 cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-sky-500 shrink-0" />
+                  <div>
+                    <span className="block text-xs">Universal GeoJSON (.geojson)</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Kompatibel QGIS, ArcGIS, ATAK</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Fullscreen Toggle */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-950 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-inherit transition-colors cursor-pointer"
+            title={isFullscreen ? 'Keluar dari Fullscreen (ESC)' : 'Layar Penuh / Maximize Peta'}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4 text-orange-500" /> : <Maximize2 className="w-4 h-4 text-orange-500" />}
+          </button>
         </div>
       </div>
 
       {/* MAIN GIS SPLIT VIEW */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* LEFT PANEL: Controls, Points, Polygon, Patterns */}
         <div
-          className={`w-96 md:w-[420px] border-r flex flex-col shrink-0 shadow-lg z-10 ${
+          className={`${
+            isSidebarVisible ? 'w-96 md:w-[420px]' : 'w-0 hidden'
+          } border-r flex flex-col shrink-0 shadow-lg z-10 transition-all duration-200 ${
             isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
           }`}
         >
@@ -2896,8 +3143,76 @@ export const MapPlottingPage: React.FC = () => {
         </div>
 
         {/* RIGHT PANEL: GOOGLE MAPS CANVAS */}
-        <div className="flex-1 relative bg-slate-900">
+        <div className="flex-1 relative bg-slate-900 overflow-hidden">
           <div ref={mapElementRef} className="w-full h-full" />
+
+          {/* Floating Sidebar Toggle Button on Map Canvas (Shown when sidebar is closed) */}
+          {!isSidebarVisible && (
+            <div className="absolute top-4 left-4 z-10">
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="px-3.5 py-2 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-xl shadow-orange-600/30 flex items-center gap-2 cursor-pointer transition-all hover:scale-105 border border-orange-400"
+              >
+                <PanelLeftOpen className="w-4 h-4" />
+                <span>Buka Tools Plotting</span>
+              </button>
+            </div>
+          )}
+
+          {/* Temporary Search Result Pin Action Card */}
+          {searchPin && (
+            <div className="absolute top-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl p-3.5 shadow-2xl border border-orange-500/50 z-20 flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-4 duration-200">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold shrink-0">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-100 truncate">
+                      {searchPin.name}
+                    </h4>
+                    <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold uppercase">
+                      {searchPin.type}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSearchPin(null)}
+                  className="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Tutup Pin"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] font-mono bg-slate-100 dark:bg-slate-950 px-2.5 py-1.5 rounded-xl border border-inherit">
+                <span className="text-slate-500">Koordinat:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  {decimalToDms(searchPin.lat, searchPin.lng)}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={handleConvertSearchPinToPoint}
+                  className="flex-1 py-1.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-orange-600/20 cursor-pointer transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Jadikan Titik SAR</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSearchPin(null)}
+                  className="py-1.5 px-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700 font-bold text-xs cursor-pointer"
+                >
+                  Hapus Pin
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Map Error Banner */}
           {mapError && (
@@ -2912,8 +3227,29 @@ export const MapPlottingPage: React.FC = () => {
             </div>
           )}
 
-          {/* Quick Map Floating Controls */}
+          {/* Quick Map Floating Controls (Bottom-Right) */}
           <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-10">
+            {/* Fullscreen Toggle */}
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-md hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 transition-all cursor-pointer"
+              title={isFullscreen ? 'Keluar dari Fullscreen (ESC)' : 'Layar Penuh / Maximize Peta'}
+            >
+              {isFullscreen ? <Minimize2 className="w-5 h-5 text-orange-500" /> : <Maximize2 className="w-5 h-5 text-orange-500" />}
+            </button>
+
+            {/* Quick Print Button */}
+            <button
+              type="button"
+              onClick={() => setIsPrintModalOpen(true)}
+              className="p-2.5 rounded-xl bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 shadow-md hover:bg-white dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 transition-all cursor-pointer"
+              title="Cetak Lembar Peta Operasi"
+            >
+              <Printer className="w-5 h-5 text-orange-500" />
+            </button>
+
+            {/* Reset to Kansar Center */}
             <button
               type="button"
               onClick={() => {
@@ -2930,6 +3266,18 @@ export const MapPlottingPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* PRINT MAP MODAL */}
+      <PrintMapModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        savedPoints={savedPoints}
+        savedPolygons={savedPolygons}
+        savedSearchPatterns={savedSearchPatterns}
+        savedDistanceRoutes={savedDistanceRoutes}
+        centerCoords={centerCoords}
+        basemapType={basemapType}
+      />
     </div>
   );
 };
