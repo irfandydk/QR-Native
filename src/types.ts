@@ -249,6 +249,13 @@ export interface UserSession {
 
 export type ThemePalette = 'orange' | 'navy' | 'emerald' | 'gold';
 
+export interface GisCustomIcon {
+  id: string;
+  name: string;
+  url: string;
+  createdAt: string;
+}
+
 export interface DatabaseSchema {
   master_alut: MasterAlut[];
   master_tim: MasterTim[];
@@ -263,4 +270,8 @@ export interface DatabaseSchema {
   laporan_harian: LaporanHarian[];
   bra_sar?: BraSar[];
   app_settings?: AppSettings;
+  gis_points?: any[];
+  gis_polygons?: any[];
+  gis_routes?: any[];
+  gis_custom_icons?: GisCustomIcon[];
 }

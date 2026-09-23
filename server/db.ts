@@ -196,6 +196,66 @@ const INITIAL_MASTER_TIM: MasterTim[] = [
   { id_tim: 11, nama_tim: 'ABK RB 307' },
 ];
 
+export const INITIAL_GIS_POINTS = [
+  {
+    id: 'pt-kansar',
+    lat: -4.015,
+    lng: 122.585,
+    label: 'Kantor SAR Kendari',
+    pointType: 'kantor',
+    description: 'Pusat Komando KPP Kendari, Jl. Bandara Haluoleo',
+  },
+  {
+    id: 'pt-baubau',
+    lat: -5.467,
+    lng: 122.607,
+    label: 'Pos SAR Baubau',
+    pointType: 'pos_sar',
+    description: 'Pangkalan Siaga Perairan Buton & Kepulauan',
+  },
+  {
+    id: 'pt-lkp-1',
+    lat: -3.85,
+    lng: 122.75,
+    label: 'LKP KM Sumber Bahagia',
+    pointType: 'lkp',
+    description: 'Titik duga kejadian kapal mati mesin di Teluk Kendari',
+  },
+];
+
+export const INITIAL_GIS_POLYGONS = [
+  {
+    id: 'poly-default-alpha',
+    name: 'Search Area Sektor Kendari - Saponda',
+    points: [
+      { lat: -3.85, lng: 122.65, label: 'Titik A' },
+      { lat: -3.85, lng: 122.88, label: 'Titik B' },
+      { lat: -4.05, lng: 122.88, label: 'Titik C' },
+      { lat: -4.05, lng: 122.65, label: 'Titik D' },
+    ],
+    strokeColor: '#ea580c',
+    strokeWeight: 2.5,
+    fillColor: '#ea580c',
+    fillOpacity: 0.18,
+  },
+];
+
+export const INITIAL_GIS_ROUTES = [
+  {
+    id: 'route_sample_1',
+    name: 'Rute Kansar ke LKP Sumber Bahagia',
+    points: [
+      { lat: -4.015, lng: 122.585, label: 'WP-1 (Kansar)' },
+      { lat: -3.85, lng: 122.75, label: 'WP-2 (LKP)' },
+    ],
+    vesselSpeedKnots: 25,
+    strokeColor: '#059669',
+    strokeWeight: 3.5,
+    strokeOpacity: 0.9,
+    createdAt: 'Default Rute Siaga',
+  },
+];
+
 function createSeedData(): DatabaseSchema {
   // Current time in WITA
   const now = new Date();
@@ -328,6 +388,10 @@ function createSeedData(): DatabaseSchema {
     renops_sru: [sru1, sru2],
     laporan_harian: [lapbang1],
     bra_sar: [],
+    gis_points: INITIAL_GIS_POINTS,
+    gis_polygons: INITIAL_GIS_POLYGONS,
+    gis_routes: INITIAL_GIS_ROUTES,
+    gis_custom_icons: [],
   };
 }
 
@@ -360,6 +424,27 @@ class Database {
         }
         if (!parsed.master_tim || parsed.master_tim.length < 10) {
           parsed.master_tim = INITIAL_MASTER_TIM;
+          this.data = parsed;
+          this.saveData();
+        }
+        let shouldSaveGis = false;
+        if (!parsed.gis_points || parsed.gis_points.length === 0) {
+          parsed.gis_points = INITIAL_GIS_POINTS;
+          shouldSaveGis = true;
+        }
+        if (!parsed.gis_polygons || parsed.gis_polygons.length === 0) {
+          parsed.gis_polygons = INITIAL_GIS_POLYGONS;
+          shouldSaveGis = true;
+        }
+        if (!parsed.gis_routes || parsed.gis_routes.length === 0) {
+          parsed.gis_routes = INITIAL_GIS_ROUTES;
+          shouldSaveGis = true;
+        }
+        if (!parsed.gis_custom_icons) {
+          parsed.gis_custom_icons = [];
+          shouldSaveGis = true;
+        }
+        if (shouldSaveGis) {
           this.data = parsed;
           this.saveData();
         }
@@ -1424,6 +1509,178 @@ class Database {
     return false;
   }
 
+  // --- GIS PLOTTING & RADAR OPERATIONS PERSISTENCE ---
+  public getGisData() {
+    return {
+      points: this.data.gis_points || INITIAL_GIS_POINTS,
+      polygons: this.data.gis_polygons || INITIAL_GIS_POLYGONS,
+      routes: this.data.gis_routes || INITIAL_GIS_ROUTES,
+      custom_icons: this.data.gis_custom_icons || [],
+    };
+  }
+
+  public getGisPoints() {
+    return this.data.gis_points || INITIAL_GIS_POINTS;
+  }
+
+  public saveAllGisPoints(points: any[]) {
+    this.data.gis_points = points;
+    this.saveData();
+    return this.data.gis_points;
+  }
+
+  public addOrUpdateGisPoint(point: any) {
+    if (!this.data.gis_points) this.data.gis_points = [...INITIAL_GIS_POINTS];
+    const idx = this.data.gis_points.findIndex((p: any) => p.id === point.id);
+    if (idx !== -1) {
+      this.data.gis_points[idx] = { ...this.data.gis_points[idx], ...point };
+    } else {
+      this.data.gis_points.push(point);
+    }
+    this.saveData();
+    return this.data.gis_points;
+  }
+
+  public updateGisPoint(id: string, updates: any) {
+    if (!this.data.gis_points) this.data.gis_points = [...INITIAL_GIS_POINTS];
+    const idx = this.data.gis_points.findIndex((p: any) => p.id === id);
+    if (idx !== -1) {
+      this.data.gis_points[idx] = { ...this.data.gis_points[idx], ...updates };
+      this.saveData();
+      return this.data.gis_points[idx];
+    }
+    const newPoint = { id, ...updates };
+    this.data.gis_points.push(newPoint);
+    this.saveData();
+    return newPoint;
+  }
+
+  public deleteGisPoint(id: string): boolean {
+    if (!this.data.gis_points) return false;
+    const initialLen = this.data.gis_points.length;
+    this.data.gis_points = this.data.gis_points.filter((p: any) => p.id !== id);
+    if (this.data.gis_points.length !== initialLen) {
+      this.saveData();
+      return true;
+    }
+    return false;
+  }
+
+  public getGisPolygons() {
+    return this.data.gis_polygons || INITIAL_GIS_POLYGONS;
+  }
+
+  public saveAllGisPolygons(polygons: any[]) {
+    this.data.gis_polygons = polygons;
+    this.saveData();
+    return this.data.gis_polygons;
+  }
+
+  public addOrUpdateGisPolygon(polygon: any) {
+    if (!this.data.gis_polygons) this.data.gis_polygons = [...INITIAL_GIS_POLYGONS];
+    const idx = this.data.gis_polygons.findIndex((p: any) => p.id === polygon.id);
+    if (idx !== -1) {
+      this.data.gis_polygons[idx] = { ...this.data.gis_polygons[idx], ...polygon };
+    } else {
+      this.data.gis_polygons.push(polygon);
+    }
+    this.saveData();
+    return this.data.gis_polygons;
+  }
+
+  public updateGisPolygon(id: string, updates: any) {
+    if (!this.data.gis_polygons) this.data.gis_polygons = [...INITIAL_GIS_POLYGONS];
+    const idx = this.data.gis_polygons.findIndex((p: any) => p.id === id);
+    if (idx !== -1) {
+      this.data.gis_polygons[idx] = { ...this.data.gis_polygons[idx], ...updates };
+      this.saveData();
+      return this.data.gis_polygons[idx];
+    }
+    const newPoly = { id, ...updates };
+    this.data.gis_polygons.push(newPoly);
+    this.saveData();
+    return newPoly;
+  }
+
+  public deleteGisPolygon(id: string): boolean {
+    if (!this.data.gis_polygons) return false;
+    const initialLen = this.data.gis_polygons.length;
+    this.data.gis_polygons = this.data.gis_polygons.filter((p: any) => p.id !== id);
+    if (this.data.gis_polygons.length !== initialLen) {
+      this.saveData();
+      return true;
+    }
+    return false;
+  }
+
+  public getGisRoutes() {
+    return this.data.gis_routes || INITIAL_GIS_ROUTES;
+  }
+
+  public saveAllGisRoutes(routes: any[]) {
+    this.data.gis_routes = routes;
+    this.saveData();
+    return this.data.gis_routes;
+  }
+
+  public addOrUpdateGisRoute(route: any) {
+    if (!this.data.gis_routes) this.data.gis_routes = [...INITIAL_GIS_ROUTES];
+    const idx = this.data.gis_routes.findIndex((r: any) => r.id === route.id);
+    if (idx !== -1) {
+      this.data.gis_routes[idx] = { ...this.data.gis_routes[idx], ...route };
+    } else {
+      this.data.gis_routes.push(route);
+    }
+    this.saveData();
+    return this.data.gis_routes;
+  }
+
+  public deleteGisRoute(id: string): boolean {
+    if (!this.data.gis_routes) return false;
+    const initialLen = this.data.gis_routes.length;
+    this.data.gis_routes = this.data.gis_routes.filter((r: any) => r.id !== id);
+    if (this.data.gis_routes.length !== initialLen) {
+      this.saveData();
+      return true;
+    }
+    return false;
+  }
+
+  public getGisCustomIcons() {
+    return this.data.gis_custom_icons || [];
+  }
+
+  public addGisCustomIcon(icon: { id: string; name: string; url: string; createdAt?: string }) {
+    if (!this.data.gis_custom_icons) this.data.gis_custom_icons = [];
+    const existing = this.data.gis_custom_icons.findIndex(i => i.id === icon.id || i.url === icon.url);
+    if (existing !== -1) {
+      this.data.gis_custom_icons[existing] = {
+        ...this.data.gis_custom_icons[existing],
+        ...icon,
+      };
+    } else {
+      this.data.gis_custom_icons.unshift({
+        id: icon.id || `icon_${Date.now()}`,
+        name: icon.name || 'Custom Icon',
+        url: icon.url,
+        createdAt: icon.createdAt || new Date().toISOString(),
+      });
+    }
+    this.saveData();
+    return this.data.gis_custom_icons;
+  }
+
+  public deleteGisCustomIcon(id: string): boolean {
+    if (!this.data.gis_custom_icons) return false;
+    const initialLen = this.data.gis_custom_icons.length;
+    this.data.gis_custom_icons = this.data.gis_custom_icons.filter(i => i.id !== id && i.url !== id);
+    if (this.data.gis_custom_icons.length !== initialLen) {
+      this.saveData();
+      return true;
+    }
+    return false;
+  }
+
   // Generate MySQL dump text
   public generateSQLDump(): string {
     const lines: string[] = [];
@@ -1600,6 +1857,10 @@ class Database {
       total_master_tim: number;
       total_sar_units: number;
       total_pejabat: number;
+      total_gis_points?: number;
+      total_gis_polygons?: number;
+      total_gis_routes?: number;
+      total_gis_custom_icons?: number;
     };
     data: DatabaseSchema;
   } {
@@ -1617,6 +1878,10 @@ class Database {
         total_master_tim: (this.data.master_tim || []).length,
         total_sar_units: (this.data.sar_units || []).length,
         total_pejabat: (this.data.app_settings?.pejabat_list || []).length,
+        total_gis_points: (this.data.gis_points || []).length,
+        total_gis_polygons: (this.data.gis_polygons || []).length,
+        total_gis_routes: (this.data.gis_routes || []).length,
+        total_gis_custom_icons: (this.data.gis_custom_icons || []).length,
       },
       data: JSON.parse(JSON.stringify(this.data)),
     };
@@ -1673,6 +1938,10 @@ class Database {
         renops_sru: getArr(['renops_sru', 'sru'], this.data.renops_sru || []),
         laporan_harian: getArr(['laporan_harian', 'lapbang', 'sitrep', 'laporans'], this.data.laporan_harian || []),
         bra_sar: getArr(['bra_sar', 'bra', 'brasar', 'naskah_bra'], this.data.bra_sar || []),
+        gis_points: getArr(['gis_points', 'points', 'map_points'], this.data.gis_points || INITIAL_GIS_POINTS),
+        gis_polygons: getArr(['gis_polygons', 'polygons', 'search_areas'], this.data.gis_polygons || INITIAL_GIS_POLYGONS),
+        gis_routes: getArr(['gis_routes', 'routes', 'distance_routes'], this.data.gis_routes || INITIAL_GIS_ROUTES),
+        gis_custom_icons: getArr(['gis_custom_icons', 'custom_icons', 'icons'], this.data.gis_custom_icons || []),
         app_settings: incomingData.app_settings && typeof incomingData.app_settings === 'object'
           ? { ...this.getAppSettings(), ...incomingData.app_settings }
           : (incomingData.settings && typeof incomingData.settings === 'object'
@@ -1706,6 +1975,8 @@ class Database {
           master_tim: this.data.master_tim.length,
           sar_units: (this.data.sar_units || []).length,
           pejabat: (this.data.app_settings?.pejabat_list || []).length,
+          gis_points: (this.data.gis_points || []).length,
+          gis_polygons: (this.data.gis_polygons || []).length,
         },
         settings: this.data.app_settings,
       };

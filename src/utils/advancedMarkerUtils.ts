@@ -32,14 +32,18 @@ export function createPointSvgHtml(
   let innerContent = '';
 
   if (customIconUrl) {
-    // Custom icon (uploaded PNG/SVG/JPG/data URL)
+    // Custom icon (uploaded PNG/SVG/JPG/server URL) with robust background fallback
     innerContent = `
       <defs>
         <clipPath id="${clipId}">
           <circle cx="${cx}" cy="16" r="11" />
         </clipPath>
       </defs>
-      <circle cx="${cx}" cy="16" r="12" fill="#ffffff" />
+      <circle cx="${cx}" cy="16" r="12" fill="#ffffff" stroke="${color}" stroke-width="1.5" />
+      <!-- Robust fallback SAR glyph in case custom image asset fails or is offline -->
+      <circle cx="${cx}" cy="16" r="6" fill="${color}" opacity="0.85" />
+      <circle cx="${cx}" cy="16" r="2.5" fill="#ffffff" />
+      <!-- Custom Asset Image from Server -->
       <image href="${customIconUrl}" x="${cx - 11}" y="5" width="22" height="22" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})" />
     `;
   } else {

@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
@@ -49,8 +50,16 @@ async function callGeminiWithCascade(ai: GoogleGenAI, prompt: string): Promise<{
 
 async function startServer() {
   const app = express();
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+  // Static uploads directory for persistent cross-device images (logos, custom map icons)
+  const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
+  const ICONS_DIR = path.join(UPLOADS_DIR, 'icons');
+  const LOGOS_DIR = path.join(UPLOADS_DIR, 'logos');
+  if (!fs.existsSync(ICONS_DIR)) fs.mkdirSync(ICONS_DIR, { recursive: true });
+  if (!fs.existsSync(LOGOS_DIR)) fs.mkdirSync(LOGOS_DIR, { recursive: true });
+  app.use('/uploads', express.static(UPLOADS_DIR));
 
   // --- API Routes ---
 
@@ -1394,6 +1403,260 @@ Hanya berikan JSON murni tanpa markdown triple backticks.`;
         return res.status(404).json({ success: false, error: 'Data pejabat tidak ditemukan' });
       }
       res.json({ success: true, message: 'Pejabat berhasil dihapus' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // --- Dynamic Logo Upload Endpoint (Persistent Server Path) ---
+  app.post('/api/upload/logo', (req, res) => {
+    try {
+      const { imageBase64, extension = 'png' } = req.body;
+      if (!imageBase64) {
+        return res.status(400).json({ success: false, error: 'Data gambar logo wajib disertakan' });
+      }
+
+      const matches = imageBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      let buffer: Buffer;
+      let ext = extension.replace('.', '');
+      if (matches && matches.length === 3) {
+        const mime = matches[1];
+        if (mime.includes('svg')) ext = 'svg';
+        else if (mime.includes('jpeg') || mime.includes('jpg')) ext = 'jpg';
+        else if (mime.includes('webp')) ext = 'webp';
+        else ext = 'png';
+        buffer = Buffer.from(matches[2], 'base64');
+      } else {
+        buffer = Buffer.from(imageBase64, 'base64');
+      }
+
+      const filename = `logo_basarnas_${Date.now()}.${ext}`;
+      const filePath = path.join(LOGOS_DIR, filename);
+      fs.writeFileSync(filePath, buffer);
+
+      const publicUrl = `/uploads/logos/${filename}`;
+      // Update app settings in database immediately
+      const updatedSettings = db.updateSettings({ logo_url: publicUrl });
+
+      res.json({
+        success: true,
+        logo_url: publicUrl,
+        settings: updatedSettings,
+        message: 'Logo berhasil diunggah ke server dan disimpan ke basis data.',
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // --- GIS PLOTTING & RADAR OPERATIONS PERSISTENCE API ---
+  app.get('/api/gis/data', (req, res) => {
+    try {
+      const data = db.getGisData();
+      res.json({ success: true, data });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/gis/sync', (req, res) => {
+    try {
+      const { points, polygons, routes } = req.body;
+      if (Array.isArray(points)) db.saveAllGisPoints(points);
+      if (Array.isArray(polygons)) db.saveAllGisPolygons(polygons);
+      if (Array.isArray(routes)) db.saveAllGisRoutes(routes);
+      res.json({ success: true, data: db.getGisData() });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Points (Add, Update Lat/Lng on dragend, Delete)
+  app.get('/api/gis/points', (req, res) => {
+    try {
+      res.json({ success: true, data: db.getGisPoints() });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/gis/points', (req, res) => {
+    try {
+      const point = req.body;
+      if (!point || point.lat === undefined || point.lng === undefined) {
+        return res.status(400).json({ success: false, error: 'Data koordinat point tidak lengkap' });
+      }
+      if (!point.id) point.id = `pt-${Date.now()}`;
+      db.addOrUpdateGisPoint(point);
+      res.json({ success: true, data: point });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.put('/api/gis/points/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const updated = db.updateGisPoint(id, updates);
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.delete('/api/gis/points/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const ok = db.deleteGisPoint(id);
+      res.json({ success: ok, message: ok ? 'Titik berhasil dihapus' : 'Titik tidak ditemukan' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Polygons (Add, Update points/vertices on dragend, Delete)
+  app.get('/api/gis/polygons', (req, res) => {
+    try {
+      res.json({ success: true, data: db.getGisPolygons() });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/gis/polygons', (req, res) => {
+    try {
+      const poly = req.body;
+      if (!poly.id) poly.id = `poly-${Date.now()}`;
+      db.addOrUpdateGisPolygon(poly);
+      res.json({ success: true, data: poly });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.put('/api/gis/polygons/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const updated = db.updateGisPolygon(id, updates);
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.delete('/api/gis/polygons/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const ok = db.deleteGisPolygon(id);
+      res.json({ success: ok, message: ok ? 'Polygon berhasil dihapus' : 'Polygon tidak ditemukan' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Routes (Add, Update, Delete)
+  app.get('/api/gis/routes', (req, res) => {
+    try {
+      res.json({ success: true, data: db.getGisRoutes() });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/gis/routes', (req, res) => {
+    try {
+      const route = req.body;
+      if (!route.id) route.id = `route_${Date.now()}`;
+      db.addOrUpdateGisRoute(route);
+      res.json({ success: true, data: route });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.put('/api/gis/routes/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const updated = db.addOrUpdateGisRoute({ id, ...updates });
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.delete('/api/gis/routes/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const ok = db.deleteGisRoute(id);
+      res.json({ success: ok, message: ok ? 'Rute berhasil dihapus' : 'Rute tidak ditemukan' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Custom Icon Asset Upload & Serving
+  app.get('/api/gis/custom-icons', (req, res) => {
+    try {
+      res.json({ success: true, data: db.getGisCustomIcons() });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/gis/custom-icons/upload', (req, res) => {
+    try {
+      const { name, imageBase64, extension = 'png' } = req.body;
+      if (!imageBase64) {
+        return res.status(400).json({ success: false, error: 'Data gambar kustom wajib disertakan' });
+      }
+
+      const matches = imageBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      let buffer: Buffer;
+      let ext = extension.replace('.', '');
+      if (matches && matches.length === 3) {
+        const mime = matches[1];
+        if (mime.includes('svg')) ext = 'svg';
+        else if (mime.includes('jpeg') || mime.includes('jpg')) ext = 'jpg';
+        else if (mime.includes('webp')) ext = 'webp';
+        else ext = 'png';
+        buffer = Buffer.from(matches[2], 'base64');
+      } else {
+        buffer = Buffer.from(imageBase64, 'base64');
+      }
+
+      const filename = `icon_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+      const filePath = path.join(ICONS_DIR, filename);
+      fs.writeFileSync(filePath, buffer);
+
+      const publicUrl = `/uploads/icons/${filename}`;
+      const iconObj = {
+        id: `icon_${Date.now()}`,
+        name: name || 'Icon Kustom',
+        url: publicUrl,
+        createdAt: new Date().toISOString(),
+      };
+      db.addGisCustomIcon(iconObj);
+
+      res.json({
+        success: true,
+        url: publicUrl,
+        icon: iconObj,
+        icons: db.getGisCustomIcons(),
+        message: 'Icon kustom berhasil disimpan secara persisten di server.',
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.delete('/api/gis/custom-icons/:id', (req, res) => {
+    try {
+      const { id } = req.params;
+      const ok = db.deleteGisCustomIcon(id);
+      res.json({ success: ok, icons: db.getGisCustomIcons() });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }

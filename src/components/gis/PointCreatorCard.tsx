@@ -83,9 +83,11 @@ export const PointCreatorCard: React.FC<PointCreatorCardProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeIconTab, setActiveIconTab] = useState<'sar' | 'alphabet' | 'saved'>('sar');
   const [savedCustomIcons, setSavedCustomIcons] = useState<string[]>([]);
+  const [isUploadingIcon, setIsUploadingIcon] = useState<boolean>(false);
 
-  // Load persistent uploaded icons from localStorage
+  // Load persistent uploaded icons from server database and localStorage cache
   useEffect(() => {
+    let isMounted = true;
     try {
       const stored = localStorage.getItem('basarnas_saved_custom_icons');
       if (stored) {
@@ -94,9 +96,34 @@ export const PointCreatorCard: React.FC<PointCreatorCardProps> = ({
           setSavedCustomIcons(parsed);
         }
       }
-    } catch {
-      // Fallback
-    }
+    } catch {}
+
+    const fetchServerIcons = async () => {
+      try {
+        const res = await fetch('/api/gis/custom-icons');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data) && isMounted) {
+            const urls = json.data.map((item: any) => item.url || item);
+            setSavedCustomIcons((prev) => {
+              const merged = Array.from(new Set([...urls, ...prev]));
+              try {
+                localStorage.setItem('basarnas_saved_custom_icons', JSON.stringify(merged));
+              } catch {}
+              return merged;
+            });
+          }
+        }
+      } catch (err) {
+        // Fallback to local
+      }
+    };
+
+    fetchServerIcons();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Sync active tab if initial selection is alphabet or custom
@@ -108,42 +135,73 @@ export const PointCreatorCard: React.FC<PointCreatorCardProps> = ({
     }
   }, []);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const result = event.target?.result as string;
-        if (result) {
-          setCustomIconUrl(result);
-          setSelectedIconType('custom_upload');
-          setActiveIconTab('saved');
+    if (!file) return;
 
-          // Automatically persist to savedCustomIcons library
-          setSavedCustomIcons((prev) => {
-            const updated = [result, ...prev.filter((u) => u !== result)];
-            try {
-              localStorage.setItem('basarnas_saved_custom_icons', JSON.stringify(updated));
-            } catch {
-              // Ignore storage limit
-            }
-            return updated;
-          });
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const result = event.target?.result as string;
+      if (!result) return;
+
+      setIsUploadingIcon(true);
+      let targetUrl = result;
+
+      // Persist to server static storage via AJAX
+      try {
+        const upRes = await fetch('/api/gis/custom-icons/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: result,
+            extension: file.name.split('.').pop() || 'png',
+            name: file.name.replace(/\.[^/.]+$/, ''),
+          }),
+        });
+        if (upRes.ok) {
+          const upJson = await upRes.json();
+          if (upJson.success && upJson.url) {
+            targetUrl = upJson.url;
+          }
         }
-      };
-      reader.readAsDataURL(file);
-    }
+      } catch (err) {
+        console.warn('Icon uploaded locally, server upload failed:', err);
+      } finally {
+        setIsUploadingIcon(false);
+      }
+
+      setCustomIconUrl(targetUrl);
+      setSelectedIconType('custom_upload');
+      setActiveIconTab('saved');
+
+      // Automatically persist to savedCustomIcons library
+      setSavedCustomIcons((prev) => {
+        const updated = [targetUrl, ...prev.filter((u) => u !== targetUrl)];
+        try {
+          localStorage.setItem('basarnas_saved_custom_icons', JSON.stringify(updated));
+        } catch {}
+        return updated;
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleDeleteSavedIcon = (iconToDelete: string, e: React.MouseEvent) => {
+  const handleDeleteSavedIcon = async (iconToDelete: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const updated = savedCustomIcons.filter((u) => u !== iconToDelete);
     setSavedCustomIcons(updated);
     try {
       localStorage.setItem('basarnas_saved_custom_icons', JSON.stringify(updated));
-    } catch {
-      // Ignore
-    }
+    } catch {}
+
+    // Also call server delete if it's an uploaded asset path
+    try {
+      const filename = iconToDelete.split('/').pop();
+      if (filename) {
+        await fetch(`/api/gis/custom-icons/${filename}`, { method: 'DELETE' });
+      }
+    } catch {}
+
     if (customIconUrl === iconToDelete) {
       setCustomIconUrl(undefined);
       setSelectedIconType('waypoint');
@@ -362,6 +420,10 @@ export const PointCreatorCard: React.FC<PointCreatorCardProps> = ({
                         alt={`Saved Icon ${idx + 1}`}
                         className="w-full h-full object-contain rounded-md"
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src =
+                            'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ea580c"><circle cx="12" cy="12" r="10" fill="%23fff" stroke="%23ea580c" stroke-width="2"/><circle cx="12" cy="12" r="5" fill="%23ea580c"/></svg>';
+                        }}
                       />
                       {isSelected && (
                         <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center">

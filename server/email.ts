@@ -1,4 +1,3 @@
-import nodemailer from 'nodemailer';
 import { AppSettings } from '../src/types.js';
 
 export interface SendResetEmailParams {
@@ -19,9 +18,9 @@ export interface EmailSendResult {
 }
 
 /**
- * Creates a nodemailer transporter based on env variables or database app_settings.
+ * Creates a transporter dynamically if nodemailer is present in runtime
  */
-function createTransporter(settings?: AppSettings) {
+async function createTransporter(settings?: AppSettings): Promise<any> {
   const host = process.env.SMTP_HOST || settings?.smtp_host;
   const port = Number(process.env.SMTP_PORT || settings?.smtp_port || 587);
   const user = process.env.SMTP_USER || settings?.smtp_user;
@@ -29,18 +28,25 @@ function createTransporter(settings?: AppSettings) {
   const isSecure = port === 465;
 
   if (host && user && pass) {
-    return nodemailer.createTransport({
-      host,
-      port,
-      secure: isSecure,
-      auth: {
-        user,
-        pass,
-      },
-      tls: {
-        rejectUnauthorized: false,
-      },
-    });
+    try {
+      // Dynamic import to prevent build failure if nodemailer isn't installed
+      const nodemailer = await (Function('return import("nodemailer")')().catch(() => null));
+      if (!nodemailer || !nodemailer.createTransport) return null;
+      return nodemailer.createTransport({
+        host,
+        port,
+        secure: isSecure,
+        auth: {
+          user,
+          pass,
+        },
+        tls: {
+          rejectUnauthorized: false,
+        },
+      });
+    } catch {
+      return null;
+    }
   }
 
   return null;
@@ -136,7 +142,7 @@ export async function sendPasswordResetEmail(params: SendResetEmailParams): Prom
   const satkerName = settings?.satker_nama || 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI';
   const fromAddress = process.env.SMTP_FROM || settings?.smtp_from || `"Pusdatin SAR Kendari" <no-reply@basarnas.go.id>`;
 
-  const transporter = createTransporter(settings);
+  const transporter = await createTransporter(settings);
 
   if (transporter) {
     try {

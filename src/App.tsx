@@ -23,6 +23,12 @@ import { ShieldCheck, LogIn } from 'lucide-react';
 
 export default function App() {
   const { isDarkMode } = useTheme();
+
+  // Instant synchronous check for QR scanning in URL
+  const initialQrBraId = typeof window !== 'undefined' 
+    ? new URLSearchParams(window.location.search).get('viewBra') || new URLSearchParams(window.location.search).get('bra')
+    : null;
+
   const [currentUser, setCurrentUser] = useState<UserSession | null>(() => {
     try {
       const saved = localStorage.getItem('basarnas_user_session');
@@ -47,12 +53,16 @@ export default function App() {
   const [activeBraDoc, setActiveBraDoc] = useState<BraSar | null>(null);
   const [showBraListModal, setShowBraListModal] = useState<boolean>(false);
   const [preselectedBraOpId, setPreselectedBraOpId] = useState<number | null>(null);
-  const [isPublicScanView, setIsPublicScanView] = useState<boolean>(false);
+  const [isPublicScanView, setIsPublicScanView] = useState<boolean>(Boolean(initialQrBraId));
+  const [isVerifyingQrDoc, setIsVerifyingQrDoc] = useState<boolean>(Boolean(initialQrBraId));
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
 
   const [operasiList, setOperasiList] = useState<Operasi[]>([]);
   const [masterAlut, setMasterAlut] = useState<MasterAlut[]>([]);
   const [masterTim, setMasterTim] = useState<MasterTim[]>([]);
+  const [appLogoUrl, setAppLogoUrl] = useState<string>(() => {
+    return (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') : null) || '';
+  });
   const [loading, setLoading] = useState<boolean>(true);
 
   // Modals
@@ -73,24 +83,32 @@ export default function App() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [opRes, alutRes, timRes, braRes] = await Promise.all([
+      const [opRes, alutRes, timRes, braRes, setRes] = await Promise.all([
         fetch('/api/operasi'),
         fetch('/api/master/alut'),
         fetch('/api/master/tim'),
         fetch('/api/bra'),
+        fetch('/api/settings'),
       ]);
 
-      const [opData, alutData, timData, braData] = await Promise.all([
+      const [opData, alutData, timData, braData, setData] = await Promise.all([
         opRes.json(),
         alutRes.json(),
         timRes.json(),
         braRes.json(),
+        setRes.json(),
       ]);
 
       if (opData.success) setOperasiList(opData.data);
       if (alutData.success) setMasterAlut(alutData.data);
       if (timData.success) setMasterTim(timData.data);
       if (braData.success) setBraList(braData.data);
+      if (setData.success && setData.data?.logo_url) {
+        setAppLogoUrl(setData.data.logo_url);
+        try {
+          localStorage.setItem('sar_custom_logo_url', setData.data.logo_url);
+        } catch {}
+      }
     } catch (err) {
       console.error('Failed to fetch data:', err);
     } finally {
@@ -102,7 +120,7 @@ export default function App() {
     fetchData();
   }, [fetchData]);
 
-  // Synchronize currentUser if updated from Admin Settings
+  // Synchronize currentUser if updated from Admin Settings or across tabs
   useEffect(() => {
     const handleAdminUpdated = (e: any) => {
       if (e.detail) {
@@ -115,8 +133,34 @@ export default function App() {
         });
       }
     };
+
+    // Multi-tab / multi-device concurrent sync
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'basarnas_user_session') {
+        if (e.newValue) {
+          try {
+            setCurrentUser(JSON.parse(e.newValue));
+          } catch {}
+        } else {
+          setCurrentUser(null);
+        }
+      }
+    };
+
     window.addEventListener('qr_sar_admin_updated', handleAdminUpdated);
-    return () => window.removeEventListener('qr_sar_admin_updated', handleAdminUpdated);
+    window.addEventListener('storage', handleStorageChange);
+
+    const handleLogoUpdated = (e: any) => {
+      const newUrl = e?.detail?.logo_url || localStorage.getItem('sar_custom_logo_url');
+      if (newUrl) setAppLogoUrl(newUrl);
+    };
+    window.addEventListener('sar_logo_updated', handleLogoUpdated);
+
+    return () => {
+      window.removeEventListener('qr_sar_admin_updated', handleAdminUpdated);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('sar_logo_updated', handleLogoUpdated);
+    };
   }, []);
 
   // Handle URL query for Direct QR Code Scan verification (?viewBra=123 or ?bra=123)
@@ -126,15 +170,24 @@ export default function App() {
       const braId = params.get('viewBra') || params.get('bra');
       if (braId) {
         setIsPublicScanView(true);
+        setIsVerifyingQrDoc(true);
         fetch(`/api/bra/${braId}`)
           .then((res) => res.json())
           .then((data) => {
             if (data.success && data.data) {
               setActiveBraDoc(data.data);
               setView('view-bra');
+            } else {
+              showToast('Dokumen BRA SAR tidak ditemukan atau nomor salah.', 'error');
             }
           })
-          .catch((err) => console.error('Failed to load BRA from QR link:', err));
+          .catch((err) => {
+            console.error('Failed to load BRA from QR link:', err);
+            showToast('Gagal memverifikasi dokumen BRA.', 'error');
+          })
+          .finally(() => {
+            setIsVerifyingQrDoc(false);
+          });
       }
     }
   }, []);
@@ -228,6 +281,23 @@ export default function App() {
     setCurrentUser(null);
     showToast('Berhasil keluar dari sistem SAR.', 'info');
   };
+
+  // If scanning QR from outside without login, show verification screen
+  if (!currentUser && isVerifyingQrDoc) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center p-6 ${
+        isDarkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      }`}>
+        <div className="w-16 h-16 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center mb-4">
+          <div className="w-8 h-8 border-3 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <h2 className="text-base font-bold tracking-wide uppercase">Memverifikasi Dokumen BRA SAR</h2>
+        <p className="text-xs text-slate-400 mt-1 max-w-sm text-center">
+          Menghubungkan ke pusat validasi data telegram digital Kantor SAR Kendari...
+        </p>
+      </div>
+    );
+  }
 
   // If viewing via QR scan without login, render public verification view directly!
   if (!currentUser && (isPublicScanView || view === 'view-bra') && activeBraDoc) {
@@ -353,6 +423,7 @@ export default function App() {
         onToggle={() => setIsSidebarOpen((prev) => !prev)}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        logoUrl={appLogoUrl}
       />
 
       {/* Main Container Wrapper with dynamic padding for sidebar */}

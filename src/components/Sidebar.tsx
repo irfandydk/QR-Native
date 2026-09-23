@@ -43,6 +43,7 @@ interface SidebarProps {
   onToggle: () => void;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
+  logoUrl?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -54,6 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggle,
   isMobileOpen,
   onCloseMobile,
+  logoUrl,
 }) => {
   const { isDarkMode, toggleDarkMode, themePalette, setThemePalette, accentColors } = useTheme();
   const [witaTime, setWitaTime] = useState<string>('');
@@ -160,7 +162,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             onClick={() => onNavigate('dashboard')}
             title="Dashboard Utama KPP Kendari"
           >
-            <BasarnasLogo size={34} className="shrink-0 drop-shadow-sm group-hover:scale-105 transition-transform" />
+            <BasarnasLogo logoUrl={logoUrl} size={34} className="shrink-0 drop-shadow-sm group-hover:scale-105 transition-transform" />
             {isOpen && (
               <div className="min-w-0 transition-opacity duration-200">
                 <span className="font-extrabold text-xs tracking-wider text-orange-600 dark:text-orange-500 block truncate">

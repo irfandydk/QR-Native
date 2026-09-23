@@ -162,10 +162,16 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
         }
       }
 
-      // Count GIS routes and icons from localStorage
+      // Count GIS points, polygons, routes and icons from localStorage
       let gisCount = 0;
       let iconsCount = 0;
+      let pointsCount = 0;
+      let polysCount = 0;
       try {
+        const pts = localStorage.getItem('basarnas_saved_map_points');
+        if (pts) pointsCount = JSON.parse(pts).length || 0;
+        const polys = localStorage.getItem('basarnas_saved_polygons');
+        if (polys) polysCount = JSON.parse(polys).length || 0;
         const r = localStorage.getItem('basarnas_saved_distance_routes');
         if (r) gisCount = JSON.parse(r).length || 0;
         const ic = localStorage.getItem('basarnas_saved_custom_icons');
@@ -185,7 +191,7 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
             master_tim: expData.stats.total_master_tim || 0,
             sar_units: expData.stats.total_sar_units || expData.data?.sar_units?.length || 0,
             pejabat: expData.stats.total_pejabat || expData.data?.app_settings?.pejabat_list?.length || 0,
-            gis_routes: gisCount,
+            gis_routes: gisCount + pointsCount + polysCount,
             custom_icons: iconsCount,
           });
         }
@@ -342,13 +348,14 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
 
       // Sync logo locally to immediate reflection
       try {
-        localStorage.setItem('sar_custom_logo_url', satkerLogoUrl.trim() || DEFAULT_BASARNAS_LOGO);
-        window.dispatchEvent(new Event('sar_logo_updated'));
+        const finalLogo = satkerLogoUrl.trim() || DEFAULT_BASARNAS_LOGO;
+        localStorage.setItem('sar_custom_logo_url', finalLogo);
+        window.dispatchEvent(new CustomEvent('sar_logo_updated', { detail: { logo_url: finalLogo } }));
       } catch {}
 
       showSuccessAlert(
         'Pengaturan Satker Disimpan',
-        'Identitas kantor SAR, call sign radio, frekuensi, dan logo resmi berhasil diperbarui.'
+        'Identitas kantor SAR, call sign radio, frekuensi, dan logo resmi berhasil diperbarui dan disinkronkan ke server.'
       );
       if (onRefreshData) onRefreshData();
     } catch (err: any) {
@@ -358,7 +365,7 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
     }
   };
 
-  // Upload logo from local file
+  // Upload logo from local file directly to server
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -369,9 +376,33 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       if (typeof reader.result === 'string') {
-        setSatkerLogoUrl(reader.result);
+        const base64Data = reader.result;
+        setSatkerLogoUrl(base64Data);
+        // Direct upload to server for cross-device persistence
+        try {
+          const upRes = await fetch('/api/upload/logo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageBase64: base64Data,
+              extension: file.name.split('.').pop() || 'png',
+            }),
+          });
+          const upData = await upRes.json();
+          if (upData.success && upData.logo_url) {
+            setSatkerLogoUrl(upData.logo_url);
+            try {
+              localStorage.setItem('sar_custom_logo_url', upData.logo_url);
+              window.dispatchEvent(new CustomEvent('sar_logo_updated', { detail: { logo_url: upData.logo_url } }));
+            } catch {}
+            showToast('Logo berhasil diunggah ke server dan disinkronkan ke seluruh sistem!', 'success');
+            return;
+          }
+        } catch {
+          // Fallback to local
+        }
         showToast('Gambar logo berhasil dimuat. Klik "Simpan Pengaturan Satker" untuk menerapkan.', 'info');
       }
     };
@@ -395,12 +426,18 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
       // 2. Fetch all persistent client-side data
       let clientGisRoutes: any[] = [];
       let clientCustomIcons: any[] = [];
+      let clientGisPoints: any[] = [];
+      let clientGisPolygons: any[] = [];
       let clientLogo = '';
       try {
         const r = localStorage.getItem('basarnas_saved_distance_routes');
         if (r) clientGisRoutes = JSON.parse(r);
         const ic = localStorage.getItem('basarnas_saved_custom_icons');
         if (ic) clientCustomIcons = JSON.parse(ic);
+        const pts = localStorage.getItem('basarnas_saved_map_points');
+        if (pts) clientGisPoints = JSON.parse(pts);
+        const polys = localStorage.getItem('basarnas_saved_polygons');
+        if (polys) clientGisPolygons = JSON.parse(polys);
         clientLogo = localStorage.getItem('sar_custom_logo_url') || '';
       } catch (err) {
         console.warn('Could not read client local state:', err);
@@ -422,6 +459,8 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
           total_master_tim: (serverPayload.data?.master_tim || []).length,
           total_sar_units: (serverPayload.data?.sar_units || []).length,
           total_pejabat: (serverPayload.data?.app_settings?.pejabat_list || []).length,
+          total_gis_points: clientGisPoints.length,
+          total_gis_polygons: clientGisPolygons.length,
           total_gis_routes: clientGisRoutes.length,
           total_custom_icons: clientCustomIcons.length,
           has_custom_logo: Boolean(clientLogo || serverPayload.data?.app_settings?.logo_url),
@@ -429,6 +468,8 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
         // Database collections
         data: serverPayload.data || serverPayload,
         // Client GIS & Assets
+        gis_points: clientGisPoints,
+        gis_polygons: clientGisPolygons,
         gis_routes: clientGisRoutes,
         custom_icons: clientCustomIcons,
         client_logo_url: clientLogo,
@@ -503,6 +544,8 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
       const timCount = Array.isArray(dbData.master_tim) ? dbData.master_tim.length : (parsed.coverage_summary?.total_master_tim || 0);
       const gisRoutes = Array.isArray(parsed.gis_routes) ? parsed.gis_routes : [];
       const customIcons = Array.isArray(parsed.custom_icons) ? parsed.custom_icons : [];
+      const gisPoints = Array.isArray(parsed.gis_points) ? parsed.gis_points : [];
+      const gisPolygons = Array.isArray(parsed.gis_polygons) ? parsed.gis_polygons : [];
 
       const confirmed = await showConfirmDialog(
         'Konfirmasi Pemulihan Database',
@@ -513,7 +556,7 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
         `• ${braCount} Dokumen Resmi BRA SAR\n` +
         `• ${renopsCount} Rencana Operasi (Renops)\n` +
         `• ${alutCount} Master Alut & ${timCount} Master Tim\n` +
-        `• ${gisRoutes.length} Rute GIS & ${customIcons.length} Ikon Pin Peta\n\n` +
+        `• ${gisPoints.length} Titik GIS, ${gisPolygons.length} Polygon, ${gisRoutes.length} Rute Jarak\n\n` +
         `Data yang ada di sistem saat ini akan diperbarui dengan isi berkas cadangan ini.`,
         'Ya, Pulihkan Sekarang',
         false
@@ -537,8 +580,14 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
         throw new Error(resData.error || 'Server menolak pemulihan database.');
       }
 
-      // 2. Restore client-side GIS routes & custom icons & logo
+      // 2. Restore client-side GIS points, polygons, routes & custom icons & logo
       try {
+        if (gisPoints.length > 0) {
+          localStorage.setItem('basarnas_saved_map_points', JSON.stringify(gisPoints));
+        }
+        if (gisPolygons.length > 0) {
+          localStorage.setItem('basarnas_saved_polygons', JSON.stringify(gisPolygons));
+        }
         if (gisRoutes.length > 0) {
           localStorage.setItem('basarnas_saved_distance_routes', JSON.stringify(gisRoutes));
         }

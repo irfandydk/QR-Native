@@ -30,16 +30,63 @@ export const DEFAULT_BASARNAS_LOGO = 'https://upload.wikimedia.org/wikipedia/com
 
 export const BasarnasLogo: React.FC<BasarnasLogoProps> = ({ className = '', size = 56, logoUrl }) => {
   const [hasError, setHasError] = React.useState<boolean>(false);
+  const [serverLogo, setServerLogo] = React.useState<string | null>(null);
 
-  // If no explicit logoUrl passed, attempt reading from localStorage or use official default
+  // Sync server logo if no explicit logoUrl prop was provided
+  React.useEffect(() => {
+    if (logoUrl) {
+      setHasError(false);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchServerLogo = async () => {
+      try {
+        const cached = typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') : null;
+        if (cached && isMounted) {
+          setServerLogo(cached);
+        }
+
+        const res = await fetch('/api/settings');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data?.logo_url && isMounted) {
+            setServerLogo(json.data.logo_url);
+            try {
+              localStorage.setItem('sar_custom_logo_url', json.data.logo_url);
+            } catch {}
+          }
+        }
+      } catch (e) {
+        // Fallback gracefully
+      }
+    };
+
+    fetchServerLogo();
+
+    const handleLogoUpdate = (e: any) => {
+      const updatedUrl = e?.detail?.logo_url || (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') : null);
+      if (updatedUrl && isMounted) {
+        setServerLogo(updatedUrl);
+        setHasError(false);
+      }
+    };
+
+    window.addEventListener('sar_logo_updated', handleLogoUpdate);
+    window.addEventListener('storage', handleLogoUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('sar_logo_updated', handleLogoUpdate);
+      window.removeEventListener('storage', handleLogoUpdate);
+    };
+  }, [logoUrl]);
+
   const activeLogo =
     logoUrl ||
+    serverLogo ||
     (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') : null) ||
     DEFAULT_BASARNAS_LOGO_URL;
-
-  React.useEffect(() => {
-    setHasError(false);
-  }, [logoUrl]);
 
   if (activeLogo && !hasError && activeLogo !== DEFAULT_BASARNAS_LOGO_URL) {
     return (
