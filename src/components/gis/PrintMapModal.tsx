@@ -30,6 +30,7 @@ import {
   PointIconType,
 } from '../../utils/geoUtils';
 import { createPointSvgHtml } from '../../utils/advancedMarkerUtils';
+import { buildGoogleStaticMapUrl } from '../../utils/mapSnapshotGenerator';
 import { PRESET_POINT_ICONS } from './PointCreatorCard';
 import { BASARNAS_EMBLEM_SVG_URI } from '../BasarnasLogo';
 
@@ -116,8 +117,133 @@ export const PrintMapModal: React.FC<PrintMapModalProps> = ({
 
   if (!isOpen) return null;
 
+  const staticMapFallbackUrl = buildGoogleStaticMapUrl({
+    center: centerCoords,
+    zoom: 11,
+    mapType: basemapType,
+    points: savedPoints,
+    polygons: savedPolygons,
+    routes: savedDistanceRoutes,
+    patterns: savedSearchPatterns,
+  });
+
+  const effectiveSnapshotUrl = snapshotUrl || staticMapFallbackUrl;
+
   const handlePrint = () => {
-    window.print();
+    if (!printAreaRef.current) {
+      window.print();
+      return;
+    }
+
+    // Create a dedicated isolated print iframe to prevent any background UI from leaking into print preview/PDF
+    const frame = document.createElement('iframe');
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    document.body.appendChild(frame);
+
+    const doc = frame.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    const contentHtml = printAreaRef.current.innerHTML;
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${operationTitle} - Lembar Peta SAR</title>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 6mm 8mm;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              background-color: #ffffff;
+              color: #000000;
+              margin: 0;
+              padding: 0;
+            }
+            .print-avoid-break {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+            img {
+              max-width: 100%;
+            }
+          </style>
+        </head>
+        <body class="bg-white text-black">
+          <div style="padding: 4px;">
+            ${contentHtml}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    // Wait for all images in the frame to load
+    const images = doc.getElementsByTagName('img');
+    let loadedCount = 0;
+    const totalImages = images.length;
+
+    const firePrint = () => {
+      setTimeout(() => {
+        try {
+          frame.contentWindow?.focus();
+          frame.contentWindow?.print();
+        } catch {
+          window.print();
+        } finally {
+          setTimeout(() => {
+            if (document.body.contains(frame)) {
+              document.body.removeChild(frame);
+            }
+          }, 1500);
+        }
+      }, 250);
+    };
+
+    if (totalImages === 0) {
+      firePrint();
+    } else {
+      let fired = false;
+      const onImgReady = () => {
+        loadedCount++;
+        if (loadedCount >= totalImages && !fired) {
+          fired = true;
+          firePrint();
+        }
+      };
+
+      for (let i = 0; i < totalImages; i++) {
+        const img = images[i];
+        if (img.complete) {
+          onImgReady();
+        } else {
+          img.onload = onImgReady;
+          img.onerror = onImgReady;
+        }
+      }
+
+      // Safety timeout
+      setTimeout(() => {
+        if (!fired) {
+          fired = true;
+          firePrint();
+        }
+      }, 1000);
+    }
   };
 
   const handleRecapture = async () => {
@@ -327,12 +453,17 @@ export const PrintMapModal: React.FC<PrintMapModalProps> = ({
 
             {/* 3. TAMPILAN PETA VISUAL AKTUAL (VISUAL MAP CANVAS DISPLAY) */}
             <div className="my-3 border-2 border-black rounded-lg overflow-hidden bg-slate-900 relative shadow-inner">
-              {snapshotUrl ? (
+              {effectiveSnapshotUrl ? (
                 <div className="relative w-full h-[380px] sm:h-[460px] md:h-[500px] flex items-center justify-center bg-slate-950">
                   <img
-                    src={snapshotUrl}
+                    src={effectiveSnapshotUrl}
                     alt="Tampilan Peta Plotting SAR"
                     className="w-full h-full object-contain"
+                    onError={(e) => {
+                      if (staticMapFallbackUrl && e.currentTarget.src !== staticMapFallbackUrl) {
+                        e.currentTarget.src = staticMapFallbackUrl;
+                      }
+                    }}
                   />
 
                   {/* Visual Compass Rose (North Arrow) Overlay on Map */}
@@ -441,7 +572,7 @@ export const PrintMapModal: React.FC<PrintMapModalProps> = ({
                       {savedPoints.map((pt, idx) => {
                         const preset = PRESET_POINT_ICONS.find((p) => p.type === pt.pointType);
                         const pointColor = preset ? preset.color : '#ea580c';
-                        const typeLabel = preset ? preset.label : (pt.pointType || 'Titik Spasial');
+                        const displayCategory = pt.category || 'None';
 
                         return (
                           <tr key={pt.id || idx} className="border-b border-slate-300 print-avoid-break">
@@ -449,7 +580,7 @@ export const PrintMapModal: React.FC<PrintMapModalProps> = ({
                             <td className="p-1 border-r border-black font-bold">
                               <div className="flex items-center gap-1.5">
                                 <div
-                                  className="w-5 h-6 shrink-0 flex items-center justify-center inline-block"
+                                  className="w-5 h-6 max-w-[20px] max-h-[24px] shrink-0 flex items-center justify-center overflow-hidden [&>svg]:w-full [&>svg]:h-full [&>svg]:max-w-full [&>svg]:max-h-full inline-block"
                                   dangerouslySetInnerHTML={{
                                     __html: createPointSvgHtml(
                                       pt.pointType || 'waypoint',
@@ -461,19 +592,17 @@ export const PrintMapModal: React.FC<PrintMapModalProps> = ({
                                     ),
                                   }}
                                 />
-                                <span>{pt.label || '-'}</span>
+                                <span className="text-[10px] leading-tight truncate">{pt.label || '-'}</span>
                               </div>
                             </td>
-                            <td className="p-1 border-r border-black font-semibold text-slate-800">
-                              <span
-                                className="inline-block w-2 h-2 rounded-full mr-1 align-middle"
-                                style={{ backgroundColor: pointColor }}
-                              />
-                              {typeLabel}
+                            <td className="p-1 border-r border-black font-semibold text-slate-800 text-center">
+                              <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 text-[9px] font-bold inline-block">
+                                {displayCategory}
+                              </span>
                             </td>
-                            <td className="p-1 border-r border-black font-mono font-bold">{decimalToDms(pt.lat, pt.lng)}</td>
-                            <td className="p-1 border-r border-black font-mono">{pt.lat.toFixed(6)}, {pt.lng.toFixed(6)}</td>
-                            <td className="p-1 text-slate-600">{pt.notes || pt.description || '-'}</td>
+                            <td className="p-1 border-r border-black font-mono font-bold text-[9.5px]">{decimalToDms(pt.lat, pt.lng)}</td>
+                            <td className="p-1 border-r border-black font-mono text-[9px]">{pt.lat.toFixed(6)}, {pt.lng.toFixed(6)}</td>
+                            <td className="p-1 text-slate-600 text-[9px]">{pt.notes || pt.description || '-'}</td>
                           </tr>
                         );
                       })}

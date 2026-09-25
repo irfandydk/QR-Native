@@ -17,19 +17,17 @@ import {
   Shield,
   Briefcase,
   Layers,
-  MapPin,
   RefreshCw,
   Compass,
 } from 'lucide-react';
 import { MasterAlut, MasterTim, Pejabat } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { showSuccessAlert, showErrorAlert, showConfirmDialog, showToast } from '../utils/alerts';
-import { SarUnitsManager } from './SarUnitsManager';
 
 interface MasterDataPageProps {
   onBack: () => void;
   onRefreshData?: () => void;
-  initialTab?: 'alut' | 'tim' | 'pejabat' | 'pangkalan';
+  initialTab?: 'alut' | 'tim' | 'pejabat';
 }
 
 export const MasterDataPage: React.FC<MasterDataPageProps> = ({
@@ -39,7 +37,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
 }) => {
   const { isDarkMode } = useTheme();
 
-  const [activeTab, setActiveTab] = useState<'alut' | 'tim' | 'pejabat' | 'pangkalan'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'alut' | 'tim' | 'pejabat'>(initialTab);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Master Alut State
@@ -58,9 +56,10 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   const [editTimNama, setEditTimNama] = useState<string>('');
   const [newTimNama, setNewTimNama] = useState<string>('');
 
-  // Pejabat State
+  // Pejabat & SMC State
   const [pejabatList, setPejabatList] = useState<Pejabat[]>([]);
-  const [editingPejabatId, setEditingPejabatId] = useState<string | null>(null);
+  const [searchPejabat, setSearchPejabat] = useState<string>('');
+  const [editingPejabat, setEditingPejabat] = useState<Pejabat | null>(null);
   const [pejabatForm, setPejabatForm] = useState<Omit<Pejabat, 'id'>>({
     nama: '',
     nip: '',
@@ -68,7 +67,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
     jabatan: '',
     is_default_smc: false,
   });
-  const [showAddPejabat, setShowAddPejabat] = useState<boolean>(false);
+  const [showPejabatForm, setShowPejabatForm] = useState<boolean>(false);
 
   // Fetch all master data
   const loadAllData = async () => {
@@ -292,31 +291,135 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   };
 
   // --- PEJABAT HANDLERS ---
-  const handleSaveNewPejabat = async (e: React.FormEvent) => {
+  const handleOpenAddPejabat = () => {
+    setEditingPejabat(null);
+    setPejabatForm({
+      nama: '',
+      nip: '',
+      pangkat: '',
+      jabatan: '',
+      is_default_smc: false,
+    });
+    setShowPejabatForm(true);
+  };
+
+  const handleOpenEditPejabat = (p: Pejabat) => {
+    setEditingPejabat(p);
+    setPejabatForm({
+      nama: p.nama,
+      nip: p.nip || '',
+      pangkat: p.pangkat || '',
+      jabatan: p.jabatan,
+      is_default_smc: !!p.is_default_smc,
+    });
+    setShowPejabatForm(true);
+  };
+
+  const handleSavePejabat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pejabatForm.nama.trim() || !pejabatForm.jabatan.trim()) return;
+    if (!pejabatForm.nama.trim() || !pejabatForm.jabatan.trim()) {
+      showErrorAlert('Data Tidak Lengkap', 'Nama Pejabat dan Jabatan wajib diisi.');
+      return;
+    }
 
     try {
-      const res = await fetch('/api/settings/pejabat', {
-        method: 'POST',
+      if (editingPejabat) {
+        // Mode Edit / Ubah Pejabat
+        const res = await fetch(`/api/settings/pejabat/${editingPejabat.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pejabatForm),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setPejabatList((prev) =>
+            prev.map((item) => {
+              if (item.id === editingPejabat.id) return data.data;
+              if (pejabatForm.is_default_smc) return { ...item, is_default_smc: false };
+              return item;
+            })
+          );
+          setShowPejabatForm(false);
+          setEditingPejabat(null);
+          setPejabatForm({
+            nama: '',
+            nip: '',
+            pangkat: '',
+            jabatan: '',
+            is_default_smc: false,
+          });
+          showSuccessAlert(
+            'Data Pejabat Diperbarui',
+            `Perubahan data "${data.data.nama}" berhasil disimpan.`
+          );
+          if (onRefreshData) onRefreshData();
+        } else {
+          throw new Error(data.error);
+        }
+      } else {
+        // Mode Tambah Pejabat Baru
+        const res = await fetch('/api/settings/pejabat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pejabatForm),
+        });
+        const data = await res.json();
+        if (data.success) {
+          setPejabatList((prev) => [
+            ...(pejabatForm.is_default_smc
+              ? prev.map((item) => ({ ...item, is_default_smc: false }))
+              : prev),
+            data.data,
+          ]);
+          setShowPejabatForm(false);
+          setPejabatForm({
+            nama: '',
+            nip: '',
+            pangkat: '',
+            jabatan: '',
+            is_default_smc: false,
+          });
+          showSuccessAlert(
+            'Pejabat Ditambahkan',
+            `"${data.data.nama}" telah berhasil ditambahkan ke daftar pejabat resmi.`
+          );
+          if (onRefreshData) onRefreshData();
+        } else {
+          throw new Error(data.error);
+        }
+      }
+    } catch (err: any) {
+      showErrorAlert('Gagal Menyimpan Pejabat', err.message || 'Terjadi kesalahan sistem.');
+    }
+  };
+
+  const handleToggleDefaultSmc = async (p: Pejabat) => {
+    const newStatus = !p.is_default_smc;
+    try {
+      const res = await fetch(`/api/settings/pejabat/${p.id}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pejabatForm),
+        body: JSON.stringify({ is_default_smc: newStatus }),
       });
       const data = await res.json();
       if (data.success) {
-        setPejabatList((prev) => [...prev, data.data]);
-        setShowAddPejabat(false);
-        setPejabatForm({
-          nama: '',
-          nip: '',
-          pangkat: '',
-          jabatan: '',
-          is_default_smc: false,
-        });
-        showSuccessAlert('Pejabat Ditambahkan', `"${data.data.nama}" telah berhasil ditambahkan ke daftar pejabat.`);
+        setPejabatList((prev) =>
+          prev.map((item) => {
+            if (item.id === p.id) return { ...item, is_default_smc: newStatus };
+            if (newStatus) return { ...item, is_default_smc: false };
+            return item;
+          })
+        );
+        showToast(
+          newStatus
+            ? `"${p.nama}" ditetapkan sebagai Pejabat Default SMC`
+            : `Default SMC untuk "${p.nama}" dinonaktifkan`,
+          'success'
+        );
+        if (onRefreshData) onRefreshData();
       }
     } catch (err: any) {
-      showErrorAlert('Gagal Menambah Pejabat', err.message);
+      showErrorAlert('Gagal Mengubah Status SMC', err.message);
     }
   };
 
@@ -333,6 +436,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
       if (data.success) {
         setPejabatList((prev) => prev.filter((item) => item.id !== p.id));
         showSuccessAlert('Pejabat Dihapus', `Data "${p.nama}" berhasil dihapus.`);
+        if (onRefreshData) onRefreshData();
       }
     } catch (err: any) {
       showErrorAlert('Gagal Menghapus Pejabat', err.message);
@@ -345,6 +449,11 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   );
   const filteredTim = timList.filter((t) =>
     t.nama_tim.toLowerCase().includes(searchTim.toLowerCase())
+  );
+  const filteredPejabat = pejabatList.filter((p) =>
+    p.nama.toLowerCase().includes(searchPejabat.toLowerCase()) ||
+    (p.nip && p.nip.toLowerCase().includes(searchPejabat.toLowerCase())) ||
+    p.jabatan.toLowerCase().includes(searchPejabat.toLowerCase())
   );
 
   return (
@@ -381,7 +490,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400 font-medium">
-                  Kelola master armada Alut, regu Tim SAR, data pejabat berwenang SMC, dan pangkalan satuan SAR daerah
+                  Kelola master armada Alut, regu Tim SAR, serta data pejabat berwenang penandatangan & SMC
                 </p>
               </div>
             </div>
@@ -449,21 +558,6 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
             >
               <Briefcase className="w-4 h-4" />
               <span>Pejabat & SMC ({pejabatList.length})</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('pangkalan')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
-                activeTab === 'pangkalan'
-                  ? 'bg-orange-600 text-white shadow-md shadow-orange-600/25'
-                  : isDarkMode
-                  ? 'bg-slate-800/60 text-slate-300 hover:bg-slate-800 border border-slate-700/60'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <MapPin className="w-4 h-4" />
-              <span>Pangkalan & Pos SAR Daerah</span>
             </button>
           </div>
         </div>
@@ -816,13 +910,13 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
               </div>
             </div>
           </div>
-        ) : activeTab === 'pejabat' ? (
+        ) : (
           /* ================= TAB 3: DATA PEJABAT & SMC ================= */
           <div className="space-y-4">
             <div className={`p-5 rounded-2xl border space-y-4 ${
               isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
             }`}>
-              <div className="flex items-center justify-between pb-3 border-b border-inherit">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-inherit">
                 <div className="flex items-center gap-2">
                   <Shield className="w-4 h-4 text-orange-500" />
                   <div>
@@ -835,24 +929,63 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowAddPejabat(!showAddPejabat)}
-                  className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>{showAddPejabat ? 'Tutup Form' : 'Tambah Pejabat'}</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="relative w-48 sm:w-64">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Cari pejabat / NIP / jabatan..."
+                      value={searchPejabat}
+                      onChange={(e) => setSearchPejabat(e.target.value)}
+                      className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border transition-colors outline-none focus:border-orange-500 ${
+                        isDarkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                      }`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleOpenAddPejabat}
+                    className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{showPejabatForm && !editingPejabat ? 'Tutup Form' : 'Tambah Pejabat'}</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Form Tambah Pejabat Baru */}
-              {showAddPejabat && (
-                <form onSubmit={handleSaveNewPejabat} className={`p-4 rounded-xl border space-y-3 ${
-                  isDarkMode ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
+              {/* Form Tambah / Edit Pejabat */}
+              {showPejabatForm && (
+                <form onSubmit={handleSavePejabat} className={`p-4 rounded-xl border space-y-3 ${
+                  editingPejabat
+                    ? isDarkMode ? 'bg-amber-950/20 border-amber-500/40 ring-1 ring-amber-500/20' : 'bg-amber-50/60 border-amber-300'
+                    : isDarkMode ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}>
-                  <div className="text-xs font-bold text-orange-400 uppercase tracking-wider">
-                    + Formulir Pejabat Penandatangan Baru
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-bold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
+                      {editingPejabat ? (
+                        <>
+                          <Edit2 className="w-3.5 h-3.5 text-orange-400" />
+                          <span>Ubah Data Pejabat / SMC: {editingPejabat.nama}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-3.5 h-3.5 text-orange-400" />
+                          <span>Formulir Pejabat Penandatangan Baru</span>
+                        </>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPejabatForm(false);
+                        setEditingPejabat(null);
+                      }}
+                      className="text-slate-400 hover:text-slate-200 p-1 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div>
                       <label className="block text-xs text-slate-400 mb-1">Nama Lengkap & Gelar *</label>
@@ -909,7 +1042,7 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                     <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
                       <input
                         type="checkbox"
@@ -920,19 +1053,23 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
                       <span>Jadikan Pejabat Pilihan Utama SMC (Default SMC)</span>
                     </label>
 
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2 self-end sm:self-auto">
                       <button
                         type="button"
-                        onClick={() => setShowAddPejabat(false)}
-                        className="px-3 py-1.5 text-xs text-slate-400 hover:text-white cursor-pointer"
+                        onClick={() => {
+                          setShowPejabatForm(false);
+                          setEditingPejabat(null);
+                        }}
+                        className="px-3.5 py-1.5 text-xs text-slate-400 hover:text-white cursor-pointer"
                       >
                         Batal
                       </button>
                       <button
                         type="submit"
-                        className="px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold cursor-pointer"
+                        className="px-4 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-md shadow-orange-600/20"
                       >
-                        Simpan Pejabat
+                        {editingPejabat ? <Save className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                        <span>{editingPejabat ? 'Simpan Perubahan' : 'Simpan Pejabat'}</span>
                       </button>
                     </div>
                   </div>
@@ -941,53 +1078,93 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
 
               {/* List of Pejabat Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {pejabatList.map((p) => (
-                  <div
-                    key={p.id}
-                    className={`p-4 rounded-xl border flex flex-col justify-between space-y-3 transition-all ${
-                      isDarkMode
-                        ? 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
-                        : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="space-y-1.5">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h4 className="text-xs font-bold">{p.nama}</h4>
-                          <div className="text-[11px] text-amber-500 font-medium">{p.jabatan}</div>
-                        </div>
-                        {p.is_default_smc && (
-                          <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                            Default SMC
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="text-[11px] text-slate-400 space-y-0.5 pt-1 border-t border-inherit font-mono">
-                        <div>NIP: {p.nip || '-'}</div>
-                        <div>Pangkat: {p.pangkat || '-'}</div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-inherit">
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePejabat(p)}
-                        className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-                        title="Hapus Pejabat"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                {filteredPejabat.length === 0 ? (
+                  <div className="col-span-full py-12 text-center text-xs text-slate-400">
+                    Tidak ada data pejabat yang cocok dengan pencarian.
                   </div>
-                ))}
+                ) : (
+                  filteredPejabat.map((p) => (
+                    <div
+                      key={p.id}
+                      className={`p-4 rounded-xl border flex flex-col justify-between space-y-3 transition-all ${
+                        p.is_default_smc
+                          ? isDarkMode
+                            ? 'bg-slate-950/90 border-orange-500/40 shadow-sm shadow-orange-950/20'
+                            : 'bg-orange-50/40 border-orange-300 shadow-xs'
+                          : isDarkMode
+                          ? 'bg-slate-950/80 border-slate-800 hover:border-slate-700'
+                          : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2.5">
+                            <div className={`w-8 h-8 rounded-lg font-bold flex items-center justify-center text-xs shrink-0 border ${
+                              p.is_default_smc
+                                ? 'bg-orange-500 text-white border-orange-400'
+                                : isDarkMode
+                                ? 'bg-slate-800 text-slate-300 border-slate-700'
+                                : 'bg-slate-200 text-slate-700 border-slate-300'
+                            }`}>
+                              {p.nama.charAt(0)}
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold leading-snug">{p.nama}</h4>
+                              <div className="text-[11px] text-amber-500 font-medium">{p.jabatan}</div>
+                            </div>
+                          </div>
+                          {p.is_default_smc && (
+                            <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 shrink-0">
+                              ★ Default SMC
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="text-[11px] text-slate-400 space-y-0.5 pt-1.5 border-t border-inherit font-mono">
+                          <div>NIP: {p.nip || '-'}</div>
+                          <div>Pangkat: {p.pangkat || '-'}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-inherit">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleDefaultSmc(p)}
+                          className={`text-[10px] font-semibold px-2 py-1 rounded-lg border transition-colors cursor-pointer ${
+                            p.is_default_smc
+                              ? 'bg-orange-500/20 text-orange-400 border-orange-500/40 hover:bg-orange-500/30'
+                              : isDarkMode
+                              ? 'text-slate-400 hover:text-slate-200 border-slate-700 hover:bg-slate-800'
+                              : 'text-slate-600 hover:text-slate-900 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {p.is_default_smc ? '★ SMC Aktif' : 'Jadikan Default SMC'}
+                        </button>
+
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditPejabat(p)}
+                            className="p-1.5 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors cursor-pointer"
+                            title="Edit Data Pejabat & SMC"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePejabat(p)}
+                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+                            title="Hapus Pejabat"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
-          </div>
-        ) : (
-          /* ================= TAB 4: PANGKALAN & POS SAR DAERAH ================= */
-          <div className="space-y-4">
-            <SarUnitsManager />
           </div>
         )}
       </div>

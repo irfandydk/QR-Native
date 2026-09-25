@@ -50,12 +50,10 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
   const { isDarkMode, accentColors, themePalette } = useTheme();
   const isEditing = !!initialOperasi;
 
-  // Form states
-  const [namaOperasi, setNamaOperasi] = useState(
-    initialOperasi?.nama_operasi || 'KMM 1 Orang Terjatuh dari Longboat di Perairan Wakatobi'
-  );
+  // Form states (Clean empty defaults with informative placeholders)
+  const [namaOperasi, setNamaOperasi] = useState(initialOperasi?.nama_operasi || '');
   const [namaPelapor, setNamaPelapor] = useState(initialOperasi?.nama_pelapor || '');
-  const [hubunganPelapor, setHubunganPelapor] = useState(initialOperasi?.hubungan_pelapor || 'Masyarakat');
+  const [hubunganPelapor, setHubunganPelapor] = useState(initialOperasi?.hubungan_pelapor || '');
   const [noTelpPelapor, setNoTelpPelapor] = useState(initialOperasi?.no_telp_pelapor || '');
 
   // Helper to format ISO for datetime
@@ -89,7 +87,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
 
   // Selected departure teams
   const [selectedTimIds, setSelectedTimIds] = useState<number[]>(
-    initialOperasi?.detail_tim_berangkat?.map((t) => t.id_tim) || [1]
+    initialOperasi?.detail_tim_berangkat?.map((t) => t.id_tim) || []
   );
 
   // Location & Coordinates
@@ -97,28 +95,28 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
     initialOperasi?.lokasi_kejadian || ''
   );
   const [koordinat, setKoordinat] = useState(
-    initialOperasi?.koordinat || '03° 58\' 30" S - 122° 35\' 12" E'
+    initialOperasi?.koordinat || ''
   );
   const [jarakAngka, setJarakAngka] = useState(
-    initialOperasi?.jarak?.split(' ')[0] || '10'
+    initialOperasi?.jarak?.split(' ')[0] || ''
   );
   const [jarakSatuan, setJarakSatuan] = useState(
     initialOperasi?.jarak?.split(' ')[1] || 'Nm'
   );
   const [etaLokasi, setEtaLokasi] = useState(
-    initialOperasi?.eta_lokasi || '1 Jam 30 Menit'
+    initialOperasi?.eta_lokasi || ''
   );
 
   // DMS helper mode
   const [showDmsHelper, setShowDmsHelper] = useState(false);
-  const [latDeg, setLatDeg] = useState('03');
-  const [latMin, setLatMin] = useState('58');
-  const [latSec, setLatSec] = useState('30');
+  const [latDeg, setLatDeg] = useState('04');
+  const [latMin, setLatMin] = useState('05');
+  const [latSec, setLatSec] = useState('03');
   const [latDir, setLatDir] = useState('S');
 
   const [lonDeg, setLonDeg] = useState('122');
-  const [lonMin, setLonMin] = useState('35');
-  const [lonSec, setLonSec] = useState('12');
+  const [lonMin, setLonMin] = useState('25');
+  const [lonSec, setLonSec] = useState('42');
   const [lonDir, setLonDir] = useState('E');
 
   // Kronologi & AI
@@ -127,7 +125,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
   const [aiDraftPrompt, setAiDraftPrompt] = useState('');
   const [showAiModal, setShowAiModal] = useState(false);
 
-  // Korban
+  // Korban - default empty 1 entry
   const [korbanList, setKorbanList] = useState<Omit<Korban, 'id_korban' | 'id_operasi'>[]>(
     initialOperasi?.korban && initialOperasi.korban.length > 0
       ? initialOperasi.korban.map((k) => ({
@@ -140,7 +138,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
       : [
           {
             nama_korban: '',
-            umur: '35 Tahun',
+            umur: '',
             jk: 'Laki-laki',
             alamat: '',
             status_korban: 'DP',
@@ -148,21 +146,17 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
         ]
   );
 
-  // Unsur
+  // Unsur - default empty
   const [unsurList, setUnsurList] = useState<Omit<DetailUnsur, 'id_detail_unsur' | 'id_operasi'>[]>(
     initialOperasi?.detail_unsur && initialOperasi.detail_unsur.length > 0
       ? initialOperasi.detail_unsur.map((u) => ({
           nama_unsur: u.nama_unsur,
           jumlah_personil: u.jumlah_personil,
         }))
-      : [
-          { nama_unsur: 'Tim Rescue Kansar Kendari', jumlah_personil: 7 },
-          { nama_unsur: 'Polairud Polda Sultra', jumlah_personil: 3 },
-          { nama_unsur: 'Masyarakat & Nelayan Setempat', jumlah_personil: 10 },
-        ]
+      : []
   );
 
-  // Alut
+  // Alut - default empty
   const [alutList, setAlutList] = useState<Omit<DetailAlut, 'id_detail_alut' | 'id_operasi'>[]>(
     initialOperasi?.detail_alut && initialOperasi.detail_alut.length > 0
       ? initialOperasi.detail_alut.map((a) => ({
@@ -171,21 +165,15 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
           satuan: a.satuan,
           jumlah_alut: a.jumlah_alut,
         }))
-      : [
-          { id_alut: 1, nama_alut: 'Rescue Car', satuan: 'Unit', jumlah_alut: 1 },
-          { id_alut: 6, nama_alut: 'Rubber Boat', satuan: 'Unit', jumlah_alut: 1 },
-          { id_alut: 8, nama_alut: 'Aqua Eye', satuan: 'Set', jumlah_alut: 1 },
-        ]
+      : []
   );
 
-  // Weather & Constraints
-  const [cuaca, setCuaca] = useState(initialOperasi?.cuaca || 'Cerah Berawan');
-  const [gelombang, setGelombang] = useState(initialOperasi?.gelombang || '0.5 - 1.25 M');
-  const [angin, setAngin] = useState(
-    initialOperasi?.angin || 'Barat Daya - Barat Laut, 5 - 15 Knots'
-  );
+  // Weather & Constraints - default empty
+  const [cuaca, setCuaca] = useState(initialOperasi?.cuaca || '');
+  const [gelombang, setGelombang] = useState(initialOperasi?.gelombang || '');
+  const [angin, setAngin] = useState(initialOperasi?.angin || '');
   const [faktorPenghambat, setFaktorPenghambat] = useState(
-    initialOperasi?.faktor_penghambat || 'Nihil'
+    initialOperasi?.faktor_penghambat || ''
   );
 
   // Status & UI
@@ -529,7 +517,7 @@ export const FormInisiasi: React.FC<FormInisiasiProps> = ({
                 required
                 value={namaOperasi}
                 onChange={(e) => setNamaOperasi(e.target.value)}
-                placeholder="Contoh: KMM 1 Orang Terjatuh dari Longboat di Perairan Wakatobi"
+                placeholder="Operasi SAR, Kecelakaan Kapal / Kondisi Membahayakan Manusia / Bencana Banjir di Kota Kendari"
                 className={`${inputClass} font-semibold text-sm`}
               />
             </div>

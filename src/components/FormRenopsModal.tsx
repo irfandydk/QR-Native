@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Operasi, Renops, RenopsSRU, DetailUnsur, DetailAlut, MasterAlut } from '../types';
 import { hitungHariKe, formatTW, generateRenopsWA } from '../utils/templates';
+import { getNextRenopsDefaults } from '../utils/operationHierarchy';
 import { showSuccessAlert, showErrorAlert, showToast } from '../utils/alerts';
 import { DateTimeInput24H } from './DateTimeInput24H';
 import { UnsurSarEditor } from './UnsurSarEditor';
@@ -91,12 +92,14 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
   const [alutList, setAlutList] = useState<DetailAlut[]>(
     operasi.detail_alut ? JSON.parse(JSON.stringify(operasi.detail_alut)) : []
   );
+  const [inheritedFromLabel, setInheritedFromLabel] = useState<string>('Laporan Awal');
 
-  // Sync state when modal opens or editRenops changes
+  // Sync state when modal opens or editRenops changes (Hierarchical inheritance flow)
   useEffect(() => {
     if (!isOpen) return;
 
     if (editRenops) {
+      setInheritedFromLabel(`Renops ${editRenops.hari_ke || ''}`);
       const tgl = editRenops.tanggal_laporan || todayDateStr;
       setTanggalLaporan(tgl);
 
@@ -136,30 +139,20 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
           }))
         );
       }
+      setUnsurList(operasi.detail_unsur ? JSON.parse(JSON.stringify(operasi.detail_unsur)) : []);
+      setAlutList(operasi.detail_alut ? JSON.parse(JSON.stringify(operasi.detail_alut)) : []);
     } else {
-      // Create new mode defaults
-      setTanggalLaporan(todayDateStr);
-      setWaktuBriefing(getInitialTime(todayDateStr, 7, 0));
-      setWaktuMulaiOps(getInitialTime(todayDateStr, 7, 30));
-      setCuaca(operasi.cuaca || 'Cerah Berawan, Angin Barat 5-15 Kts, Gelombang 0.5 - 1.25 M');
-      setSrus([
-        {
-          nama_sru: 'SRU 1 (Tim Rescue Kansar Kendari)',
-          koordinat_area: `A: ${operasi.koordinat || '03° 58\' 30" S - 122° 35\' 12" E'}\nB: 03° 58' 30" S - 122° 40' 00" E\nC: 04° 03' 00" S - 122° 40' 00" E\nD: 04° 03' 00" S - 122° 35' 12" E`,
-          luas_area: '10 Nm²',
-          pola_pencarian: 'Parallel Track Search',
-        },
-        {
-          nama_sru: 'SRU 2 (Unsur Gabungan & Nelayan)',
-          koordinat_area: 'Penyisiran visual di sepanjang pesisir pantai dan pulau terdekat',
-          luas_area: '6 Nm²',
-          pola_pencarian: 'Creeping Line Search',
-        },
-      ]);
+      // Create new mode: calculate hierarchical inheritance
+      const defaults = getNextRenopsDefaults(operasi);
+      setInheritedFromLabel(defaults.predecessorLabel);
+      setTanggalLaporan(defaults.targetDateStr);
+      setWaktuBriefing(getInitialTime(defaults.targetDateStr, 7, 0));
+      setWaktuMulaiOps(getInitialTime(defaults.targetDateStr, 7, 30));
+      setCuaca(defaults.inheritedCuaca);
+      setSrus(defaults.defaultSrus);
+      setUnsurList(defaults.inheritedUnsur);
+      setAlutList(defaults.inheritedAlut);
     }
-
-    setUnsurList(operasi.detail_unsur ? JSON.parse(JSON.stringify(operasi.detail_unsur)) : []);
-    setAlutList(operasi.detail_alut ? JSON.parse(JSON.stringify(operasi.detail_alut)) : []);
     setErrorMsg('');
   }, [isOpen, editRenops, operasi]);
 
@@ -401,6 +394,23 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Form Controls (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
+            {/* Hierarchy Inheritance Banner */}
+            {!isEditing && (
+              <div className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs ${
+                isDarkMode ? 'bg-orange-950/30 border-orange-500/30 text-orange-200' : 'bg-orange-50/90 border-orange-200 text-orange-900 shadow-sm'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                  <span>
+                    Mewarisi data dari: <strong className="font-bold underline">{inheritedFromLabel}</strong> (Unsur SAR, Alut/Palsar, Cuaca)
+                  </span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/20 font-bold border border-orange-500/30">
+                  Hirarki Operasi SAR
+                </span>
+              </div>
+            )}
+
             {/* CARD 1: Tanggal & Waktu Pelaksanaan */}
             <div className={`p-5 rounded-2xl border transition-colors ${
               isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'

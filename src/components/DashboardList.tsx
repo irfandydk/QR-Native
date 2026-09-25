@@ -19,7 +19,7 @@ import {
   X,
   RefreshCw,
 } from 'lucide-react';
-import { Operasi } from '../types';
+import { Operasi, BraSar } from '../types';
 import {
   formatTanggalIndo,
   formatJamWITA,
@@ -31,6 +31,7 @@ import { useTheme } from '../context/ThemeContext';
 
 interface DashboardListProps {
   operasiList: Operasi[];
+  braList?: BraSar[];
   onSelectOperasi: (id: number) => void;
   onNewOperasi: () => void;
   onEditOperasi: (op: Operasi) => void;
@@ -46,6 +47,7 @@ const MONTH_NAMES_ID = [
 
 export const DashboardList: React.FC<DashboardListProps> = ({
   operasiList,
+  braList,
   onSelectOperasi,
   onNewOperasi,
   onEditOperasi,
@@ -59,6 +61,27 @@ export const DashboardList: React.FC<DashboardListProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<string>('ALL');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [localBraList, setLocalBraList] = useState<BraSar[]>(braList || []);
+
+  useEffect(() => {
+    if (braList) {
+      setLocalBraList(braList);
+    }
+  }, [braList]);
+
+  // Ensure bra list is loaded if not initially provided
+  useEffect(() => {
+    if (!braList || braList.length === 0) {
+      fetch(`/api/bra?_t=${Date.now()}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.data)) {
+            setLocalBraList(data.data);
+          }
+        })
+        .catch((err) => console.error('Failed to load BRA:', err));
+    }
+  }, [braList]);
 
   // Auto-refresh when entering Dashboard page
   useEffect(() => {
@@ -70,7 +93,14 @@ export const DashboardList: React.FC<DashboardListProps> = ({
       setIsRefreshing(true);
       try {
         await onRefresh();
-        showToast('Data operasi SAR berhasil disinkronkan!', 'success');
+        try {
+          const res = await fetch(`/api/bra?_t=${Date.now()}`);
+          const data = await res.json();
+          if (data.success && Array.isArray(data.data)) {
+            setLocalBraList(data.data);
+          }
+        } catch {}
+        showToast('Data operasi SAR dan BRA berhasil disinkronkan!', 'success');
       } finally {
         setTimeout(() => setIsRefreshing(false), 400);
       }
@@ -130,6 +160,18 @@ export const DashboardList: React.FC<DashboardListProps> = ({
   // Overall Statistics
   const totalOpen = operasiList.filter((o) => o.status === 'OPEN').length;
   const totalClosed = operasiList.filter((o) => o.status === 'CLOSED').length;
+  const totalBra = localBraList.length;
+
+  const latestBra = useMemo(() => {
+    if (localBraList.length === 0) return null;
+    return [...localBraList].sort((a, b) => {
+      if (b.id_bra && a.id_bra && b.id_bra !== a.id_bra) return b.id_bra - a.id_bra;
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    })[0];
+  }, [localBraList]);
+
+  const latestBraNumber = latestBra?.no_bra || '-';
+
   const totalKorban = operasiList.reduce(
     (acc, op) => acc + (op.korban?.length || op.jumlah_pob || 0),
     0
@@ -137,6 +179,14 @@ export const DashboardList: React.FC<DashboardListProps> = ({
   const totalSelamat = operasiList.reduce((acc, op) => {
     const s = (op.korban || []).filter((k) => k.status_korban === 'S').length;
     return acc + s;
+  }, 0);
+  const totalMeninggal = operasiList.reduce((acc, op) => {
+    const md = (op.korban || []).filter((k) => k.status_korban === 'MD').length;
+    return acc + md;
+  }, 0);
+  const totalHilang = operasiList.reduce((acc, op) => {
+    const dp = (op.korban || []).filter((k) => k.status_korban === 'DP' || k.status_korban === 'H').length;
+    return acc + dp;
   }, 0);
 
   const handleCopyWA = async (e: React.MouseEvent, op: Operasi) => {
@@ -163,67 +213,126 @@ export const DashboardList: React.FC<DashboardListProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-      {/* Metrics Row */}
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+      {/* 4 Primary Metrics Row: Operasi Aktif, Operasi Tutup, Jumlah BRA SAR, Nomor Terakhir */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Metric 1: Operasi SAR Aktif */}
         <div className={`rounded-2xl p-4 sm:p-5 border transition-all duration-200 relative overflow-hidden ${
           isDarkMode ? 'bg-slate-900 border-slate-800 shadow-lg' : 'bg-white border-slate-200 shadow-sm'
         }`}>
           <div className="flex items-center justify-between">
             <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Operasi Aktif (OPEN)
+              Operasi SAR Aktif
             </span>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
           </div>
           <div className="text-2xl sm:text-3xl font-extrabold text-emerald-500 dark:text-emerald-400 mt-2 font-mono">
             {totalOpen}
           </div>
-          <p className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Dalam proses penanganan SAR</p>
+          <p className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            Dalam proses penanganan SAR (OPEN)
+          </p>
         </div>
 
+        {/* Metric 2: Operasi SAR Tutup */}
         <div className={`rounded-2xl p-4 sm:p-5 border transition-all duration-200 ${
           isDarkMode ? 'bg-slate-900 border-slate-800 shadow-lg' : 'bg-white border-slate-200 shadow-sm'
         }`}>
           <div className="flex items-center justify-between">
             <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Operasi Selesai (CLOSED)
+              Operasi SAR Tutup
             </span>
-            <Check className={`w-4 h-4 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
+            <div className="w-5 h-5 rounded-full bg-slate-500/10 dark:bg-slate-700/50 flex items-center justify-center">
+              <Check className={`w-3.5 h-3.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} />
+            </div>
           </div>
           <div className={`text-2xl sm:text-3xl font-extrabold mt-2 font-mono ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
             {totalClosed}
           </div>
-          <p className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Debriefing & penutupan selesai</p>
+          <p className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            Debriefing & penutupan selesai (CLOSED)
+          </p>
         </div>
 
+        {/* Metric 3: Jumlah BRA SAR */}
         <div className={`rounded-2xl p-4 sm:p-5 border transition-all duration-200 ${
           isDarkMode ? 'bg-slate-900 border-slate-800 shadow-lg' : 'bg-white border-slate-200 shadow-sm'
         }`}>
           <div className="flex items-center justify-between">
             <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Korban Selamat (S)
+              Jumlah BRA SAR
             </span>
-            <Users className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+            <div className="w-5 h-5 rounded-full bg-orange-500/10 flex items-center justify-center">
+              <Radio className="w-3.5 h-3.5 text-orange-500" />
+            </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-extrabold text-emerald-500 dark:text-emerald-400 mt-2 font-mono">
-            {totalSelamat}
+          <div className="text-2xl sm:text-3xl font-extrabold text-orange-600 dark:text-orange-400 mt-2 font-mono">
+            {totalBra}
           </div>
-          <p className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Evakuasi berhasil dalam keadaan selamat</p>
+          <p className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            Dokumen Berita Radio telegram terbit
+          </p>
         </div>
 
+        {/* Metric 4: Nomor Terakhir BRA SAR */}
         <div className={`rounded-2xl p-4 sm:p-5 border transition-all duration-200 ${
           isDarkMode ? 'bg-slate-900 border-slate-800 shadow-lg' : 'bg-white border-slate-200 shadow-sm'
         }`}>
           <div className="flex items-center justify-between">
             <span className={`text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Total POB Tercatat
+              Nomor BRA Terakhir
             </span>
-            <Users className={`w-4 h-4 ${accentColors.text}`} />
+            <div className="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center">
+              <FileText className="w-3.5 h-3.5 text-blue-500" />
+            </div>
           </div>
-          <div className={`text-2xl sm:text-3xl font-extrabold mt-2 font-mono ${accentColors.text}`}>
-            {totalKorban}
+          <div
+            className={`text-base sm:text-lg lg:text-xl font-black mt-2 font-mono tracking-tight truncate ${
+              latestBra ? (isDarkMode ? 'text-white' : 'text-slate-900') : 'text-slate-400'
+            }`}
+            title={latestBraNumber}
+          >
+            {latestBraNumber}
           </div>
-          <p className={`text-[11px] mt-1 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>Person on Board seluruh operasi</p>
+          <p className={`text-[11px] mt-1 truncate ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            {latestBra
+              ? `${latestBra.kategori} • ${latestBra.twu || (latestBra.created_at ? formatJamWITA(latestBra.created_at) : 'Tercatat')}`
+              : 'Belum ada dokumen BRA terbit'}
+          </p>
+        </div>
+      </div>
+
+      {/* Situational Korban Summary Pill Bar */}
+      <div className={`px-4 py-2.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 text-xs ${
+        isDarkMode ? 'bg-slate-900/60 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-600'
+      }`}>
+        <div className="flex items-center gap-2">
+          <Users className="w-3.5 h-3.5 text-orange-500" />
+          <span className="font-bold text-[11px] uppercase tracking-wider text-slate-400">Rekap Korban & POB:</span>
+        </div>
+        <div className="flex items-center gap-3 sm:gap-4 flex-wrap text-xs">
+          <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+            <span>Selamat:</span>
+            <strong className="font-mono">{totalSelamat}</strong>
+          </span>
+          <span className="text-slate-400">•</span>
+          <span className="inline-flex items-center gap-1 font-semibold text-red-600 dark:text-red-400">
+            <span>Meninggal:</span>
+            <strong className="font-mono">{totalMeninggal}</strong>
+          </span>
+          <span className="text-slate-400">•</span>
+          <span className="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
+            <span>Hilang / DP:</span>
+            <strong className="font-mono">{totalHilang}</strong>
+          </span>
+          <span className="text-slate-400">•</span>
+          <span className="inline-flex items-center gap-1 font-bold text-slate-700 dark:text-slate-200">
+            <span>Total POB:</span>
+            <strong className="font-mono">{totalKorban}</strong>
+          </span>
         </div>
       </div>
 

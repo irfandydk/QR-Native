@@ -836,6 +836,11 @@ class Database {
 
   public addPejabat(pejabat: Omit<Pejabat, 'id'>): Pejabat {
     const list = this.getPejabatList();
+    if (pejabat.is_default_smc) {
+      list.forEach((p) => {
+        p.is_default_smc = false;
+      });
+    }
     const newPejabat: Pejabat = {
       ...pejabat,
       id: `pej-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -849,6 +854,13 @@ class Database {
     const list = this.getPejabatList();
     const idx = list.findIndex(p => p.id === id);
     if (idx === -1) return null;
+    if (updateData.is_default_smc) {
+      list.forEach((p, i) => {
+        if (i !== idx) {
+          p.is_default_smc = false;
+        }
+      });
+    }
     list[idx] = { ...list[idx], ...updateData };
     this.updateAppSettings({ pejabat_list: list });
     return list[idx];

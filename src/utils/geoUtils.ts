@@ -281,6 +281,19 @@ export function getAlphabetLabel(index: number): string {
   return round > 0 ? `Titik ${letter}${round + 1}` : `Titik ${letter}`;
 }
 
+export const POINT_CATEGORIES = [
+  'Kantor SAR',
+  'POS SAR',
+  'Unit Siaga SAR',
+  'Posko',
+  'LKP',
+  'Entry Point',
+  'Exit Point',
+  'None',
+] as const;
+
+export type PointCategory = (typeof POINT_CATEGORIES)[number];
+
 export type PointIconType =
   | 'lkp'
   | 'kantor'
@@ -303,6 +316,7 @@ export interface LatLngPoint {
   lat: number;
   lng: number;
   label?: string;
+  category?: string; // 'Kantor SAR' | 'POS SAR' | 'Unit Siaga SAR' | 'Posko' | 'LKP' | 'Entry Point' | 'Exit Point' | 'None'
   iconType?: PointIconType;
   pointType?: PointIconType;
   alphabetChar?: string; // A - Z

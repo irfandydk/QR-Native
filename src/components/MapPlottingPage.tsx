@@ -77,6 +77,7 @@ import { LocationSearchBar, LocationSearchResult } from './gis/LocationSearchBar
 import { PrintMapModal } from './gis/PrintMapModal';
 import { downloadKml, downloadKmz, downloadGeoJson } from '../utils/kmlExportUtils';
 import { showSuccessAlert, showErrorAlert, showToast, showConfirmDialog } from '../utils/alerts';
+import { captureMapSnapshot } from '../utils/mapSnapshotGenerator';
 import html2canvas from 'html2canvas';
 
 type ActiveTab = 'saved-points' | 'polygon-area' | 'search-pattern' | 'measure-distance';
@@ -158,6 +159,7 @@ export const MapPlottingPage: React.FC<MapPlottingPageProps> = ({ appLogoUrl }) 
   const [isCreatingPoint, setIsCreatingPoint] = useState(false);
   const [editingPointId, setEditingPointId] = useState<string | null>(null);
   const [pointName, setPointName] = useState('');
+  const [pointCategory, setPointCategory] = useState<string>('None');
   const [pointIconType, setPointIconType] = useState<PointIconType>('lkp');
   const [pointAlphabetChar, setPointAlphabetChar] = useState<string>('A');
   const [pointCustomIconUrl, setPointCustomIconUrl] = useState<string | undefined>(undefined);
@@ -322,34 +324,16 @@ export const MapPlottingPage: React.FC<MapPlottingPageProps> = ({ appLogoUrl }) 
       const stored = localStorage.getItem('basarnas_saved_distance_routes');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch {}
-    return [
-      {
-        id: 'route_sample_1',
-        name: 'Rute Kansar ke LKP Sumber Bahagia',
-        points: [
-          { lat: -4.037694, lng: 122.486694, label: 'WP-1 (Kansar Kendari)' },
-          { lat: -3.85, lng: 122.75, label: 'WP-2 (LKP)' },
-        ],
-        vesselSpeedKnots: 25,
-        speedUnit: 'knot',
-        strokeColor: '#059669',
-        strokeWeight: 3.5,
-        strokeOpacity: 0.9,
-        createdAt: 'Default Rute Siaga',
-      },
-    ];
+    return [];
   });
 
-  const [activeRouteId, setActiveRouteId] = useState<string | null>('route_sample_1');
+  const [activeRouteId, setActiveRouteId] = useState<string | null>(null);
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null);
-  const [activeRouteName, setActiveRouteName] = useState<string>('Rute Kansar ke LKP Sumber Bahagia');
-  const [measurePoints, setMeasurePoints] = useState<LatLngPoint[]>([
-    { lat: -4.037694, lng: 122.486694, label: 'WP-1 (Kansar Kendari)' },
-    { lat: -3.85, lng: 122.75, label: 'WP-2 (LKP)' },
-  ]);
+  const [activeRouteName, setActiveRouteName] = useState<string>('');
+  const [measurePoints, setMeasurePoints] = useState<LatLngPoint[]>([]);
   const [vesselSpeedKnots, setVesselSpeedKnots] = useState<number | string>(25);
   const [measureStrokeColor, setMeasureStrokeColor] = useState<string>('#059669');
   const [measureStrokeWeight, setMeasureStrokeWeight] = useState<number>(3.5);
@@ -392,43 +376,25 @@ export const MapPlottingPage: React.FC<MapPlottingPageProps> = ({ appLogoUrl }) 
 
   // High-Resolution Map Snapshot Capture with Delay & Fallback against black screen
   const captureCurrentMapSnapshot = async (): Promise<string | null> => {
-    if (!mapElementRef.current) return null;
+    setIsCapturingMap(true);
     try {
-      // Ensure canvas rendering buffer and markers have settled
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      const canvas = await html2canvas(mapElementRef.current, {
-        useCORS: true,
-        allowTaint: true,
-        scale: 2,
-        logging: false,
-        backgroundColor: '#0f172a',
-        foreignObjectRendering: false,
-        imageTimeout: 15000,
+      const dataUrl = await captureMapSnapshot({
+        mapElement: mapElementRef.current,
+        mapInstance: mapInstanceRef.current,
+        points: savedPoints.filter((p) => !p.id || !hiddenPointIds.includes(p.id)),
+        polygons: savedPolygons.filter((p) => !hiddenPolygonIds.includes(p.id)),
+        routes: savedDistanceRoutes.filter((r) => !hiddenRouteIds.includes(r.id)),
+        patterns: savedSearchPatterns.filter((pat) => !hiddenPatternIds.includes(pat.id)),
+        basemapType,
       });
-      let dataUrl = canvas.toDataURL('image/png');
-
-      // Verify whether the canvas returned a solid black image
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const sample = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
-        if (sample[0] === 0 && sample[1] === 0 && sample[2] === 0 && sample[3] === 255) {
-          // Retry after brief delay
-          await new Promise((resolve) => setTimeout(resolve, 250));
-          const retryCanvas = await html2canvas(mapElementRef.current, {
-            useCORS: true,
-            allowTaint: true,
-            scale: 2,
-            logging: false,
-          });
-          dataUrl = retryCanvas.toDataURL('image/png');
-        }
-      }
 
       setMapSnapshotUrl(dataUrl);
       return dataUrl;
     } catch (err) {
-      console.warn('Gagal menangkap canvas snapshot peta:', err);
+      console.warn('Gagal menangkap snapshot peta:', err);
       return null;
+    } finally {
+      setIsCapturingMap(false);
     }
   };
 
@@ -1256,6 +1222,7 @@ export const MapPlottingPage: React.FC<MapPlottingPageProps> = ({ appLogoUrl }) 
     const lng = typeof center.lng === 'function' ? center.lng() : center.lng;
 
     setPointName('');
+    setPointCategory('None');
     setPointIconType('lkp');
     setPointAlphabetChar('A');
     setPointCustomIconUrl(undefined);
@@ -1272,6 +1239,7 @@ export const MapPlottingPage: React.FC<MapPlottingPageProps> = ({ appLogoUrl }) 
 
   const handleEditPoint = (pt: LatLngPoint) => {
     setPointName(pt.label || '');
+    setPointCategory(pt.category || 'None');
     setPointIconType(pt.pointType || pt.iconType || 'waypoint');
     setPointAlphabetChar(pt.alphabetChar || 'A');
     setPointCustomIconUrl(pt.customIconUrl);
@@ -1295,6 +1263,7 @@ export const MapPlottingPage: React.FC<MapPlottingPageProps> = ({ appLogoUrl }) 
       const updatedPoint: LatLngPoint = {
         id: editingPointId,
         label: pointName,
+        category: pointCategory,
         pointType: pointIconType,
         alphabetChar: pointIconType === 'alphabet' ? (pointAlphabetChar || 'A') : undefined,
         customIconUrl: pointCustomIconUrl,
@@ -1318,6 +1287,7 @@ export const MapPlottingPage: React.FC<MapPlottingPageProps> = ({ appLogoUrl }) 
       const newPoint: LatLngPoint = {
         id: `pt-${Date.now()}`,
         label: pointName,
+        category: pointCategory,
         pointType: pointIconType,
         alphabetChar: pointIconType === 'alphabet' ? (pointAlphabetChar || 'A') : undefined,
         customIconUrl: pointCustomIconUrl,
@@ -2160,6 +2130,8 @@ export const MapPlottingPage: React.FC<MapPlottingPageProps> = ({ appLogoUrl }) 
                   <PointCreatorCard
                     name={pointName}
                     setName={setPointName}
+                    category={pointCategory}
+                    setCategory={setPointCategory}
                     selectedIconType={pointIconType}
                     setSelectedIconType={setPointIconType}
                     alphabetChar={pointAlphabetChar}

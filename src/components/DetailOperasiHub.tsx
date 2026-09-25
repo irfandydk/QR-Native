@@ -26,7 +26,9 @@ import {
   hitungHariKe,
   hitungStatistikKorban,
   getLabelStatusKorban,
+  formatTW,
 } from '../utils/templates';
+import { getOperationalTimeline } from '../utils/operationHierarchy';
 import { FormRenopsModal } from './FormRenopsModal';
 import { FormSitrepModal } from './FormSitrepModal';
 import { ViewLaporanModal } from './ViewLaporanModal';
@@ -57,7 +59,7 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
   onCreateBraSarUmum,
 }) => {
   const { isDarkMode, themePalette, accentColors } = useTheme();
-  const [activeTab, setActiveTab] = useState<'renops' | 'sitrep' | 'korban' | 'kekuatan'>('renops');
+  const [activeTab, setActiveTab] = useState<'hierarchy' | 'renops' | 'sitrep' | 'korban' | 'kekuatan'>('hierarchy');
 
   // Modals
   const [showRenopsModal, setShowRenopsModal] = useState(false);
@@ -388,6 +390,20 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
         isDarkMode ? 'border-slate-800' : 'border-slate-200'
       }`}>
         <button
+          onClick={() => setActiveTab('hierarchy')}
+          className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+            activeTab === 'hierarchy'
+              ? `${accentColors.border} ${accentColors.text} ${accentColors.badgeBg}`
+              : isDarkMode
+                ? 'border-transparent text-slate-400 hover:text-slate-200'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          <span>Hirarki Dokumen SAR ({getOperationalTimeline(operasi).length})</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('renops')}
           className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
             activeTab === 'renops'
@@ -443,6 +459,131 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
           <span>Kekuatan Unsur & Alut Terkini</span>
         </button>
       </div>
+
+      {/* Tab 0: Alur Hirarki Laporan */}
+      {activeTab === 'hierarchy' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className={`text-sm font-bold uppercase tracking-wider ${
+                isDarkMode ? 'text-slate-200' : 'text-slate-800'
+              }`}>
+                Alur Hirarki Laporan Operasi SAR
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Urutan terstruktur: Laporan Awal ➔ Renops H.1 ➔ Lapbang H.1 ➔ Renops H.2 ➔ Lapbang H.2 ➔ dst.
+              </p>
+            </div>
+
+            {!isClosed && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setEditingRenops(null);
+                    setShowRenopsModal(true);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r ${accentColors.gradient} text-white rounded-lg text-xs font-semibold shadow-md`}
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>+ Renops Baru</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingSitrep(null);
+                    setShowSitrepModal(true);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+                    isDarkMode ? 'bg-slate-800 text-white border-slate-700' : 'bg-white text-slate-800 border-slate-300'
+                  }`}
+                >
+                  <PlusCircle className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>+ Lapbang Baru</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-orange-500/30">
+            {getOperationalTimeline(operasi).map((doc, idx) => (
+              <div
+                key={doc.id}
+                className={`relative p-4 rounded-2xl border transition-all ${
+                  isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                }`}
+              >
+                <div className="absolute -left-6 top-4 w-4 h-4 rounded-full border-2 border-white dark:border-slate-950 bg-orange-500 flex items-center justify-center text-[8px] font-bold text-white">
+                  {idx + 1}
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 text-[10px] font-mono font-bold rounded-md border ${
+                        doc.type === 'LAPORAN_AWAL'
+                          ? 'bg-blue-500/15 text-blue-500 border-blue-500/30'
+                          : doc.type === 'RENOPS'
+                          ? 'bg-orange-500/15 text-orange-500 border-orange-500/30'
+                          : doc.type === 'PENUTUPAN'
+                          ? 'bg-red-500/15 text-red-500 border-red-500/30'
+                          : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                      }`}>
+                        {doc.type} • {doc.hariKe}
+                      </span>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{doc.label}</span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Waktu/TW: {formatTanggalIndo(doc.waktu)} ({formatJamWITA(doc.waktu)} WITA)
+                      {doc.cuaca ? ` • Cuaca: ${doc.cuaca}` : ''}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {doc.type === 'LAPORAN_AWAL' && (
+                      <button
+                        onClick={() =>
+                          setViewModalData({
+                            isOpen: true,
+                            title: 'LAPORAN AWAL OPS SAR',
+                            subtitle: operasi.nama_operasi,
+                            text: operasi.full_text_wa,
+                          })
+                        }
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+                          isDarkMode ? 'bg-slate-800 text-slate-200 border-slate-700' : 'bg-slate-100 text-slate-700 border-slate-300'
+                        }`}
+                      >
+                        Lihat Naskah WA
+                      </button>
+                    )}
+
+                    {doc.type === 'RENOPS' && (
+                      <button
+                        onClick={() => setActiveTab('renops')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+                          isDarkMode ? 'bg-slate-800 text-orange-400 border-slate-700' : 'bg-slate-100 text-orange-600 border-slate-300'
+                        }`}
+                      >
+                        Buka Tab Renops
+                      </button>
+                    )}
+
+                    {(doc.type === 'LAPBANG' || doc.type === 'PENUTUPAN') && (
+                      <button
+                        onClick={() => setActiveTab('sitrep')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+                          isDarkMode ? 'bg-slate-800 text-emerald-400 border-slate-700' : 'bg-slate-100 text-emerald-600 border-slate-300'
+                        }`}
+                      >
+                        Buka Tab Lapbang
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tab 1: Rencana Operasi (Renops H.X) */}
       {activeTab === 'renops' && (

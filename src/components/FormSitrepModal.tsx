@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Operasi, LaporanHarian, Korban, DetailUnsur, DetailAlut, StatusKorban, MasterAlut } from '../types';
 import { hitungHariKe, generateLapbangWA, formatTW } from '../utils/templates';
+import { getNextLapbangDefaults } from '../utils/operationHierarchy';
 import { showSuccessAlert, showErrorAlert, showWarningAlert, showToast } from '../utils/alerts';
 import { DateTimeInput24H } from './DateTimeInput24H';
 import { UnsurSarEditor } from './UnsurSarEditor';
@@ -81,6 +82,7 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
   const [alutList, setAlutList] = useState<DetailAlut[]>(
     operasi.detail_alut ? JSON.parse(JSON.stringify(operasi.detail_alut)) : []
   );
+  const [inheritedFromLabel, setInheritedFromLabel] = useState<string>('Laporan Awal');
 
   // AI draft states
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
@@ -94,11 +96,12 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [confirmCloseChecked, setConfirmCloseChecked] = useState<boolean>(false);
 
-  // Sync state on modal open or editSitrep change
+  // Sync state on modal open or editSitrep change (Hierarchical inheritance flow)
   React.useEffect(() => {
     if (!isOpen) return;
 
     if (editSitrep) {
+      setInheritedFromLabel(`Lapbang ${editSitrep.hari_ke || ''}`);
       if (editSitrep.waktu_laporan) {
         try {
           const d = new Date(editSitrep.waktu_laporan);
@@ -127,25 +130,29 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
       } else {
         setWaktuDebrief(getLocalDateTimeString(new Date()));
       }
-    } else {
-      setWaktuLaporan(getLocalDateTimeString(new Date()));
-      setIsLaporan(
-        'Tim SAR Gabungan telah melaksanakan penyisiran sesuai Rencana Operasi. Hingga sore hari pencarian dihentikan sementara dengan hasil NIHIL dan akan dilanjutkan esok hari sesuai Renops Harian.'
+
+      setVictimStatuses(
+        (operasi.korban || []).map((k) => ({
+          id_korban: k.id_korban,
+          nama_korban: k.nama_korban,
+          status_korban: k.status_korban,
+        }))
       );
+      setUnsurList(operasi.detail_unsur ? JSON.parse(JSON.stringify(operasi.detail_unsur)) : []);
+      setAlutList(operasi.detail_alut ? JSON.parse(JSON.stringify(operasi.detail_alut)) : []);
+    } else {
+      const defaults = getNextLapbangDefaults(operasi);
+      setInheritedFromLabel(defaults.predecessorLabel);
+      setWaktuLaporan(getLocalDateTimeString(new Date()));
+      setIsLaporan(defaults.suggestedIsiLaporan);
       setIsPenutupan(false);
       setConfirmCloseChecked(false);
       setWaktuDebrief(getLocalDateTimeString(new Date()));
+      setVictimStatuses(defaults.inheritedVictimStatuses);
+      setUnsurList(defaults.inheritedUnsur);
+      setAlutList(defaults.inheritedAlut);
     }
 
-    setVictimStatuses(
-      (operasi.korban || []).map((k) => ({
-        id_korban: k.id_korban,
-        nama_korban: k.nama_korban,
-        status_korban: k.status_korban,
-      }))
-    );
-    setUnsurList(operasi.detail_unsur ? JSON.parse(JSON.stringify(operasi.detail_unsur)) : []);
-    setAlutList(operasi.detail_alut ? JSON.parse(JSON.stringify(operasi.detail_alut)) : []);
     setErrorMsg('');
   }, [isOpen, editSitrep, operasi]);
 
@@ -421,6 +428,23 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Form Controls (7 cols) */}
           <div className="lg:col-span-7 space-y-6">
+            {/* Hierarchy Inheritance Banner */}
+            {!isEditing && (
+              <div className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs ${
+                isDarkMode ? 'bg-orange-950/30 border-orange-500/30 text-orange-200' : 'bg-orange-50/90 border-orange-200 text-orange-900 shadow-sm'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                  <span>
+                    Mewarisi data dari: <strong className="font-bold underline">{inheritedFromLabel}</strong> (Status Korban, Unsur SAR, Alut/Palsar)
+                  </span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-500/20 font-bold border border-orange-500/30">
+                  Hirarki Operasi SAR
+                </span>
+              </div>
+            )}
+
             {/* CARD 1: Waktu & Tanggal Laporan */}
             <div className={`p-5 rounded-2xl border transition-colors ${
               isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'

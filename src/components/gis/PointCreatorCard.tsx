@@ -21,7 +21,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
-import { PointIconType } from '../../utils/geoUtils';
+import { PointIconType, POINT_CATEGORIES } from '../../utils/geoUtils';
 import { DmsNumericEditor } from './DmsNumericEditor';
 
 export interface PointPresetOption {
@@ -51,6 +51,8 @@ const ALPHABET_LIST = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 interface PointCreatorCardProps {
   name: string;
   setName: (name: string) => void;
+  category: string;
+  setCategory: (category: string) => void;
   selectedIconType: PointIconType;
   setSelectedIconType: (type: PointIconType) => void;
   alphabetChar?: string;
@@ -68,6 +70,8 @@ interface PointCreatorCardProps {
 export const PointCreatorCard: React.FC<PointCreatorCardProps> = ({
   name,
   setName,
+  category = 'None',
+  setCategory,
   selectedIconType,
   setSelectedIconType,
   alphabetChar = 'A',
@@ -257,6 +261,29 @@ export const PointCreatorCard: React.FC<PointCreatorCardProps> = ({
             isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300'
           }`}
         />
+      </div>
+
+      {/* Point Category Selector (Requirement 4: Definisi Titik sebagai apa, terpisah dari icon) */}
+      <div>
+        <label className="block text-[11px] font-bold text-slate-500 mb-1">
+          Kategori Titik (Fungsi Operasional):
+        </label>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className={`w-full px-3 py-2 rounded-xl border text-xs font-semibold cursor-pointer ${
+            isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-800'
+          }`}
+        >
+          {POINT_CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat === 'None' ? 'None / Kosong (Penanda Biasa)' : cat}
+            </option>
+          ))}
+        </select>
+        <p className="text-[10px] text-slate-400 mt-1">
+          Kategori ini mendefinisikan peran titik dalam laporan resmi SAR (Kantor SAR, POS SAR, Unit Siaga SAR, Posko, LKP, Entry Point, Exit Point, atau None).
+        </p>
       </div>
 
       {/* Icon Selector Tabs */}

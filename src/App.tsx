@@ -85,7 +85,7 @@ export default function App() {
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
-  const [masterDataInitialTab, setMasterDataInitialTab] = useState<'alut' | 'tim' | 'pejabat' | 'pangkalan'>('alut');
+  const [masterDataInitialTab, setMasterDataInitialTab] = useState<'alut' | 'tim' | 'pejabat'>('alut');
   const [adminSettingsInitialTab, setAdminSettingsInitialTab] = useState<'admin' | 'satker' | 'backup'>('admin');
   const [masterSettingsInitialTab, setMasterSettingsInitialTab] = useState<'alut' | 'tim' | 'pejabat' | 'satker' | 'keamanan' | 'backup' | 'admin'>('alut');
   const [selectedOperasiId, setSelectedOperasiId] = useState<number | null>(() => {
@@ -589,7 +589,7 @@ export default function App() {
               : view === 'admin-settings'
               ? 'IDENTITAS SATKER, PROFIL ADMIN, SANDI AKUN, SERTA CADANGAN & PEMULIHAN BASIS DATA TERPADU'
               : view === 'master-data'
-              ? 'MANAJEMEN ARMADA ALUT, PALASAR, TIM RESCUE, PEJABAT SMC & PANGKALAN SAR'
+              ? 'MANAJEMEN ARMADA ALUT, PALASAR, TIM RESCUE & PEJABAT SMC'
               : 'KANTOR PENCARIAN DAN PERTOLONGAN (KPP) KELAS A KENDARI • BASARNAS'
           }
           onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
@@ -652,6 +652,7 @@ export default function App() {
           ) : view === 'dashboard' ? (
             <DashboardList
               operasiList={operasiList}
+              braList={braList}
               onSelectOperasi={(id) => {
                 setSelectedOperasiId(id);
                 setView('detail-hub');
