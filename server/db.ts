@@ -726,6 +726,38 @@ class Database {
         this.data.app_settings.admin_no_hp = '0811-4091-115';
         shouldSave = true;
       }
+      if (!this.data.app_settings.user_username) {
+        this.data.app_settings.user_username = 'user';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.user_password) {
+        this.data.app_settings.user_password = 'Kendari304';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.user_nama) {
+        this.data.app_settings.user_nama = 'Petugas Siaga SAR';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.user_nip) {
+        this.data.app_settings.user_nip = '199501012020121001';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.user_pangkat) {
+        this.data.app_settings.user_pangkat = 'PENGATUR (II/c)';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.user_jabatan) {
+        this.data.app_settings.user_jabatan = 'Operator Komunikasi & Petugas Siaga SAR';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.user_email) {
+        this.data.app_settings.user_email = 'operator.kendari@basarnas.go.id';
+        shouldSave = true;
+      }
+      if (!this.data.app_settings.user_no_hp) {
+        this.data.app_settings.user_no_hp = '0811-4091-115';
+        shouldSave = true;
+      }
       if (shouldSave) {
         this.saveData();
       }
@@ -748,6 +780,10 @@ class Database {
     return this.getAppSettings().admin_password || 'Kendari2026';
   }
 
+  public getUserPassword(): string {
+    return this.getAppSettings().user_password || 'Kendari304';
+  }
+
   public getAdminEmail(): string {
     return this.getAppSettings().admin_email || 'irfandydk@gmail.com';
   }
@@ -757,6 +793,60 @@ class Database {
     const cleanPass = (password || '').trim();
     const activePass = this.getAdminPassword();
     return cleanUser === 'admin' && cleanPass === activePass;
+  }
+
+  public validateLogin(username: string, password: string): { valid: boolean; role?: 'ADMIN' | 'USER'; user?: any } {
+    const cleanUser = (username || '').trim().toLowerCase();
+    const cleanPass = (password || '').trim();
+    const settings = this.getAppSettings();
+
+    const adminUser = (settings.admin_username || 'admin').trim().toLowerCase();
+    const adminPass = (settings.admin_password || 'Kendari2026').trim();
+
+    const normalUser = (settings.user_username || 'user').trim().toLowerCase();
+    const normalPass = (settings.user_password || 'Kendari304').trim();
+
+    if (cleanUser === adminUser && cleanPass === adminPass) {
+      return {
+        valid: true,
+        role: 'ADMIN',
+        user: {
+          id: 'USR-ADMIN',
+          nama: settings.admin_nama || 'AMIRUDDIN AS, S.Sos.',
+          nip: settings.admin_nip || '197405101998031002',
+          role: 'ADMIN',
+          roleTitle: 'Administrator SAR',
+          pangkat: settings.admin_pangkat || 'PEMBINA (IV/a)',
+          jabatan: settings.admin_jabatan || 'Kepala Kantor / Administrator Utama KPP Kendari',
+          email: settings.admin_email || 'irfandydk@gmail.com',
+          username: settings.admin_username || 'admin',
+          no_hp: settings.admin_no_hp || '0811-4091-115',
+          loginAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    if (cleanUser === normalUser && cleanPass === normalPass) {
+      return {
+        valid: true,
+        role: 'USER',
+        user: {
+          id: 'USR-STANDARD',
+          nama: settings.user_nama || 'Petugas Siaga SAR',
+          nip: settings.user_nip || '199501012020121001',
+          role: 'USER',
+          roleTitle: 'Petugas / Operator SAR',
+          pangkat: settings.user_pangkat || 'PENGATUR (II/c)',
+          jabatan: settings.user_jabatan || 'Operator Komunikasi & Petugas Siaga SAR',
+          email: settings.user_email || 'operator.kendari@basarnas.go.id',
+          username: settings.user_username || 'user',
+          no_hp: settings.user_no_hp || '0811-4091-115',
+          loginAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    return { valid: false };
   }
 
   public changeAdminPassword(oldPass: string, newPass: string): { success: boolean; error?: string } {

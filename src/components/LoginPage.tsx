@@ -45,13 +45,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         if (localLogo) setSatkerLogo(localLogo);
 
         const res = await fetch('/api/settings');
-        const data = await res.json();
-        if (data.success && data.data) {
-          if (data.data.logo_url) setSatkerLogo(data.data.logo_url);
-          if (data.data.satker_nama) setSatkerName(data.data.satker_nama);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.success && data.data) {
+            if (data.data.logo_url) setSatkerLogo(data.data.logo_url);
+            if (data.data.satker_nama) setSatkerName(data.data.satker_nama);
+          }
         }
       } catch (err) {
-        console.error('Failed to load satker settings on login:', err);
+        console.warn('Notice: satker settings on login:', err);
       }
     };
 
@@ -77,7 +79,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     const p = password.trim();
 
     if (!u) {
-      showErrorAlert('Username Wajib Diisi', 'Silakan masukkan username admin.');
+      showErrorAlert('Username Wajib Diisi', 'Silakan masukkan username akun.');
       return;
     }
     if (!p) {
@@ -100,7 +102,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         setLoading(false);
         showErrorAlert(
           'Login Gagal',
-          data.error || 'Username atau kata sandi yang Anda masukkan salah. Pastikan menggunakan user "admin" dengan kata sandi yang sesuai.'
+          data.error || 'Username atau kata sandi yang Anda masukkan salah. Pastikan menggunakan username dan kata sandi yang sesuai.'
         );
         return;
       }
@@ -108,7 +110,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       setLoading(false);
       await showSuccessAlert(
         'Login Berhasil',
-        `Selamat bertugas di Sistem QR SAR ${satkerName}.`
+        `Selamat bertugas di Sistem QR SAR ${satkerName}, ${data.user?.nama || data.user?.username}.`
       );
       processLogin(data.user);
     } catch (err: any) {
@@ -117,7 +119,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  // Handler for direct Reset to Default Password 'Kendari2026'
+  // Handler for direct Reset to Default Password
   const handleResetToDefault = async () => {
     setIsResettingDefault(true);
     try {
@@ -129,11 +131,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       const data = await res.json();
 
       if (data.success) {
-        setPassword('Kendari2026');
         setShowForgotModal(false);
+        setPassword('');
         await showSuccessAlert(
-          'Kata Sandi Direset ke Default',
-          'Kata sandi akun administrator telah dikembalikan ke kata sandi standar sistem: "Kendari2026". Form login telah diisi secara otomatis.'
+          'Pemulihan Berhasil',
+          'Kata sandi administrator telah berhasil dikembalikan ke standar sistem. Silakan login kembali.'
         );
       } else {
         throw new Error(data.error || 'Gagal mereset kata sandi.');
@@ -193,7 +195,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           {/* Username Input */}
           <div>
             <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-              Username Administrator
+              Username Akun
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -204,7 +206,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder="admin atau user"
                 className={`w-full pl-10 pr-3 py-2.5 rounded-xl text-xs font-medium border transition-colors outline-none focus:ring-2 font-mono ${
                   isDarkMode
                     ? 'bg-slate-950 border-slate-700 text-slate-100 focus:border-orange-500 focus:ring-orange-500/20 placeholder:text-slate-500'
@@ -325,7 +327,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </button>
             </div>
 
-            {/* Direct Reset to Default Kendari2026 */}
+            {/* Direct Reset to Default */}
             <div className="space-y-4 text-xs">
               <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 space-y-3">
                 <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-bold text-sm">
@@ -333,14 +335,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   <span>Reset ke Password Standar</span>
                 </div>
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
-                  Untuk kelancaran penugasan operasional SAR, Anda dapat langsung mengembalikan kata sandi akun administrator (<strong>admin</strong>) ke kata sandi standar sistem:
+                  Untuk kelancaran penugasan operasional SAR, Anda dapat mengembalikan kata sandi akun administrator (<strong>admin</strong>) ke kata sandi standar sistem.
                 </p>
-                <div className="p-3 rounded-lg bg-white dark:bg-slate-950 font-mono text-center border border-orange-500/30">
-                  <span className="text-[11px] text-slate-400 uppercase tracking-wider block mb-0.5 font-sans font-medium">Password Default Sistem:</span>
-                  <span className="text-base font-black text-orange-600 dark:text-orange-400 tracking-wider">Kendari2026</span>
-                </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
-                  Setelah menekan tombol reset, kata sandi di sistem akan otomatis diperbarui dan form login akan langsung terisi dengan kata sandi tersebut.
+                  Setelah menekan tombol reset, kata sandi akun administrator di sistem akan otomatis dikembalikan ke standar awal.
                 </p>
               </div>
 
@@ -370,7 +368,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                   ) : (
                     <>
                       <KeyRound className="w-3.5 h-3.5" />
-                      <span>Reset ke "Kendari2026"</span>
+                      <span>Reset Password Admin</span>
                     </>
                   )}
                 </button>

@@ -22,13 +22,14 @@ import {
   Trash2,
   RefreshCw,
 } from 'lucide-react';
-import { BraSar, KategoriBra } from '../types';
+import { BraSar, KategoriBra, UserSession } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { printElement, downloadDocumentHtml } from '../utils/printUtils';
 import { showToast, showConfirmDialog } from '../utils/alerts';
 
 interface BraArchivePageProps {
   braList: BraSar[];
+  currentUser?: UserSession | null;
   onSelectBra: (bra: BraSar) => void;
   onCreateBra: (kategori: KategoriBra) => void;
   onDeleteBra?: (id: number) => Promise<void> | void;
@@ -38,6 +39,7 @@ interface BraArchivePageProps {
 
 export const BraArchivePage: React.FC<BraArchivePageProps> = ({
   braList,
+  currentUser,
   onSelectBra,
   onCreateBra,
   onDeleteBra,
@@ -117,6 +119,10 @@ export const BraArchivePage: React.FC<BraArchivePageProps> = ({
 
   const handleDeleteBra = async (bra: BraSar, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (currentUser?.role === 'USER') {
+      showToast('Akses ditolak: Pengguna tidak memiliki izin menghapus dokumen BRA SAR.', 'error');
+      return;
+    }
     const confirmed = await showConfirmDialog(
       `Hapus BRA SAR ${bra.no_bra}?`,
       `Apakah Anda yakin ingin menghapus naskah Berita Radio SAR "${bra.perihal || bra.no_bra}" dari arsip? Tindakan ini tidak dapat dibatalkan.`

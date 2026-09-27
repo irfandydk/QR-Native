@@ -37,7 +37,7 @@ import { DEFAULT_BASARNAS_LOGO } from './BasarnasLogo';
 interface AdminSettingsPageProps {
   onBack: () => void;
   onRefreshData?: () => Promise<void>;
-  initialTab?: 'admin' | 'satker' | 'backup';
+  initialTab?: 'admin' | 'user' | 'satker' | 'backup';
   onUpdateCurrentUser?: (user: any) => void;
 }
 
@@ -49,8 +49,8 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
 }) => {
   const { isDarkMode, accentColors } = useTheme();
 
-  // Active Tab: 'admin' | 'satker' | 'backup'
-  const [activeTab, setActiveTab] = useState<'admin' | 'satker' | 'backup'>(initialTab);
+  // Active Tab: 'admin' | 'user' | 'satker' | 'backup'
+  const [activeTab, setActiveTab] = useState<'admin' | 'user' | 'satker' | 'backup'>(initialTab);
 
   useEffect(() => {
     if (initialTab) {
@@ -61,6 +61,8 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
   // Loading states
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingAdmin, setIsSavingAdmin] = useState(false);
+  const [isSavingUser, setIsSavingUser] = useState(false);
+  const [isResettingUser, setIsResettingUser] = useState(false);
   const [isSavingSatker, setIsSavingSatker] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -86,6 +88,17 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
   const [showOldPass, setShowOldPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
+
+  // --- TAB USER: USER PROFILE & SECURITY STATES (Managed by Admin) ---
+  const [userNama, setUserNama] = useState('Petugas Siaga SAR');
+  const [userNip, setUserNip] = useState('199501012020121001');
+  const [userJabatan, setUserJabatan] = useState('Operator Komunikasi & Petugas Siaga SAR');
+  const [userPangkat, setUserPangkat] = useState('PENGATUR (II/c)');
+  const [userUsername, setUserUsername] = useState('user');
+  const [userEmail, setUserEmail] = useState('operator.kendari@basarnas.go.id');
+  const [userNoHp, setUserNoHp] = useState('0811-4091-115');
+  const [userPassword, setUserPassword] = useState('');
+  const [showUserPass, setShowUserPass] = useState(false);
 
   // --- TAB 2: SATKER & APP IDENTITY STATES ---
   const [satkerKode, setSatkerKode] = useState('SAR-304');
@@ -127,8 +140,9 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
   const fetchAllSettings = async () => {
     try {
       setIsLoading(true);
-      const [profRes, settRes, expRes] = await Promise.all([
+      const [profRes, userProfRes, settRes, expRes] = await Promise.all([
         fetch('/api/auth/profile').catch(() => null),
+        fetch('/api/auth/user-profile').catch(() => null),
         fetch('/api/settings').catch(() => null),
         fetch('/api/database/export').catch(() => null),
       ]);
@@ -143,6 +157,19 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
           setAdminUsername(pData.data.username || 'admin');
           setAdminEmail(pData.data.email || 'irfandydk@gmail.com');
           setAdminNoHp(pData.data.no_hp || '0811-4091-115');
+        }
+      }
+
+      if (userProfRes && userProfRes.ok) {
+        const uData = await userProfRes.json();
+        if (uData.success && uData.data) {
+          setUserNama(uData.data.nama || 'Petugas Siaga SAR');
+          setUserNip(uData.data.nip || '199501012020121001');
+          setUserJabatan(uData.data.jabatan || 'Operator Komunikasi & Petugas Siaga SAR');
+          setUserPangkat(uData.data.pangkat || 'PENGATUR (II/c)');
+          setUserUsername(uData.data.username || 'user');
+          setUserEmail(uData.data.email || 'operator.kendari@basarnas.go.id');
+          setUserNoHp(uData.data.no_hp || '0811-4091-115');
         }
       }
 
@@ -197,7 +224,7 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
         }
       }
     } catch (err) {
-      console.error('Failed to load settings:', err);
+      console.warn('Notice: settings sync in AdminSettingsPage:', err);
     } finally {
       setIsLoading(false);
     }
@@ -312,6 +339,94 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
       showErrorAlert('Gagal Mengubah Sandi', err.message || 'Terjadi kesalahan pada server.');
     } finally {
       setIsUpdatingPassword(false);
+    }
+  };
+
+  // --- SAVE USER PROFILE & CREDENTIALS (Managed by Admin) ---
+  const handleSaveUserProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userNama.trim() || !userUsername.trim()) {
+      showErrorAlert('Validasi Gagal', 'Nama lengkap dan username pengguna wajib diisi.');
+      return;
+    }
+
+    try {
+      setIsSavingUser(true);
+      const res = await fetch('/api/auth/user-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nama: userNama.trim(),
+          nip: userNip.trim(),
+          pangkat: userPangkat.trim(),
+          jabatan: userJabatan.trim(),
+          email: userEmail.trim(),
+          username: userUsername.trim(),
+          no_hp: userNoHp.trim(),
+          password: userPassword.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Gagal menyimpan data akun pengguna.');
+      }
+
+      setUserPassword('');
+      showSuccessAlert(
+        'Data Akun Pengguna Disimpan',
+        'Data identitas, hak akses, dan kredensial pengguna operasional (user) berhasil diperbarui.'
+      );
+      if (onRefreshData) onRefreshData();
+    } catch (err: any) {
+      showErrorAlert('Gagal Menyimpan Data Pengguna', err.message || 'Terjadi kesalahan sistem.');
+    } finally {
+      setIsSavingUser(false);
+    }
+  };
+
+  const handleResetUserToDefault = async () => {
+    const ok = await showConfirmDialog(
+      'Reset Akun Pengguna ke Standar?',
+      'Username akan dikembalikan ke "user" dan kata sandi akan dikembalikan ke standar "Kendari304". Lanjutkan?'
+    );
+    if (!ok) return;
+
+    try {
+      setIsResettingUser(true);
+      const res = await fetch('/api/auth/user-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: 'user',
+          password: 'Kendari304',
+          nama: 'Petugas Siaga SAR',
+          nip: '199501012020121001',
+          pangkat: 'PENGATUR (II/c)',
+          jabatan: 'Operator Komunikasi & Petugas Siaga SAR',
+          email: 'operator.kendari@basarnas.go.id',
+          no_hp: '0811-4091-115',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUserUsername('user');
+        setUserPassword('');
+        setUserNama('Petugas Siaga SAR');
+        setUserNip('199501012020121001');
+        setUserPangkat('PENGATUR (II/c)');
+        setUserJabatan('Operator Komunikasi & Petugas Siaga SAR');
+        setUserEmail('operator.kendari@basarnas.go.id');
+        setUserNoHp('0811-4091-115');
+        showSuccessAlert(
+          'Akun Pengguna Berhasil Direset',
+          'Username telah direset menjadi "user" dan kata sandi menjadi standar "Kendari304".'
+        );
+      }
+    } catch (err: any) {
+      showErrorAlert('Gagal Reset Akun Pengguna', err.message || 'Terjadi kesalahan.');
+    } finally {
+      setIsResettingUser(false);
     }
   };
 
@@ -735,6 +850,21 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
 
             <button
               type="button"
+              onClick={() => setActiveTab('user')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                activeTab === 'user'
+                  ? 'bg-orange-600 text-white shadow-md shadow-orange-600/25'
+                  : isDarkMode
+                  ? 'bg-slate-800/60 text-slate-300 hover:bg-slate-800 border border-slate-700/60'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+              }`}
+            >
+              <User className="w-4 h-4" />
+              <span>Akun Pengguna (User)</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => setActiveTab('satker')}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 activeTab === 'satker'
@@ -1034,6 +1164,280 @@ export const AdminSettingsPage: React.FC<AdminSettingsPageProps> = ({
                   </div>
                   <p className="leading-relaxed">
                     Pastikan kata sandi baru dirahasiakan dan disimpan dengan baik. Kata sandi ini digunakan untuk otentikasi pimpinan dan staf admin KPP Kendari.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* TAB USER: PENGATURAN AKUN PENGGUNA (USER)                */}
+        {/* ======================================================== */}
+        {activeTab === 'user' && (
+          <div className="space-y-6">
+            {/* Role & Permissions Banner */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-blue-500/10 border border-blue-500/25 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-xl bg-blue-500 text-white shrink-0 shadow-md">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                      Hak Akses Akun Pengguna Operasional (User)
+                    </h3>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30">
+                      ROLE: USER
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                    Akun ini diperuntukkan bagi personel siaga SAR, rescuer, dan operator komunikasi untuk kegiatan operasional harian.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>Dapat mengakses semua halaman & fungsi operasional</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                      <span>Dapat menghapus data pada halaman Ploting Peta SAR</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-red-500 dark:text-red-400 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Tidak dapat mengakses halaman Pengaturan Admin</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-red-500 dark:text-red-400 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Tidak dapat menghapus data operasional, BRA, & master data</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="self-end md:self-center shrink-0">
+                <button
+                  type="button"
+                  onClick={handleResetUserToDefault}
+                  disabled={isResettingUser}
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    isDarkMode
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-xs'
+                  }`}
+                  title="Kembalikan username ke 'user' dan password ke 'Kendari304'"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isResettingUser ? 'animate-spin' : ''}`} />
+                  <span>Reset Default (user / Kendari304)</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Form Profil Pengguna (2 Cols) */}
+              <div className={`lg:col-span-2 p-6 rounded-2xl border ${
+                isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="flex items-center gap-3 pb-4 border-b border-inherit mb-5">
+                  <div className="p-2 rounded-xl bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                    <User className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold">Data Identitas Personel / Pengguna</h2>
+                    <p className="text-xs text-slate-400">
+                      Informasi identitas personel yang ditampilkan saat user aktif bertugas
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSaveUserProfile} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-600 dark:text-slate-300">
+                        Nama Lengkap Petugas <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={userNama}
+                        onChange={(e) => setUserNama(e.target.value)}
+                        required
+                        placeholder="Contoh: Petugas Siaga SAR"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs border transition-colors outline-none focus:border-orange-500 ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-600 dark:text-slate-300">
+                        NIP / NRP
+                      </label>
+                      <input
+                        type="text"
+                        value={userNip}
+                        onChange={(e) => setUserNip(e.target.value)}
+                        placeholder="199501012020121001 atau -"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs border transition-colors outline-none focus:border-orange-500 font-mono ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-600 dark:text-slate-300">
+                        Pangkat / Golongan
+                      </label>
+                      <input
+                        type="text"
+                        value={userPangkat}
+                        onChange={(e) => setUserPangkat(e.target.value)}
+                        placeholder="PENGATUR (II/c) / Rescuer"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs border transition-colors outline-none focus:border-orange-500 ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-600 dark:text-slate-300">
+                        Jabatan Kedinasan
+                      </label>
+                      <input
+                        type="text"
+                        value={userJabatan}
+                        onChange={(e) => setUserJabatan(e.target.value)}
+                        placeholder="Operator Komunikasi & Petugas Siaga SAR"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs border transition-colors outline-none focus:border-orange-500 ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-600 dark:text-slate-300">
+                        Alamat Email Dinas
+                      </label>
+                      <input
+                        type="email"
+                        value={userEmail}
+                        onChange={(e) => setUserEmail(e.target.value)}
+                        placeholder="operator.kendari@basarnas.go.id"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs border transition-colors outline-none focus:border-orange-500 ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold mb-1 text-slate-600 dark:text-slate-300">
+                        No. HP / WhatsApp
+                      </label>
+                      <input
+                        type="text"
+                        value={userNoHp}
+                        onChange={(e) => setUserNoHp(e.target.value)}
+                        placeholder="0811-4091-115"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs border transition-colors outline-none focus:border-orange-500 ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-inherit flex items-center justify-end gap-3">
+                    <button
+                      type="submit"
+                      disabled={isSavingUser}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 shadow-md shadow-orange-600/25 transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{isSavingUser ? 'Menyimpan...' : 'Simpan Perubahan Pengguna'}</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Form Kredensial Login Pengguna (1 Col) */}
+              <div className={`p-6 rounded-2xl border ${
+                isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+              }`}>
+                <div className="flex items-center gap-3 pb-4 border-b border-inherit mb-5">
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold">Kredensial Login Pengguna</h2>
+                    <p className="text-xs text-slate-400">
+                      Username dan kata sandi masuk untuk akun operasional
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSaveUserProfile} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-600 dark:text-slate-300">
+                      Username Login <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={userUsername}
+                      onChange={(e) => setUserUsername(e.target.value)}
+                      required
+                      placeholder="user"
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border font-mono transition-colors outline-none focus:border-orange-500 ${
+                        isDarkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                      }`}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Standar: <strong>user</strong>
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-slate-600 dark:text-slate-300">
+                      Ubah Kata Sandi Pengguna
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showUserPass ? 'text' : 'password'}
+                        value={userPassword}
+                        onChange={(e) => setUserPassword(e.target.value)}
+                        placeholder="Default: Kendari304 (kosongkan jika tidak diubah)"
+                        className={`w-full px-3.5 py-2.5 pr-10 rounded-xl text-xs border transition-colors outline-none focus:border-orange-500 ${
+                          isDarkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowUserPass(!showUserPass)}
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 cursor-pointer"
+                      >
+                        {showUserPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Standar: <strong>Kendari304</strong>
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSavingUser}
+                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 shadow transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>{isSavingUser ? 'Menyimpan...' : 'Perbarui Kredensial User'}</span>
+                    </button>
+                  </div>
+                </form>
+
+                <div className="mt-5 p-3.5 rounded-xl bg-blue-500/5 border border-blue-500/15 text-slate-400 text-[11px] space-y-1">
+                  <div className="flex items-center gap-1.5 text-blue-500 font-bold">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>Catatan Administrator:</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Pengguna dengan akun ini dapat digunakan bersama oleh regu piket SAR untuk pencatatan operasi tanpa risiko menghapus data resmi.
                   </p>
                 </div>
               </div>

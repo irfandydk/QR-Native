@@ -81,38 +81,38 @@ async function startServer() {
   app.post('/api/auth/login', (req, res) => {
     try {
       const { username, password } = req.body;
-      const isValid = db.validateAdminLogin(username, password);
+      const auth = db.validateLogin(username, password);
 
-      if (!isValid) {
+      if (!auth.valid || !auth.user) {
         return res.status(401).json({
           success: false,
-          error: 'Username atau kata sandi yang Anda masukkan salah. Pastikan menggunakan user "admin" dengan kata sandi yang sesuai.',
+          error: 'Username atau kata sandi yang Anda masukkan salah. Pastikan menggunakan username dan kata sandi yang sesuai.',
         });
       }
-
-      const settings = db.getAppSettings();
-      const user = {
-        id: 'USR-ADMIN',
-        nama: settings.admin_nama || 'AMIRUDDIN AS, S.Sos.',
-        nip: settings.admin_nip || '197405101998031002',
-        role: 'ADMIN',
-        roleTitle: 'Administrator SAR',
-        pangkat: settings.admin_pangkat || 'PEMBINA (IV/a)',
-        jabatan: settings.admin_jabatan || 'Kepala Kantor / Administrator Utama KPP Kendari',
-        email: settings.admin_email || 'irfandydk@gmail.com',
-        username: settings.admin_username || 'admin',
-        no_hp: settings.admin_no_hp || '0811-4091-115',
-        loginAt: new Date().toISOString(),
-      };
 
       res.json({
         success: true,
         message: 'Login berhasil.',
-        user,
+        user: auth.user,
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }
+  });
+
+  // User permission guard: Standard user cannot delete operational data, except on GIS / Map Plotting
+  app.use((req, res, next) => {
+    if (req.method === 'DELETE') {
+      const userRole = req.headers['x-user-role'];
+      const reqPath = req.path;
+      if (!reqPath.startsWith('/api/gis/') && userRole === 'USER') {
+        return res.status(403).json({
+          success: false,
+          error: 'Akses ditolak: Pengguna (User) tidak memiliki izin menghapus data ini.',
+        });
+      }
+    }
+    next();
   });
 
   app.get('/api/auth/profile', (req, res) => {
@@ -200,28 +200,88 @@ async function startServer() {
     }
   });
 
-  // Reset password to default 'Kendari2026'
+  // Reset password to default
   app.post('/api/auth/reset-default', (req, res) => {
     try {
-      const result = db.resetToDefaultPassword();
+      db.resetToDefaultPassword();
       res.json({
         success: true,
-        message: 'Kata sandi administrator berhasil dikembalikan ke standar sistem "Kendari2026".',
-        password: result.password,
+        message: 'Kata sandi administrator berhasil dikembalikan ke standar sistem.',
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }
   });
 
-  // Forgot password endpoint: directly resets password to default 'Kendari2026'
+  // Forgot password endpoint: directly resets password to default
   app.post('/api/auth/forgot-password', (req, res) => {
     try {
-      const result = db.resetToDefaultPassword();
+      db.resetToDefaultPassword();
       res.json({
         success: true,
-        message: 'Kata sandi administrator telah direset ke kata sandi standar "Kendari2026".',
-        password: result.password,
+        message: 'Kata sandi administrator telah berhasil direset ke standar sistem.',
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // User Profile (Managed by Admin)
+  app.get('/api/auth/user-profile', (req, res) => {
+    try {
+      const settings = db.getAppSettings();
+      res.json({
+        success: true,
+        data: {
+          id: 'USR-STANDARD',
+          nama: settings.user_nama || 'Petugas Siaga SAR',
+          nip: settings.user_nip || '199501012020121001',
+          role: 'USER',
+          roleTitle: 'Petugas / Operator SAR',
+          pangkat: settings.user_pangkat || 'PENGATUR (II/c)',
+          jabatan: settings.user_jabatan || 'Operator Komunikasi & Petugas Siaga SAR',
+          email: settings.user_email || 'operator.kendari@basarnas.go.id',
+          username: settings.user_username || 'user',
+          no_hp: settings.user_no_hp || '0811-4091-115',
+        },
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.put('/api/auth/user-profile', (req, res) => {
+    try {
+      const { nama, nip, jabatan, pangkat, email, username, no_hp, password } = req.body;
+      const updateData: any = {};
+      if (nama !== undefined) updateData.user_nama = String(nama).trim();
+      if (nip !== undefined) updateData.user_nip = String(nip).trim();
+      if (jabatan !== undefined) updateData.user_jabatan = String(jabatan).trim();
+      if (pangkat !== undefined) updateData.user_pangkat = String(pangkat).trim();
+      if (email !== undefined) updateData.user_email = String(email).trim();
+      if (username !== undefined) updateData.user_username = String(username).trim();
+      if (no_hp !== undefined) updateData.user_no_hp = String(no_hp).trim();
+      if (password !== undefined && password !== '••••••••' && String(password).trim().length > 0) {
+        updateData.user_password = String(password).trim();
+      }
+
+      const updated = db.updateAppSettings(updateData);
+
+      res.json({
+        success: true,
+        message: 'Data akun pengguna (user) berhasil diperbarui.',
+        data: {
+          id: 'USR-STANDARD',
+          nama: updated.user_nama,
+          nip: updated.user_nip,
+          jabatan: updated.user_jabatan,
+          pangkat: updated.user_pangkat,
+          email: updated.user_email,
+          username: updated.user_username,
+          no_hp: updated.user_no_hp,
+          role: 'USER',
+          roleTitle: 'Petugas / Operator SAR',
+        },
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });

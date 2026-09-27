@@ -221,6 +221,14 @@ export interface AppSettings {
   admin_jabatan?: string;
   admin_pangkat?: string;
   admin_no_hp?: string;
+  user_username?: string;
+  user_password?: string;
+  user_nama?: string;
+  user_nip?: string;
+  user_pangkat?: string;
+  user_jabatan?: string;
+  user_email?: string;
+  user_no_hp?: string;
   smtp_host?: string;
   smtp_port?: number;
   smtp_user?: string;
@@ -230,7 +238,7 @@ export interface AppSettings {
   reset_token_expiry?: string;
 }
 
-export type UserRole = 'ADMIN' | 'OPERATOR_SENKOM' | 'RESCUER' | 'KASIE_OPS' | 'KEPALA_KANTOR';
+export type UserRole = 'ADMIN' | 'USER' | 'OPERATOR_SENKOM' | 'RESCUER' | 'KASIE_OPS' | 'KEPALA_KANTOR';
 
 export interface UserSession {
   id: string;

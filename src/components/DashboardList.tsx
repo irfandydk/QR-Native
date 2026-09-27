@@ -19,7 +19,7 @@ import {
   X,
   RefreshCw,
 } from 'lucide-react';
-import { Operasi, BraSar } from '../types';
+import { Operasi, BraSar, UserSession } from '../types';
 import {
   formatTanggalIndo,
   formatJamWITA,
@@ -32,6 +32,7 @@ import { useTheme } from '../context/ThemeContext';
 interface DashboardListProps {
   operasiList: Operasi[];
   braList?: BraSar[];
+  currentUser?: UserSession | null;
   onSelectOperasi: (id: number) => void;
   onNewOperasi: () => void;
   onEditOperasi: (op: Operasi) => void;
@@ -48,6 +49,7 @@ const MONTH_NAMES_ID = [
 export const DashboardList: React.FC<DashboardListProps> = ({
   operasiList,
   braList,
+  currentUser,
   onSelectOperasi,
   onNewOperasi,
   onEditOperasi,
@@ -73,13 +75,16 @@ export const DashboardList: React.FC<DashboardListProps> = ({
   useEffect(() => {
     if (!braList || braList.length === 0) {
       fetch(`/api/bra?_t=${Date.now()}`)
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) return null;
+          return res.json();
+        })
         .then((data) => {
-          if (data.success && Array.isArray(data.data)) {
+          if (data?.success && Array.isArray(data.data)) {
             setLocalBraList(data.data);
           }
         })
-        .catch((err) => console.error('Failed to load BRA:', err));
+        .catch((err) => console.warn('Notice: BRA data sync:', err));
     }
   }, [braList]);
 
@@ -203,6 +208,10 @@ export const DashboardList: React.FC<DashboardListProps> = ({
 
   const handleDelete = async (e: React.MouseEvent, op: Operasi) => {
     e.stopPropagation();
+    if (currentUser?.role === 'USER') {
+      showToast('Akses ditolak: Pengguna tidak memiliki izin menghapus data operasi SAR.', 'error');
+      return;
+    }
     const confirmed = await showConfirmDialog(
       `Hapus Operasi "${op.nama_operasi}"?`,
       `Apakah Anda yakin ingin menghapus data operasi SAR ini beserta seluruh arsip Renops dan Lapbang-nya? Tindakan ini tidak dapat dibatalkan.`
@@ -665,17 +674,19 @@ export const DashboardList: React.FC<DashboardListProps> = ({
                         <FileText className="w-4 h-4" />
                       </button>
 
-                      <button
-                        onClick={(e) => handleDelete(e, op)}
-                        title="Hapus Operasi"
-                        className={`p-2 rounded-lg border transition-colors ${
-                          isDarkMode
-                            ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 border-slate-700'
-                            : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-red-600 border-slate-200'
-                        }`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {currentUser?.role !== 'USER' && (
+                        <button
+                          onClick={(e) => handleDelete(e, op)}
+                          title="Hapus Operasi"
+                          className={`p-2 rounded-lg border transition-colors ${
+                            isDarkMode
+                              ? 'bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 border-slate-700'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-red-600 border-slate-200'
+                          }`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
 
                     {/* Enter Hub Arrow */}

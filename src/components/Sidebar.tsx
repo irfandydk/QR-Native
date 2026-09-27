@@ -123,16 +123,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       isActive: currentView === 'master-data' || currentView === 'master-settings',
       onClick: () => onNavigate('master-data', 'alut'),
     },
-    {
-      id: 'admin-settings',
-      label: 'Pengaturan Admin',
-      subtitle: 'Sandi admin, satker & backup',
-      icon: ShieldCheck,
-      badge: 'TERPISAH',
-      badgeColor: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30',
-      isActive: currentView === 'admin-settings',
-      onClick: () => onNavigate('admin-settings', 'admin'),
-    },
+    ...(currentUser?.role !== 'USER'
+      ? [
+          {
+            id: 'admin-settings',
+            label: 'Pengaturan Admin',
+            subtitle: 'Sandi admin, user & backup',
+            icon: ShieldCheck,
+            badge: 'ADMIN',
+            badgeColor: 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30',
+            isActive: currentView === 'admin-settings',
+            onClick: () => onNavigate('admin-settings', 'admin'),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -369,11 +373,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
             {isOpen && (
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold truncate">
-                  {currentUser?.nama || currentUser?.username || 'Administrator'}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-bold truncate">
+                    {currentUser?.nama || currentUser?.username || 'Pengguna'}
+                  </p>
+                  <span
+                    className={`text-[9px] font-black uppercase px-1 py-0.5 rounded ${
+                      currentUser?.role === 'USER'
+                        ? 'bg-blue-500/20 text-blue-500 dark:text-blue-400 border border-blue-500/30'
+                        : 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30'
+                    }`}
+                  >
+                    {currentUser?.role === 'USER' ? 'User' : 'Admin'}
+                  </span>
+                </div>
                 <p className="text-[10px] text-slate-400 truncate">
-                  {currentUser?.jabatan || 'Admin SAR Kendari'}
+                  {currentUser?.jabatan || (currentUser?.role === 'USER' ? 'Operator SAR Kendari' : 'Admin SAR Kendari')}
                 </p>
               </div>
             )}

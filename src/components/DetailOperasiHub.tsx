@@ -19,7 +19,7 @@ import {
   Lock,
   Radio,
 } from 'lucide-react';
-import { Operasi, Renops, LaporanHarian, MasterAlut, MasterTim } from '../types';
+import { Operasi, Renops, LaporanHarian, MasterAlut, MasterTim, UserSession } from '../types';
 import {
   formatTanggalIndo,
   formatJamWITA,
@@ -39,6 +39,7 @@ interface DetailOperasiHubProps {
   operasi: Operasi;
   masterAlut: MasterAlut[];
   masterTim: MasterTim[];
+  currentUser?: UserSession | null;
   onBack: () => void;
   onEditOperasi: () => void;
   onRefreshOperasi: (id: number) => Promise<void>;
@@ -51,6 +52,7 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
   operasi,
   masterAlut,
   masterTim,
+  currentUser,
   onBack,
   onEditOperasi,
   onRefreshOperasi,
@@ -124,6 +126,10 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
 
   // Delete Renops with SweetAlert
   const handleDeleteRenops = async (id_renops: number, hari_ke?: string) => {
+    if (currentUser?.role === 'USER') {
+      showToast('Akses ditolak: Pengguna tidak memiliki izin menghapus Rencana Operasi.', 'error');
+      return;
+    }
     const confirmed = await showConfirmDialog(
       `Hapus Rencana Operasi ${hari_ke || ''}?`,
       `Apakah Anda yakin ingin menghapus Rencana Operasi ${hari_ke || ''}? Seluruh data pembagian SRU dan draf teks WA Renops ini akan dihapus secara permanen.`
@@ -131,18 +137,25 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`/api/renops/${id_renops}`, { method: 'DELETE' });
+      const res = await fetch(`/api/renops/${id_renops}`, {
+        method: 'DELETE',
+        headers: { 'X-User-Role': currentUser?.role || 'ADMIN' },
+      });
       if (res.ok) {
         await onRefreshOperasi(operasi.id_operasi);
         await showSuccessAlert('Berhasil Dihapus', `Rencana Operasi SAR ${hari_ke || ''} berhasil dihapus.`);
       }
     } catch (err) {
-      console.error(err);
+      console.warn(err);
     }
   };
 
   // Delete Sitrep with SweetAlert
   const handleDeleteSitrep = async (id_laporan: number, hari_ke?: string, isPenutupan?: boolean) => {
+    if (currentUser?.role === 'USER') {
+      showToast('Akses ditolak: Pengguna tidak memiliki izin menghapus Laporan Perkembangan.', 'error');
+      return;
+    }
     const confirmed = await showConfirmDialog(
       `Hapus ${isPenutupan ? 'Laporan Penutupan' : 'Laporan Perkembangan'} ${hari_ke || ''}?`,
       isPenutupan
@@ -152,19 +165,26 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`/api/laporan/${id_laporan}`, { method: 'DELETE' });
+      const res = await fetch(`/api/laporan/${id_laporan}`, {
+        method: 'DELETE',
+        headers: { 'X-User-Role': currentUser?.role || 'ADMIN' },
+      });
       const data = await res.json();
       if (data.success) {
         await onRefreshOperasi(operasi.id_operasi);
         await showSuccessAlert('Berhasil Dihapus', `${isPenutupan ? 'Laporan Penutupan' : 'Laporan Perkembangan'} ${hari_ke || ''} berhasil dihapus.`);
       }
     } catch (err) {
-      console.error(err);
+      console.warn(err);
     }
   };
 
   // Delete Entire Operasi
   const handleDeleteThisOperasi = async () => {
+    if (currentUser?.role === 'USER') {
+      showToast('Akses ditolak: Pengguna tidak memiliki izin menghapus data operasi SAR.', 'error');
+      return;
+    }
     const confirmed = await showConfirmDialog(
       `Hapus Operasi "${operasi.nama_operasi}"?`,
       'Apakah Anda yakin ingin menghapus operasi ini beserta seluruh arsip Renops dan Lapbang-nya? Tindakan ini permanen.'
@@ -255,18 +275,20 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
             </button>
           )}
 
-          <button
-            onClick={handleDeleteThisOperasi}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-              isDarkMode
-                ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30'
-                : 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200'
-            }`}
-            title="Hapus Operasi Ini"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Hapus Operasi</span>
-          </button>
+          {currentUser?.role !== 'USER' && (
+            <button
+              onClick={handleDeleteThisOperasi}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                isDarkMode
+                  ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30'
+                  : 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200'
+              }`}
+              title="Hapus Operasi Ini"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Hapus Operasi</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -652,18 +674,20 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteRenops(r.id_renops, r.hari_ke)}
-                      title="Hapus Rencana Operasi"
-                      className={`inline-flex items-center justify-center p-2 rounded-lg border transition-all active:scale-95 cursor-pointer shadow-sm ${
-                        isDarkMode
-                          ? 'bg-slate-800/80 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border-slate-700/60'
-                          : 'bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 border-slate-200'
-                      }`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {currentUser?.role !== 'USER' && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRenops(r.id_renops, r.hari_ke)}
+                        title="Hapus Rencana Operasi"
+                        className={`inline-flex items-center justify-center p-2 rounded-lg border transition-all active:scale-95 cursor-pointer shadow-sm ${
+                          isDarkMode
+                            ? 'bg-slate-800/80 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border-slate-700/60'
+                            : 'bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 border-slate-200'
+                        }`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
 
                   {/* SRU Summary */}
@@ -832,18 +856,20 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSitrep(l.id_laporan, l.hari_ke, isPenutupan)}
-                        title="Hapus Laporan"
-                        className={`inline-flex items-center justify-center p-2 rounded-lg border transition-all active:scale-95 cursor-pointer shadow-sm ${
-                          isDarkMode
-                            ? 'bg-slate-800/80 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border-slate-700/60'
-                            : 'bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 border-slate-200'
-                        }`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {currentUser?.role !== 'USER' && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSitrep(l.id_laporan, l.hari_ke, isPenutupan)}
+                          title="Hapus Laporan"
+                          className={`inline-flex items-center justify-center p-2 rounded-lg border transition-all active:scale-95 cursor-pointer shadow-sm ${
+                            isDarkMode
+                              ? 'bg-slate-800/80 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border-slate-700/60'
+                              : 'bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 border-slate-200'
+                          }`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
 
                     <div className={`p-3 rounded-xl text-xs leading-relaxed font-sans select-text border ${

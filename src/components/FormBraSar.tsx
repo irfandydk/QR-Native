@@ -112,7 +112,7 @@ export const FormBraSar: React.FC<FormBraSarProps> = ({
           }
         }
       })
-      .catch((err) => console.error('Failed to load pejabat list:', err));
+      .catch((err) => console.warn('Notice: load pejabat list in FormBraSar:', err));
   }, []);
 
   const handleSelectPejabat = (id: string) => {
@@ -147,7 +147,7 @@ export const FormBraSar: React.FC<FormBraSarProps> = ({
         setBulanTahun(suffix);
       }
     } catch (err) {
-      console.error('Failed to get next BRA number:', err);
+      console.warn('Notice: get next BRA number fallback:', err);
       const suffix = getBulanTahunSuffix();
       setNoBra(`191/${satkerKode}/${suffix}`);
       setNomorUrut(191);

@@ -20,7 +20,7 @@ import {
   RefreshCw,
   Compass,
 } from 'lucide-react';
-import { MasterAlut, MasterTim, Pejabat } from '../types';
+import { MasterAlut, MasterTim, Pejabat, UserSession } from '../types';
 import { useTheme } from '../context/ThemeContext';
 import { showSuccessAlert, showErrorAlert, showConfirmDialog, showToast } from '../utils/alerts';
 
@@ -28,12 +28,14 @@ interface MasterDataPageProps {
   onBack: () => void;
   onRefreshData?: () => void;
   initialTab?: 'alut' | 'tim' | 'pejabat';
+  currentUser?: UserSession | null;
 }
 
 export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   onBack,
   onRefreshData,
   initialTab = 'alut',
+  currentUser,
 }) => {
   const { isDarkMode } = useTheme();
 
@@ -82,25 +84,35 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
         },
       };
 
-      const [alutRes, timRes, settingsRes] = await Promise.all([
-        fetch(`/api/master/alut?_t=${timestamp}`, fetchOpts),
-        fetch(`/api/master/tim?_t=${timestamp}`, fetchOpts),
-        fetch(`/api/settings?_t=${timestamp}`, fetchOpts),
-      ]);
+      const safeFetch = async (url: string) => {
+        try {
+          const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const timeoutId = controller ? setTimeout(() => controller.abort(), 8000) : null;
+          const res = await fetch(url, {
+            ...fetchOpts,
+            ...(controller ? { signal: controller.signal } : {}),
+          });
+          if (timeoutId) clearTimeout(timeoutId);
+          if (!res.ok) return null;
+          return await res.json();
+        } catch {
+          return null;
+        }
+      };
 
       const [alutData, timData, settingsData] = await Promise.all([
-        alutRes.json(),
-        timRes.json(),
-        settingsRes.json(),
+        safeFetch(`/api/master/alut?_t=${timestamp}`),
+        safeFetch(`/api/master/tim?_t=${timestamp}`),
+        safeFetch(`/api/settings?_t=${timestamp}`),
       ]);
 
-      if (alutData.success) setAlutList(alutData.data || []);
-      if (timData.success) setTimList(timData.data || []);
-      if (settingsData.success && settingsData.data) {
+      if (alutData?.success) setAlutList(alutData.data || []);
+      if (timData?.success) setTimList(timData.data || []);
+      if (settingsData?.success && settingsData.data) {
         setPejabatList(settingsData.data.pejabat_list || []);
       }
     } catch (err) {
-      console.error('Failed to load master data:', err);
+      console.warn('Notice: Master data sync:', err);
     } finally {
       setLoading(false);
     }
@@ -161,6 +173,10 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   };
 
   const handleDeleteAlut = async (item: MasterAlut) => {
+    if (currentUser?.role === 'USER') {
+      showToast('Akses ditolak: Pengguna tidak memiliki izin menghapus data Alut.', 'error');
+      return;
+    }
     const ok = await showConfirmDialog(
       `Hapus Alut "${item.nama_alut}"?`,
       `Apakah Anda yakin ingin menghapus alut "${item.nama_alut}" dari Master Data? Tindakan ini tidak dapat dibatalkan.`
@@ -168,7 +184,10 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
     if (!ok) return;
 
     try {
-      const res = await fetch(`/api/master/alut/${item.id_alut}`, { method: 'DELETE' });
+      const res = await fetch(`/api/master/alut/${item.id_alut}`, {
+        method: 'DELETE',
+        headers: { 'X-User-Role': currentUser?.role || 'ADMIN' },
+      });
       const data = await res.json();
       if (data.success) {
         setAlutList((prev) => prev.filter((a) => a.id_alut !== item.id_alut));
@@ -250,6 +269,10 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   };
 
   const handleDeleteTim = async (item: MasterTim) => {
+    if (currentUser?.role === 'USER') {
+      showToast('Akses ditolak: Pengguna tidak memiliki izin menghapus data Tim.', 'error');
+      return;
+    }
     const ok = await showConfirmDialog(
       `Hapus Tim "${item.nama_tim}"?`,
       `Apakah Anda yakin ingin menghapus tim "${item.nama_tim}" dari Master Data? Tindakan ini tidak dapat dibatalkan.`
@@ -257,7 +280,10 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
     if (!ok) return;
 
     try {
-      const res = await fetch(`/api/master/tim/${item.id_tim}`, { method: 'DELETE' });
+      const res = await fetch(`/api/master/tim/${item.id_tim}`, {
+        method: 'DELETE',
+        headers: { 'X-User-Role': currentUser?.role || 'ADMIN' },
+      });
       const data = await res.json();
       if (data.success) {
         setTimList((prev) => prev.filter((t) => t.id_tim !== item.id_tim));
@@ -424,6 +450,10 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
   };
 
   const handleDeletePejabat = async (p: Pejabat) => {
+    if (currentUser?.role === 'USER') {
+      showToast('Akses ditolak: Pengguna tidak memiliki izin menghapus data Pejabat.', 'error');
+      return;
+    }
     const ok = await showConfirmDialog(
       `Hapus Pejabat "${p.nama}"?`,
       `Apakah Anda yakin ingin menghapus data pejabat "${p.nama}"? Data ini tidak akan lagi muncul pada opsi pilihan pengirim BRA SAR.`
@@ -431,7 +461,10 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
     if (!ok) return;
 
     try {
-      const res = await fetch(`/api/settings/pejabat/${p.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/settings/pejabat/${p.id}`, {
+        method: 'DELETE',
+        headers: { 'X-User-Role': currentUser?.role || 'ADMIN' },
+      });
       const data = await res.json();
       if (data.success) {
         setPejabatList((prev) => prev.filter((item) => item.id !== p.id));
@@ -737,14 +770,16 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
                                   >
                                     <Edit2 className="w-3.5 h-3.5" />
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteAlut(alut)}
-                                    className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-                                    title="Hapus Alut"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                  {currentUser?.role !== 'USER' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteAlut(alut)}
+                                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+                                      title="Hapus Alut"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </td>
@@ -890,14 +925,16 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
                                   >
                                     <Edit2 className="w-3.5 h-3.5" />
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteTim(tim)}
-                                    className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-                                    title="Hapus Tim"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
+                                  {currentUser?.role !== 'USER' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteTim(tim)}
+                                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+                                      title="Hapus Tim"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
                                 </div>
                               )}
                             </td>
@@ -1150,14 +1187,16 @@ export const MasterDataPage: React.FC<MasterDataPageProps> = ({
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePejabat(p)}
-                            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
-                            title="Hapus Pejabat"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {currentUser?.role !== 'USER' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePejabat(p)}
+                              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
+                              title="Hapus Pejabat"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>

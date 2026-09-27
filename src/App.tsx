@@ -19,7 +19,7 @@ import { MapPlottingPage } from './components/MapPlottingPage';
 import { useTheme } from './context/ThemeContext';
 import { showToast } from './utils/alerts';
 import { Operasi, MasterAlut, MasterTim, BraSar, KategoriBra, UserSession } from './types';
-import { ShieldCheck, LogIn } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, LogIn } from 'lucide-react';
 
 export default function App() {
   const { isDarkMode } = useTheme();
@@ -99,7 +99,14 @@ export default function App() {
   const [editingOperasi, setEditingOperasi] = useState<Operasi | null>(null);
 
   // BRA SAR states
-  const [braList, setBraList] = useState<BraSar[]>([]);
+  const [braList, setBraList] = useState<BraSar[]>(() => {
+    try {
+      const saved = localStorage.getItem('sar_cache_bra');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [activeBraKategori, setActiveBraKategori] = useState<KategoriBra>('MAPEL');
   const [activeBraDoc, setActiveBraDoc] = useState<BraSar | null>(null);
   const [showBraListModal, setShowBraListModal] = useState<boolean>(false);
@@ -108,13 +115,34 @@ export default function App() {
   const [isVerifyingQrDoc, setIsVerifyingQrDoc] = useState<boolean>(Boolean(initialQrBraId));
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
 
-  const [operasiList, setOperasiList] = useState<Operasi[]>([]);
-  const [masterAlut, setMasterAlut] = useState<MasterAlut[]>([]);
-  const [masterTim, setMasterTim] = useState<MasterTim[]>([]);
+  const [operasiList, setOperasiList] = useState<Operasi[]>(() => {
+    try {
+      const saved = localStorage.getItem('sar_cache_operasi');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [masterAlut, setMasterAlut] = useState<MasterAlut[]>(() => {
+    try {
+      const saved = localStorage.getItem('sar_cache_alut');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [masterTim, setMasterTim] = useState<MasterTim[]>(() => {
+    try {
+      const saved = localStorage.getItem('sar_cache_tim');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [appLogoUrl, setAppLogoUrl] = useState<string>(() => {
     return (typeof window !== 'undefined' ? localStorage.getItem('sar_custom_logo_url') : null) || '';
   });
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
 
   // Modals
   const [showMasterModal, setShowMasterModal] = useState<boolean>(false);
@@ -130,7 +158,7 @@ export default function App() {
     text: '',
   });
 
-  // Fetch all initial/updated data with strict anti-cache guarantees
+  // Fetch all initial/updated data with strict anti-cache guarantees and resilient fallback
   const fetchData = useCallback(async (isSilent = false) => {
     try {
       if (!isSilent) setLoading(true);
@@ -143,34 +171,54 @@ export default function App() {
         },
       };
 
-      const [opRes, alutRes, timRes, braRes, setRes] = await Promise.all([
-        fetch(`/api/operasi?_t=${timestamp}`, fetchOpts),
-        fetch(`/api/master/alut?_t=${timestamp}`, fetchOpts),
-        fetch(`/api/master/tim?_t=${timestamp}`, fetchOpts),
-        fetch(`/api/bra?_t=${timestamp}`, fetchOpts),
-        fetch(`/api/settings?_t=${timestamp}`, fetchOpts),
-      ]);
+      const safeFetch = async (url: string) => {
+        try {
+          const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const timeoutId = controller ? setTimeout(() => controller.abort(), 8000) : null;
+          const res = await fetch(url, {
+            ...fetchOpts,
+            ...(controller ? { signal: controller.signal } : {}),
+          });
+          if (timeoutId) clearTimeout(timeoutId);
+          if (!res.ok) return null;
+          return await res.json();
+        } catch {
+          return null;
+        }
+      };
 
       const [opData, alutData, timData, braData, setData] = await Promise.all([
-        opRes.json(),
-        alutRes.json(),
-        timRes.json(),
-        braRes.json(),
-        setRes.json(),
+        safeFetch(`/api/operasi?_t=${timestamp}`),
+        safeFetch(`/api/master/alut?_t=${timestamp}`),
+        safeFetch(`/api/master/tim?_t=${timestamp}`),
+        safeFetch(`/api/bra?_t=${timestamp}`),
+        safeFetch(`/api/settings?_t=${timestamp}`),
       ]);
 
-      if (opData.success) setOperasiList(opData.data);
-      if (alutData.success) setMasterAlut(alutData.data);
-      if (timData.success) setMasterTim(timData.data);
-      if (braData.success) setBraList(braData.data);
-      if (setData.success && setData.data?.logo_url) {
+      if (opData?.success && Array.isArray(opData.data)) {
+        setOperasiList(opData.data);
+        try { localStorage.setItem('sar_cache_operasi', JSON.stringify(opData.data)); } catch {}
+      }
+      if (alutData?.success && Array.isArray(alutData.data)) {
+        setMasterAlut(alutData.data);
+        try { localStorage.setItem('sar_cache_alut', JSON.stringify(alutData.data)); } catch {}
+      }
+      if (timData?.success && Array.isArray(timData.data)) {
+        setMasterTim(timData.data);
+        try { localStorage.setItem('sar_cache_tim', JSON.stringify(timData.data)); } catch {}
+      }
+      if (braData?.success && Array.isArray(braData.data)) {
+        setBraList(braData.data);
+        try { localStorage.setItem('sar_cache_bra', JSON.stringify(braData.data)); } catch {}
+      }
+      if (setData?.success && setData.data?.logo_url) {
         setAppLogoUrl(setData.data.logo_url);
         try {
           localStorage.setItem('sar_custom_logo_url', setData.data.logo_url);
         } catch {}
       }
     } catch (err) {
-      console.error('Failed to fetch fresh data:', err);
+      console.warn('Network sync info (using cached offline data):', err);
     } finally {
       if (!isSilent) setLoading(false);
     }
@@ -258,6 +306,13 @@ export default function App() {
     };
   }, []);
 
+  // Guard: if user role is 'USER' and view is admin-settings, auto-redirect to dashboard
+  useEffect(() => {
+    if (currentUser?.role === 'USER' && (view === 'admin-settings' || view === 'master-settings')) {
+      setView('dashboard');
+    }
+  }, [currentUser, view]);
+
   // Persist current active view and selectedOperasiId on change
   useEffect(() => {
     if (!isPublicScanView && view) {
@@ -289,7 +344,7 @@ export default function App() {
             }
           })
           .catch((err) => {
-            console.error('Failed to load BRA from QR link:', err);
+            console.warn('Failed to load BRA from QR link:', err);
             showToast('Gagal memverifikasi dokumen BRA.', 'error');
           })
           .finally(() => {
@@ -313,17 +368,27 @@ export default function App() {
   };
 
   const handleDeleteBra = async (id: number) => {
+    if (currentUser?.role === 'USER') {
+      showToast('Akses ditolak: Pengguna tidak memiliki izin menghapus dokumen BRA SAR.', 'error');
+      return;
+    }
     try {
-      const res = await fetch(`/api/bra/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/bra/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-User-Role': currentUser?.role || 'ADMIN' },
+      });
       if (res.ok) {
         setBraList((prev) => prev.filter((b) => b.id_bra !== id));
         if (activeBraDoc?.id_bra === id) {
           setActiveBraDoc(null);
           setView('dashboard');
         }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.error || 'Gagal menghapus dokumen BRA SAR', 'error');
       }
     } catch (err) {
-      console.error('Failed to delete BRA SAR:', err);
+      console.warn('Failed to delete BRA SAR:', err);
     }
   };
 
@@ -338,23 +403,33 @@ export default function App() {
         );
       }
     } catch (err) {
-      console.error('Failed to refresh operation:', err);
+      console.warn('Failed to refresh operation:', err);
     }
   };
 
   // Delete operation
   const handleDeleteOperasi = async (id: number) => {
+    if (currentUser?.role === 'USER') {
+      showToast('Akses ditolak: Pengguna tidak memiliki izin menghapus data operasi SAR.', 'error');
+      return;
+    }
     try {
-      const res = await fetch(`/api/operasi/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/operasi/${id}`, {
+        method: 'DELETE',
+        headers: { 'X-User-Role': currentUser?.role || 'ADMIN' },
+      });
       if (res.ok) {
         setOperasiList((prev) => prev.filter((o) => o.id_operasi !== id));
         if (selectedOperasiId === id) {
           setView('dashboard');
           setSelectedOperasiId(null);
         }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.error || 'Gagal menghapus operasi SAR', 'error');
       }
     } catch (err) {
-      console.error('Failed to delete operation:', err);
+      console.warn('Failed to delete operation:', err);
     }
   };
 
@@ -495,6 +570,11 @@ export default function App() {
         currentView={view as ActiveNavView}
         onNavigate={(navView, tab) => {
           if (navView === 'admin-settings') {
+            if (currentUser?.role === 'USER') {
+              showToast('Akses ditolak: Pengaturan Admin hanya dapat diakses oleh Administrator.', 'error');
+              setView('dashboard');
+              return;
+            }
             if (tab) setAdminSettingsInitialTab(tab as any);
             setView('admin-settings');
           } else if (navView === 'master-data') {
@@ -502,14 +582,13 @@ export default function App() {
             setView('master-data');
           } else if (navView === 'master-settings') {
             // Smart router: keep backward compatibility
-            if (tab === 'keamanan' || tab === 'admin') {
-              setAdminSettingsInitialTab('admin');
-              setView('admin-settings');
-            } else if (tab === 'satker') {
-              setAdminSettingsInitialTab('satker');
-              setView('admin-settings');
-            } else if (tab === 'backup') {
-              setAdminSettingsInitialTab('backup');
+            if (tab === 'keamanan' || tab === 'admin' || tab === 'satker' || tab === 'backup') {
+              if (currentUser?.role === 'USER') {
+                showToast('Akses ditolak: Pengaturan Admin hanya dapat diakses oleh Administrator.', 'error');
+                setView('dashboard');
+                return;
+              }
+              setAdminSettingsInitialTab(tab === 'keamanan' ? 'admin' : (tab as any));
               setView('admin-settings');
             } else {
               setMasterDataInitialTab((tab as any) || 'alut');
@@ -621,12 +700,13 @@ export default function App() {
           ) : view === 'bra-archive' ? (
             <BraArchivePage
               braList={braList}
+              currentUser={currentUser}
               onSelectBra={(bra) => {
                 setActiveBraDoc(bra);
                 setView('view-bra');
               }}
               onCreateBra={(kategori) => handleOpenCreateBra(kategori)}
-              onDeleteBra={handleDeleteBra}
+              onDeleteBra={currentUser?.role !== 'USER' ? handleDeleteBra : undefined}
               onRefresh={() => fetchData(true)}
               onBack={() => setView('dashboard')}
             />
@@ -641,7 +721,7 @@ export default function App() {
                     setView('bra-archive');
                   }
                 }}
-                onDelete={() => handleDeleteBra(activeBraDoc.id_bra)}
+                onDelete={currentUser?.role !== 'USER' ? () => handleDeleteBra(activeBraDoc.id_bra) : undefined}
                 onEdit={() => {
                   setActiveBraKategori(activeBraDoc.kategori);
                   setPreselectedBraOpId(activeBraDoc.id_operasi || null);
@@ -653,6 +733,7 @@ export default function App() {
             <DashboardList
               operasiList={operasiList}
               braList={braList}
+              currentUser={currentUser}
               onSelectOperasi={(id) => {
                 setSelectedOperasiId(id);
                 setView('detail-hub');
@@ -693,6 +774,7 @@ export default function App() {
           ) : view === 'detail-hub' && currentOperasi ? (
             <DetailOperasiHub
               operasi={currentOperasi}
+              currentUser={currentUser}
               masterAlut={masterAlut}
               masterTim={masterTim}
               onBack={() => {
@@ -711,6 +793,7 @@ export default function App() {
           ) : view === 'master-data' ? (
             <MasterDataPage
               initialTab={masterDataInitialTab}
+              currentUser={currentUser}
               onBack={() => {
                 if (selectedOperasiId) {
                   setView('detail-hub');
@@ -721,29 +804,49 @@ export default function App() {
               onRefreshData={fetchData}
             />
           ) : view === 'admin-settings' ? (
-            <AdminSettingsPage
-              initialTab={adminSettingsInitialTab}
-              onBack={() => {
-                if (selectedOperasiId) {
-                  setView('detail-hub');
-                } else {
-                  setView('dashboard');
-                }
-              }}
-              onRefreshData={fetchData}
-              onUpdateCurrentUser={(updated) => {
-                setCurrentUser((prev) => {
-                  const nextUser = prev ? { ...prev, ...updated } : updated;
-                  try {
-                    localStorage.setItem('basarnas_user_session', JSON.stringify(nextUser));
-                  } catch {}
-                  return nextUser;
-                });
-              }}
-            />
+            currentUser?.role === 'USER' ? (
+              <div className="max-w-xl mx-auto my-12 p-8 text-center rounded-2xl border border-red-500/20 bg-red-500/5 space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 flex items-center justify-center mx-auto">
+                  <ShieldAlert className="w-8 h-8" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Akses Dibatasi</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Halaman Pengaturan Admin hanya dapat diakses oleh Administrator utama sistem. Akun pengguna tidak memiliki wewenang untuk membuka atau mengubah konfigurasi ini.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setView('dashboard')}
+                  className="px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-orange-600/20 cursor-pointer"
+                >
+                  Kembali ke Dashboard
+                </button>
+              </div>
+            ) : (
+              <AdminSettingsPage
+                initialTab={adminSettingsInitialTab}
+                onBack={() => {
+                  if (selectedOperasiId) {
+                    setView('detail-hub');
+                  } else {
+                    setView('dashboard');
+                  }
+                }}
+                onRefreshData={fetchData}
+                onUpdateCurrentUser={(updated) => {
+                  setCurrentUser((prev) => {
+                    const nextUser = prev ? { ...prev, ...updated } : updated;
+                    try {
+                      localStorage.setItem('basarnas_user_session', JSON.stringify(nextUser));
+                    } catch {}
+                    return nextUser;
+                  });
+                }}
+              />
+            )
           ) : view === 'master-settings' ? (
             <MasterDataPage
               initialTab="alut"
+              currentUser={currentUser}
               onBack={() => setView('dashboard')}
               onRefreshData={fetchData}
             />
