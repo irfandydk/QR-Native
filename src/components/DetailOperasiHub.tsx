@@ -124,6 +124,33 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
     }
   };
 
+  // Direct close operation
+  const handleDirectCloseOperasi = async () => {
+    const confirmed = await showConfirmDialog(
+      'Tutup Operasi SAR Secara Resmi?',
+      `Apakah Anda yakin ingin menyatakan Operasi SAR "${operasi.nama_operasi}" DITUTUP (CLOSED)? Seluruh unsur SAR akan dikembalikan ke kesatuan masing-masing dan data tersimpan permanen di database.`
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/operasi/${operasi.id_operasi}/close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ waktu_selesai: new Date().toISOString() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await onRefreshOperasi(operasi.id_operasi);
+        await showSuccessAlert('Operasi SAR Resmi Ditutup', 'Status operasi berhasil diubah menjadi CLOSED dan tersinkronkan ke basis data.');
+      } else {
+        showToast(data.error || 'Gagal menutup operasi', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Gagal terhubung ke server', 'error');
+    }
+  };
+
   // Delete Renops with SweetAlert
   const handleDeleteRenops = async (id_renops: number, hari_ke?: string) => {
     if (currentUser?.role === 'USER') {
@@ -399,7 +426,17 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
                   }`}
                 >
                   <PlusCircle className="w-4 h-4 text-emerald-500" />
-                  <span>+ Lapbang / Tutup</span>
+                  <span>+ Lapbang Harian</span>
+                </button>
+
+                <button
+                  id="btn-tutup-operasi"
+                  onClick={handleDirectCloseOperasi}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 transition-colors shadow-sm cursor-pointer"
+                  title="Tutup Operasi SAR Langsung (Ubah status ke CLOSED)"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Tutup Operasi</span>
                 </button>
               </div>
             )}
@@ -1082,34 +1119,38 @@ export const DetailOperasiHub: React.FC<DetailOperasiHubProps> = ({
       )}
 
       {/* Renops Modal */}
-      <FormRenopsModal
-        isOpen={showRenopsModal}
-        operasi={operasi}
-        masterAlut={masterAlut}
-        editRenops={editingRenops}
-        onClose={() => {
-          setShowRenopsModal(false);
-          setEditingRenops(null);
-        }}
-        onSuccess={async () => {
-          await onRefreshOperasi(operasi.id_operasi);
-        }}
-      />
+      {showRenopsModal && (
+        <FormRenopsModal
+          isOpen={showRenopsModal}
+          operasi={operasi}
+          masterAlut={masterAlut}
+          editRenops={editingRenops}
+          onClose={() => {
+            setShowRenopsModal(false);
+            setEditingRenops(null);
+          }}
+          onSuccess={async () => {
+            await onRefreshOperasi(operasi.id_operasi);
+          }}
+        />
+      )}
 
       {/* Sitrep Modal */}
-      <FormSitrepModal
-        isOpen={showSitrepModal}
-        operasi={operasi}
-        masterAlut={masterAlut}
-        editSitrep={editingSitrep}
-        onClose={() => {
-          setShowSitrepModal(false);
-          setEditingSitrep(null);
-        }}
-        onSuccess={async () => {
-          await onRefreshOperasi(operasi.id_operasi);
-        }}
-      />
+      {showSitrepModal && (
+        <FormSitrepModal
+          isOpen={showSitrepModal}
+          operasi={operasi}
+          masterAlut={masterAlut}
+          editSitrep={editingSitrep}
+          onClose={() => {
+            setShowSitrepModal(false);
+            setEditingSitrep(null);
+          }}
+          onSuccess={async () => {
+            await onRefreshOperasi(operasi.id_operasi);
+          }}
+        />
+      )}
 
       {/* Text View / Edit Modal */}
       <ViewLaporanModal

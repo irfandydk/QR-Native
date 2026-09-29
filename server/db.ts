@@ -5,6 +5,7 @@ import { generateLaporanAwalWA, generateRenopsWA, generateLapbangWA } from '../s
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
+const DB_BACKUP_FILE = path.join(DATA_DIR, 'db_backup.json');
 
 export const DEFAULT_BASARNAS_LOGO = 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Logo_Basarnas.svg/300px-Logo_Basarnas.svg.png';
 
@@ -123,42 +124,18 @@ export const INITIAL_SAR_UNITS: SarUnit[] = [
 const INITIAL_PEJABAT: Pejabat[] = [
   {
     id: 'pej-1',
-    nama: 'AMIRUDDIN AS, S.Sos.',
-    nip: '197405101998031002',
-    pangkat: 'PEMBINA (IV/a)',
+    nama: 'Amiruddin A.S., S.Sos.',
+    nip: '197707142002121003',
+    pangkat: 'Pembina (IV/a)',
     jabatan: 'Kepala Kantor Pencarian dan Pertolongan Kelas A Kendari',
-    is_default_smc: false,
-  },
-  {
-    id: 'pej-2',
-    nama: 'H. AMINUDDIN P.S., S.Sos., M.M.',
-    nip: '197804122002121001',
-    pangkat: 'PENATA TK. I (III/d)',
-    jabatan: 'Kepala Seksi Operasi dan Siaga',
     is_default_smc: true,
   },
   {
-    id: 'pej-3',
-    nama: 'RUDI, S.E.',
-    nip: '198207152006041003',
-    pangkat: 'PENATA (III/c)',
-    jabatan: 'Koordinator Pos SAR Wakatobi',
-    is_default_smc: false,
-  },
-  {
-    id: 'pej-4',
-    nama: 'SUPRIADI, S.Sos.',
-    nip: '198009202005021002',
-    pangkat: 'PENATA (III/c)',
-    jabatan: 'Koordinator Pos SAR Kolaka',
-    is_default_smc: false,
-  },
-  {
-    id: 'pej-5',
-    nama: 'UMAR',
-    nip: '198503142008121001',
-    pangkat: 'PENGATUR TK. I (II/d)',
-    jabatan: 'Koordinator Unit Siaga SAR Muna',
+    id: 'pej-2',
+    nama: 'Syaiful Wijanarta, S.E.',
+    nip: '198406232005021001',
+    pangkat: 'Penata Tk.I (III/d)',
+    jabatan: 'Kepala Seksi Operasi dan Siaga',
     is_default_smc: false,
   },
 ];
@@ -318,8 +295,8 @@ function createSeedData(): DatabaseSchema {
     cuaca: 'Cerah Berawan',
     gelombang: '0.75 - 1.5 M',
     angin: 'Timur - Tenggara, 8 - 15 Knots',
-    status: 'OPEN',
-    waktu_selesai: null,
+    status: 'CLOSED',
+    waktu_selesai: new Date(yesterday.getTime() + 10 * 3600000).toISOString(),
     full_text_wa: '',
     created_at: waktuLapor,
   };
@@ -416,7 +393,53 @@ function createSeedData(): DatabaseSchema {
     renops: [renops1],
     renops_sru: [sru1, sru2],
     laporan_harian: [lapbang1],
-    bra_sar: [],
+    bra_sar: [
+      {
+        id_bra: 1,
+        kategori: 'SAR_UMUM',
+        no_bra: '191/SAR-304/0926',
+        nomor_urut: 191,
+        satker_kode: 'SAR-304',
+        bulan_tahun: '0926',
+        id_operasi: 1,
+        nama_operasi: 'LAPORAN AWAL OPERASI SAR KECELAKAAN KAPAL DI KENDARI TTK',
+        derajat: 'SGR',
+        dari: 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI',
+        aksi: 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN',
+        info: 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN',
+        sifat: '',
+        menbra: '',
+        perihal: 'LAPORAN AWAL OPERASI SAR KECELAKAAN KAPAL DI KENDARI TTK',
+        tanggal_waktu: '23 September 2026',
+        twu: '0923 1657 H',
+        twb: '0923 1642 H',
+        jumlah_kata: '160 KATA',
+        sections: [
+          {
+            kode: 'AAA',
+            isi: 'PADA TW 0923 1653 H TERIMA INFO DARI LA ACO (KELUARGA KORBAN) BAHWA TELAH TERJADI OPERASI SAR KONDISI MEMBAHAYAKAN MANUSIA, 1 ORANG HILANG DI PERAIRAN WAKATOBI TTK',
+          },
+          {
+            kode: 'BBB',
+            isi: 'TERSEBUT AAA DIATAS MAKA PADA TW 0923 1655 H TIM RESCUE KANSAR KENDARI DIBERANGKATKAN MENUJU LKP DENGAN MENGGUNAKAN 1 UNIT RESCUE CAR DAN RIB POS SAR WAKATOBI TTK',
+          },
+          {
+            kode: 'CCC',
+            isi: 'UNSUR SAR TERLIBAT TTK DUA\n* POS SAR WAKATOBI : 5 ORANG\n* POLAIRUD WAKATOBI : 3 ORANG\n\nALUT DAN PALSAR TTK DUA\n• 1 UNIT RIB POS SAR WAKATOBI\n• 1 UNIT RUBBER BOAT',
+          },
+          {
+            kode: 'DDD',
+            isi: 'LAPORAN PERKEMBANGAN MENYUSUL KMA KA KPP KENDARI KRM TTK HBS',
+          },
+        ],
+        pengirim: 'KANTOR PENCARIAN DAN PERTOLONGAN KENDARI',
+        nama_smc: 'AMIRUDDIN AS., S.Sos.',
+        pangkat_smc: 'PEMBINA (IV/a)',
+        jabatan_smc: 'SMC',
+        created_at: yesterday.toISOString(),
+        barcode_data: '/?viewBra=1',
+      },
+    ],
     gis_points: INITIAL_GIS_POINTS,
     gis_polygons: INITIAL_GIS_POLYGONS,
     gis_routes: INITIAL_GIS_ROUTES,
@@ -440,10 +463,34 @@ class Database {
   }
 
   private loadData(): DatabaseSchema {
-    if (fs.existsSync(DB_FILE)) {
+    let candidateFile = DB_FILE;
+    if (!fs.existsSync(DB_FILE) && fs.existsSync(DB_BACKUP_FILE)) {
+      candidateFile = DB_BACKUP_FILE;
+    }
+
+    if (fs.existsSync(candidateFile)) {
       try {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+        const raw = fs.readFileSync(candidateFile, 'utf-8');
         const parsed: DatabaseSchema = JSON.parse(raw);
+
+        // If backup exists, check if backup has more records (e.g. cold restart from initial image)
+        if (candidateFile === DB_FILE && fs.existsSync(DB_BACKUP_FILE)) {
+          try {
+            const rawBackup = fs.readFileSync(DB_BACKUP_FILE, 'utf-8');
+            const parsedBackup: DatabaseSchema = JSON.parse(rawBackup);
+            if (
+              (parsedBackup.bra_sar?.length || 0) > (parsed.bra_sar?.length || 0) ||
+              (parsedBackup.operasi?.length || 0) > (parsed.operasi?.length || 0) ||
+              parsedBackup.operasi?.some(bo => bo.status === 'CLOSED' && parsed.operasi?.some(o => o.id_operasi === bo.id_operasi && o.status === 'OPEN'))
+            ) {
+              console.log('Restoring richer database state from backup mirror');
+              this.data = parsedBackup;
+              this.saveData();
+              return parsedBackup;
+            }
+          } catch {}
+        }
+
         if (!parsed.bra_sar) {
           parsed.bra_sar = [];
         }
@@ -484,7 +531,16 @@ class Database {
         }
         return parsed;
       } catch (err) {
-        console.error('Failed to parse db.json, generating seed data', err);
+        console.error('Failed to parse db.json, checking backup mirror...', err);
+        if (fs.existsSync(DB_BACKUP_FILE)) {
+          try {
+            const rawBackup = fs.readFileSync(DB_BACKUP_FILE, 'utf-8');
+            const parsedBackup: DatabaseSchema = JSON.parse(rawBackup);
+            this.data = parsedBackup;
+            this.saveData();
+            return parsedBackup;
+          } catch {}
+        }
       }
     }
 
@@ -497,7 +553,17 @@ class Database {
     if (dataToSave) {
       this.data = dataToSave;
     }
-    fs.writeFileSync(DB_FILE, JSON.stringify(this.data, null, 2), 'utf-8');
+    const jsonStr = JSON.stringify(this.data, null, 2);
+    try {
+      fs.writeFileSync(DB_FILE, jsonStr, 'utf-8');
+    } catch (e) {
+      console.error('Failed to write to DB_FILE:', e);
+    }
+    try {
+      fs.writeFileSync(DB_BACKUP_FILE, jsonStr, 'utf-8');
+    } catch (e) {
+      console.error('Failed to write to DB_BACKUP_FILE:', e);
+    }
   }
 
   // --- Sar Units (Kantor SAR, POS SAR, Unit Siaga SAR) ---
@@ -693,6 +759,15 @@ class Database {
       if (!this.data.app_settings.pejabat_list || this.data.app_settings.pejabat_list.length === 0) {
         this.data.app_settings.pejabat_list = INITIAL_PEJABAT;
         shouldSave = true;
+      } else {
+        const filtered = this.data.app_settings.pejabat_list.filter(p => {
+          const lower = (p.nama || '').toLowerCase();
+          return lower.includes('amiruddin') || lower.includes('syaiful');
+        });
+        if (filtered.length !== this.data.app_settings.pejabat_list.length) {
+          this.data.app_settings.pejabat_list = filtered.length > 0 ? filtered : INITIAL_PEJABAT;
+          shouldSave = true;
+        }
       }
       if (!this.data.app_settings.admin_username) {
         this.data.app_settings.admin_username = 'admin';
@@ -1153,6 +1228,15 @@ class Database {
 
     this.saveData();
     return true;
+  }
+
+  public closeOperasi(id_operasi: number, waktu_selesai?: string): Operasi | null {
+    const opIndex = this.data.operasi.findIndex(o => o.id_operasi === id_operasi);
+    if (opIndex === -1) return null;
+    this.data.operasi[opIndex].status = 'CLOSED';
+    this.data.operasi[opIndex].waktu_selesai = waktu_selesai || this.data.operasi[opIndex].waktu_selesai || new Date().toISOString();
+    this.saveData();
+    return this.populateOperasi(this.data.operasi[opIndex]);
   }
 
   // Renops
@@ -2171,6 +2255,101 @@ class Database {
     } catch (err: any) {
       return { success: false, error: err.message || 'Gagal memproses data pemulihan basis data.' };
     }
+  }
+
+  public reconcileWithClient(clientData: { operasi?: Operasi[]; bra_sar?: BraSar[] }): {
+    merged: boolean;
+    operasiCount: number;
+    braCount: number;
+    updatedOperasi: Operasi[];
+    braList: BraSar[];
+  } {
+    let hasChanges = false;
+
+    // 1. Reconcile BRA SAR documents
+    if (Array.isArray(clientData.bra_sar) && clientData.bra_sar.length > 0) {
+      if (!this.data.bra_sar) this.data.bra_sar = [];
+      for (const clientBra of clientData.bra_sar) {
+        if (!clientBra || !clientBra.no_bra) continue;
+        const exists = this.data.bra_sar.some(
+          (b) => b.id_bra === clientBra.id_bra || b.no_bra === clientBra.no_bra
+        );
+        if (!exists) {
+          this.data.bra_sar.unshift(clientBra);
+          hasChanges = true;
+        }
+      }
+    }
+
+    // 2. Reconcile Operasi Status & Missing Operasi
+    if (Array.isArray(clientData.operasi) && clientData.operasi.length > 0) {
+      for (const clientOp of clientData.operasi) {
+        if (!clientOp || !clientOp.id_operasi) continue;
+        const serverOp = this.data.operasi.find((o) => o.id_operasi === clientOp.id_operasi);
+        if (!serverOp) {
+          // Operation completely missing on server (e.g. cold restart from older seed)
+          this.data.operasi.push(clientOp);
+          if (Array.isArray(clientOp.korban)) {
+            clientOp.korban.forEach((k) => {
+              if (!this.data.korban.some((item) => item.id_korban === k.id_korban)) {
+                this.data.korban.push(k);
+              }
+            });
+          }
+          if (Array.isArray(clientOp.detail_unsur)) {
+            clientOp.detail_unsur.forEach((u) => {
+              if (!this.data.detail_unsur.some((item) => item.id_detail_unsur === u.id_detail_unsur)) {
+                this.data.detail_unsur.push(u);
+              }
+            });
+          }
+          if (Array.isArray(clientOp.detail_alut)) {
+            clientOp.detail_alut.forEach((a) => {
+              if (!this.data.detail_alut.some((item) => item.id_detail_alut === a.id_detail_alut)) {
+                this.data.detail_alut.push(a);
+              }
+            });
+          }
+          if (Array.isArray(clientOp.laporan_harian)) {
+            clientOp.laporan_harian.forEach((l) => {
+              if (!this.data.laporan_harian.some((item) => item.id_laporan === l.id_laporan)) {
+                this.data.laporan_harian.push(l);
+              }
+            });
+          }
+          hasChanges = true;
+        } else {
+          // If client has CLOSED status while server has OPEN, preserve CLOSED!
+          if (clientOp.status === 'CLOSED' && serverOp.status !== 'CLOSED') {
+            serverOp.status = 'CLOSED';
+            serverOp.waktu_selesai = clientOp.waktu_selesai || serverOp.waktu_selesai || new Date().toISOString();
+            hasChanges = true;
+          }
+          // Merge any reports from client if server doesn't have them
+          if (Array.isArray(clientOp.laporan_harian)) {
+            for (const cl of clientOp.laporan_harian) {
+              const serverReport = this.data.laporan_harian.find((sl) => sl.id_laporan === cl.id_laporan);
+              if (!serverReport) {
+                this.data.laporan_harian.unshift(cl);
+                hasChanges = true;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (hasChanges) {
+      this.saveData();
+    }
+
+    return {
+      merged: hasChanges,
+      operasiCount: this.data.operasi.length,
+      braCount: (this.data.bra_sar || []).length,
+      updatedOperasi: this.getAllOperasi(),
+      braList: this.getAllBraSar(),
+    };
   }
 }
 

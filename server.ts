@@ -131,10 +131,6 @@ async function startServer() {
           email: settings.admin_email || 'irfandydk@gmail.com',
           username: settings.admin_username || 'admin',
           no_hp: settings.admin_no_hp || '0811-4091-115',
-          smtp_host: settings.smtp_host || '',
-          smtp_port: settings.smtp_port || 587,
-          smtp_user: settings.smtp_user || '',
-          smtp_from: settings.smtp_from || '',
         },
       });
     } catch (err: any) {
@@ -144,7 +140,7 @@ async function startServer() {
 
   app.put('/api/auth/profile', (req, res) => {
     try {
-      const { nama, nip, jabatan, pangkat, email, username, no_hp, smtp_host, smtp_port, smtp_user, smtp_pass, smtp_from } = req.body;
+      const { nama, nip, jabatan, pangkat, email, username, no_hp } = req.body;
       const updateData: any = {};
       if (nama !== undefined) updateData.admin_nama = String(nama).trim();
       if (nip !== undefined) updateData.admin_nip = String(nip).trim();
@@ -153,11 +149,6 @@ async function startServer() {
       if (email !== undefined) updateData.admin_email = String(email).trim();
       if (username !== undefined) updateData.admin_username = String(username).trim();
       if (no_hp !== undefined) updateData.admin_no_hp = String(no_hp).trim();
-      if (smtp_host !== undefined) updateData.smtp_host = String(smtp_host).trim();
-      if (smtp_port !== undefined) updateData.smtp_port = Number(smtp_port) || 587;
-      if (smtp_user !== undefined) updateData.smtp_user = String(smtp_user).trim();
-      if (smtp_pass !== undefined && smtp_pass !== '••••••••') updateData.smtp_pass = String(smtp_pass).trim();
-      if (smtp_from !== undefined) updateData.smtp_from = String(smtp_from).trim();
 
       const updated = db.updateAppSettings(updateData);
 
@@ -992,6 +983,20 @@ async function startServer() {
     }
   });
 
+  app.post('/api/operasi/:id/close', (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const { waktu_selesai } = req.body || {};
+      const updated = db.closeOperasi(id, waktu_selesai);
+      if (!updated) {
+        return res.status(404).json({ success: false, error: 'Operasi tidak ditemukan' });
+      }
+      res.json({ success: true, data: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Renops
   app.post('/api/operasi/:id/renops', (req, res) => {
     try {
@@ -1182,6 +1187,17 @@ async function startServer() {
         stats: result.stats,
         settings: result.settings,
       });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Self-Healing Dual-Sync Endpoint (Recovers client-side BRA and CLOSED operations if container restarts)
+  app.post(['/api/sync/reconcile', '/api/sync/state'], (req, res) => {
+    try {
+      const { operasi, bra_sar } = req.body || {};
+      const result = db.reconcileWithClient({ operasi, bra_sar });
+      res.json({ success: true, data: result });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }

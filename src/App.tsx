@@ -187,6 +187,32 @@ export default function App() {
         }
       };
 
+      // 1. Initial self-healing reconciliation if client has cached data (protects against cold container restart)
+      try {
+        const cachedOpRaw = localStorage.getItem('sar_cache_operasi');
+        const cachedBraRaw = localStorage.getItem('sar_cache_bra');
+        const cachedOps = cachedOpRaw ? JSON.parse(cachedOpRaw) : [];
+        const cachedBras = cachedBraRaw ? JSON.parse(cachedBraRaw) : [];
+
+        if (
+          !isSilent &&
+          ((Array.isArray(cachedBras) && cachedBras.length > 0) ||
+          (Array.isArray(cachedOps) && cachedOps.some((o: any) => o.status === 'CLOSED')))
+        ) {
+          const recRes = await fetch('/api/sync/reconcile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ operasi: cachedOps, bra_sar: cachedBras }),
+          });
+          const recJson = await recRes.json();
+          if (recJson?.success && recJson.data?.merged) {
+            console.log('Self-healing sync successfully synchronized server database state');
+          }
+        }
+      } catch (err) {
+        console.warn('Self-healing sync check notice:', err);
+      }
+
       const [opData, alutData, timData, braData, setData] = await Promise.all([
         safeFetch(`/api/operasi?_t=${timestamp}`),
         safeFetch(`/api/master/alut?_t=${timestamp}`),
@@ -196,20 +222,108 @@ export default function App() {
       ]);
 
       if (opData?.success && Array.isArray(opData.data)) {
-        setOperasiList(opData.data);
-        try { localStorage.setItem('sar_cache_operasi', JSON.stringify(opData.data)); } catch {}
+        setOperasiList((prev) => {
+          let cachedOps: any[] = [];
+          try {
+            const raw = localStorage.getItem('sar_cache_operasi');
+            if (raw) cachedOps = JSON.parse(raw);
+          } catch {}
+
+          const referenceOps = [...prev];
+          cachedOps.forEach((co) => {
+            if (!referenceOps.some((ro) => ro.id_operasi === co.id_operasi)) {
+              referenceOps.push(co);
+            }
+          });
+
+          // Reconcile with prev and cached state (preserve CLOSED status even if server had cold restart)
+          const reconciled = opData.data.map((serverOp: any) => {
+            const localOp = referenceOps.find((o) => o.id_operasi === serverOp.id_operasi);
+            if (localOp && localOp.status === 'CLOSED' && serverOp.status !== 'CLOSED') {
+              return { ...serverOp, status: 'CLOSED', waktu_selesai: localOp.waktu_selesai || serverOp.waktu_selesai };
+            }
+            return serverOp;
+          });
+
+          // Also retain any local/cached operations if server didn't have them
+          referenceOps.forEach((localOp) => {
+            if (!reconciled.some((o: any) => o.id_operasi === localOp.id_operasi)) {
+              reconciled.push(localOp);
+            }
+          });
+
+          try { localStorage.setItem('sar_cache_operasi', JSON.stringify(reconciled)); } catch {}
+
+          // If there were any CLOSED ops that server thought were OPEN, sync to server in background
+          const needsServerSync = reconciled.some((ro: any) => {
+            const so = opData.data.find((item: any) => item.id_operasi === ro.id_operasi);
+            return ro.status === 'CLOSED' && (!so || so.status !== 'CLOSED');
+          });
+          if (needsServerSync) {
+            fetch('/api/sync/reconcile', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ operasi: reconciled }),
+            }).catch(() => {});
+          }
+
+          if (JSON.stringify(prev) === JSON.stringify(reconciled)) return prev;
+          return reconciled;
+        });
       }
       if (alutData?.success && Array.isArray(alutData.data)) {
-        setMasterAlut(alutData.data);
+        setMasterAlut((prev) => {
+          if (JSON.stringify(prev) === JSON.stringify(alutData.data)) return prev;
+          return alutData.data;
+        });
         try { localStorage.setItem('sar_cache_alut', JSON.stringify(alutData.data)); } catch {}
       }
       if (timData?.success && Array.isArray(timData.data)) {
-        setMasterTim(timData.data);
+        setMasterTim((prev) => {
+          if (JSON.stringify(prev) === JSON.stringify(timData.data)) return prev;
+          return timData.data;
+        });
         try { localStorage.setItem('sar_cache_tim', JSON.stringify(timData.data)); } catch {}
       }
       if (braData?.success && Array.isArray(braData.data)) {
-        setBraList(braData.data);
-        try { localStorage.setItem('sar_cache_bra', JSON.stringify(braData.data)); } catch {}
+        setBraList((prev) => {
+          let cachedBras: any[] = [];
+          try {
+            const raw = localStorage.getItem('sar_cache_bra');
+            if (raw) cachedBras = JSON.parse(raw);
+          } catch {}
+
+          const referenceBras = [...prev];
+          cachedBras.forEach((cb) => {
+            if (!referenceBras.some((rb) => (rb.id_bra && rb.id_bra === cb.id_bra) || rb.no_bra === cb.no_bra)) {
+              referenceBras.push(cb);
+            }
+          });
+
+          // Merge server and local BRA lists
+          const serverKeys = new Set(braData.data.map((b: any) => b.id_bra || b.no_bra));
+          const merged = [...braData.data];
+          referenceBras.forEach((localBra) => {
+            const key = localBra.id_bra || localBra.no_bra;
+            if (!serverKeys.has(key)) {
+              merged.push(localBra);
+            }
+          });
+
+          try { localStorage.setItem('sar_cache_bra', JSON.stringify(merged)); } catch {}
+
+          // If client has BRA documents not on server, sync to server in background so server db.json is updated permanently
+          if (merged.length > braData.data.length) {
+            fetch('/api/sync/reconcile', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ bra_sar: merged }),
+            }).catch(() => {});
+          }
+
+          if (JSON.stringify(prev) === JSON.stringify(merged)) return prev;
+          return merged;
+        });
       }
       if (setData?.success && setData.data?.logo_url) {
         setAppLogoUrl(setData.data.logo_url);
@@ -378,7 +492,11 @@ export default function App() {
         headers: { 'X-User-Role': currentUser?.role || 'ADMIN' },
       });
       if (res.ok) {
-        setBraList((prev) => prev.filter((b) => b.id_bra !== id));
+        setBraList((prev) => {
+          const next = prev.filter((b) => b.id_bra !== id);
+          try { localStorage.setItem('sar_cache_bra', JSON.stringify(next)); } catch {}
+          return next;
+        });
         if (activeBraDoc?.id_bra === id) {
           setActiveBraDoc(null);
           setView('dashboard');
@@ -398,9 +516,11 @@ export default function App() {
       const res = await fetch(`/api/operasi/${id}`);
       const data = await res.json();
       if (data.success && data.data) {
-        setOperasiList((prev) =>
-          prev.map((op) => (op.id_operasi === id ? data.data : op))
-        );
+        setOperasiList((prev) => {
+          const next = prev.map((op) => (op.id_operasi === id ? data.data : op));
+          try { localStorage.setItem('sar_cache_operasi', JSON.stringify(next)); } catch {}
+          return next;
+        });
       }
     } catch (err) {
       console.warn('Failed to refresh operation:', err);
@@ -419,7 +539,11 @@ export default function App() {
         headers: { 'X-User-Role': currentUser?.role || 'ADMIN' },
       });
       if (res.ok) {
-        setOperasiList((prev) => prev.filter((o) => o.id_operasi !== id));
+        setOperasiList((prev) => {
+          const next = prev.filter((o) => o.id_operasi !== id);
+          try { localStorage.setItem('sar_cache_operasi', JSON.stringify(next)); } catch {}
+          return next;
+        });
         if (selectedOperasiId === id) {
           setView('dashboard');
           setSelectedOperasiId(null);
@@ -692,7 +816,12 @@ export default function App() {
                 setView(selectedOperasiId ? 'detail-hub' : 'dashboard');
               }}
               onSaveSuccess={(savedBra) => {
-                setBraList((prev) => [savedBra, ...prev]);
+                setBraList((prev) => {
+                  const exists = prev.some((b) => b.id_bra === savedBra.id_bra || b.no_bra === savedBra.no_bra);
+                  const next = exists ? prev.map((b) => (b.id_bra === savedBra.id_bra ? savedBra : b)) : [savedBra, ...prev];
+                  try { localStorage.setItem('sar_cache_bra', JSON.stringify(next)); } catch {}
+                  return next;
+                });
                 setActiveBraDoc(savedBra);
                 setView('view-bra');
               }}
@@ -766,7 +895,13 @@ export default function App() {
                 setView(selectedOperasiId ? 'detail-hub' : 'dashboard');
               }}
               onSaveSuccess={(savedOp) => {
-                fetchData();
+                setOperasiList((prev) => {
+                  const exists = prev.some((o) => o.id_operasi === savedOp.id_operasi);
+                  const next = exists ? prev.map((o) => (o.id_operasi === savedOp.id_operasi ? savedOp : o)) : [savedOp, ...prev];
+                  try { localStorage.setItem('sar_cache_operasi', JSON.stringify(next)); } catch {}
+                  return next;
+                });
+                fetchData(true);
                 setSelectedOperasiId(savedOp.id_operasi);
                 setView('detail-hub');
               }}

@@ -91,16 +91,7 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
   const [adminUsername, setAdminUsername] = useState('admin');
   const [adminEmail, setAdminEmail] = useState('irfandydk@gmail.com');
   const [adminNoHp, setAdminNoHp] = useState('0811-4091-115');
-
-  // SMTP Email Settings
-  const [smtpHost, setSmtpHost] = useState('');
-  const [smtpPort, setSmtpPort] = useState<number>(587);
-  const [smtpUser, setSmtpUser] = useState('');
-  const [smtpPass, setSmtpPass] = useState('');
-  const [smtpFrom, setSmtpFrom] = useState('');
   const [isSavingAdminProfile, setIsSavingAdminProfile] = useState(false);
-  const [isTestingSmtp, setIsTestingSmtp] = useState(false);
-  const [testEmailResult, setTestEmailResult] = useState<string | null>(null);
 
   // Password management states
   const [oldPassword, setOldPassword] = useState('');
@@ -186,11 +177,6 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
         if (p.username) setAdminUsername(p.username);
         if (p.email) setAdminEmail(p.email);
         if (p.no_hp) setAdminNoHp(p.no_hp);
-        if (p.smtp_host) setSmtpHost(p.smtp_host);
-        if (p.smtp_port) setSmtpPort(p.smtp_port);
-        if (p.smtp_user) setSmtpUser(p.smtp_user);
-        if (p.smtp_user) setSmtpPass('••••••••');
-        if (p.smtp_from) setSmtpFrom(p.smtp_from);
       }
     } catch (err) {
       console.error('Failed to load settings or pejabat:', err);
@@ -203,7 +189,7 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
     fetchSettingsAndPejabat();
   }, []);
 
-  // Save Admin Profile Handler (Poin 1, 2, 3)
+  // Save Admin Profile Handler
   const handleSaveAdminProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!adminNama.trim()) {
@@ -228,11 +214,6 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
           username: adminUsername.trim() || 'admin',
           email: adminEmail.trim() || 'irfandydk@gmail.com',
           no_hp: adminNoHp.trim(),
-          smtp_host: smtpHost.trim(),
-          smtp_port: Number(smtpPort) || 587,
-          smtp_user: smtpUser.trim(),
-          smtp_pass: smtpPass === '••••••••' ? undefined : smtpPass.trim(),
-          smtp_from: smtpFrom.trim(),
         }),
       });
 
@@ -255,35 +236,6 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
       showErrorAlert('Gagal Menyimpan', err.message || 'Terjadi kesalahan sistem.');
     } finally {
       setIsSavingAdminProfile(false);
-    }
-  };
-
-  // Test SMTP Email Delivery
-  const handleTestSmtp = async () => {
-    setIsTestingSmtp(true);
-    setTestEmailResult(null);
-    try {
-      const target = adminEmail.trim() || 'irfandydk@gmail.com';
-      const res = await fetch('/api/auth/test-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetEmail: target }),
-      });
-      const data = await res.json();
-      if (data.success && data.sent) {
-        setTestEmailResult(`Email berhasil terkirim ke ${target} via ${data.smtpHost || 'SMTP Server'}!`);
-        showToast(`Email uji berhasil terkirim ke ${target}`, 'success');
-      } else if (data.success) {
-        setTestEmailResult(`Uji coba selesai: ${data.message}`);
-        showToast('Uji email selesai diproses', 'info');
-      } else {
-        throw new Error(data.error || 'Gagal mengirim email.');
-      }
-    } catch (err: any) {
-      setTestEmailResult(`Gagal mengirim: ${err.message}`);
-      showErrorAlert('Gagal Uji Email', err.message);
-    } finally {
-      setIsTestingSmtp(false);
     }
   };
 
@@ -2072,144 +2024,7 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
               </form>
             </div>
 
-            {/* SECTION 2: KONFIGURASI PENGIRIMAN EMAIL SMTP (Poin 4: Reset Password ke Email) */}
-            <div className={`p-6 rounded-2xl border ${
-              isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">
-                    <Mail className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm sm:text-base">Pengaturan Server Email SMTP (Reset Kata Sandi)</h3>
-                    <p className="text-xs text-slate-400">
-                      Konfigurasikan akun email pengirim (SMTP) agar tautan dan token reset password terkirim langsung ke inbox email resmi
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
-                      SMTP Host
-                    </label>
-                    <input
-                      type="text"
-                      value={smtpHost}
-                      onChange={(e) => setSmtpHost(e.target.value)}
-                      placeholder="smtp.gmail.com"
-                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-                        isDarkMode
-                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
-                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
-                      }`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
-                      SMTP Port
-                    </label>
-                    <input
-                      type="number"
-                      value={smtpPort}
-                      onChange={(e) => setSmtpPort(Number(e.target.value))}
-                      placeholder="587"
-                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-mono border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-                        isDarkMode
-                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
-                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
-                      }`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
-                      Sender Name / From Address
-                    </label>
-                    <input
-                      type="text"
-                      value={smtpFrom}
-                      onChange={(e) => setSmtpFrom(e.target.value)}
-                      placeholder='"QR SAR Basarnas" <noreply@basarnas.go.id>'
-                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-                        isDarkMode
-                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
-                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
-                      }`}
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
-                      SMTP Username / Email Pengirim
-                    </label>
-                    <input
-                      type="text"
-                      value={smtpUser}
-                      onChange={(e) => setSmtpUser(e.target.value)}
-                      placeholder="irfandydk@gmail.com atau akun smtp basarnas"
-                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-                        isDarkMode
-                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
-                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
-                      }`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5 text-slate-400">
-                      SMTP Password / App Password
-                    </label>
-                    <input
-                      type="password"
-                      value={smtpPass}
-                      onChange={(e) => setSmtpPass(e.target.value)}
-                      placeholder="Sandi aplikasi (App Password)"
-                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-cyan-500 ${
-                        isDarkMode
-                          ? 'bg-slate-950 border-slate-700 text-white placeholder-slate-500'
-                          : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
-                      }`}
-                    />
-                  </div>
-                </div>
-
-                {testEmailResult && (
-                  <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-400 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>{testEmailResult}</span>
-                  </div>
-                )}
-
-                <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={handleTestSmtp}
-                    disabled={isTestingSmtp}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold border border-cyan-500/30 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 transition-all cursor-pointer"
-                  >
-                    <Send className={`w-3.5 h-3.5 ${isTestingSmtp ? 'animate-spin' : ''}`} />
-                    <span>{isTestingSmtp ? 'Mengirim Email Uji...' : 'Uji Kirim Email Sekarang'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSaveAdminProfile}
-                    disabled={isSavingAdminProfile}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-cyan-600/30 transition-all disabled:opacity-50 cursor-pointer"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>Simpan Pengaturan SMTP</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 3: GANTI KATA SANDI ADMINISTRATOR */}
+            {/* SECTION 2: GANTI KATA SANDI ADMINISTRATOR */}
             <div className={`p-6 rounded-2xl border ${
               isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
             }`}>
@@ -2620,7 +2435,7 @@ export const MasterSettingsPage: React.FC<MasterSettingsPageProps> = ({
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: H. AMINUDDIN P.S., S.Sos., M.M."
+                  placeholder="Contoh: Syaiful Wijanarta, S.E."
                   value={pejabatForm.nama}
                   onChange={(e) => setPejabatForm({ ...pejabatForm, nama: e.target.value })}
                   className={`w-full px-3 py-2 rounded-xl border ${

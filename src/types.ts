@@ -229,11 +229,6 @@ export interface AppSettings {
   user_jabatan?: string;
   user_email?: string;
   user_no_hp?: string;
-  smtp_host?: string;
-  smtp_port?: number;
-  smtp_user?: string;
-  smtp_pass?: string;
-  smtp_from?: string;
   reset_token?: string;
   reset_token_expiry?: string;
 }

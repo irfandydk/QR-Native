@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ArrowLeft,
   X,
@@ -94,9 +94,26 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
   );
   const [inheritedFromLabel, setInheritedFromLabel] = useState<string>('Laporan Awal');
 
+  // Guard: Only initialize form data when modal opens or target editRenops changes.
+  // Never re-initialize while modal is actively open to protect user's unsaved edits (SRUs, Cuaca, Alut/Unsur)
+  const initializedRef = useRef<boolean>(false);
+  const lastEditIdRef = useRef<number | null | undefined>(undefined);
+
   // Sync state when modal opens or editRenops changes (Hierarchical inheritance flow)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      initializedRef.current = false;
+      return;
+    }
+
+    const currentEditId = editRenops?.id_renops ?? null;
+    if (initializedRef.current && lastEditIdRef.current === currentEditId) {
+      // Already initialized for this open session; do not wipe in-progress edits
+      return;
+    }
+
+    initializedRef.current = true;
+    lastEditIdRef.current = currentEditId;
 
     if (editRenops) {
       setInheritedFromLabel(`Renops ${editRenops.hari_ke || ''}`);
@@ -154,7 +171,7 @@ export const FormRenopsModal: React.FC<FormRenopsModalProps> = ({
       setAlutList(defaults.inheritedAlut);
     }
     setErrorMsg('');
-  }, [isOpen, editRenops, operasi]);
+  }, [isOpen, editRenops]);
 
   // Auto-calculated H-day
   const hariKe = useMemo(() => {

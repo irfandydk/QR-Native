@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   ArrowLeft,
   X,
@@ -96,9 +96,26 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [confirmCloseChecked, setConfirmCloseChecked] = useState<boolean>(false);
 
+  // Guard: Only initialize form data when modal opens or target editSitrep changes.
+  // Never re-initialize while modal is actively open to protect user's unsaved edits (e.g. Alut/Unsur)
+  const initializedRef = useRef<boolean>(false);
+  const lastEditIdRef = useRef<number | null | undefined>(undefined);
+
   // Sync state on modal open or editSitrep change (Hierarchical inheritance flow)
   React.useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      initializedRef.current = false;
+      return;
+    }
+
+    const currentEditId = editSitrep?.id_laporan ?? null;
+    if (initializedRef.current && lastEditIdRef.current === currentEditId) {
+      // Already initialized for this open session; do not wipe in-progress edits
+      return;
+    }
+
+    initializedRef.current = true;
+    lastEditIdRef.current = currentEditId;
 
     if (editSitrep) {
       setInheritedFromLabel(`Lapbang ${editSitrep.hari_ke || ''}`);
@@ -154,7 +171,7 @@ export const FormSitrepModal: React.FC<FormSitrepModalProps> = ({
     }
 
     setErrorMsg('');
-  }, [isOpen, editSitrep, operasi]);
+  }, [isOpen, editSitrep]);
 
   // Day calculation
   const hariKe = useMemo(() => {
