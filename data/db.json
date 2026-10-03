@@ -262,8 +262,9 @@
       "angin": "-",
       "full_text_wa": "FILE AKTIF\n____\n\nSEMANGAT QUICK ACTION SEARCH AND RESCUE\nSATU JIWA SATU RASA\nWE ARE FAMILY\nPROFESIONAL MODERN TERUJI\nLAPORAN AWAL OPS SAR\n\nKANTOR PENCARIAN DAN PERTOLONGAN KENDARI\nRabu, 23 September 2026\n\nYTH : KABASARNAS\nCC : PIMTI MADYA & PRATAMA\n\nDengan hormat, mohon ijin melaporkan Operasi SAR Kondisi Membahayakan manusia, 1 Orang Hilang di Hutan Kendari.\n__________________________________________________\n\n1. Sumber Info kejadian :\nLa ACO (Keluarga Korban / No. HP 0293013081)\nPada Tanggal 23 September 2026 pukul 16:53 Wita\n\n2. Lokasi Kejadian :\nLokasi : Kendari\nKoordinat : 04° 05' 03\" S - 122° 25' 42\" E\njarak tempuh : 20 Km\nEstimasi waktu tempuh : 1 Jam\n\n3. Pelaksanaan SAR\nPada Tanggal 23 September 2026 pukul 16:55 Wita, Tim Rescue Kansar Kendari berangkat ke LKP untuk melaksanakan Operasi SAR, dengan estimasi waktu tempuh ETA 23 September 2026 pukul 17:51 WITA.\n\n4. Kronologi Kejadian\nPada hari Senin, 21 September 2026 sekitar pukul 16.52 WITA, telah terjadi Kondisi Membahayakan Manusia (KMM) terhadap 1 (satu) orang yang dilaporkan hilang di kawasan Hutan Kendari. Berdasarkan informasi yang dihimpun, korban melarikan diri ke dalam area hutan setelah dikejar oleh warga setempat, dengan titik terakhir korban terlihat ditetapkan sebagai Last Known Position (LKP). Upaya pencarian mandiri telah dilakukan oleh warga setempat di sekitar LKP, namun hingga saat ini korban hilang kontak dan belum berhasil ditemukan, sehingga kejadian tersebut dilaporkan ke KPP Kendari guna penanganan Operasi SAR lebih lanjut.\n\n5. Data Korban: 1 orang\n• S : 0 orang\n• MD : 0 orang\n• DP : 1 orang\n• H : 0 orang\n\nIdentitas Korban :\n1. Nama : La Gambang\n   Umur : 25 Tahun\n   Jenis Kelamin : Laki-laki\n   Alamat : Kendari\n\n6. Unsur SAR Terlibat\n• Tim Rescue Kantor SAR Kendari (6 Org)\n\n7. Alut dan Palsar\n• 1 Unit Rescue Car\n\n8. Faktor Penghambat\nNihil\n\n9. Kondisi Cuaca :\n• cuaca : Cerah\n• Gelombang : -\n• Angin: -\n\nDemikian kami laporkan, mohon petunjuk dan arahan\n\nTtd\n\nKKS Kendari\n===========================\n🏢 Kantor Pencarian Dan Pertolongan Kendari\n📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116\n☎️ Telp. : (0401) 3196557\n📠 Fax. : (0401) 3196558\n📱 WhatsApp : +62811-4034-115\n🚨 Emergency Call : 115\n🌐 Website : Www.Kendari.Basarnas.go.id\n📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id\n📲 Medsos : @Basarnaskendari",
       "id_operasi": 2,
-      "status": "OPEN",
-      "created_at": "2026-09-23T08:56:00.549Z"
+      "status": "CLOSED",
+      "created_at": "2026-09-23T08:56:00.549Z",
+      "waktu_selesai": "2026-09-28T23:14:00.000Z"
     },
     {
       "nama_operasi": "operasi sar kecelakaan kapal di kendari",
@@ -500,6 +501,21 @@
   ],
   "laporan_harian": [
     {
+      "hari_ke": "H.7",
+      "jenis_laporan": "PENUTUPAN",
+      "isi_laporan": "Tim SAR Gabungan telah melaksanakan operasi pencarian hari ketujuh (H.7) terhadap satu orang korban yang dilaporkan hilang di kawasan Hutan Kendari dengan mengacu pada Rencana Operasi (Renops) yang telah ditetapkan. Operasi difokuskan melalui pembagian Search and Rescue Unit (SRU) untuk melakukan penyisiran darat pada jalur hutan bervegetasi lebat serta penyisiran aliran air di sekitar sektor area pencarian yang dicurigai. Hingga pelaksanaan operasi hari ini dihentikan sementara pada petang hari, upaya pencarian masih memberikan hasil NIHIL dan belum ditemukan tanda-tanda keberadaan korban. Mengingat operasi telah memasuki hari ketujuh sesuai dengan standar operasional prosedur penanganan kecelakaan dan kondisi membahayakan manusia, SMC selanjutnya menggelar debriefing dan evaluasi menyeluruh bersama unsur SAR gabungan serta pihak keluarga korban guna menentukan tindak lanjut dan keputusan penutupan atau perpanjangan status Operasi SAR.",
+      "korban_selamat_update": 0,
+      "korban_meninggal_update": 0,
+      "korban_hilang_update": 1,
+      "waktu_debrief": "2026-09-28T23:14:00.000Z",
+      "unsur_text": "",
+      "alut_text": "",
+      "full_text_wa": "FILE AKTIF\n____\n\nSEMANGAT QUICK ACTION SEARCH AND RESCUE\nSATU JIWA SATU RASA\nWE ARE FAMILY\nPROFESIONAL MODERN TERUJI\nLAPBANG OPS SAR H.7 DAN PENUTUPAN\n\nKANTOR PENCARIAN DAN PERTOLONGAN KENDARI\nSelasa, 29 September 2026\n\nYTH : KABASARNAS\nCC : PIMTI MADYA & PRATAMA\n\nDengan hormat, mohon ijin melaporkan Perkembangan Ops Operasi SAR Kondisi Membahayakan manusia, 1 Orang Hilang di Hutan Kendari.\n__________________________________________________\n\nHasil Ops SAR H.7:\n\nTim SAR Gabungan telah melaksanakan operasi pencarian hari ketujuh (H.7) terhadap satu orang korban yang dilaporkan hilang di kawasan Hutan Kendari dengan mengacu pada Rencana Operasi (Renops) yang telah ditetapkan. Operasi difokuskan melalui pembagian Search and Rescue Unit (SRU) untuk melakukan penyisiran darat pada jalur hutan bervegetasi lebat serta penyisiran aliran air di sekitar sektor area pencarian yang dicurigai. Hingga pelaksanaan operasi hari ini dihentikan sementara pada petang hari, upaya pencarian masih memberikan hasil NIHIL dan belum ditemukan tanda-tanda keberadaan korban. Mengingat operasi telah memasuki hari ketujuh sesuai dengan standar operasional prosedur penanganan kecelakaan dan kondisi membahayakan manusia, SMC selanjutnya menggelar debriefing dan evaluasi menyeluruh bersama unsur SAR gabungan serta pihak keluarga korban guna menentukan tindak lanjut dan keputusan penutupan atau perpanjangan status Operasi SAR.\n\n• Pada tanggal 29 September 2026 Pukul 07:14 WITA, Tim SAR Gabungan melakukan debriefing penutupan Ops SAR terhadap Operasi SAR Kondisi Membahayakan manusia, 1 Orang Hilang di Hutan Kendari, selanjutnya operasi SAR diusulkan ditutup dan unsur SAR yang terlibat kembali ke kesatuannya masing-masing dengan ucapan terima kasih.\n\n1. Data Korban: 1 Orang\n• S : 0 ORANG\n• MD : 0 ORANG\n• DP : 1 ORANG\n• H : 0 ORANG\n\n2. Identitas Korban\n1. Nama : La Gambang [Status: Dalam Pencarian (DP)]\n   Umur : 25 Tahun\n   Jenis Kelamin : Laki-laki\n   Alamat : Kendari\n\n3. Unsur SAR Terlibat\n• Tim Rescue Kantor SAR Kendari : 6 Orang\n• Damkar & Penyelamatan : 4 Orang\n• Keluarga Korban : 4 Orang\n• Dinas Kesehatan / Puskesmas : 4 Orang\n\n4. Alut dan Palsar\n• 1 Unit Rescue Car\n• 1 Unit Underwater Search Device (UWSD)\n• 1 Set Palsar Komunikasi & Alkom\n• 2 Unit Longboat / Perahu Masyarakat\n\nDemikian kami laporkan, mohon petunjuk dan arahan\n\nTtd\n\nKKS Kendari\n===========================\n🏢 Kantor Pencarian Dan Pertolongan Kendari\n📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116\n☎️ Telp. : (0401) 3196557\n📠 Fax. : (0401) 3196558\n📱 WhatsApp : +62811-4034-115\n🚨 Emergency Call : 115\n🌐 Website : Www.Kendari.Basarnas.go.id\n📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id\n📲 Medsos : @Basarnaskendari",
+      "waktu_laporan": "2026-09-28T23:14:00.000Z",
+      "id_laporan": 2,
+      "id_operasi": 2
+    },
+    {
       "hari_ke": "H.1",
       "jenis_laporan": "PERKEMBANGAN",
       "isi_laporan": "Pada pelaksanaan operasi SAR hari pertama (H.1), Tim SAR Gabungan telah melaksanakan pergerakan dan penyisiran baik melalui jalur perairan maupun pemantauan darat sesuai dengan Rencana Operasi (Renops) yang telah ditetapkan di sekitar perairan Kendari. Dari rangkaian upaya pencarian tersebut, Tim SAR Gabungan berhasil menemukan korban dalam keadaan selamat di area sekitar Jembatan Bahteramas. Korban kemudian langsung dievakuasi dan diserahterimakan kepada pihak keluarga dalam kondisi stabil. Sehubungan dengan telah ditemukannya korban, maka rencana pergerakan operasi pencarian dihentikan, seluruh rangkaian Operasi SAR diusulkan untuk ditutup, dan seluruh unsur potensi SAR yang terlibat dikembalikan ke kesatuan masing-masing.",
@@ -631,206 +647,70 @@
   ],
   "gis_search_patterns": [
     {
-      "id": "pattern_1790135747732",
-      "name": "Pola Lintasan SAR - Search Area Sektor Kendari - Saponda",
-      "patternType": "sector_search",
+      "id": "pattern-sample-alpha",
+      "name": "Pola Parallel Track - Search Area Kendari",
       "polygonId": "poly-default-alpha",
       "polygonName": "Search Area Sektor Kendari - Saponda",
-      "poskoName": "tes tes ji ini",
-      "trackSpacingNm": 1,
-      "legsCount": 12,
-      "waypoints": [
-        {
-          "lat": -3.95,
-          "lng": 122.765,
-          "label": "Centroid Datum (LKP)"
-        },
-        {
-          "lat": -3.858374482247183,
-          "lng": 122.765,
-          "label": "Sektor 1 Radius"
-        },
-        {
-          "lat": -3.9958127588764087,
-          "lng": 122.8440059447489,
-          "label": "Sektor 1 Lintas"
-        },
-        {
-          "lat": -3.95,
-          "lng": 122.765,
-          "label": "Kembali ke Datum (Sektor 1)"
-        },
-        {
-          "lat": -3.9958127588764087,
-          "lng": 122.8440059447489,
-          "label": "Sektor 2 Radius"
-        },
-        {
-          "lat": -3.9958127588764087,
-          "lng": 122.6859940552511,
-          "label": "Sektor 2 Lintas"
-        },
-        {
-          "lat": -3.95,
-          "lng": 122.765,
-          "label": "Kembali ke Datum (Sektor 2)"
-        },
-        {
-          "lat": -3.9958127588764087,
-          "lng": 122.6859940552511,
-          "label": "Sektor 3 Radius"
-        },
-        {
-          "lat": -3.858374482247183,
-          "lng": 122.765,
-          "label": "Sektor 3 Lintas"
-        },
-        {
-          "lat": -3.95,
-          "lng": 122.765,
-          "label": "Kembali ke Datum (Sektor 3)"
-        }
-      ],
-      "strokeColor": "#059669",
-      "totalDistanceNm": 61.29,
-      "totalDistanceKm": 113.5,
-      "createdAt": "23 Sep 2026"
-    },
-    {
-      "id": "pattern_1790135863432",
-      "name": "Pola Lintasan SAR - Search Area Sektor Kendari - Saponda",
       "patternType": "parallel_track",
-      "polygonId": "poly-default-alpha",
-      "polygonName": "Search Area Sektor Kendari - Saponda",
+      "trackSpacingNm": 2,
+      "legsCount": 5,
+      "poskoId": "pt-kansar",
       "poskoName": "Kantor SAR Kendari",
-      "trackSpacingNm": 1,
-      "legsCount": 12,
+      "color": "#0284c7",
       "waypoints": [
         {
-          "lat": -4.041625517752817,
-          "lng": 122.65833816842918,
-          "label": "Entry Point (S) - Dekat Posko"
+          "lat": -3.87,
+          "lng": 122.67,
+          "label": "Entry S (Kansar)"
         },
         {
-          "lat": -4.041625517752817,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 1B"
+          "lat": -3.87,
+          "lng": 122.86,
+          "label": "Leg 1B"
         },
         {
-          "lat": -4.024966332706851,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 2A"
+          "lat": -3.91,
+          "lng": 122.86,
+          "label": "Leg 2A"
         },
         {
-          "lat": -4.024966332706851,
-          "lng": 122.65833816842918,
-          "label": "Lintasan 2B"
+          "lat": -3.91,
+          "lng": 122.67,
+          "label": "Leg 2B"
         },
         {
-          "lat": -4.008307147660884,
-          "lng": 122.65833816842918,
-          "label": "Lintasan 3A"
+          "lat": -3.95,
+          "lng": 122.67,
+          "label": "Leg 3A"
         },
         {
-          "lat": -4.008307147660884,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 3B"
+          "lat": -3.95,
+          "lng": 122.86,
+          "label": "Leg 3B"
         },
         {
-          "lat": -3.991647962614917,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 4A"
+          "lat": -3.99,
+          "lng": 122.86,
+          "label": "Leg 4A"
         },
         {
-          "lat": -3.991647962614917,
-          "lng": 122.65833816842918,
-          "label": "Lintasan 4B"
+          "lat": -3.99,
+          "lng": 122.67,
+          "label": "Leg 4B"
         },
         {
-          "lat": -3.9749887775689503,
-          "lng": 122.65833816842918,
-          "label": "Lintasan 5A"
+          "lat": -4.03,
+          "lng": 122.67,
+          "label": "Leg 5A"
         },
         {
-          "lat": -3.9749887775689503,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 5B"
-        },
-        {
-          "lat": -3.9583295925229836,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 6A"
-        },
-        {
-          "lat": -3.9583295925229836,
-          "lng": 122.65833816842918,
-          "label": "Lintasan 6B"
-        },
-        {
-          "lat": -3.941670407477017,
-          "lng": 122.65833816842918,
-          "label": "Lintasan 7A"
-        },
-        {
-          "lat": -3.941670407477017,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 7B"
-        },
-        {
-          "lat": -3.92501122243105,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 8A"
-        },
-        {
-          "lat": -3.92501122243105,
-          "lng": 122.65833816842918,
-          "label": "Lintasan 8B"
-        },
-        {
-          "lat": -3.9083520373850833,
-          "lng": 122.65833816842918,
-          "label": "Lintasan 9A"
-        },
-        {
-          "lat": -3.9083520373850833,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 9B"
-        },
-        {
-          "lat": -3.8916928523391165,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 10A"
-        },
-        {
-          "lat": -3.8916928523391165,
-          "lng": 122.65833816842918,
-          "label": "Lintasan 10B"
-        },
-        {
-          "lat": -3.87503366729315,
-          "lng": 122.65833816842918,
-          "label": "Lintasan 11A"
-        },
-        {
-          "lat": -3.87503366729315,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 11B"
-        },
-        {
-          "lat": -3.858374482247183,
-          "lng": 122.87166183157082,
-          "label": "Lintasan 12A"
-        },
-        {
-          "lat": -3.858374482247183,
-          "lng": 122.65833816842918,
-          "label": "Exit Point (E) - Selesai"
+          "lat": -4.03,
+          "lng": 122.86,
+          "label": "Exit E (Selesai)"
         }
       ],
-      "strokeColor": "#0284c7",
-      "totalDistanceNm": 164.85,
-      "totalDistanceKm": 305.3,
-      "createdAt": "23 Sep 2026"
+      "totalDistanceNm": 58.4,
+      "createdAt": "2026-09-22 08:00 WITA"
     }
   ],
   "gis_custom_icons": [],

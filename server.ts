@@ -9,7 +9,7 @@ import { generateLaporanAwalWA, generateRenopsWA, generateLapbangWA } from './sr
 
 dotenv.config();
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Lazy initialized Gemini client
 let genAIClient: GoogleGenAI | null = null;
@@ -1790,7 +1790,8 @@ Hanya berikan JSON murni tanpa markdown triple backticks.`;
   });
 
   // Vite middleware for development vs static production serving
-  if (process.env.NODE_ENV !== 'production') {
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (!isProduction) {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
