@@ -105,7 +105,11 @@ function csrfInput(): string {
 
 function validateCsrf(?string $token = null): bool {
     $t = $token ?? ($_POST['csrf_token'] ?? '');
-    return AuthHelper::validateCsrf($t);
+    return AuthHelper::validateCsrf((string)$t);
+}
+
+function verifyCsrfToken(?string $token = null): bool {
+    return validateCsrf($token);
 }
 
 // Global sanitization helper

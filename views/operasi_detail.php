@@ -62,69 +62,46 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
 ?>
 
 <!-- ======================================================== -->
-<!-- TOP COMMAND NAVIGATION & ACTION BAR -->
+<!-- BREADCRUMB NAVIGATION -->
 <!-- ======================================================== -->
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+<div class="flex items-center justify-between gap-3 mb-4">
     <div class="flex items-center gap-2">
-        <a href="<?= BASE_URL ?>/operasi.php" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200 font-bold text-xs shadow-xs transition">
-            <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5m7 7l-7-7 7-7"/></svg>
-            <span>Daftar Operasi SAR</span>
+        <a href="<?= BASE_URL ?>/operasi.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs shadow-xs transition">
+            <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5m7 7l-7-7 7-7"/></svg>
+            <span>Daftar Operasi</span>
         </a>
-        <span class="text-xs text-slate-400 font-medium hidden md:inline">/</span>
-        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 hidden md:inline truncate max-w-xs">
-            OPS-#<?= $id ?> • <?= e($operasi['nama_operasi']) ?>
+        <span class="text-xs text-slate-400 font-medium hidden sm:inline">/</span>
+        <span class="text-xs font-bold text-slate-500 dark:text-slate-400 font-mono hidden sm:inline">
+            OPS-#<?= $id ?>
         </span>
     </div>
 
-    <!-- Quick Action Hub -->
-    <div class="flex flex-wrap items-center gap-2">
-        <?php if ($isOpen): ?>
-        <a href="<?= BASE_URL ?>/operasi_form.php?id=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 font-bold text-xs transition" title="Koreksi data informasi awal operasi">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            <span>Edit Data Awal</span>
-        </a>
-        <?php endif; ?>
-
-        <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition cursor-pointer" onclick="openModal('modal-view-wa-awal')">
-            <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            <span>Naskah WA Awal</span>
-        </button>
-
-        <?php if (AuthHelper::isAdmin()): ?>
-        <a href="<?= BASE_URL ?>/operasi.php?action=delete&id=<?= $id ?>" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/20 font-bold text-xs transition" data-confirm="Apakah Anda yakin ingin menghapus Operasi SAR ini secara permanen beserta seluruh Renops, Sitrep, dan data terkait? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Operasi SAR Permanen" data-confirm-btn="Ya, Hapus Permanen" data-confirm-danger="true" title="Hapus Operasi">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0 1 16.138 21H7.862a2 2 0 0 1-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v3M4 7h16"/></svg>
-            <span>Hapus</span>
-        </a>
-        <?php endif; ?>
-    </div>
+    <?php if (AuthHelper::isAdmin()): ?>
+    <a href="<?= BASE_URL ?>/operasi.php?action=delete&id=<?= $id ?>" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/20 font-bold text-xs transition" data-confirm="Apakah Anda yakin ingin menghapus Operasi SAR ini secara permanen beserta seluruh Renops, Sitrep, dan data terkait? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Operasi SAR Permanen" data-confirm-btn="Ya, Hapus Permanen" data-confirm-danger="true" title="Hapus Operasi">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        <span>Hapus Operasi</span>
+    </a>
+    <?php endif; ?>
 </div>
 
 <!-- ======================================================== -->
-<!-- FLAGSHIP COMMAND HERO BANNER -->
+<!-- COMPACT SUMMARY CARD (LAPORAN AWAL) -->
 <!-- ======================================================== -->
-<div class="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-slate-50 via-white to-orange-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-md dark:shadow-xl p-4 sm:p-5 mb-5 transition-colors">
-    <!-- Ambient glowing accents -->
-    <div class="absolute -right-16 -top-16 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-20 dark:opacity-20 <?= $isOpen ? 'bg-orange-500' : 'bg-slate-400 dark:bg-slate-600' ?>"></div>
-    <div class="absolute -left-16 -bottom-16 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-10 dark:opacity-15 <?= $isOpen ? 'bg-emerald-500' : 'bg-red-500' ?>"></div>
-
-    <div class="relative z-10 space-y-4">
-        <!-- Banner Top Status Row -->
-        <div class="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-slate-200 dark:border-white/10">
+<div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white shadow-xs p-4 sm:p-5 mb-5 transition-colors">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="space-y-1.5 min-w-0">
+            <!-- Badges Bar -->
             <div class="flex flex-wrap items-center gap-2">
-                <!-- Status Pill -->
                 <?php if ($isOpen): ?>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black font-mono tracking-wider bg-emerald-500/15 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                    <span class="relative flex h-2 w-2">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono tracking-wider bg-emerald-500/15 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     OPERASI BERJALAN
                 </span>
                 <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-orange-500/15 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-500/30">
                     SIKLUS: <?= e($hariKe) ?>
                 </span>
                 <?php else: ?>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black font-mono tracking-wider bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono tracking-wider bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
                     🔒 OPERASI DITUTUP
                 </span>
                 <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10">
@@ -132,132 +109,66 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
                 </span>
                 <?php endif; ?>
 
-                <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300">
+                <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
                     ID: #<?= $id ?>
                 </span>
 
-                <?php if (!empty($operasi['jarak'])): ?>
-                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                    📍 <?= e($operasi['jarak']) ?>
+                <?php if (!empty($operasi['jenis_kejadian'])): ?>
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                    🏷️ <?= e($operasi['jenis_kejadian']) ?>
                 </span>
                 <?php endif; ?>
             </div>
 
-            <!-- Victim Breakdown Pill -->
-            <div class="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-slate-100/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono">
-                <span class="text-slate-500 dark:text-slate-400 font-bold">POB (<?= (int)$operasi['jumlah_pob'] ?>):</span>
-                <span class="text-emerald-600 dark:text-emerald-400 font-bold" title="Selamat"><?= (int)$statsKorban['s'] ?> S</span>
-                <span class="text-slate-300 dark:text-white/20">|</span>
-                <span class="text-red-600 dark:text-red-400 font-bold" title="Meninggal Dunia"><?= (int)$statsKorban['md'] ?> MD</span>
-                <span class="text-slate-300 dark:text-white/20">|</span>
-                <span class="text-amber-600 dark:text-amber-400 font-bold" title="Dalam Pencarian"><?= (int)$statsKorban['dp'] ?> DP</span>
-                <span class="text-slate-300 dark:text-white/20">|</span>
-                <span class="text-slate-500 dark:text-slate-400 font-bold" title="Hilang / Nihil"><?= (int)$statsKorban['h'] ?> H</span>
-            </div>
-        </div>
-
-        <!-- Headline Operation Title -->
-        <div>
-            <h1 class="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
+            <!-- Title -->
+            <h1 class="text-base sm:text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
                 <?= e($operasi['nama_operasi']) ?>
             </h1>
-        </div>
 
-        <!-- Tactical HUD Metadata Grid (4 Cards) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-0.5">
-            <!-- Card 1: LKP & Koordinat -->
-            <div class="p-3 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-xs dark:shadow-none flex flex-col justify-between">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center justify-between">
-                    <span>Lokasi Kejadian (LKP)</span>
+            <!-- Meta Details (Waktu Mulai & Lokasi Singkat) -->
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                <span class="flex items-center gap-1">
+                    <span>🚀</span>
+                    <span>Mulai Ops: <strong class="text-orange-600 dark:text-orange-400 font-mono"><?= TemplateHelper::formatTanggalIndo($waktuMulaiOps) ?> (<?= TemplateHelper::formatJamWITA($waktuMulaiOps) ?> WITA)</strong></span>
+                </span>
+                <?php if (!empty($operasi['lokasi_kejadian'])): ?>
+                <span class="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
+                <span class="flex items-center gap-1 truncate max-w-md" title="<?= e($operasi['lokasi_kejadian']) ?>">
                     <span>📍</span>
-                </div>
-                <div class="mt-1">
-                    <div class="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-2" title="<?= e($operasi['lokasi_kejadian']) ?>">
-                        <?= e($operasi['lokasi_kejadian'] ?: '-') ?>
-                    </div>
-                    <div class="mt-1 flex items-center justify-between text-[11px] font-mono text-emerald-600 dark:text-emerald-400">
-                        <span class="truncate"><?= e($operasi['koordinat'] ?: '-') ?></span>
-                        <?php if (!empty($operasi['koordinat'])): ?>
-                        <button type="button" onclick="copyToClipboard('<?= addslashes($operasi['koordinat']) ?>', 'Koordinat LKP disalin!')" class="ml-1 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer" title="Salin Koordinat">📋</button>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card 2: Parameter Waktu -->
-            <div class="p-3 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-xs dark:shadow-none flex flex-col justify-between">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center justify-between">
-                    <span>Waktu & Kronologi</span>
-                    <span>⏱️</span>
-                </div>
-                <div class="mt-1 text-xs text-slate-600 dark:text-slate-300 space-y-0.5">
-                    <div>Kejadian: <strong class="text-slate-900 dark:text-slate-100"><?= $tglKejadian ?></strong> (<?= $jamKejadian ?>)</div>
-                    <div>Mulai Ops: <strong class="text-orange-600 dark:text-orange-300"><?= $tglBerangkat ?></strong> (<?= $jamBerangkat ?>)</div>
-                </div>
-            </div>
-
-            <!-- Card 3: Kondisi Lapangan BMKG -->
-            <div class="p-3 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-xs dark:shadow-none flex flex-col justify-between">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center justify-between">
-                    <span>Prakiraan Cuaca</span>
-                    <span>🌤️</span>
-                </div>
-                <div class="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                    <div class="font-bold text-slate-900 dark:text-slate-100 truncate" title="<?= e($operasi['cuaca']) ?>">
-                        <?= e($operasi['cuaca'] ?: 'Cerah Berawan') ?>
-                    </div>
-                    <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Gelombang: <?= e($operasi['gelombang'] ?: '-') ?> • Angin: <?= e($operasi['angin'] ?: '-') ?>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card 4: Kekuatan Operasi Terkini -->
-            <?php 
-                $totalUnsurPers = array_sum(array_map(fn($u) => (int)($u['jumlah_personil'] ?? 0), $operasi['detail_unsur'] ?? []));
-                $totalAlutUnit = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 0), $operasi['detail_alut'] ?? []));
-            ?>
-            <div class="p-3 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 shadow-xs dark:shadow-none flex flex-col justify-between">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center justify-between">
-                    <span>Kekuatan Gabungan</span>
-                    <span>👥</span>
-                </div>
-                <div class="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                    <div class="font-bold text-purple-700 dark:text-purple-300 font-mono text-sm">
-                        <?= $totalUnsurPers ?: count($operasi['detail_unsur'] ?? []) ?> Personel
-                    </div>
-                    <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Armada: <strong class="text-emerald-600 dark:text-emerald-300 font-mono"><?= $totalAlutUnit ?: count($operasi['detail_alut'] ?? []) ?> Unit Alut</strong>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Banner Bottom Actions Bar -->
-        <div class="pt-2.5 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                <span>Waktu Mulai Ops:</span>
-                <span class="font-bold text-orange-600 dark:text-orange-400 font-mono"><?= TemplateHelper::formatTanggalIndo($waktuMulaiOps) ?> (<?= TemplateHelper::formatJamWITA($waktuMulaiOps) ?> WITA)</span>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2">
-                <?php if ($isOpen): ?>
-                <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow transition cursor-pointer" onclick="openModal('modal-close-ops-detail')" title="Tutup Operasi SAR">
-                    <span>🔒</span>
-                    <span>Tutup Operasi</span>
-                </button>
-                <?php else: ?>
-                <div class="flex items-center gap-3">
-                    <span class="text-xs text-amber-600 dark:text-amber-300 font-medium">
-                        Operasi Ditutup <?= $tglSelesai ? "({$tglSelesai})" : '' ?>
-                    </span>
-                    <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-md transition cursor-pointer">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                        <span>Buka Kembali Operasi (Rollback)</span>
-                    </button>
-                </div>
+                    <span><?= e($operasi['lokasi_kejadian']) ?></span>
+                </span>
                 <?php endif; ?>
             </div>
+        </div>
+
+        <!-- Action Toolbar for Laporan Awal -->
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+            <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-view-wa-awal')" title="Lihat naskah laporan awal format resmi WhatsApp">
+                <span>📱</span>
+                <span>Naskah WA Awal</span>
+            </button>
+
+            <?php if ($isOpen): ?>
+            <a href="<?= BASE_URL ?>/operasi_form.php?id=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition" title="Koreksi data inisiasi laporan awal">
+                <span>✏️</span>
+                <span>Edit Lap Awal</span>
+            </a>
+
+            <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-sm transition cursor-pointer" onclick="openModal('modal-close-ops-detail')" title="Tutup Operasi SAR secara resmi">
+                <span>🔒</span>
+                <span>Tutup Operasi</span>
+            </button>
+            <?php else: ?>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-amber-600 dark:text-amber-300 font-medium">
+                    Ditutup <?= $tglSelesai ? "({$tglSelesai})" : '' ?>
+                </span>
+                <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-sm transition cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    <span>Buka Kembali</span>
+                </button>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

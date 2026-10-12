@@ -41,7 +41,7 @@ if ($operasi['status'] === 'CLOSED') {
 
 // Handle Form POST submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verifyCsrfToken($_POST['csrf_token'] ?? null)) {
+    if (!validateCsrf($_POST['csrf_token'] ?? null)) {
         setFlash('error', 'Token keamanan CSRF tidak valid. Silakan coba lagi.');
         header("Location: " . BASE_URL . "/sitrep_form.php?id_operasi={$idOperasi}" . ($editMode ? "&id_laporan={$idLaporan}" : ""));
         exit;

@@ -203,7 +203,7 @@ class AuthHelper {
         return $_SESSION['csrf_token'];
     }
 
-    public static function validateCsrf(string $token): bool {
-        return !empty($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+    public static function validateCsrf(?string $token): bool {
+        return !empty($_SESSION['csrf_token']) && !empty($token) && hash_equals($_SESSION['csrf_token'], $token);
     }
 }
