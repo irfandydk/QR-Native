@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <circle cx="50" cy="50" r="48" fill="#F97316" stroke="#C2410C" stroke-width="2" />
+  <circle cx="50" cy="50" r="43" fill="#FEF3C7" stroke="#D97706" stroke-width="1.5" />
+  <path id="tpa" d="M 18,50 A 32,32 0 1,1 82,50" fill="none" stroke="none" />
+  <text font-size="7.5" font-weight="900" fill="#9A3412" letter-spacing="0.8">
+    <textPath href="#tpa" startOffset="50%" text-anchor="middle">SAR NASIONAL</textPath>
+  </text>
+  <g transform="translate(50, 52)">
+    <path d="M -30,-4 C -22,-14 -8,-8 0,4 C 8,-8 22,-14 30,-4 C 22,2 14,8 0,14 C -14,8 -22,2 -30,-4 Z" fill="#D97706" stroke="#78350F" stroke-width="0.8" />
+    <path d="M -24,-2 C -18,-9 -6,-4 0,5 C 6,-4 18,-9 24,-2 C 18,3 10,7 0,10 C -10,7 -18,3 -24,-2 Z" fill="#F59E0B" />
+    <circle cx="0" cy="-14" r="4" fill="none" stroke="#1E293B" stroke-width="1.8" />
+    <line x1="-8" y1="-8" x2="8" y2="-8" stroke="#1E293B" stroke-width="2.2" stroke-linecap="round" />
+    <line x1="0" y1="-14" x2="0" y2="12" stroke="#1E293B" stroke-width="2.5" stroke-linecap="round" />
+    <path d="M -13,5 C -9,14 9,14 13,5" fill="none" stroke="#1E293B" stroke-width="2.2" stroke-linecap="round" />
+    <polygon points="-13,3 -16,6 -11,7" fill="#1E293B" />
+    <polygon points="13,3 16,6 11,7" fill="#1E293B" />
+  </g>
+  <path id="tpb" d="M 80,56 A 34,34 0 0,1 20,56" fill="none" stroke="none" />
+  <text font-size="5.5" font-weight="800" fill="#B45309" letter-spacing="0.4">
+    <textPath href="#tpb" startOffset="50%" text-anchor="middle">INDONESIA</textPath>
+  </text>
+</svg>

@@ -1,0 +1,988 @@
+<?php
+/**
+ * QR-SAR - Tactical GIS & Maritime Plotting Hub
+ * KPP Kendari - Basarnas
+ * 100% Faithful Implementation matching MapPlottingPage.tsx & Basarnas Operational Guidelines
+ * Powered by Leaflet.js with Multi-layer Satellite, Hybrid, Roadmap & Terrain
+ */
+
+declare(strict_types=1);
+
+$savedPoints = GisModel::getPoints();
+$savedPolygons = GisModel::getPolygons();
+$savedPatterns = GisModel::getSearchPatterns();
+$savedRoutes = GisModel::getRoutes();
+$sarUnits = MasterModel::getSarUnits();
+$alutList = MasterModel::getAlut();
+?>
+
+<!-- External Leaflet CSS, JSZip for KMZ export & High-Resolution Icons -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<style>
+  /* Tactical GIS Custom Styling & Animations */
+  .sar-radar-pulse {
+    animation: sar-radar 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  @keyframes sar-radar {
+    0% { transform: scale(0.9); opacity: 0.9; }
+    70%, 100% { transform: scale(2.4); opacity: 0; }
+  }
+
+  .leaflet-popup-content-wrapper {
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+    padding: 0;
+  }
+  .dark .leaflet-popup-content-wrapper,
+  [data-theme="dark"] .leaflet-popup-content-wrapper {
+    background: #0f172a;
+    color: #f8fafc;
+    border: 1px solid #334155;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+  }
+  .leaflet-popup-content {
+    margin: 12px 14px;
+    line-height: 1.4;
+  }
+  .leaflet-popup-tip {
+    background: #ffffff;
+  }
+  .dark .leaflet-popup-tip,
+  [data-theme="dark"] .leaflet-popup-tip {
+    background: #0f172a;
+  }
+
+  .distance-label-tooltip {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #ea580c;
+    color: #0f172a;
+    font-weight: 800;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .dark .distance-label-tooltip,
+  [data-theme="dark"] .distance-label-tooltip {
+    background: rgba(15, 23, 42, 0.92);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+
+  /* Custom Scrollbar for Tools Sidebar */
+  .gis-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+  .gis-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .gis-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  .dark .gis-scrollbar::-webkit-scrollbar-thumb {
+    background: #334155;
+  }
+
+  /* Full Screen Print Modal Overlay */
+  #printMapModal {
+    backdrop-filter: blur(4px);
+  }
+</style>
+
+<div id="gisRootContainer" class="w-full h-full flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 select-none" style="height: 100%; flex: 1;">
+  
+  <!-- ========================================== -->
+  <!-- 1. TOP SUB-NAVBAR (HEADER KONTROL GIS)     -->
+  <!-- ========================================== -->
+  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3.5 py-2 flex flex-wrap items-center justify-between gap-2.5 shrink-0 z-20 shadow-xs">
+    
+    <!-- Left Section: Sidebar Toggle & Operational Header -->
+    <div class="flex items-center gap-3">
+      <button type="button" id="btnToggleGisSidebar" class="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold transition border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer" title="Buka / Tutup Tools Plotting">
+        <svg id="iconSidebarClose" class="w-4 h-4 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+          <path d="M9 3v18M14 9l-3 3 3 3"/>
+        </svg>
+        <svg id="iconSidebarOpen" class="w-4 h-4 text-orange-500 dark:text-orange-400 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+          <path d="M9 3v18M11 9l3 3-3 3"/>
+        </svg>
+        <span id="labelSidebarToggle" class="hidden sm:inline">Sembunyikan Tools</span>
+      </button>
+
+      <div class="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-3">
+        <span class="relative flex h-2.5 w-2.5">
+          <span class="sar-radar-pulse absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        </span>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xs sm:text-sm font-black tracking-wide text-slate-900 dark:text-white uppercase flex items-center gap-1.5">
+              <span>GIS RADAR OPERASI SAR KENDARI</span>
+            </h1>
+            <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/30">
+              SULTRA MARITIME OPS
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Section: LocationSearchBar (Verified Sultra Presets & Coordinates Parser) -->
+    <div class="flex-1 max-w-md mx-2 relative" id="locationSearchBarWrapper">
+      <div class="relative flex items-center">
+        <span class="absolute left-3 text-slate-400 dark:text-slate-500 pointer-events-none">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </span>
+        <input 
+          type="text" 
+          id="locationSearchInput" 
+          placeholder="Cari kota, desa, jalan, pelabuhan, pulau, atau koordinat DMS/DD..."
+          autocomplete="off"
+          class="w-full pl-9 pr-8 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition font-medium"
+        >
+        <button type="button" id="btnClearLocationSearch" class="absolute right-2.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hidden p-0.5" title="Bersihkan">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Autocomplete Dropdown Popover -->
+      <div id="locationSearchResultsPopover" class="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50 hidden max-h-80 overflow-y-auto gis-scrollbar text-xs">
+        <div class="p-2 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
+          <span>Pencarian Lokasi (Google Maps Geocoding & GPS)</span>
+          <span class="text-orange-500 dark:text-orange-400 font-mono">115 SAR GPS</span>
+        </div>
+        <div id="locationSearchResultsList" class="divide-y divide-slate-100 dark:divide-slate-800">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Section: Basemap Pills, Cetak Peta, Ekspor & Fullscreen -->
+    <div class="flex items-center gap-2">
+      <!-- 4-Pill Basemap Switcher -->
+      <div class="bg-slate-100 dark:bg-slate-950/90 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center text-[11px] font-bold">
+        <button type="button" data-layer="hybrid" class="basemap-pill-btn px-2.5 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition">
+          Hybrid
+        </button>
+        <button type="button" data-layer="satellite" class="basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition">
+          Satelit
+        </button>
+        <button type="button" data-layer="roadmap" class="basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition">
+          Roadmap
+        </button>
+        <button type="button" data-layer="terrain" class="basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition">
+          Terrain
+        </button>
+      </div>
+
+      <!-- Cetak Peta Button -->
+      <button type="button" id="btnOpenPrintModal" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition shadow-xs cursor-pointer" title="Cetak Lembar Operasi SAR">
+        <svg class="w-3.5 h-3.5 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+        <span class="hidden sm:inline">Cetak Peta</span>
+      </button>
+
+      <!-- Ekspor KMZ/KML Dropdown Menu -->
+      <div class="relative" id="exportMenuWrapper">
+        <button type="button" id="btnToggleExportMenu" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow cursor-pointer" title="Ekspor Data Spasial">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <span class="hidden sm:inline">Ekspor KMZ/KML</span>
+          <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+
+        <div id="exportDropdownMenu" class="absolute right-0 top-full mt-1.5 w-52 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1 z-50 hidden text-xs font-medium">
+          <button type="button" id="btnExportKml" class="w-full text-left px-3 py-2 text-slate-200 hover:bg-orange-500 hover:text-white flex items-center gap-2 transition">
+            <span class="text-base">🌍</span>
+            <div>
+              <div class="font-bold">Google Earth KML</div>
+              <div class="text-[10px] text-slate-400">Format OGC .kml standar</div>
+            </div>
+          </button>
+          <button type="button" id="btnExportKmz" class="w-full text-left px-3 py-2 text-slate-200 hover:bg-orange-500 hover:text-white flex items-center gap-2 transition">
+            <span class="text-base">📦</span>
+            <div>
+              <div class="font-bold">Google Earth KMZ</div>
+              <div class="text-[10px] text-slate-400">Kompresi .kmz lengkap</div>
+            </div>
+          </button>
+          <button type="button" id="btnExportGeoJson" class="w-full text-left px-3 py-2 text-slate-200 hover:bg-orange-500 hover:text-white flex items-center gap-2 transition">
+            <span class="text-base">🌐</span>
+            <div>
+              <div class="font-bold">Universal GeoJSON</div>
+              <div class="text-[10px] text-slate-400">QGIS / ArcGIS / ATAK .json</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Fullscreen Toggle -->
+      <button type="button" id="btnToggleFullscreen" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 transition" title="Layar Penuh">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ========================================== -->
+  <!-- 2. MAIN WORKSPACE CONTAINER                -->
+  <!-- ========================================== -->
+  <div class="flex-1 flex overflow-hidden relative" style="height: calc(100% - 48px);">
+
+    <!-- LEFT TOOLS PLOTTING PANEL (COLLAPSIBLE) -->
+    <div id="gisSidebarPanel" class="w-[390px] max-w-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col z-10 transition-all duration-300 shadow-xl relative select-none shrink-0">
+      
+      <!-- 4 Tabs Header -->
+      <div class="grid grid-cols-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/70 text-[11px] font-bold text-center">
+        <button type="button" data-tab="tab-points" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-orange-500 text-orange-600 dark:text-orange-400 flex flex-col items-center justify-center gap-1 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span>Titik (<span id="pointsBadgeCount"><?= count($savedPoints) ?></span>)</span>
+        </button>
+
+        <button type="button" data-tab="tab-polygon" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-1 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="2" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="22"/></svg>
+          <span>Polygon (<span id="polygonsBadgeCount"><?= count($savedPolygons) ?></span>)</span>
+        </button>
+
+        <button type="button" data-tab="tab-pattern" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-1 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+          <span>Pola SAR</span>
+        </button>
+
+        <button type="button" data-tab="tab-measure" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-1 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Jarak & ETA</span>
+        </button>
+      </div>
+
+      <!-- TAB 1: TITIK SAR (SAVED POINTS & POINT CREATOR CARD) -->
+      <div id="tab-points" class="gis-tab-pane flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
+        <!-- Top Controls: Draggable Lock & Add Point Button -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <button type="button" id="btnToggleDragLock" class="flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750">
+              <svg id="iconLockClosed" class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <svg id="iconLockOpen" class="w-3.5 h-3.5 text-amber-400 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+              <span id="labelLockStatus">🔒 Posisi Terkunci</span>
+            </button>
+
+            <button type="button" id="btnFocusKansarQuick" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition" title="Pusatkan Peta ke Kansar Kendari">
+              📍
+            </button>
+          </div>
+
+          <button type="button" id="btnShowPointCreator" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            <span>+ Tambah Titik Baru di Peta</span>
+          </button>
+        </div>
+
+        <!-- Point Creator / Editor Card (PointCreatorCard.tsx) -->
+        <div id="pointCreatorCard" class="hidden p-3.5 bg-slate-950/90 rounded-2xl border border-orange-500/40 shadow-xl space-y-3 animate-in fade-in">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <span id="pointCreatorTitle" class="text-xs font-black uppercase text-orange-400 flex items-center gap-1.5">
+              <span>📍 Plot Titik Taktis Baru</span>
+            </span>
+            <button type="button" id="btnCancelPointCreator" class="p-1 text-slate-400 hover:text-white rounded-lg">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <!-- Name & Category -->
+          <div class="space-y-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 mb-1">Nama / Label Titik <span class="text-orange-400">*</span></label>
+              <input type="text" id="pcPointName" placeholder="Contoh: LKP KM Sumber Bahagia / Posko Kendari" class="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-orange-500">
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 mb-1">Kategori Titik Operasi</label>
+              <select id="pcPointCategory" class="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-orange-500">
+                <option value="LKP">🚨 LKP (Last Known Position / Tempat Kejadian)</option>
+                <option value="Kantor SAR">🏢 Kantor SAR (Kansar)</option>
+                <option value="POS SAR">⛺ Pos SAR Resmi</option>
+                <option value="Unit Siaga SAR">📡 Unit Siaga SAR</option>
+                <option value="Posko">🏕️ Posko SAR Taktis Lapangan</option>
+                <option value="Entry Point">🟢 Entry Point (Titik Masuk S)</option>
+                <option value="Exit Point">🔴 Exit Point (Titik Keluar E)</option>
+                <option value="None">Titik Umum / Waypoint Lainnya</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Icon Preset Selector (12 Preset SAR Icons + Alphabet A-Z) -->
+          <div class="space-y-2">
+            <label class="block text-[10px] font-bold text-slate-400">Pilih Desain Logo / Pin Peta:</label>
+            
+            <div class="grid grid-cols-3 gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800 text-[10px] font-bold text-center">
+              <button type="button" id="tabIconPresetSar" class="py-1 rounded-lg bg-orange-500 text-white">Preset SAR</button>
+              <button type="button" id="tabIconAlphabet" class="py-1 rounded-lg text-slate-400 hover:text-white">Huruf (A-Z)</button>
+              <button type="button" id="tabIconCustom" class="py-1 rounded-lg text-slate-400 hover:text-white">Koleksi</button>
+            </div>
+
+            <!-- Panel 1: 12 Preset SAR Icons -->
+            <div id="iconGridSar" class="grid grid-cols-4 gap-1.5 max-h-36 overflow-y-auto gis-scrollbar p-1">
+              <!-- Rendered via JS -->
+            </div>
+
+            <!-- Panel 2: Alphabet Selector (A-Z) -->
+            <div id="iconGridAlphabet" class="hidden grid grid-cols-6 gap-1 max-h-32 overflow-y-auto gis-scrollbar p-1">
+              <!-- Rendered via JS -->
+            </div>
+
+            <!-- Panel 3: Custom / Upload -->
+            <div id="iconGridCustom" class="hidden p-2 text-center text-xs text-slate-400 space-y-2">
+              <p class="text-[10px]">Gunakan ikon khusus atau gambar logo kustom:</p>
+              <input type="text" id="pcCustomIconUrl" placeholder="https://... atau /assets/icons/..." class="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-xs text-white">
+            </div>
+          </div>
+
+          <!-- DMS Numeric Editor (Deg/Min/Sec with S/N & E/W) -->
+          <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs">
+            <div class="flex items-center justify-between text-[10px] font-bold text-slate-400">
+              <span>INPUT KOORDINAT NUMERIK (DMS)</span>
+              <span class="text-orange-400 font-mono">Realtime WGS 84</span>
+            </div>
+
+            <!-- Lintang (Latitude) -->
+            <div>
+              <span class="text-[10px] text-slate-400 block mb-0.5">Lintang (Latitude / S-N):</span>
+              <div class="grid grid-cols-4 gap-1 items-center font-mono">
+                <input type="number" id="dmsLatDeg" min="0" max="90" placeholder="04" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
+                <input type="number" id="dmsLatMin" min="0" max="59" placeholder="02" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
+                <input type="number" id="dmsLatSec" min="0" max="59.9" step="0.1" placeholder="16.0" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
+                <select id="dmsLatDir" class="w-full px-1 py-1 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold text-center text-xs">
+                  <option value="S">S (LS)</option>
+                  <option value="N">N (LU)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Bujur (Longitude) -->
+            <div>
+              <span class="text-[10px] text-slate-400 block mb-0.5">Bujur (Longitude / E-W):</span>
+              <div class="grid grid-cols-4 gap-1 items-center font-mono">
+                <input type="number" id="dmsLngDeg" min="0" max="180" placeholder="122" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
+                <input type="number" id="dmsLngMin" min="0" max="59" placeholder="29" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
+                <input type="number" id="dmsLngSec" min="0" max="59.9" step="0.1" placeholder="12.0" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
+                <select id="dmsLngDir" class="w-full px-1 py-1 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold text-center text-xs">
+                  <option value="E">E (BT)</option>
+                  <option value="W">W (BB)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Readout Decimal -->
+            <div class="text-[10px] font-mono text-slate-400 text-right pt-1">
+              Desimal: <span id="pcReadoutDecimal" class="text-orange-400 font-bold">-4.037694, 122.486694</span>
+            </div>
+          </div>
+
+          <!-- Description / Notes -->
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 mb-1">Catatan Tambahan</label>
+            <input type="text" id="pcPointDesc" placeholder="Kondisi cuaca, kontak pelapor, kedalaman..." class="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white">
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex items-center justify-between pt-1">
+            <button type="button" id="btnCancelSavePoint" class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded-lg">Batal</button>
+            <button type="button" id="btnSavePointConfirm" class="px-4 py-1.5 text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-md transition flex items-center gap-1.5">
+              <span>Simpan Titik SAR</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Saved Points List Cards Container -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <span>Daftar Titik Tersimpan</span>
+            <span class="text-[10px] text-slate-500">Klik untuk Fokus</span>
+          </div>
+
+          <div id="savedPointsListContainer" class="space-y-2">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: POLYGON SEARCH AREA (POLYGON MANAGER) -->
+      <div id="tab-polygon" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar">
+        <!-- New Polygon Button -->
+        <button type="button" id="btnStartNewPolygon" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/></svg>
+          <span>+ Buat Poligon Area Baru</span>
+        </button>
+
+        <!-- Drawing & Editing Mode Panel -->
+        <div id="polygonDrawingEditorCard" class="hidden p-3.5 bg-slate-950/90 rounded-2xl border border-orange-500/40 shadow-xl space-y-3 animate-in fade-in">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <span id="polyEditorTitle" class="text-xs font-black uppercase text-orange-400 flex items-center gap-1.5">
+              <span>📐 Gambar Polygon Baru</span>
+            </span>
+            <button type="button" id="btnCancelDrawingPoly" class="p-1 text-slate-400 hover:text-white rounded-lg">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 mb-1">Nama / Sektor Poligon:</label>
+            <input type="text" id="polyEditorName" placeholder="Contoh: Sektor Pencarian Alpha / Saponda" class="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white">
+          </div>
+
+          <div class="p-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[11px] text-orange-300">
+            👉 <strong>Klik di atas peta</strong> untuk menambah Titik A, B, C, dst. Semua titik sudut <strong>dapat digeser langsung</strong> pada peta.
+          </div>
+
+          <!-- Real-Time Metrics -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <span class="text-[10px] text-slate-400 block font-semibold">Luas Search Area</span>
+              <span id="polyLiveSqNm" class="text-sm font-black text-emerald-400 font-mono">0.00 NM²</span>
+              <span id="polyLiveSqKm" class="text-[10px] text-slate-400 block font-mono">0.00 km² (0 Ha)</span>
+            </div>
+            <div class="p-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20">
+              <span class="text-[10px] text-slate-400 block font-semibold">Keliling Perimeter</span>
+              <span id="polyLivePerimeterNm" class="text-sm font-black text-orange-400 font-mono">0.00 NM</span>
+              <span id="polyLivePerimeterKm" class="text-[10px] text-slate-400 block font-mono">0.00 km</span>
+            </div>
+          </div>
+
+          <!-- Nearest Posko Detection -->
+          <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-300 flex items-center justify-between">
+            <span>Posko Terdekat:</span>
+            <span id="polyLiveNearestPosko" class="font-bold text-orange-400 font-mono">Kansar Kendari</span>
+          </div>
+
+          <!-- Styling Controls (Stroke color, weight, fill color, fill opacity) -->
+          <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Penyesuaian Garis & Warna:</span>
+
+            <!-- Stroke Color Swatches -->
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-1">
+                <span class="text-slate-400">1. Warna Garis:</span>
+                <span id="labelStrokeColor" class="font-mono text-orange-400 font-bold">#EA580C</span>
+              </div>
+              <div class="flex items-center gap-1.5 flex-wrap" id="polyStrokeColorSwatches">
+                <!-- Color dots -->
+              </div>
+            </div>
+
+            <!-- Stroke Weight Slider -->
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-0.5">
+                <span class="text-slate-400">2. Ketebalan Garis:</span>
+                <span id="labelStrokeWeight" class="font-mono text-white">2.5 px</span>
+              </div>
+              <input type="range" id="polyStrokeWeightSlider" min="1" max="8" step="0.5" value="2.5" class="w-full accent-orange-500">
+            </div>
+
+            <!-- Fill Opacity Slider -->
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-0.5">
+                <span class="text-slate-400">3. Transparansi Arsiran:</span>
+                <span id="labelFillOpacity" class="font-mono text-white">20%</span>
+              </div>
+              <input type="range" id="polyFillOpacitySlider" min="0.05" max="0.8" step="0.05" value="0.2" class="w-full accent-orange-500">
+            </div>
+          </div>
+
+          <!-- Vertices Table (Titik A, B, C...) -->
+          <div class="space-y-1.5">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Daftar Titik Sudut:</span>
+            <div id="polyVerticesListTable" class="space-y-1 max-h-36 overflow-y-auto gis-scrollbar text-xs">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex items-center justify-between pt-1">
+            <button type="button" id="btnCancelPolyForm" class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded-lg">Batal</button>
+            <button type="button" id="btnSavePolygonConfirm" class="px-4 py-1.5 text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-md transition">
+              Simpan Polygon Area
+            </button>
+          </div>
+        </div>
+
+        <!-- Saved Polygons List -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <span>Sektor Area Tersimpan</span>
+          </div>
+
+          <div id="savedPolygonsListContainer" class="space-y-2">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: POLA SAR (SEARCH PATTERNS IAMSAR) -->
+      <div id="tab-pattern" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar">
+        <div class="space-y-3">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 mb-1">Nama Pola Lintasan:</label>
+            <input type="text" id="patternFormName" value="Pola Lintasan SAR Sektor Alpha" class="w-full px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white">
+          </div>
+
+          <!-- Pattern Types Selector (4 Buttons) -->
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 mb-1.5">Metode Pola IAMSAR:</label>
+            <div class="grid grid-cols-2 gap-1.5 text-xs font-bold">
+              <button type="button" data-ptype="parallel_track" class="pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/20 text-orange-400 text-left transition">
+                <div class="text-xs font-black">Parallel Track (PS)</div>
+                <div class="text-[10px] font-normal text-slate-300">Lintasan sejajar sapuan luas</div>
+              </button>
+              <button type="button" data-ptype="creeping_line" class="pat-type-btn p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-left hover:text-white transition">
+                <div class="text-xs font-black">Creeping Line (CS)</div>
+                <div class="text-[10px] font-normal text-slate-400">Sapuan rapat tegak lurus</div>
+              </button>
+              <button type="button" data-ptype="expanding_square" class="pat-type-btn p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-left hover:text-white transition">
+                <div class="text-xs font-black">Expanding Square (SS)</div>
+                <div class="text-[10px] font-normal text-slate-400">Kotak spiral dari datum LKP</div>
+              </button>
+              <button type="button" data-ptype="sector_search" class="pat-type-btn p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-left hover:text-white transition">
+                <div class="text-xs font-black">Sector Search (VS)</div>
+                <div class="text-[10px] font-normal text-slate-400">Pola radial bintang 3 sektor</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Base Polygon / Datum Selection -->
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 mb-1">Target Area Poligon / Datum Basis:</label>
+            <select id="patternTargetPolygon" class="w-full px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white">
+              <!-- Populated with savedPolygons or LKP -->
+            </select>
+          </div>
+
+          <!-- Parameters: Track Spacing & Legs Count -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 mb-1">Track Spacing (S):</label>
+              <div class="flex items-center gap-1.5">
+                <input type="number" id="patternTrackSpacing" value="1.5" step="0.1" min="0.1" class="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-mono">
+                <span class="text-xs text-slate-400 font-bold">NM</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-400 mb-1">Jumlah Sweep / Legs:</label>
+              <input type="number" id="patternLegsCount" value="6" min="1" max="25" class="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-mono">
+            </div>
+          </div>
+
+          <!-- Vessel Search Speed -->
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 mb-1">Kecepatan Alut Pencari (Speed):</label>
+            <div class="flex items-center gap-1.5">
+              <input type="number" id="patternVesselSpeed" value="20" min="1" class="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-mono">
+              <span class="text-xs text-slate-400 font-bold">Knot</span>
+            </div>
+          </div>
+
+          <!-- Generate Pattern Button -->
+          <button type="button" id="btnGenerateSearchPattern" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+            <span>✨ Generate Lintasan IAMSAR</span>
+          </button>
+
+          <!-- Pattern Results Box -->
+          <div id="patternResultsCard" class="hidden p-3 bg-slate-950 rounded-2xl border border-sky-500/40 space-y-2 text-xs">
+            <div class="flex items-center justify-between font-bold">
+              <span class="text-slate-400">Total Panjang Lintasan:</span>
+              <span id="resPatternDistNm" class="text-sm font-black text-sky-400 font-mono">0.00 NM</span>
+            </div>
+            <div class="flex items-center justify-between text-slate-400">
+              <span>Estimasi Waktu Operasi:</span>
+              <span id="resPatternEta" class="font-bold text-orange-400 font-mono">0 Jam 0 Menit</span>
+            </div>
+            <div class="flex items-center justify-between text-slate-400">
+              <span>Jumlah Waypoint (WP):</span>
+              <span id="resPatternWpCount" class="font-mono text-white font-bold">0 WP</span>
+            </div>
+
+            <!-- Save Pattern Button -->
+            <div class="pt-2 border-t border-slate-800 flex gap-2">
+              <button type="button" id="btnClearCurrentPattern" class="flex-1 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold transition">
+                Bersihkan
+              </button>
+              <button type="button" id="btnSavePatternConfirm" class="flex-1 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow">
+                Simpan Pola SAR
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Saved Search Patterns List -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pola Lintasan Tersimpan</div>
+          <div id="savedPatternsListContainer" class="space-y-2">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: JARAK & ETA (MEASURE DISTANCE & SPEED SIMULATOR) -->
+      <div id="tab-measure" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar">
+        <!-- Enable / Disable Measurement Toggle Switch -->
+        <div class="p-3 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between">
+          <div>
+            <div class="text-xs font-black text-white">Mode Ukur Jarak Peta</div>
+            <div class="text-[10px] text-slate-400">Klik peta untuk menaruh waypoint rute</div>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="toggleMeasureMode" class="sr-only peer">
+            <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+          </label>
+        </div>
+
+        <!-- Mode selector: Straight line (2 points) vs Continuous Path -->
+        <div class="grid grid-cols-2 gap-1.5 text-xs font-bold">
+          <button type="button" id="btnModeStraight" class="p-2 rounded-xl border border-orange-500 bg-orange-500/20 text-orange-400 text-center transition">
+            Jarak Lurus (2 Titik)
+          </button>
+          <button type="button" id="btnModePath" class="p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-center hover:text-white transition">
+            Jalur Multi-Titik
+          </button>
+        </div>
+
+        <!-- Live Distance & ETA Card -->
+        <div class="p-3.5 bg-slate-950 rounded-2xl border border-emerald-500/30 space-y-2.5 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 font-bold">Total Jarak Tempuh:</span>
+            <div class="text-right">
+              <span id="liveRouteDistNm" class="text-base font-black text-emerald-400 font-mono">0.00 NM</span>
+              <span id="liveRouteDistKm" class="text-[10px] text-slate-400 block font-mono">0.00 km</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-slate-300">
+            <span>Arah Haluan (Bearing):</span>
+            <span id="liveRouteBearing" class="font-bold text-orange-400 font-mono">0° (Utara)</span>
+          </div>
+
+          <div class="flex items-center justify-between text-slate-300">
+            <span>Estimasi Waktu Tiba (ETA):</span>
+            <span id="liveRouteEta" class="font-bold text-white font-mono text-sm">0 Menit</span>
+          </div>
+        </div>
+
+        <!-- Quick Speed Presets -->
+        <div class="space-y-1.5">
+          <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preset Armada SAR Kendari:</label>
+          <div class="grid grid-cols-2 gap-1.5 text-[11px]">
+            <button type="button" data-speed="29" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
+              <div class="font-bold text-white">KN SAR Pacitan</div>
+              <div class="text-[10px] text-orange-400 font-mono">29 Knot</div>
+            </button>
+            <button type="button" data-speed="24" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
+              <div class="font-bold text-white">Rescue Boat 210</div>
+              <div class="text-[10px] text-orange-400 font-mono">24 Knot</div>
+            </button>
+            <button type="button" data-speed="32" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
+              <div class="font-bold text-white">RIB 01 Kendari</div>
+              <div class="text-[10px] text-orange-400 font-mono">32 Knot</div>
+            </button>
+            <button type="button" data-speed="8" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
+              <div class="font-bold text-white">Rubber Boat</div>
+              <div class="text-[10px] text-orange-400 font-mono">8 Knot</div>
+            </button>
+            <button type="button" data-speed="130" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
+              <div class="font-bold text-white">Heli Dauphin</div>
+              <div class="text-[10px] text-orange-400 font-mono">130 Knot</div>
+            </button>
+            <button type="button" data-speed="32.4" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
+              <div class="font-bold text-white">Rescue Car Darat</div>
+              <div class="text-[10px] text-orange-400 font-mono">60 km/jam</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Custom Speed Input -->
+        <div class="flex items-center gap-2">
+          <div class="flex-1">
+            <label class="block text-[10px] font-bold text-slate-400 mb-1">Kecepatan Manual:</label>
+            <input type="number" id="measureVesselSpeed" value="25" min="1" class="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-400 mb-1">Satuan:</label>
+            <select id="measureSpeedUnit" class="px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-bold">
+              <option value="knot">Knot (Kts)</option>
+              <option value="kmh">Km / Jam</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-2 pt-2 border-t border-slate-800">
+          <button type="button" id="btnClearMeasureRoute" class="flex-1 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+            Bersihkan Rute
+          </button>
+          <button type="button" id="btnSaveMeasureRoute" class="flex-1 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow">
+            Simpan Rute Ini
+          </button>
+        </div>
+
+        <!-- Saved Routes List -->
+        <div class="space-y-2 pt-2 border-t border-slate-800">
+          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Rute Terukur Tersimpan</div>
+          <div id="savedRoutesListContainer" class="space-y-2">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MAP CANVAS (LEAFLET INTERACTIVE FULL VIEWPORT) -->
+    <div class="flex-1 h-full relative" id="gisMapWrapper" style="height: 100%; flex: 1;">
+      <div id="gisLeafletMap" class="w-full h-full z-0" style="width: 100%; height: 100%;"></div>
+
+      <!-- Floating Button: Buka Tools Plotting (when sidebar is closed) -->
+      <button type="button" id="btnFloatingOpenSidebar" class="absolute top-4 left-4 z-[400] hidden px-3.5 py-2 rounded-xl bg-white/95 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-900 text-slate-800 dark:text-white text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xl flex items-center gap-2 backdrop-blur transition cursor-pointer">
+        <svg class="w-4 h-4 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M9 3v18M11 9l3 3-3 3"/></svg>
+        <span>Buka Tools Plotting</span>
+      </button>
+
+      <!-- Floating Search Pin Banner (when a search result is clicked) -->
+      <!-- Floating Google Maps Place Card (when a search result is clicked) -->
+      <div id="floatingSearchBanner" class="absolute top-4 left-1/2 -translate-x-1/2 z-[400] hidden p-4 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-white shadow-2xl backdrop-blur-md w-[92vw] max-w-lg transition-all animate-in fade-in slide-in-from-top-4 duration-200">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-start gap-3 min-w-0 flex-1">
+            <div class="w-10 h-10 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 font-bold border border-orange-500/30 text-lg shadow-xs">
+              <span id="searchBannerIcon">📍</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 id="searchBannerTitle" class="text-sm font-black truncate text-slate-900 dark:text-white">Nama Lokasi</h3>
+                <span id="searchBannerBadge" class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 shrink-0">MAPS</span>
+              </div>
+              <p id="searchBannerAddress" class="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5 font-medium">Alamat lengkap wilayah</p>
+              <div class="flex items-center gap-3 mt-1.5 text-[11px] font-mono text-slate-600 dark:text-slate-300">
+                <span id="searchBannerCoords" class="text-orange-600 dark:text-orange-400 font-bold">04° 03' 27" S, 121° 35' 21" E</span>
+                <span class="text-slate-300 dark:text-slate-700">|</span>
+                <span id="searchBannerDecimal" class="text-slate-500 dark:text-slate-400">-4.05758, 121.58921</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" id="btnCloseSearchBanner" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0" title="Tutup">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Google Maps Style Quick Action Buttons -->
+        <div class="flex items-center gap-2 mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar">
+          <button type="button" id="btnConvertSearchToPoint" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></svg>
+            <span>Plot Titik SAR</span>
+          </button>
+          
+          <button type="button" id="btnSetSearchAsLkp" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+            <span>Titik Kejadian LKP</span>
+          </button>
+
+          <button type="button" id="btnCopySearchCoords" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors cursor-pointer shrink-0">
+            <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            <span>Salin Koordinat</span>
+          </button>
+
+          <button type="button" id="btnMeasureFromSearch" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition-colors cursor-pointer shrink-0">
+            <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/></svg>
+            <span>Ukur Jarak</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bottom Crosshair Coordinate HUD Bar -->
+      <div class="absolute bottom-3 left-3 z-[400] bg-white/90 dark:bg-slate-950/90 text-slate-800 dark:text-white backdrop-blur px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-mono shadow-2xl flex items-center gap-3">
+        <div class="flex items-center gap-1.5">
+          <span class="text-orange-600 dark:text-orange-400 font-bold">Lat/Lng:</span>
+          <span id="hudCoordsDecimal">-4.037664, 122.486662</span>
+        </div>
+        <span class="text-slate-300 dark:text-slate-700">|</span>
+        <div class="flex items-center gap-1.5">
+          <span class="text-sky-600 dark:text-sky-400 font-bold">DMS:</span>
+          <span id="hudCoordsDms">04° 02' 16" S - 122° 29' 12" E</span>
+        </div>
+        <span class="text-slate-300 dark:text-slate-700">|</span>
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-500 dark:text-slate-400 font-bold">Zoom:</span>
+          <span id="hudZoomLevel" class="text-amber-500 dark:text-amber-400">11</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- 3. PRINT MAP MODAL (LEMBAR KERJA SAR)      -->
+<!-- ========================================== -->
+<div id="printMapModal" class="fixed inset-0 z-[1000] bg-black/75 hidden items-center justify-center p-4 overflow-y-auto">
+  <div class="bg-white text-slate-900 rounded-2xl max-w-4xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+    
+    <!-- Modal Header -->
+    <div class="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+      <div class="flex items-center gap-2.5">
+        <span class="p-1.5 rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+        </span>
+        <div>
+          <h2 class="text-sm font-black uppercase">Cetak Lembar Plotting Peta Operasi SAR</h2>
+          <p class="text-[11px] text-slate-400">Format Resmi Standar Kantor Pencarian & Pertolongan Kendari</p>
+        </div>
+      </div>
+      <button type="button" id="btnClosePrintModal" class="text-slate-400 hover:text-white p-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Modal Form Metadata & Document Preview -->
+    <div class="flex-1 overflow-y-auto p-5 space-y-4 text-xs gis-scrollbar">
+      <!-- Document Controls -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Nomor Dokumen:</label>
+          <input type="text" id="printDocNumber" value="SAR-KDI/<?= date('Y/m') ?>/OPS-<?= rand(100, 999) ?>" class="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs font-mono font-bold">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Judul Operasi:</label>
+          <input type="text" id="printOpsTitle" value="OPERASI SAR KECELAKAAN KAPAL / KM SUMBER BAHAGIA" class="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs font-bold">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 mb-0.5">SAR Mission Coordinator (SMC):</label>
+          <input type="text" id="printSmcName" value="KASI OPERASI & SIAGA KENDARI" class="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs font-bold">
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Skala Peta / Proyeksi:</label>
+          <input type="text" id="printScale" value="1 : 50.000 (WGS 84 / Mercator)" class="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs font-bold">
+        </div>
+      </div>
+
+      <!-- Printable Sheet Container (Isolated for Iframe Print) -->
+      <div id="printableDocumentSheet" class="p-6 bg-white border border-slate-300 rounded-xl space-y-4 shadow-sm text-slate-900 font-sans">
+        <!-- Kop Surat Basarnas Kendari -->
+        <div class="flex items-center justify-between pb-3 border-b-2 border-slate-900">
+          <div class="flex items-center gap-3">
+            <img src="<?= BASE_URL ?>/assets/images/logo-basarnas.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/4/4e/Basarnas_Logo.png'" class="h-14 w-auto object-contain" alt="Logo Basarnas">
+            <div>
+              <div class="text-[11px] font-bold tracking-widest text-slate-700">BADAN NASIONAL PENCARIAN DAN PERTOLONGAN</div>
+              <div class="text-sm font-black tracking-wide text-slate-950">KANTOR PENCARIAN DAN PERTOLONGAN KENDARI</div>
+              <div class="text-[10px] text-slate-500">Jl. Poros Bandara Haluoleo, Kel. Baruga, Kec. Baruga, Kota Kendari | Emergency Call: 115</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-[10px] font-mono text-slate-500" id="printDocNumberPreview">SAR-KDI/2026/10/OPS-001</div>
+            <div class="text-xs font-black text-orange-600 border border-orange-500 px-2 py-0.5 rounded mt-1 inline-block">LEMBAR OPERASIONAL SAR</div>
+          </div>
+        </div>
+
+        <!-- Document Header Meta Grid -->
+        <div class="grid grid-cols-2 gap-2 text-[11px] p-2 bg-slate-50 rounded border border-slate-200">
+          <div><strong>OPERASI:</strong> <span id="printPreviewTitle">OPERASI SAR KENDARI</span></div>
+          <div><strong>TANGGAL CETAK:</strong> <?= date('d F Y') ?> (<?= date('H:i') ?> WITA)</div>
+          <div><strong>SMC / KAOPS:</strong> <span id="printPreviewSmc">KASI OPERASI</span></div>
+          <div><strong>SKALA:</strong> <span id="printPreviewScale">1 : 50.000 (WGS 84)</span></div>
+        </div>
+
+        <!-- Map Snapshot Visual Container -->
+        <div class="border-2 border-slate-800 rounded-lg overflow-hidden bg-slate-900 relative" style="height: 380px;" id="printMapCanvasContainer">
+          <div id="printMapSnapshotTarget" class="w-full h-full"></div>
+          <div class="absolute bottom-2 right-2 bg-slate-900/90 text-white text-[9px] font-mono px-2 py-1 rounded border border-slate-700">
+            Sumber: GIS Taktis Basarnas KPP Kendari
+          </div>
+        </div>
+
+        <!-- Summary Tables Grid: Points, Polygons, Patterns & Routes -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px]">
+          <!-- Points Table -->
+          <div class="border border-slate-300 rounded p-2">
+            <div class="font-bold text-slate-900 mb-1 border-b border-slate-200 pb-0.5 uppercase">Titik Operasi SAR (Armada & LKP)</div>
+            <table class="w-full divide-y divide-slate-200" id="printTablePoints">
+              <thead>
+                <tr class="text-left font-bold text-slate-600">
+                  <th class="py-1">Nama Titik</th>
+                  <th class="py-1">Tipe</th>
+                  <th class="py-1">DMS</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono" id="printTbodyPoints">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Polygons Table -->
+          <div class="border border-slate-300 rounded p-2">
+            <div class="font-bold text-slate-900 mb-1 border-b border-slate-200 pb-0.5 uppercase">Area Sektor Pencarian (Poligon)</div>
+            <table class="w-full divide-y divide-slate-200" id="printTablePolygons">
+              <thead>
+                <tr class="text-left font-bold text-slate-600">
+                  <th class="py-1">Sektor</th>
+                  <th class="py-1">Luas (NM²)</th>
+                  <th class="py-1">Keliling (NM)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono" id="printTbodyPolygons">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Signatures Section -->
+        <div class="grid grid-cols-2 pt-6 text-center text-xs text-slate-800">
+          <div>
+            <div>Mengetahui,</div>
+            <div class="font-bold">SAR MISSION COORDINATOR (SMC)</div>
+            <div class="h-16"></div>
+            <div class="font-bold underline" id="printSignatureSmc">KASI OPERASI & SIAGA KENDARI</div>
+          </div>
+          <div>
+            <div>Kendari, <?= date('d F Y') ?></div>
+            <div class="font-bold">PETUGAS PLOTTING & KOMUNIKASI</div>
+            <div class="h-16"></div>
+            <div class="font-bold underline"><?= htmlspecialchars($_SESSION['user']['nama_lengkap'] ?? 'OPERATOR RADIO SENKOM') ?></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="px-5 py-3 bg-slate-100 border-t border-slate-200 flex justify-between items-center">
+      <span class="text-[11px] text-slate-500">Mencetak dalam dokumen A4 resolusi tinggi (Portrait / Landscape).</span>
+      <div class="flex gap-2">
+        <button type="button" id="btnCancelPrintModal" class="px-3.5 py-1.5 rounded-xl bg-white border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-50">
+          Batal
+        </button>
+        <button type="button" id="btnExecutePrintIframe" class="px-4 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold flex items-center gap-2 shadow">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+          <span>Cetak Dokumen Sekarang</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- 4. MASTER CLIENT-SIDE GIS APPLICATION JS   -->
+<!-- ========================================== -->
+<script>
+window.SAR_INITIAL_GIS_DATA = {
+  points: <?= json_encode($savedPoints, JSON_UNESCAPED_UNICODE) ?>,
+  polygons: <?= json_encode($savedPolygons, JSON_UNESCAPED_UNICODE) ?>,
+  patterns: <?= json_encode($savedPatterns, JSON_UNESCAPED_UNICODE) ?>,
+  routes: <?= json_encode($savedRoutes, JSON_UNESCAPED_UNICODE) ?>,
+  sarUnits: <?= json_encode($sarUnits, JSON_UNESCAPED_UNICODE) ?>,
+  kansarKendari: { lat: -4.037664, lng: 122.486662, label: 'Kantor SAR Kendari' }
+};
+</script>
+
+<script src="<?= BASE_URL ?>/assets/js/gis_master.js?v=<?= APP_VERSION ?>"></script>

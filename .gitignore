@@ -4,5 +4,10 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
-!.env.example
+.env
+.env.local
+.env.*.local
+*.sqlite
+uploads/*
+!uploads/.htaccess
+!uploads/index.php
