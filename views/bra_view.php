@@ -43,7 +43,7 @@ $verifyUrl = BASE_URL . "/bra.php?view=" . $bra['id_bra'];
       </a>
 
       <span class="px-2.5 py-1 text-xs font-bold rounded-lg border uppercase tracking-wider <?= $bra['kategori'] === 'MAPEL' ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border-cyan-500/30' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30') ?>">
-        <?= $bra['kategori'] === 'MAPEL' ? '📡 BRA MAPEL' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? '🚢 BRA KAPAL' : '📋 BRA SAR OPERASI') ?>
+        <?= $bra['kategori'] === 'MAPEL' ? '📡 BRA MAPEL' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? '🚢 BRA KAPAL' : '📋 BRA SAR OPERASI SAR') ?>
       </span>
 
       <span class="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
@@ -230,16 +230,16 @@ $verifyUrl = BASE_URL . "/bra.php?view=" . $bra['id_bra'];
             <!-- NO. & Menbra & Perihal -->
             <div class="bra-no-header mb-3.5">
               <div class="space-y-1">
-                <div class="flex items-start text-xs sm:text-sm font-bold uppercase">
-                  <span class="w-16 sm:w-20 font-black shrink-0 text-black">NO.</span>
-                  <span class="w-4 text-center shrink-0 text-black font-black">:</span>
-                  <span class="font-extrabold tracking-wider ml-1 text-black flex-1"><?= htmlspecialchars($bra['no_bra'] ?? '') ?></span>
+                <div class="flex items-start text-xs sm:text-[13px] leading-relaxed uppercase">
+                  <span class="w-14 sm:w-16 font-black shrink-0 text-black leading-relaxed">NO.</span>
+                  <span class="w-4 text-center shrink-0 text-black font-black leading-relaxed">:</span>
+                  <span class="font-extrabold tracking-wider ml-1 text-black flex-1 leading-relaxed"><?= htmlspecialchars($bra['no_bra'] ?? '') ?></span>
                 </div>
                 <?php if (!empty($bra['menbra'])): ?>
-                  <div class="flex items-start text-xs sm:text-sm font-bold uppercase">
-                    <span class="w-16 sm:w-20 font-black shrink-0 text-black">MENBRA</span>
-                    <span class="w-4 text-center shrink-0 text-black font-black">:</span>
-                    <span class="font-extrabold tracking-wider ml-1 text-black flex-1"><?= htmlspecialchars($bra['menbra']) ?></span>
+                  <div class="flex items-start text-xs sm:text-[13px] leading-relaxed uppercase">
+                    <span class="w-14 sm:w-16 font-black shrink-0 text-black leading-relaxed">MENBRA</span>
+                    <span class="w-4 text-center shrink-0 text-black font-black leading-relaxed">:</span>
+                    <span class="font-extrabold tracking-wider ml-1 text-black flex-1 leading-relaxed"><?= htmlspecialchars($bra['menbra']) ?></span>
                   </div>
                 <?php endif; ?>
               </div>
@@ -251,16 +251,12 @@ $verifyUrl = BASE_URL . "/bra.php?view=" . $bra['id_bra'];
             </div>
 
             <!-- Sections Rows -->
-            <div class="space-y-3.5 bra-sections-list">
+            <div class="space-y-3 bra-sections-list">
               <?php foreach ($sections as $sec): ?>
-                <div class="bra-section-row flex items-start text-justify leading-relaxed text-xs sm:text-[12.5px]">
-                  <span class="w-16 sm:w-20 font-black text-xs sm:text-sm tracking-wider uppercase shrink-0 text-black">
-                    <?= htmlspecialchars($sec['kode'] ?? '') ?>
-                  </span>
-                  <span class="w-4 text-center shrink-0 text-black font-black text-xs sm:text-sm">:</span>
-                  <div class="flex-1 whitespace-pre-line uppercase font-normal text-xs sm:text-[12.5px] leading-relaxed ml-1 text-black">
-                    <?= htmlspecialchars($sec['isi'] ?? '') ?>
-                  </div>
+                <div class="bra-section-row flex items-start text-xs sm:text-[13px] leading-relaxed">
+                  <span class="w-14 sm:w-16 font-black tracking-wider uppercase shrink-0 text-black leading-relaxed"><?= htmlspecialchars($sec['kode'] ?? '') ?></span>
+                  <span class="w-4 text-center shrink-0 text-black font-black leading-relaxed">:</span>
+                  <div class="flex-1 whitespace-pre-line uppercase font-normal leading-relaxed ml-1 text-black"><?= htmlspecialchars(trim((string)($sec['isi'] ?? ''))) ?></div>
                 </div>
               <?php endforeach; ?>
             </div>

@@ -97,15 +97,9 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     OPERASI BERJALAN
                 </span>
-                <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-orange-500/15 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-500/30">
-                    SIKLUS: <?= e($hariKe) ?>
-                </span>
                 <?php else: ?>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono tracking-wider bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
                     🔒 OPERASI DITUTUP
-                </span>
-                <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10">
-                    SELESAI (<?= e($hariKe) ?>)
                 </span>
                 <?php endif; ?>
 
@@ -214,24 +208,10 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
 <!-- TAB 1: ALUR HIRARKI LAPORAN OPERASI SAR -->
 <!-- ========================================== -->
 <div id="tab-content-hierarchy" class="tab-pane space-y-4" style="display: <?= $activeTab === 'hierarchy' ? 'block' : 'none' ?>;">
-    <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800/40 dark:to-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-        <div>
-            <div class="flex items-center gap-2 mb-1">
-                <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                    Silsilah Terstruktur
-                </span>
-                <span class="text-xs text-slate-400 font-medium">
-                    Total: <?= count($timeline) ?> Dokumen Terbit
-                </span>
-            </div>
-            <h2 class="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                <span>⏱️</span>
-                <span>Alur Kronologis Dokumen Operasi SAR</span>
-            </h2>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                Urutan rantai pelaporan terpadu: Laporan Awal ➔ Renops H.1 ➔ Lapbang H.1 ➔ Renops H.2 ➔ Lapbang H.2 ➔ Seterusnya hingga Penutupan.
-            </p>
-        </div>
+    <div class="flex items-center justify-between gap-3 mb-2">
+        <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Alur Kronologis Dokumen Operasi SAR &bull; <?= count($timeline) ?> Dokumen Terbit
+        </h3>
     </div>
 
     <div class="relative pl-6 sm:pl-8 space-y-3.5 before:absolute before:left-3 sm:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
@@ -301,42 +281,16 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
 <!-- ========================================== -->
 <div id="tab-content-renops" class="tab-pane space-y-5" style="display: <?= $activeTab === 'renops' ? 'block' : 'none' ?>;">
 
-    <!-- COMMAND HEADER BANNER FOR RENOPS -->
-    <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-orange-50 via-white to-orange-50/50 dark:from-slate-900 dark:via-orange-950/60 dark:to-slate-900 border border-orange-200 dark:border-orange-500/20 text-slate-900 dark:text-white shadow-sm dark:shadow-md relative overflow-hidden transition-colors">
-        <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-orange-500/10 rounded-full blur-2xl pointer-events-none"></div>
-        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-                <div class="flex flex-wrap items-center gap-2 mb-1.5">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono tracking-wider <?= $isOpen ? 'bg-orange-500/15 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-500/30' : 'bg-red-500/15 dark:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30' ?>">
-                        <span class="w-2 h-2 rounded-full <?= $isOpen ? 'bg-orange-400 animate-pulse' : 'bg-red-400' ?>"></span>
-                        <?= $isOpen ? 'SIKLUS RENCANA AKTIF' : 'OPERASI DITUTUP' ?>
-                    </span>
-                    <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-orange-100 dark:bg-white/10 text-orange-700 dark:text-orange-200 border border-orange-200 dark:border-white/15">
-                        Rencana Terbit: <?= count($operasi['renops']) ?> Dokumen
-                    </span>
-                </div>
-                <h2 class="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>🧭</span>
-                    <span>Rencana Operasi SAR Harian (RENOPS)</span>
-                </h2>
-                <p class="text-xs text-slate-600 dark:text-slate-300 max-w-2xl mt-0.5 leading-relaxed">
-                    Siklus pembagian Search and Rescue Unit (SRU), sektor koordinat pencarian, pola penyisiran lapangan, serta alokasi potensi & armada per hari operasi.
-                </p>
-            </div>
-            
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <?php if ($isOpen): ?>
-                <a href="<?= BASE_URL ?>/renops_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md shadow-orange-600/20 hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-                    <span>+ Buat RENOPS H.<?= $nextRenops['target_day_number'] ?? substr($hariKe, 2) ?></span>
-                </a>
-                <?php else: ?>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 border border-slate-300 dark:border-slate-700 font-bold text-xs">
-                    🔒 RENOPS Terkunci
-                </span>
-                <?php endif; ?>
-            </div>
-        </div>
+    <div class="flex items-center justify-between gap-3 mb-3">
+        <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Daftar Rencana Operasi SAR (RENOPS) &bull; <?= count($operasi['renops']) ?> Dokumen
+        </h3>
+        <?php if ($isOpen): ?>
+        <a href="<?= BASE_URL ?>/renops_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-sm shadow-orange-600/20 hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            <span>+ Buat RENOPS H.<?= $nextRenops['target_day_number'] ?? substr($hariKe, 2) ?></span>
+        </a>
+        <?php endif; ?>
     </div>
 
     <!-- CALLOUT IF OPERATION IS CLOSED -->
@@ -534,48 +488,21 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
 <!-- ========================================== -->
 <div id="tab-content-sitrep" class="tab-pane space-y-5" style="display: <?= ($activeTab === 'sitrep' || $activeTab === 'laporan') ? 'block' : 'none' ?>;">
 
-    <!-- COMMAND HEADER BANNER -->
-    <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-blue-50 via-white to-blue-50/50 dark:from-slate-900 dark:via-blue-950/60 dark:to-slate-900 border border-blue-200 dark:border-blue-500/20 text-slate-900 dark:text-white shadow-sm dark:shadow-md relative overflow-hidden transition-colors">
-        <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
-        <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-                <div class="flex flex-wrap items-center gap-2 mb-1.5">
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono tracking-wider <?= $isOpen ? 'bg-emerald-500/15 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30' : 'bg-red-500/15 dark:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/30' ?>">
-                        <span class="w-2 h-2 rounded-full <?= $isOpen ? 'bg-emerald-400 animate-pulse' : 'bg-red-400' ?>"></span>
-                        <?= $isOpen ? 'OPERASI BERJALAN' : 'OPERASI DITUTUP' ?>
-                    </span>
-                    <span class="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-500/30">
-                        Siklus: <?= e($hariKe) ?>
-                    </span>
-                    <span class="text-xs text-blue-700/70 dark:text-blue-200/70 font-medium hidden sm:inline">
-                        • Standar SOP Maks. 7 Hari Basarnas
-                    </span>
-                </div>
-                <h2 class="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>📊</span>
-                    <span>Laporan Perkembangan Harian (SITREP / LAPBANG)</span>
-                </h2>
-                <p class="text-xs text-slate-600 dark:text-slate-300 max-w-2xl mt-0.5 leading-relaxed">
-                    Pusat pemantauan berkala hasil pencarian lapangan, mutasi korban, kekuatan armada & potensi gabungan, serta laporan penutupan operasi SAR.
-                </p>
-            </div>
-            
-            <div class="flex flex-wrap items-center gap-2 shrink-0">
-                <?php if ($isOpen): ?>
-                <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-                    <span>+ Terbitkan SITREP <?= e($hariKe) ?></span>
-                </a>
-                <?php else: ?>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 font-bold text-xs">
-                    <span>🔒 Terkunci (Operasi Ditutup)</span>
-                </span>
-                <?php endif; ?>
-                <a href="<?= BASE_URL ?>/bra_form.php?id_operasi=<?= $id ?>&kategori=SAR%20UMUM" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 dark:text-white border border-slate-200 dark:border-white/15 font-semibold text-xs transition cursor-pointer backdrop-blur" title="Buat Berita Radio Senkom dari Laporan Perkembangan">
-                    <span>📡</span>
-                    <span>BRA Sitrep</span>
-                </a>
-            </div>
+    <div class="flex items-center justify-between gap-3 mb-3">
+        <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Daftar Laporan Perkembangan (LAPBANG) &bull; <?= count($operasi['laporan_harian']) ?> Dokumen
+        </h3>
+        <div class="flex items-center gap-2">
+            <?php if ($isOpen): ?>
+            <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-sm shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                <span>+ Terbitkan SITREP <?= e($hariKe) ?></span>
+            </a>
+            <?php endif; ?>
+            <a href="<?= BASE_URL ?>/bra_form.php?id_operasi=<?= $id ?>&kategori=SAR_UMUM" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white border border-slate-200 dark:border-slate-700 font-semibold text-xs transition" title="Buat Berita Radio Senkom dari Laporan Perkembangan">
+                <span>📡</span>
+                <span>BRA Operasi SAR</span>
+            </a>
         </div>
     </div>
 
@@ -1129,7 +1056,7 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
             <div class="flex items-center gap-2.5">
                 <span class="px-2.5 py-1 rounded-xl bg-orange-500 text-white font-mono font-bold text-xs">
-                    <?= e($bra['kategori']) ?>
+                    <?= in_array(strtoupper($bra['kategori']), ['SAR_UMUM', 'OPERASI_SAR']) ? 'BRA SAR OPERASI SAR' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? 'BRA KAPAL' : 'BRA MAPEL') ?>
                 </span>
                 <span class="font-mono font-black text-sm text-slate-900 dark:text-white">
                     NO: <?= e($bra['no_bra']) ?>

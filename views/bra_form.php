@@ -707,8 +707,8 @@ $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
                 <div class="kat-icon-wrap">📋</div>
                 <div style="flex:1;">
                   <div class="kat-tab-header">
-                    <span class="kat-tab-title">2. BRA Operasi SAR</span>
-                    <span class="kat-tab-pill">Operasi Harian</span>
+                    <span class="kat-tab-title">2. BRA SAR Operasi SAR</span>
+                    <span class="kat-tab-pill">Operasi SAR Harian</span>
                   </div>
                   <div class="kat-tab-desc">Berita Radio perkembangan Operasi SAR kepada Kabasarnas, Pimti, Polairud, TNI AL terkait laporan awal / renops / sitrep.</div>
                 </div>
@@ -1625,12 +1625,8 @@ function initBraForm() {
         const text = row.querySelector('.sec-content-textarea').value.trim();
         if (text) {
           const div = document.createElement('div');
-          div.className = 'flex items-start text-justify leading-relaxed text-[11px]';
-          div.innerHTML = `
-            <span class="w-14 font-black tracking-wider uppercase shrink-0 text-black">${code}</span>
-            <span class="w-3 text-center shrink-0 text-black font-black">:</span>
-            <div class="flex-1 whitespace-pre-line uppercase font-normal leading-relaxed ml-1 text-black">${escapeHtml(text)}</div>
-          `;
+          div.className = 'flex items-start leading-relaxed text-[11px]';
+          div.innerHTML = `<span class="w-14 font-black tracking-wider uppercase shrink-0 text-black leading-relaxed">${code}</span><span class="w-3 text-center shrink-0 text-black font-black leading-relaxed">:</span><div class="flex-1 whitespace-pre-line uppercase font-normal leading-relaxed ml-1 text-black">${escapeHtml(text.trim())}</div>`;
           pvSections.appendChild(div);
         }
       });

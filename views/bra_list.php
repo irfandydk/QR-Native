@@ -41,7 +41,7 @@ if ($searchQuery !== '') {
 // Counts for Summary Cards
 $countAll = count($allBra);
 $countMapel = count(array_filter($allBra, fn($b) => strtoupper($b['kategori'] ?? '') === 'MAPEL'));
-$countSarUmum = count(array_filter($allBra, fn($b) => strtoupper($b['kategori'] ?? '') === 'SAR_UMUM'));
+$countSarUmum = count(array_filter($allBra, fn($b) => in_array(strtoupper($b['kategori'] ?? ''), ['SAR_UMUM', 'OPERASI_SAR'])));
 $countKapal = count(array_filter($allBra, fn($b) => strtoupper($b['kategori'] ?? '') === 'PERGERAKAN_KAPAL'));
 $totalFiltered = count($braList);
 ?>
@@ -149,7 +149,7 @@ $totalFiltered = count($braList);
            ? 'bg-amber-50/80 dark:bg-slate-800 border-amber-400 dark:border-amber-500 ring-2 ring-amber-400/40 dark:ring-amber-500/50 shadow-sm'
            : 'bg-slate-50/80 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
         <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-          <span>BRA Operasi SAR</span>
+          <span>BRA SAR Operasi SAR</span>
           <span class="text-sm">📋</span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
@@ -201,7 +201,7 @@ $totalFiltered = count($braList);
          class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'SAR_UMUM'
            ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
-        📋 SAR Umum (<?= $countSarUmum ?>)
+        📋 Operasi SAR (<?= $countSarUmum ?>)
       </a>
       <a href="<?= BASE_URL ?>/bra.php?kategori=PERGERAKAN_KAPAL<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
          class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'PERGERAKAN_KAPAL'
@@ -309,7 +309,7 @@ $totalFiltered = count($braList);
           $kategoriLabel = match($kategori) {
               'MAPEL' => 'BRA MAPEL',
               'PERGERAKAN_KAPAL' => 'BRA KAPAL',
-              default => 'BRA SAR UMUM',
+              default => 'BRA SAR OPERASI SAR',
           };
           $derajat = strtoupper($bra['derajat'] ?? 'SGR');
           $searchDataStr = strtolower(($bra['no_bra'] ?? '') . ' ' . ($bra['perihal'] ?? '') . ' ' . ($bra['nama_smc'] ?? '') . ' ' . ($bra['pengirim'] ?? '') . ' ' . ($bra['twu'] ?? '') . ' ' . ($bra['twb'] ?? '') . ' ' . ($bra['nama_operasi'] ?? ''));
@@ -434,7 +434,7 @@ $totalFiltered = count($braList);
                 $kategoriLabel = match($kategori) {
                     'MAPEL' => 'MAPEL',
                     'PERGERAKAN_KAPAL' => 'KAPAL',
-                    default => 'SAR UMUM',
+                    default => 'OPERASI SAR',
                 };
                 $derajat = strtoupper($bra['derajat'] ?? 'SGR');
                 $searchDataStr = strtolower(($bra['no_bra'] ?? '') . ' ' . ($bra['perihal'] ?? '') . ' ' . ($bra['nama_smc'] ?? '') . ' ' . ($bra['pengirim'] ?? '') . ' ' . ($bra['twu'] ?? '') . ' ' . ($bra['twb'] ?? '') . ' ' . ($bra['nama_operasi'] ?? ''));

@@ -14,9 +14,13 @@ class BraModel {
             FROM BraSar b WHERE 1=1";
         
         $params = [];
-        if ($kategori && in_array(strtoupper($kategori), ['MAPEL', 'SAR_UMUM', 'PERGERAKAN_KAPAL'])) {
-            $sql .= " AND b.kategori = :kategori";
-            $params[':kategori'] = strtoupper($kategori);
+        if ($kategori && in_array(strtoupper($kategori), ['MAPEL', 'SAR_UMUM', 'OPERASI_SAR', 'PERGERAKAN_KAPAL'])) {
+            if (in_array(strtoupper($kategori), ['SAR_UMUM', 'OPERASI_SAR'])) {
+                $sql .= " AND b.kategori IN ('SAR_UMUM', 'OPERASI_SAR')";
+            } else {
+                $sql .= " AND b.kategori = :kategori";
+                $params[':kategori'] = strtoupper($kategori);
+            }
         }
 
         if (!empty($search)) {
