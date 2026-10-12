@@ -271,29 +271,11 @@ BODY;
     }
 
     public static function generateRenopsWA(array $ops, array $renops, array $srus = [], array $korban = [], array $unsur = [], array $alut = []): string {
-        $hariKe = strtoupper($renops['hari_ke'] ?: 'H.1');
-        $tglLaporan = self::formatTanggalIndo($renops['tanggal_laporan'] ?? null);
-        $namaOps = $ops['nama_operasi'] ?: 'Operasi SAR';
+        $hariKe = strtoupper($renops['hari_ke'] ?? 'H.1');
+        $namaOps = $ops['nama_operasi'] ?? 'Operasi SAR';
+        $waktuLap = $renops['tanggal_laporan'] ?? date('Y-m-d');
 
-        $header = <<<HEADER
-FILE AKTIF
-____
-
-SEMANGAT QUICK ACTION SEARCH AND RESCUE
-SATU JIWA SATU RASA
-WE ARE FAMILY
-PROFESIONAL MODERN TERUJI
-RENCANA OPS SAR {$hariKe}
-
-KANTOR PENCARIAN DAN PERTOLONGAN KENDARI
-{$tglLaporan}
-
-YTH : KABASARNAS
-CC : PIMTI MADYA & PRATAMA
-
-Dengan hormat, mohon ijin melaporkan Rencana Ops {$namaOps}.
-====================
-HEADER;
+        $header = self::getHeaderWA("RENCANA OPS SAR {$hariKe}", "Rencana Ops {$namaOps}", $waktuLap);
 
         $twBriefing = self::formatTW($renops['waktu_briefing'] ?? null);
         $twMulai = self::formatTW($renops['waktu_mulai_ops'] ?? null);
@@ -348,7 +330,7 @@ HEADER;
             $alutText = implode("\n", $aList);
         }
 
-        $cuaca = $renops['cuaca'] ?: ($ops['cuaca'] ?: 'Cerah Berawan');
+        $cuaca = !empty($renops['cuaca']) ? $renops['cuaca'] : (!empty($ops['cuaca']) ? $ops['cuaca'] : 'Cerah Berawan');
         $sruCount = count($srus) ?: 1;
 
         $body = <<<BODY
@@ -384,30 +366,12 @@ BODY;
     }
 
     public static function generateLapbangWA(array $ops, array $laporan, array $korban = [], array $unsur = [], array $alut = [], bool $isPenutupan = false): string {
-        $hariKe = strtoupper($laporan['hari_ke'] ?: 'H.1');
+        $hariKe = strtoupper($laporan['hari_ke'] ?? 'H.1');
         $judul = $isPenutupan ? "LAPBANG OPS SAR {$hariKe} DAN PENUTUPAN" : "LAPBANG OPS SAR {$hariKe}";
-        $tglLaporan = self::formatTanggalIndo($laporan['waktu_laporan'] ?? null);
-        $namaOps = $ops['nama_operasi'] ?: 'Operasi SAR';
+        $namaOps = $ops['nama_operasi'] ?? 'Operasi SAR';
+        $waktuLap = $laporan['waktu_laporan'] ?? date('Y-m-d H:i:s');
 
-        $header = <<<HEADER
-FILE AKTIF
-____
-
-SEMANGAT QUICK ACTION SEARCH AND RESCUE
-SATU JIWA SATU RASA
-WE ARE FAMILY
-PROFESIONAL MODERN TERUJI
-{$judul}
-
-KANTOR PENCARIAN DAN PERTOLONGAN KENDARI
-{$tglLaporan}
-
-YTH : KABASARNAS
-CC : PIMTI MADYA & PRATAMA
-
-Dengan hormat, mohon ijin melaporkan Perkembangan Ops {$namaOps}.
-__________________________________________________
-HEADER;
+        $header = self::getHeaderWA($judul, "Perkembangan Ops {$namaOps}", $waktuLap);
 
         $klausulPenutupan = '';
         if ($isPenutupan) {
@@ -452,7 +416,7 @@ HEADER;
             $alutText = implode("\n", $aList);
         }
 
-        $isi = $laporan['isi_laporan'] ?: 'Pencarian telah dilaksanakan oleh Tim SAR Gabungan sesuai Renops.';
+        $isi = !empty($laporan['isi_laporan']) ? $laporan['isi_laporan'] : 'Pencarian telah dilaksanakan oleh Tim SAR Gabungan sesuai Renops.';
 
         $body = <<<BODY
 Hasil Ops SAR {$hariKe}:

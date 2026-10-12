@@ -236,22 +236,12 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
         <!-- Banner Bottom Actions Bar -->
         <div class="pt-2.5 border-t border-slate-200 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                <span>Waktu Mulai:</span>
+                <span>Waktu Mulai Ops:</span>
                 <span class="font-bold text-orange-600 dark:text-orange-400 font-mono"><?= TemplateHelper::formatTanggalIndo($waktuMulaiOps) ?> (<?= TemplateHelper::formatJamWITA($waktuMulaiOps) ?> WITA)</span>
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
                 <?php if ($isOpen): ?>
-                <a href="<?= BASE_URL ?>/renops_form.php?id_operasi=<?= $id ?>" id="btn-buat-renops" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md shadow-orange-600/20 hover:scale-[1.02] active:scale-[0.98] transition">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-                    <span>+ Renops H.<?= $nextRenops['target_day_number'] ?? substr($hariKe, 2) ?></span>
-                </a>
-
-                <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>" id="btn-buat-sitrep" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/20 hover:scale-[1.02] active:scale-[0.98] transition">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-                    <span>+ Lapbang / Sitrep</span>
-                </a>
-
                 <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow transition cursor-pointer" onclick="openModal('modal-close-ops-detail')" title="Tutup Operasi SAR">
                     <span>🔒</span>
                     <span>Tutup Operasi</span>
@@ -312,20 +302,28 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
 <!-- ========================================== -->
 <!-- TAB 1: ALUR HIRARKI LAPORAN OPERASI SAR -->
 <!-- ========================================== -->
-<div id="tab-content-hierarchy" class="tab-pane" style="display: <?= $activeTab === 'hierarchy' ? 'block' : 'none' ?>;">
-    <div style="margin-bottom: 1.5rem;">
-        <h2 style="font-size: 0.95rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-main); margin: 0 0 0.35rem 0;">
-            ALUR HIRARKI LAPORAN OPERASI SAR
-        </h2>
-        <p style="font-size: 0.775rem; color: var(--text-muted); margin: 0;">
-            Urutan terstruktur: Laporan Awal ➔ Renops H.1 ➔ Lapbang H.1 ➔ Renops H.2 ➔ Lapbang H.2 ➔ dst.
-        </p>
+<div id="tab-content-hierarchy" class="tab-pane space-y-4" style="display: <?= $activeTab === 'hierarchy' ? 'block' : 'none' ?>;">
+    <div class="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-800/40 dark:to-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                    Silsilah Terstruktur
+                </span>
+                <span class="text-xs text-slate-400 font-medium">
+                    Total: <?= count($timeline) ?> Dokumen Terbit
+                </span>
+            </div>
+            <h2 class="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                <span>⏱️</span>
+                <span>Alur Kronologis Dokumen Operasi SAR</span>
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                Urutan rantai pelaporan terpadu: Laporan Awal ➔ Renops H.1 ➔ Lapbang H.1 ➔ Renops H.2 ➔ Lapbang H.2 ➔ Seterusnya hingga Penutupan.
+            </p>
+        </div>
     </div>
 
-    <div style="position: relative; padding-left: 32px; display: flex; flex-direction: column; gap: 1rem;">
-        <!-- Vertical connector line -->
-        <div style="position: absolute; left: 10px; top: 24px; bottom: 24px; width: 2px; background: var(--primary); opacity: 0.35;"></div>
-
+    <div class="relative pl-6 sm:pl-8 space-y-3.5 before:absolute before:left-3 sm:before:left-4 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
         <?php foreach ($timeline as $idx => $doc): 
             $docType = $doc['type'];
             $isAwal = $docType === 'LAPORAN_AWAL';
@@ -333,57 +331,50 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
             $isPenutupan = $docType === 'PENUTUPAN';
             $isLapbang = $docType === 'LAPBANG';
 
-            $badgeBg = 'rgba(59, 130, 246, 0.12)';
-            $badgeColor = '#2563EB';
-            $badgeBorder = 'rgba(59, 130, 246, 0.3)';
-            if ($isRenops) {
-                $badgeBg = 'rgba(249, 115, 22, 0.12)';
-                $badgeColor = '#EA580C';
-                $badgeBorder = 'rgba(249, 115, 22, 0.3)';
-            } elseif ($isPenutupan) {
-                $badgeBg = 'rgba(239, 68, 68, 0.12)';
-                $badgeColor = '#EF4444';
-                $badgeBorder = 'rgba(239, 68, 68, 0.3)';
-            } elseif ($isLapbang) {
-                $badgeBg = 'rgba(16, 185, 129, 0.12)';
-                $badgeColor = '#059669';
-                $badgeBorder = 'rgba(16, 185, 129, 0.3)';
-            }
+            $nodeColor = $isRenops ? 'bg-orange-500 text-white' : ($isPenutupan ? 'bg-red-500 text-white' : ($isLapbang ? 'bg-emerald-600 text-white' : 'bg-blue-600 text-white'));
+            $badgeClass = $isRenops ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' : ($isPenutupan ? 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' : ($isLapbang ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'));
         ?>
-        <div style="position: relative;">
-            <!-- Primary Numbered Circle Badge on the line -->
-            <div style="position: absolute; left: -32px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 9999px; background: var(--primary); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; border: 2px solid var(--bg-card); z-index: 2; box-shadow: 0 1px 3px rgba(0,0,0,0.12);">
+        <div class="relative">
+            <!-- Node Pin -->
+            <div class="absolute -left-6 sm:-left-8 top-1/2 -translate-y-1/2 w-6 h-6 sm:w-7 sm:h-7 rounded-full <?= $nodeColor ?> flex items-center justify-center font-mono font-black text-[11px] shadow-sm ring-4 ring-white dark:ring-slate-900 z-10">
                 <?= $idx + 1 ?>
             </div>
 
-            <!-- Card -->
-            <div style="border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 0.875rem; padding: 1.15rem 1.35rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; box-shadow: var(--shadow-xs);">
-                <div>
-                    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                        <span style="display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 6px; font-family: monospace; font-size: 0.725rem; font-weight: 700; background: <?= $badgeBg ?>; color: <?= $badgeColor ?>; border: 1px solid <?= $badgeBorder ?>; letter-spacing: 0.03em;">
+            <!-- Item Card -->
+            <div class="p-4 sm:p-4.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-slate-300 dark:hover:border-slate-700 transition">
+                <div class="space-y-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="px-2.5 py-0.5 rounded-lg font-mono text-[11px] font-bold border <?= $badgeClass ?>">
                             <?= e($docType) ?> • <?= e($doc['hari_ke']) ?>
                         </span>
-                        <span style="font-size: 0.95rem; font-weight: 800; color: var(--text-main);">
+                        <h4 class="text-sm font-bold text-slate-900 dark:text-white">
                             <?= e($doc['label']) ?>
-                        </span>
+                        </h4>
                     </div>
-                    <div style="font-size: 0.775rem; color: var(--text-muted); margin-top: 0.35rem;">
-                        Waktu/TW: <?= TemplateHelper::formatTanggalIndo($doc['waktu']) ?> (<?= TemplateHelper::formatJamWITA($doc['waktu']) ?> WITA)<?= !empty($doc['cuaca']) ? ' • Cuaca: ' . e($doc['cuaca']) : '' ?>
+                    <div class="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-2">
+                        <span>📅 <?= TemplateHelper::formatTanggalIndo($doc['waktu']) ?> (<?= TemplateHelper::formatJamWITA($doc['waktu']) ?> WITA)</span>
+                        <?php if (!empty($doc['cuaca'])): ?>
+                        <span>•</span>
+                        <span>🌤️ <?= e($doc['cuaca']) ?></span>
+                        <?php endif; ?>
                     </div>
                 </div>
 
-                <div>
+                <div class="shrink-0">
                     <?php if ($isAwal): ?>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="openModal('modal-view-wa-awal')" style="font-size: 0.8rem; font-weight: 600; padding: 6px 16px; border-radius: 8px;">
-                        Lihat Naskah WA
+                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition cursor-pointer" onclick="openModal('modal-view-wa-awal')">
+                        <span>📱</span>
+                        <span>Naskah WA</span>
                     </button>
                     <?php elseif ($isRenops): ?>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="switchTab('renops')" style="font-size: 0.8rem; font-weight: 700; color: #EA580C; border-color: rgba(249, 115, 22, 0.4); background: rgba(249, 115, 22, 0.05); padding: 6px 16px; border-radius: 8px;">
-                        Buka Tab Renops
+                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/30 font-bold text-xs transition cursor-pointer" onclick="switchTab('renops')">
+                        <span>🧭</span>
+                        <span>Buka Tab RENOPS</span>
                     </button>
                     <?php elseif ($isLapbang || $isPenutupan): ?>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="switchTab('sitrep')" style="font-size: 0.8rem; font-weight: 700; color: #10B981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.05); padding: 6px 16px; border-radius: 8px;">
-                        Buka Tab Lapbang
+                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-500/30 font-bold text-xs transition cursor-pointer" onclick="switchTab('sitrep')">
+                        <span>📊</span>
+                        <span>Buka Tab Lapbang</span>
                     </button>
                     <?php endif; ?>
                 </div>
@@ -455,19 +446,23 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
 
     <!-- RENOPS FEED LIST -->
     <?php if (empty($operasi['renops'])): ?>
-    <div class="p-6 sm:p-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs text-center">
-        <div class="w-12 h-12 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-2xl mx-auto mb-3">
+    <div class="p-8 sm:p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs text-center">
+        <div class="w-14 h-14 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-3xl mx-auto mb-3.5">
             🧭
         </div>
-        <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-1">Belum Ada Rencana Operasi (RENOPS)</h3>
+        <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1.5">Belum Ada Rencana Operasi (RENOPS)</h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-4 leading-relaxed">
-            Buat lembar RENOPS untuk menentukan sektor koordinat pencarian, pembagian unit SRU, serta pola penyisiran tim lapangan hari ini.
+            Lembar RENOPS memuat pembagian Search and Rescue Unit (SRU), sektor koordinat pencarian, serta pola penyisiran armada tim gabungan per hari operasi.
         </p>
         <?php if ($isOpen): ?>
-        <a href="<?= BASE_URL ?>/renops_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md shadow-orange-600/20 transition cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            <span>Buat RENOPS H.1 Sekarang</span>
-        </a>
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 text-orange-700 dark:text-orange-300 text-xs font-semibold">
+            <span>💡</span>
+            <span>Gunakan tombol <strong>+ Buat RENOPS H.<?= $nextRenops['target_day_number'] ?? substr($hariKe, 2) ?></strong> di sudut kanan atas untuk menyusun rencana operasi.</span>
+        </div>
+        <?php else: ?>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-semibold">
+            🔒 Operasi ditutup, penyusunan RENOPS dinonaktifkan.
+        </span>
         <?php endif; ?>
     </div>
     <?php else: foreach ($operasi['renops'] as $ren): 
@@ -475,6 +470,10 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
         $snapAlut = !empty($ren['detail_alut']) && is_array($ren['detail_alut']) ? $ren['detail_alut'] : ($operasi['detail_alut'] ?? []);
         $totalSnapPers = array_sum(array_map(fn($u) => (int)($u['jumlah_personil'] ?? 0), $snapUnsur));
         $totalSnapAlut = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 0), $snapAlut));
+        $renWa = $ren['full_text_wa'] ?? '';
+        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false) {
+            $renWa = TemplateHelper::generateRenopsWA($operasi, $ren, $ren['srus'] ?? [], $operasi['korban'] ?? [], $snapUnsur, $snapAlut);
+        }
     ?>
     <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden transition-all hover:shadow-md">
         
@@ -491,7 +490,7 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
 
             <!-- Action Toolbar for Renops -->
             <div class="flex items-center gap-1.5 flex-wrap">
-                <button type="button" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer" onclick='copyTextToClipboard(<?= htmlspecialchars(json_encode($ren["full_text_wa"]), ENT_QUOTES) ?>, "Naskah RENOPS WhatsApp Berhasil Disalin!")'>
+                <button type="button" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer" onclick='copyTextToClipboard(<?= htmlspecialchars(json_encode($renWa), ENT_QUOTES) ?>, "Naskah RENOPS WhatsApp Berhasil Disalin!")'>
                     📋 <span>Salin WA</span>
                 </button>
                 <?php if ($isOpen): ?>
@@ -611,7 +610,7 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
                     <span class="text-slate-400 group-open:rotate-180 transition-transform">▼</span>
                 </summary>
                 <div class="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                    <pre class="font-mono text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed select-all max-h-80 overflow-y-auto"><?= e($ren['full_text_wa']) ?></pre>
+                    <pre class="font-mono text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed select-all max-h-80 overflow-y-auto"><?= e($renWa) ?></pre>
                 </div>
             </details>
         </div>
@@ -767,23 +766,23 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
 
     <!-- LIST FEED SITREP -->
     <?php if (empty($operasi['laporan_harian'])): ?>
-    <div class="p-6 sm:p-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs text-center">
-        <div class="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-2xl mx-auto mb-3">
-            📡
+    <div class="p-8 sm:p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs text-center">
+        <div class="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center text-3xl mx-auto mb-3.5">
+            📊
         </div>
-        <h3 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white mb-1">Belum Ada Laporan Perkembangan (SITREP)</h3>
+        <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1.5">Belum Ada Laporan Perkembangan (SITREP)</h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-4 leading-relaxed">
-            Catat hasil pencarian harian tim gabungan atau debriefing penutupan operasi untuk memenuhi prosedur pelaporan berkala Basarnas.
+            Laporan perkembangan memuat evaluasi hasil pencarian harian tim gabungan, mutasi korban, serta debriefing penutupan operasi SAR.
         </p>
         <?php if ($isOpen): ?>
-        <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md shadow-blue-600/20 transition cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            <span>Terbitkan SITREP <?= e($hariKe) ?> Sekarang</span>
-        </a>
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-semibold">
+            <span>💡</span>
+            <span>Gunakan tombol <strong>+ Terbitkan SITREP <?= e($hariKe) ?></strong> di sudut kanan atas untuk merilis laporan perkembangan lapangan.</span>
+        </div>
         <?php else: ?>
-        <p class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-semibold">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-semibold">
             🔒 Operasi telah ditutup, penerbitan SITREP dinonaktifkan.
-        </p>
+        </span>
         <?php endif; ?>
     </div>
     <?php else: ?>
@@ -794,6 +793,10 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
             $snapAlut = !empty($lap['detail_alut']) && is_array($lap['detail_alut']) ? $lap['detail_alut'] : ($operasi['detail_alut'] ?? []);
             $totalSnapPers = array_sum(array_map(fn($u) => (int)($u['jumlah_personil'] ?? 0), $snapUnsur));
             $totalSnapAlut = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 0), $snapAlut));
+            $lapWa = $lap['full_text_wa'] ?? '';
+            if (empty($lapWa) || strpos($lapWa, 'FILE AKTIF') === false) {
+                $lapWa = TemplateHelper::generateLapbangWA($operasi, $lap, $operasi['korban'] ?? [], $snapUnsur, $snapAlut, $isPenutupan);
+            }
         ?>
         <div class="rounded-2xl bg-white dark:bg-slate-900 border <?= $isPenutupan ? 'border-red-500/40 dark:border-red-900/60' : 'border-slate-200 dark:border-slate-800' ?> shadow-xs overflow-hidden transition-all hover:shadow-md">
             
@@ -812,7 +815,7 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
 
                 <!-- Action Toolbar -->
                 <div class="flex items-center gap-1.5 flex-wrap">
-                    <button type="button" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer" onclick='copyTextToClipboard(<?= htmlspecialchars(json_encode($lap["full_text_wa"]), ENT_QUOTES) ?>, "Naskah SITREP WhatsApp Berhasil Disalin!")'>
+                    <button type="button" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer" onclick='copyTextToClipboard(<?= htmlspecialchars(json_encode($lapWa), ENT_QUOTES) ?>, "Naskah SITREP WhatsApp Berhasil Disalin!")'>
                         📋 <span>Salin WA</span>
                     </button>
                     <?php if ($isOpen): ?>
@@ -902,15 +905,12 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
                     <summary class="px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30 transition">
                         <span class="flex items-center gap-2">
                             <span>📱</span>
-                            <span>Lihat Format Naskah WhatsApp Resmi (Siap Kirim ke Senkom)</span>
+                            <span>Lihat Format Naskah WhatsApp Resmi (FILE AKTIF)</span>
                         </span>
                         <span class="text-[11px] font-mono font-normal text-slate-400 group-open:rotate-180 transition-transform">▼</span>
                     </summary>
-                    <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 relative">
-                        <button type="button" class="absolute top-3 right-3 px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-slate-700 dark:text-slate-300 text-[11px] font-semibold transition" onclick='copyTextToClipboard(<?= htmlspecialchars(json_encode($lap["full_text_wa"]), ENT_QUOTES) ?>, "Naskah SITREP WhatsApp Berhasil Disalin!")'>
-                            📋 Salin Naskah
-                        </button>
-                        <pre class="font-mono text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed select-all max-h-80 overflow-y-auto"><?= e($lap['full_text_wa']) ?></pre>
+                    <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+                        <pre class="font-mono text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed select-all max-h-80 overflow-y-auto"><?= e($lapWa) ?></pre>
                     </div>
                 </details>
             </div>
@@ -1201,16 +1201,17 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
 
     <?php if (empty($operasi['bra_sar'])): ?>
     <div class="p-8 sm:p-12 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-center">
-        <div class="w-16 h-16 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-3xl mx-auto mb-4">
+        <div class="w-14 h-14 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center text-3xl mx-auto mb-3.5">
             📡
         </div>
-        <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1.5">Belum Ada Berita Radio SAR</h3>
-        <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6 leading-relaxed">
-            Terbitkan naskah telegram resmi Basarnas untuk dikirimkan ke Kabasarnas dan jajaran pimpinan.
+        <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1.5">Belum Ada Berita Radio SAR (BRA)</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-4 leading-relaxed">
+            Terbitkan naskah telegram resmi Basarnas untuk dikirimkan ke Kabasarnas dan jajaran pimpinan Senkom.
         </p>
-        <a href="<?= BASE_URL ?>/bra_form.php?id_operasi=<?= $id ?>&from=laporan_awal" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md shadow-orange-600/20 transition cursor-pointer">
-            <span>Buat BRA SAR Sekarang</span>
-        </a>
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/50 text-orange-700 dark:text-orange-300 text-xs font-semibold">
+            <span>💡</span>
+            <span>Gunakan tombol <strong>➕ Buat BRA SAR Baru</strong> di sudut kanan atas untuk menerbitkan telegram.</span>
+        </div>
     </div>
     <?php else: foreach ($operasi['bra_sar'] as $bra): ?>
     <div class="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
@@ -1351,8 +1352,14 @@ $lkpLng = $hasLkpCoords ? (float)$lkpCoords['lng'] : 122.486694;
             </div>
             <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modal-view-wa-awal')">✕</button>
         </div>
+        <?php
+            $awalWa = $operasi['full_text_wa'] ?? '';
+            if (empty($awalWa) || strpos($awalWa, 'FILE AKTIF') === false) {
+                $awalWa = TemplateHelper::generateLaporanAwalWA($operasi, $operasi['korban'] ?? [], $operasi['detail_unsur'] ?? [], $operasi['detail_alut'] ?? []);
+            }
+        ?>
         <div class="modal-body" style="padding: 1.25rem;">
-            <pre id="modal-wa-awal-text" class="font-mono" style="background-color: var(--bg-card-subtle); padding: 1.25rem; border-radius: 0.75rem; font-size: 0.8rem; white-space: pre-wrap; line-height: 1.6; max-height: 55vh; overflow-y: auto; border: 1px solid var(--border-color); color: var(--text-main);"><?= e($operasi['full_text_wa']) ?></pre>
+            <pre id="modal-wa-awal-text" class="font-mono" style="background-color: var(--bg-card-subtle); padding: 1.25rem; border-radius: 0.75rem; font-size: 0.8rem; white-space: pre-wrap; line-height: 1.6; max-height: 55vh; overflow-y: auto; border: 1px solid var(--border-color); color: var(--text-main);"><?= e($awalWa) ?></pre>
         </div>
         <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
             <span style="font-size: 0.75rem; color: var(--text-muted);">Format Resmi Basarnas Siap Kirim</span>

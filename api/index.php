@@ -41,6 +41,13 @@ if ($scriptDir !== '/' && str_starts_with($path, $scriptDir)) {
 $path = preg_replace('#^/api#', '', $path);
 $path = '/' . trim($path, '/');
 
+// Support explicit path parameter: e.g. /api/index.php?path=/ai/refine-sitrep
+if (!empty($_GET['path'])) {
+    $path = '/' . ltrim((string)$_GET['path'], '/');
+} elseif ($path === '/index.php' && !empty($_SERVER['QUERY_STRING']) && preg_match('#^/([a-zA-Z0-9_\-/]+)#', $_SERVER['QUERY_STRING'], $qm)) {
+    $path = '/' . ltrim($qm[1], '/');
+}
+
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 $rawInput = file_get_contents('php://input');
 $input = !empty($rawInput) ? json_decode($rawInput, true) : [];
@@ -381,9 +388,9 @@ try {
     }
 
     if ($path === '/ai/refine-sitrep' && $method === 'POST') {
-        $raw = $input['rawDraft'] ?? ($input['draftInput'] ?? '');
-        $hariKe = $input['hariKe'] ?? 'H.1';
-        $nama = $input['namaOperasi'] ?? '';
+        $raw = $input['rawDraft'] ?? ($input['catatan'] ?? ($input['rawText'] ?? ($input['draftInput'] ?? ($input['isi_laporan'] ?? ''))));
+        $hariKe = $input['hariKe'] ?? ($input['hari_ke'] ?? 'H.1');
+        $nama = $input['namaOperasi'] ?? ($input['nama_operasi'] ?? '');
         echo json_encode(AiHelper::refineSitrepRawDraft($raw, $hariKe, $nama, [
             'unsur' => $input['unsur'] ?? '',
             'alut' => $input['alut'] ?? '',
@@ -395,15 +402,15 @@ try {
 
     if ($path === '/ai/draft-sitrep' && $method === 'POST') {
         $mode = $input['mode'] ?? 'quick_draft';
-        $hariKe = $input['hariKe'] ?? 'H.1';
-        $nama = $input['namaOperasi'] ?? '';
+        $hariKe = $input['hariKe'] ?? ($input['hari_ke'] ?? 'H.1');
+        $nama = $input['namaOperasi'] ?? ($input['nama_operasi'] ?? '');
         $unsur = $input['unsur'] ?? '';
         $alut = $input['alut'] ?? '';
         $hasil = $input['hasil'] ?? 'NIHIL';
         $kendala = $input['kendala'] ?? 'Nihil';
 
         if ($mode === 'refine_raw') {
-            $raw = $input['rawDraft'] ?? ($input['draftInput'] ?? ($input['tindakanHariIni'] ?? ''));
+            $raw = $input['rawDraft'] ?? ($input['catatan'] ?? ($input['rawText'] ?? ($input['draftInput'] ?? ($input['tindakanHariIni'] ?? ''))));
             echo json_encode(AiHelper::refineSitrepRawDraft($raw, $hariKe, $nama, [
                 'unsur' => $unsur,
                 'alut' => $alut,
@@ -413,7 +420,7 @@ try {
             exit;
         }
 
-        $tindakan = $input['tindakanHariIni'] ?? ($input['draftInput'] ?? '');
+        $tindakan = $input['tindakanHariIni'] ?? ($input['draftInput'] ?? ($input['catatan'] ?? ''));
         echo json_encode(AiHelper::draftSitrep($hariKe, $tindakan, $hasil, $kendala, $nama, [
             'unsur' => $unsur,
             'alut' => $alut

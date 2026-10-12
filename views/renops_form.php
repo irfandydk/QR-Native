@@ -687,41 +687,116 @@ function previewRenopsWa() {
   const cuaca = document.getElementById('renops_cuaca')?.value || 'Cerah Berawan';
 
   const tglStr = window.formatTanggalIndo ? window.formatTanggalIndo(tgl) : tgl;
-  const jamBriefing = window.formatJamWita ? window.formatJamWita(briefing) : briefing;
-  const jamMulai = window.formatJamWita ? window.formatJamWita(mulai) : mulai;
   const namaOps = <?= json_encode($operasi['nama_operasi']) ?>;
+  const korbanList = <?= json_encode($operasi['korban'] ?? []) ?>;
 
-  let sruText = '';
-  currentSrus.forEach((s, i) => {
-    sruText += `${i + 1}. ${s.nama_sru || 'SRU'}:\n   - Area/Tugas: ${s.koordinat_area || '-'}\n   - Luas: ${s.luas_area || '-'}\n   - Pola: ${s.pola_pencarian || '-'}\n\n`;
+  function formatTw(dtStr) {
+    if (!dtStr) return 'TW 0000 0000 H';
+    const d = new Date(dtStr);
+    if (isNaN(d.getTime())) return 'TW 0000 0000 H';
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `TW ${mm}${dd} ${hh}${min} H`;
+  }
+
+  let sruList = [];
+  if (currentSrus.length === 0) {
+    sruList.push(`*SRU 1 Tim Rescue Kansar Kendari melakukan penyisiran dgn koordinat\nA: <?= addslashes($operasi['koordinat'] ?: '-') ?>\nLuas area pencarian 10 Nm²\nPola pencarian : Parallel Track Search`);
+  } else {
+    currentSrus.forEach((s) => {
+      const name = s.nama_sru ? (s.nama_sru.startsWith('*') ? s.nama_sru : `*${s.nama_sru}`) : '*SRU 1';
+      const koor = s.koordinat_area || '<?= addslashes($operasi['koordinat'] ?: '-') ?>';
+      const luas = s.luas_area || '-';
+      const pola = s.pola_pencarian || 'Parallel Track Search';
+      sruList.push(`${name} melakukan penyisiran dgn koordinat\n${koor}\nLuas area pencarian ${luas}\nPola pencarian : ${pola}`);
+    });
+  }
+  const sruOutput = sruList.join('\n\n');
+  const sruCount = currentSrus.length || 1;
+
+  let sCount = 0, mdCount = 0, dpCount = 0, hCount = 0;
+  const kList = [];
+  korbanList.forEach((k, idx) => {
+    const st = (k.status_korban || 'DP').toUpperCase();
+    if (st === 'S') sCount++;
+    else if (st === 'MD') mdCount++;
+    else if (st === 'DP') dpCount++;
+    else if (st === 'H') hCount++;
+    else dpCount++;
+    const label = st === 'DP' ? '' : ` (${st === 'S' ? 'Selamat (S)' : (st === 'MD' ? 'Meninggal Dunia (MD)' : 'Hilang / Nihil (H)')})`;
+    kList.push(`${idx + 1}. Nama : ${k.nama_korban || '-'}${label}\n   Umur : ${k.umur || '-'}\n   Jenis Kelamin : ${k.jk || '-'}\n   Alamat : ${k.alamat || '-'}`);
   });
+  const identitasText = kList.length > 0 ? kList.join('\n\n') : '1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -';
 
-  const unsurText = currentUnsurList.map(u => `• ${u.nama_unsur} (${u.jumlah_personil || 1} Org)`).join('\n') || '-';
-  const alutText = currentAlutList.map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n') || '-';
+  const unsurText = currentUnsurList.map(u => `• ${u.nama_unsur} : ${u.jumlah_personil || 1} Orang`).join('\n') || '• Tim Rescue Kansar Kendari : 7 Orang';
+  const alutText = currentAlutList.map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n') || '• 1 Unit Rescue Car\n• 1 Unit Rubber Boat';
 
-  const preview = `RENCANA OPERASI SAR (${hariKe})
+  const header = `FILE AKTIF
+____
+
+SEMANGAT QUICK ACTION SEARCH AND RESCUE
+SATU JIWA SATU RASA
+WE ARE FAMILY
+PROFESIONAL MODERN TERUJI
+RENCANA OPS SAR ${hariKe.toUpperCase()}
+
 KANTOR PENCARIAN DAN PERTOLONGAN KENDARI
+${tglStr}
 
-Operasi SAR: ${namaOps}
-Tanggal Pelaksanaan: ${tglStr}
+YTH : KABASARNAS
+CC : PIMTI MADYA & PRATAMA
 
-1. Rencana Pergerakan:
-- Briefing Tim: Pukul ${jamBriefing} WITA
-- Mulai Pencarian: Pukul ${jamMulai} WITA
+Dengan hormat, mohon ijin melaporkan Rencana Ops ${namaOps}.
+__________________________________________________`;
 
-2. Kondisi Cuaca BMKG:
-${cuaca}
+  const footer = `Demikian kami laporkan, mohon petunjuk dan arahan
 
-3. Pembagian SRU & Sektor:
-${sruText || 'Menyesuaikan situasi dinamis di lapangan.\n'}
-4. Potensi SAR Terlibat:
+Ttd
+
+KKS Kendari
+===========================
+🏢 Kantor Pencarian Dan Pertolongan Kendari
+📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116
+☎️ Telp. : (0401) 3196557
+📠 Fax. : (0401) 3196558
+📱 WhatsApp : +62811-4034-115
+🚨 Emergency Call : 115
+🌐 Website : Www.Kendari.Basarnas.go.id
+📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id
+📲 Medsos : @Basarnaskendari`;
+
+  const preview = `${header}
+
+Rencana Ops ${hariKe.toUpperCase()} :
+
+• PD ${formatTw(briefing)} Tim SAR Gabungan Melaksanakan Brifing Operasi.
+• Pada ${formatTw(mulai)} Tim SAR Gabungan Melanjutkan Operasi Pencarian ${hariKe.toUpperCase()} Sesuai Rencana Operasi ${hariKe.toUpperCase()} dengan Tim SAR gabungan menuju ke entri point masing-masing.
+Dengan Tim dibagi ${sruCount} SRU dengan area pencarian sbb :
+
+${sruOutput}
+
+1. Data Korban: ${korbanList.length} Orang
+• S : ${sCount} ORANG
+• MD : ${mdCount} ORANG
+• DP : ${dpCount} ORANG
+• H : ${hCount} ORANG
+
+2. Identitas Korban
+${identitasText}
+
+3. Unsur SAR Terlibat
 ${unsurText}
 
-5. Armada Alut & Palsar:
+4. Alut dan Palsar
 ${alutText}
 
-Demikian Rencana Operasi SAR ini disusun.
-SAR KENDARI`;
+5. Kondisi Cuaca :
+• Cuaca: ${cuaca}
+(Sumber BMKG)
+
+${footer}`;
 
   document.getElementById('renops-wa-preview-content').textContent = preview;
   openModal('modal-preview-renops-wa');

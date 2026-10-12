@@ -149,10 +149,16 @@ declare(strict_types=1);
             <p class="text-xs text-slate-500 dark:text-slate-400">Deskripsi kronologis hasil operasi hari ini, koordinat temuan, debriefing, dan rencana lanjutan</p>
           </div>
         </div>
-        <button type="button" onclick="quickAiRefineSitrep()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-500/10 hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white border border-purple-500/20 hover:border-purple-600 shadow-sm transition cursor-pointer" title="Perhalus bahasa naskah dengan AI Gemini">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-          <span>✨ Rapikan dengan AI</span>
-        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-quick-refine-sitrep" onclick="quickAiRefineSitrep(this)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-500/10 hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white border border-purple-500/20 hover:border-purple-600 shadow-sm transition cursor-pointer" title="Rapikan narasi hasil operasi secara instan dengan AI Gemini">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            <span class="btn-text">✨ Rapikan dengan AI</span>
+          </button>
+          <button type="button" id="btn-open-ai-sitrep-modal" onclick="openAiSitrepModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition cursor-pointer" title="Buka dialog interaktif Asisten AI untuk menyusun narasi resmi SITREP">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+            <span>Asisten AI SITREP</span>
+          </button>
+        </div>
       </div>
 
       <div class="space-y-3">
@@ -405,6 +411,75 @@ declare(strict_types=1);
   </div>
 </div>
 
+<!-- Modal Asisten AI SITREP -->
+<div id="modal-ai-sitrep" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden" style="display: none;">
+  <div class="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Asisten AI Laporan Perkembangan (SITREP)</h3>
+          <p class="text-[11px] text-slate-400">Menyusun ulang hasil operasi harian menjadi narasi resmi standar Basarnas</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeModal('modal-ai-sitrep')" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+        ✕
+      </button>
+    </div>
+
+    <div class="p-6 space-y-4 overflow-y-auto">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          Catatan / Catatan Mentah Lapangan:
+        </label>
+        <textarea id="ai-sitrep-draft-input" rows="4" placeholder="Tuliskan catatan hasil pencarian hari ini (contoh: tim sru 1 menyisir 5 mil laut, ombak tinggi, hasil sampai sore masih nihil, besok lanjut jam 7 pagi...)" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
+        <p class="text-[10px] text-purple-600 dark:text-purple-400 mt-1">💡 Asisten AI akan merangkai kalimat menjadi narasi resmi laporan perkembangan harian Basarnas.</p>
+
+        <!-- Presets inside modal -->
+        <div class="flex flex-wrap items-center gap-1.5 mt-2">
+          <span class="text-[10px] text-slate-400 font-semibold mr-1">Preset Cepat:</span>
+          <button type="button" onclick="setAiSitrepDraftInput('Tim SAR Gabungan telah melaksanakan penyisiran sesuai Renops. Hingga operasi dihentikan sementara pada petang hari, pencarian masih nihil dan akan dilanjutkan kembali esok pagi.')" class="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition cursor-pointer">
+            🔍 Pencarian Nihil (Lanjut Esok)
+          </button>
+          <button type="button" onclick="setAiSitrepDraftInput('Tim SAR Gabungan berhasil menemukan korban dalam keadaan selamat dan langsung dievakuasi ke posko terdekat untuk penanganan medis lanjutan.')" class="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition cursor-pointer">
+            🚑 Korban Ditemukan Selamat
+          </button>
+          <button type="button" onclick="setAiSitrepDraftInput('Tim SAR Gabungan menemukan korban dalam keadaan meninggal dunia (MD). Jenazah korban dievakuasi dan diserahterimakan kepada pihak keluarga/RS.')" class="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 transition cursor-pointer">
+            ⚰️ Korban Ditemukan MD
+          </button>
+          <button type="button" onclick="setAiSitrepDraftInput('Seluruh korban telah berhasil dievakuasi. Tim SAR Gabungan menggelar debriefing dan Operasi SAR resmi diusulkan untuk ditutup.')" class="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 transition cursor-pointer">
+            🏁 Debriefing & Usul Penutupan
+          </button>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="button" id="btn-generate-ai-sitrep" onclick="generateAiSitrep()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm transition cursor-pointer">
+          ⚡ Susun Narasi Resmi
+        </button>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+          Hasil Narasi Resmi Basarnas:
+        </label>
+        <textarea id="ai-sitrep-result-output" rows="4" placeholder="Hasil olahan narasi AI akan muncul di sini..." class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs leading-relaxed font-mono focus:outline-none"></textarea>
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/50">
+      <button type="button" onclick="closeModal('modal-ai-sitrep')" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+        Batal
+      </button>
+      <button type="button" onclick="applyAiSitrep()" class="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition cursor-pointer">
+        Terapkan ke Form
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 // Data state
 let currentUnsurList = <?= json_encode($initialUnsurData) ?>;
@@ -453,14 +528,21 @@ function handleJenisLaporanChange(val) {
   }
 }
 
-// ── Quick AI Refinement for Sitrep ──
-async function quickAiRefineSitrep() {
+// ── Quick AI Refinement & Interactive Assistant for Sitrep ──
+async function quickAiRefineSitrep(btn) {
   const isiEl = document.getElementById('sitrep_isi_laporan');
   if (!isiEl) return;
   const rawText = isiEl.value.trim();
   if (!rawText) {
     if (typeof showToast === 'function') showToast('Ketikkan ringkasan hasil lapangan terlebih dahulu untuk dirapikan AI.', 'warning');
+    isiEl.focus();
     return;
+  }
+
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="animate-spin w-3.5 h-3.5 inline mr-1 text-purple-600 dark:text-purple-300" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> <span>Merapikan...</span>`;
   }
 
   if (typeof showToast === 'function') showToast('Menyusun naskah laporan resmi dengan AI Gemini...', 'info');
@@ -471,13 +553,20 @@ async function quickAiRefineSitrep() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         catatan: rawText,
+        rawDraft: rawText,
         hari_ke: document.getElementById('sitrep_hari_ke')?.value || 'H.1',
-        nama_operasi: <?= json_encode($operasi['nama_operasi']) ?>
+        hariKe: document.getElementById('sitrep_hari_ke')?.value || 'H.1',
+        nama_operasi: <?= json_encode($operasi['nama_operasi']) ?>,
+        namaOperasi: <?= json_encode($operasi['nama_operasi']) ?>
       })
     });
     const json = await res.json();
     if (json.success && json.text) {
       isiEl.value = json.text;
+      isiEl.classList.add('ring-4', 'ring-purple-500/50', 'transition-all');
+      setTimeout(() => {
+        isiEl.classList.remove('ring-4', 'ring-purple-500/50');
+      }, 2000);
       if (typeof showToast === 'function') showToast('Laporan berhasil dirapikan sesuai format resmi Basarnas!', 'success');
     } else {
       if (typeof showToast === 'function') showToast(json.error || 'Gagal merapikan teks AI', 'error');
@@ -485,7 +574,95 @@ async function quickAiRefineSitrep() {
   } catch (e) {
     console.error('AI Error:', e);
     if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan AI', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
   }
+}
+
+function openAiSitrepModal() {
+  const current = document.getElementById('sitrep_isi_laporan')?.value || '';
+  const draftInputEl = document.getElementById('ai-sitrep-draft-input');
+  if (draftInputEl && !draftInputEl.value.trim() && current.trim()) {
+    draftInputEl.value = current;
+  }
+  openModal('modal-ai-sitrep');
+}
+
+function setAiSitrepDraftInput(txt) {
+  const el = document.getElementById('ai-sitrep-draft-input');
+  if (el) {
+    el.value = txt;
+    el.focus();
+  }
+}
+
+async function generateAiSitrep() {
+  const draftInput = document.getElementById('ai-sitrep-draft-input')?.value.trim() || '';
+  if (!draftInput) {
+    if (typeof showToast === 'function') showToast('Silakan tuliskan catatan lapangan terlebih dahulu untuk disusun oleh Asisten AI', 'warning');
+    document.getElementById('ai-sitrep-draft-input')?.focus();
+    return;
+  }
+
+  const btn = document.getElementById('btn-generate-ai-sitrep');
+  const originalHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<svg class="animate-spin w-3.5 h-3.5 inline mr-1 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> <span>Menyusun Narasi SITREP...</span>`;
+  }
+
+  if (typeof showToast === 'function') showToast('Asisten AI sedang menyusun narasi resmi SITREP...', 'info');
+
+  try {
+    const res = await fetch('<?= BASE_URL ?>/api/index.php?path=/ai/refine-sitrep', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        catatan: draftInput,
+        rawDraft: draftInput,
+        hari_ke: document.getElementById('sitrep_hari_ke')?.value || 'H.1',
+        hariKe: document.getElementById('sitrep_hari_ke')?.value || 'H.1',
+        nama_operasi: <?= json_encode($operasi['nama_operasi']) ?>,
+        namaOperasi: <?= json_encode($operasi['nama_operasi']) ?>
+      })
+    });
+    const json = await res.json();
+    if (json.success && json.text) {
+      document.getElementById('ai-sitrep-result-output').value = json.text;
+      if (typeof showToast === 'function') showToast('Catatan lapangan berhasil disusun menjadi narasi resmi Basarnas!', 'success');
+    } else {
+      if (typeof showToast === 'function') showToast(json.error || 'Gagal menyusun narasi AI', 'error');
+    }
+  } catch (err) {
+    console.error('generateAiSitrep error:', err);
+    if (typeof showToast === 'function') showToast('Terjadi kesalahan jaringan AI', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+}
+
+function applyAiSitrep() {
+  const result = document.getElementById('ai-sitrep-result-output')?.value.trim() || '';
+  if (!result) {
+    if (typeof showToast === 'function') showToast('Belum ada narasi yang dihasilkan', 'warning');
+    return;
+  }
+  const isiEl = document.getElementById('sitrep_isi_laporan');
+  if (isiEl) {
+    isiEl.value = result;
+    isiEl.classList.add('ring-4', 'ring-purple-500/50', 'transition-all');
+    setTimeout(() => {
+      isiEl.classList.remove('ring-4', 'ring-purple-500/50');
+    }, 2000);
+  }
+  closeModal('modal-ai-sitrep');
+  if (typeof showToast === 'function') showToast('Narasi resmi berhasil diterapkan ke form!', 'success');
 }
 
 // ── Unsur SAR Terlibat Editor ──
@@ -750,34 +927,92 @@ function previewSitrepWa() {
   const isi = document.getElementById('sitrep_isi_laporan')?.value || '-';
 
   const tglStr = window.formatTanggalIndo ? window.formatTanggalIndo(waktuLap) : waktuLap;
-  const jamLap = window.formatJamWita ? window.formatJamWita(waktuLap) : waktuLap;
   const namaOps = <?= json_encode($operasi['nama_operasi']) ?>;
+  const korbanList = <?= json_encode($operasi['korban'] ?? []) ?>;
 
-  const unsurText = currentUnsurList.map(u => `• ${u.nama_unsur} (${u.jumlah_personil || 1} Org)`).join('\n') || '-';
-  const alutText = currentAlutList.map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n') || '-';
+  const unsurText = currentUnsurList.map(u => `• ${u.nama_unsur} : ${u.jumlah_personil || 1} Orang`).join('\n') || '• Tim Rescue Kansar Kendari : 7 Orang';
+  const alutText = currentAlutList.map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n') || '• 1 Unit Rescue Car\n• 1 Unit Rubber Boat';
 
-  let headerTitle = isPenutupan ? `LAPORAN PENUTUPAN OPERASI SAR (${hariKe})` : `LAPORAN PERKEMBANGAN OPERASI SAR (${hariKe})`;
+  let sCount = 0, mdCount = 0, dpCount = 0, hCount = 0;
+  const kList = [];
+  korbanList.forEach((k, idx) => {
+    const rowSelect = document.querySelector(`select[name="update_korban[${k.id_korban}][status_korban]"]`);
+    const st = (rowSelect ? rowSelect.value : (k.status_korban || 'DP')).toUpperCase();
+    if (st === 'S') sCount++;
+    else if (st === 'MD') mdCount++;
+    else if (st === 'DP') dpCount++;
+    else if (st === 'H') hCount++;
+    else dpCount++;
+    const label = st === 'S' ? 'Selamat (S)' : (st === 'MD' ? 'Meninggal Dunia (MD)' : (st === 'H' ? 'Hilang / Nihil (H)' : 'Dalam Pencarian (DP)'));
+    kList.push(`${idx + 1}. Nama : ${k.nama_korban || '-'} [Status: ${label}]\n   Umur : ${k.umur || '-'}\n   Jenis Kelamin : ${k.jk || '-'}\n   Alamat : ${k.alamat || '-'}`);
+  });
+  const identitasText = kList.length > 0 ? kList.join('\n\n') : '1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -';
 
-  const preview = `${headerTitle}
+  let klausulPenutupan = '';
+  if (isPenutupan) {
+    const tglDeb = window.formatTanggalSimple ? window.formatTanggalSimple(waktuDebrief) : (window.formatTanggalIndo ? window.formatTanggalIndo(waktuDebrief) : waktuDebrief);
+    const jamDeb = window.formatJamWita ? window.formatJamWita(waktuDebrief) : waktuDebrief;
+    klausulPenutupan = `\n\n• Pada tanggal ${tglDeb} Pukul ${jamDeb} WITA, Tim SAR Gabungan melakukan debriefing penutupan Ops SAR terhadap ${namaOps}, selanjutnya operasi SAR diusulkan ditutup dan unsur SAR yang terlibat kembali ke kesatuannya masing-masing dengan ucapan terima kasih.`;
+  }
+
+  const headerTitle = isPenutupan ? `LAPBANG OPS SAR ${hariKe.toUpperCase()} DAN PENUTUPAN` : `LAPBANG OPS SAR ${hariKe.toUpperCase()}`;
+
+  const header = `FILE AKTIF
+____
+
+SEMANGAT QUICK ACTION SEARCH AND RESCUE
+SATU JIWA SATU RASA
+WE ARE FAMILY
+PROFESIONAL MODERN TERUJI
+${headerTitle}
+
 KANTOR PENCARIAN DAN PERTOLONGAN KENDARI
+${tglStr}
 
-Operasi SAR: ${namaOps}
-Waktu Laporan: ${tglStr} Pukul ${jamLap} WITA
+YTH : KABASARNAS
+CC : PIMTI MADYA & PRATAMA
 
-1. Hasil Pencarian & Tindakan:
-${isi}
-${isPenutupan ? `\nDebriefing Penutupan: ${window.formatTanggalIndo ? window.formatTanggalIndo(waktuDebrief) : waktuDebrief} Pukul ${window.formatJamWita ? window.formatJamWita(waktuDebrief) : waktuDebrief} WITA\nOperasi SAR resmi dinyatakan DITUTUP.\n` : ''}
-2. Kondisi Cuaca BMKG:
-${cuaca}
+Dengan hormat, mohon ijin melaporkan Perkembangan Ops ${namaOps}.
+__________________________________________________`;
 
-3. Potensi SAR Terlibat:
+  const footer = `Demikian kami laporkan, mohon petunjuk dan arahan
+
+Ttd
+
+KKS Kendari
+===========================
+🏢 Kantor Pencarian Dan Pertolongan Kendari
+📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116
+☎️ Telp. : (0401) 3196557
+📠 Fax. : (0401) 3196558
+📱 WhatsApp : +62811-4034-115
+🚨 Emergency Call : 115
+🌐 Website : Www.Kendari.Basarnas.go.id
+📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id
+📲 Medsos : @Basarnaskendari`;
+
+  const preview = `${header}
+
+Hasil Ops SAR ${hariKe.toUpperCase()}:
+
+${isi}${klausulPenutupan}
+
+1. Data Korban: ${korbanList.length} Orang
+• S : ${sCount} ORANG
+• MD : ${mdCount} ORANG
+• DP : ${dpCount} ORANG
+• H : ${hCount} ORANG
+
+2. Identitas Korban
+${identitasText}
+
+3. Unsur SAR Terlibat
 ${unsurText}
 
-4. Alut & Palsar Terlibat:
+4. Alut dan Palsar
 ${alutText}
 
-Demikian dilaporkan.
-SAR KENDARI`;
+${footer}`;
 
   document.getElementById('sitrep-wa-preview-content').textContent = preview;
   openModal('modal-preview-sitrep-wa');
@@ -802,12 +1037,18 @@ function copySitrepWa() {
 
 function openModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.remove('hidden');
+  if (el) {
+    el.classList.remove('hidden');
+    el.style.display = 'flex';
+  }
 }
 
 function closeModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.add('hidden');
+  if (el) {
+    el.classList.add('hidden');
+    el.style.display = 'none';
+  }
 }
 
 // --- AUTO-SAVE DRAFT (LOCAL STORAGE RESILIENCE) ---
