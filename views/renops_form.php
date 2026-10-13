@@ -2,9 +2,40 @@
 /**
  * QR-SAR - Dedicated View Form Rencana Operasi (RENOPS)
  * KPP Kendari - Basarnas
+ *
+ * @var int $idOperasi
+ * @var bool $editMode
+ * @var int $idRenops
+ * @var array $operasi
+ * @var array $masterTim
+ * @var array $masterAlut
+ * @var string $hariKe
+ * @var string $tanggalLaporan
+ * @var string $waktuBriefing
+ * @var string $waktuMulaiOps
+ * @var string $cuaca
+ * @var array $initialUnsurData
+ * @var array $initialAlutData
+ * @var array $initialSrus
  */
 
 declare(strict_types=1);
+
+// Defensive fallback initialization for IDE static analysis and safe isolated view evaluation
+$idOperasi = $idOperasi ?? (int)($_GET['id_operasi'] ?? 0);
+$editMode = $editMode ?? false;
+$idRenops = $idRenops ?? (int)($_GET['id_renops'] ?? 0);
+$operasi = $operasi ?? [];
+$hariKe = $hariKe ?? 'H.1';
+$tanggalLaporan = $tanggalLaporan ?? date('Y-m-d');
+$waktuBriefing = $waktuBriefing ?? date('Y-m-d\T07:00');
+$waktuMulaiOps = $waktuMulaiOps ?? date('Y-m-d\T07:30');
+$cuaca = $cuaca ?? 'Cerah Berawan';
+$masterTim = $masterTim ?? [];
+$masterAlut = $masterAlut ?? [];
+$initialUnsurData = $initialUnsurData ?? [];
+$initialAlutData = $initialAlutData ?? [];
+$initialSrus = $initialSrus ?? [];
 ?>
 
 <div class="max-w-7xl mx-auto space-y-6 pb-20">

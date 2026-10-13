@@ -22,7 +22,7 @@ $logoUrl = getAppLogoUrl();
   <!-- Brand Header + The SINGLE Minimize/Toggle Button -->
   <div class="sidebar-brand-header h-16 px-3.5 flex items-center justify-between border-b border-inherit shrink-0">
     <a href="<?= BASE_URL ?>/index.php" class="flex items-center gap-2.5 overflow-hidden cursor-pointer group" title="Dashboard Utama KPP Kendari">
-      <img src="<?= e($logoUrl) ?>" alt="Logo Basarnas" width="34" height="34" class="shrink-0 drop-shadow-sm group-hover:scale-105 transition-transform" />
+      <img src="<?= e($logoUrl) ?>" alt="Logo Basarnas" width="34" height="34" class="shrink-0 drop-shadow-sm group-hover:scale-105 transition-transform" onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'" />
       <div class="sidebar-brand-text min-w-0 transition-opacity duration-200">
         <span class="font-extrabold text-xs tracking-wider text-orange-600 dark:text-orange-500 block truncate">
           KPP KENDARI

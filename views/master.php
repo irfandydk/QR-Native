@@ -10,6 +10,10 @@ declare(strict_types=1);
 
 $activeTab = $tab ?? 'alut';
 $searchQ = trim($_GET['q'] ?? '');
+
+$masterAlut = $masterAlut ?? (class_exists('MasterModel') ? MasterModel::getAlut() : []);
+$masterTim = $masterTim ?? (class_exists('MasterModel') ? MasterModel::getTim() : []);
+$pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPejabat() : []);
 ?>
 
 <div class="space-y-6">

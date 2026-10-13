@@ -7,7 +7,7 @@
 declare(strict_types=1);
 
 class BraHelper {
-    public static function formatMilitaryTW(?string $dateInput = null): string {
+    public static function formatMilitaryTW(?string $dateInput = null, string $zone = 'H'): string {
         $timestamp = $dateInput ? strtotime($dateInput) : time();
         if ($timestamp === false) $timestamp = time();
 
@@ -15,8 +15,9 @@ class BraHelper {
         $dd = date('d', $timestamp);
         $hh = date('H', $timestamp);
         $min = date('i', $timestamp);
+        $zoneSuffix = $zone !== '' ? ' ' . trim($zone) : '';
 
-        return "{$mm}{$dd} {$hh}{$min} H";
+        return "{$mm}{$dd} {$hh}{$min}{$zoneSuffix}";
     }
 
     public static function getBulanTahunSuffix(?string $dateInput = null): string {

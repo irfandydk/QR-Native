@@ -19,15 +19,15 @@ if (!in_array($tab, ['admin', 'user', 'satker', 'backup'], true)) {
     $tab = 'admin';
 }
 
-// 1. Handle Export Actions (Direct Downloads)
-if ($action === 'export_json') {
-    $backupData = SettingsModel::exportJsonBackup();
-    $filename = 'BACKUP_LENGKAP_SAR_KENDARI_' . date('Y-m-d_His') . '.json';
-    header('Content-Type: application/json; charset=utf-8');
+// 1. Handle Export Actions (Direct SQL Download Only)
+if ($action === 'export_sql') {
+    $sqlDump = SettingsModel::generateSQLDump();
+    $filename = 'DUMP_DATABASE_SAR_KENDARI_' . date('Y-m-d_His') . '.sql';
+    header('Content-Type: application/sql; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Pragma: no-cache');
     header('Expires: 0');
-    echo json_encode($backupData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    echo $sqlDump;
     exit;
 }
 
@@ -214,19 +214,27 @@ if ($method === 'POST') {
         exit;
     }
 
-    // F. Restore Basis Data dari JSON
-    if ($action === 'restore_json') {
+    // F. Restore Basis Data dari SQL (.sql murni)
+    if ($action === 'restore_sql') {
         if (!empty($_FILES['backup_file']['name']) && $_FILES['backup_file']['error'] === UPLOAD_ERR_OK) {
-            $content = file_get_contents($_FILES['backup_file']['tmp_name']);
-            $parsed = json_decode($content, true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($parsed)) {
-                SettingsModel::restoreFromJson($parsed);
-                setFlash('success', 'Basis data berhasil dipulihkan secara penuh dari berkas cadangan JSON.');
+            $ext = strtolower(pathinfo($_FILES['backup_file']['name'], PATHINFO_EXTENSION));
+            if ($ext !== 'sql') {
+                setFlash('error', 'Format berkas tidak valid! Hanya berkas dump database SQL (.sql) yang diizinkan untuk pemulihan.');
             } else {
-                setFlash('error', 'Berkas cadangan tidak valid atau rusak (Bukan format JSON yang benar).');
+                $sqlContent = file_get_contents($_FILES['backup_file']['tmp_name']);
+                if ($sqlContent !== false && trim($sqlContent) !== '') {
+                    try {
+                        SettingsModel::restoreFromSQL($sqlContent);
+                        setFlash('success', 'Basis data berhasil dipulihkan secara penuh dari berkas SQL Dump.');
+                    } catch (Throwable $e) {
+                        setFlash('error', 'Gagal memulihkan database dari SQL: ' . $e->getMessage());
+                    }
+                } else {
+                    setFlash('error', 'Berkas SQL kosong atau tidak dapat dibaca.');
+                }
             }
         } else {
-            setFlash('error', 'Silakan pilih berkas cadangan JSON (.json) untuk dipulihkan.');
+            setFlash('error', 'Silakan pilih berkas cadangan SQL (.sql) untuk dipulihkan.');
         }
         header("Location: " . BASE_URL . "/admin.php?tab=backup");
         exit;

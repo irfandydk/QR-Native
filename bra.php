@@ -18,6 +18,18 @@ if ($viewId !== null) {
     $currentRoute = 'bra';
     $navbarTitle = 'Naskah Resmi BRA SAR Terverifikasi';
 
+    $isGuest = !AuthHelper::isLoggedIn();
+
+    if ($isGuest) {
+        // Public / External Guest Verification Portal (No internal admin sidebar)
+        require_once VIEWS_DIR . '/layout/header.php';
+        echo '<div class="min-h-screen bg-slate-100 dark:bg-slate-950 py-6 px-3 sm:px-6">';
+        require_once VIEWS_DIR . '/bra_view.php';
+        echo '</div>';
+        require_once VIEWS_DIR . '/layout/footer.php';
+        exit;
+    }
+
     require_once VIEWS_DIR . '/layout/header.php';
     require_once VIEWS_DIR . '/layout/sidebar.php';
     require_once VIEWS_DIR . '/layout/navbar.php';

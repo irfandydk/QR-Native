@@ -39,17 +39,20 @@
   let polyFillColor = '#ea580c';
   let polyFillOpacity = 0.2;
 
-  // Search Pattern state
+  // Search Pattern state (Default: Parallel Track)
   let activePatternType = 'parallel_track';
   let activeGeneratedWaypoints = [];
   let activeGeneratedDistanceNm = 0;
 
-  // Measure Distance state
+  // Measure Distance & Route Planning state (Jarak Lurus 2 Titik & Jalur Manual)
   let isMeasureModeActive = false;
   let measureModeType = 'straight'; // 'straight' or 'path'
   let measurePoints = [];
+  let currentActiveRouteId = null;
+  let autoSaveRouteDebounceTimer = null;
   let vesselSpeedKnots = 25;
   let speedUnit = 'knot';
+  let patternSpacingUnit = 'NM'; // 'NM' or 'KM'
 
   // Hidden Layers IDs for eye toggles
   let hiddenPointIds = new Set();
@@ -73,162 +76,35 @@
   let savedRoutePolylinesMap = new Map();
   let temporarySearchMarker = null;
 
-  // Verified Sultra Landmarks & Maritime Presets
-  const VERIFIED_MARITIME_PRESETS = [
-    {
-      name: 'Kantor Pencarian & Pertolongan Kendari (Kansar)',
-      address: 'Gedung Kantor Basarnas Kendari, Jl. Pierre Tendean, Baruga, Kota Kendari',
-      lat: -4.037664,
-      lng: 122.486662,
-      badge: 'UNIT BASARNAS',
-      type: 'Kantor SAR Utama (Pusat Kendari)',
-      dms: '04° 02\' 16" S - 122° 29\' 12" E'
-    },
-    {
-      name: 'Kansar Kendari / Basarnas Kendari',
-      address: 'Jl. Pierre Tendean, Baruga, Kota Kendari',
-      lat: -4.037664,
-      lng: 122.486662,
-      badge: 'UNIT BASARNAS',
-      type: 'Kantor SAR Utama',
-      dms: '04° 02\' 16" S - 122° 29\' 12" E'
-    },
-    {
-      name: 'Dermaga SAR Kendari (Pangkalan KN SAR Pacitan / RB 210)',
-      address: 'Kawasan Pelabuhan Bungkutoko, Kec. Abeli, Kota Kendari',
-      lat: -3.9725,
-      lng: 122.586944,
-      badge: 'PANGKALAN ALUT',
-      type: 'Pangkalan Kapal SAR',
-      dms: '03° 58\' 21" S - 122° 35\' 13" E'
-    },
-    {
-      name: 'Pos SAR Kolaka',
-      address: 'Kompleks Pelabuhan Feri Kolaka, Kel. Sea / Kolakaasi, Kab. Kolaka',
-      lat: -4.057582,
-      lng: 121.589213,
-      badge: 'UNIT BASARNAS',
-      type: 'Pos SAR Resmi',
-      dms: '04° 03\' 27" S - 121° 35\' 21" E'
-    },
-    {
-      name: 'Pelabuhan Ferry Kolaka / POS SAR KOLAKA',
-      address: 'Kawasan Dermaga Penyeberangan Ferry Kolaka - Bajoe',
-      lat: -4.057582,
-      lng: 121.589213,
-      badge: 'UNIT BASARNAS',
-      type: 'Pos SAR Resmi & Dermaga',
-      dms: '04° 03\' 27" S - 121° 35\' 21" E'
-    },
-    {
-      name: 'Pos SAR Baubau',
-      address: 'Kawasan Pelabuhan Murhum / Jembatan Batu, Kota Baubau',
-      lat: -5.453677,
-      lng: 122.610329,
-      badge: 'UNIT BASARNAS',
-      type: 'Pos SAR Resmi',
-      dms: '05° 27\' 13" S - 122° 36\' 37" E'
-    },
-    {
-      name: 'Pos SAR Wakatobi',
-      address: 'Kawasan Pelabuhan Mandati / Pangulubelo, Wangi-Wangi Selatan, Wakatobi',
-      lat: -5.326276,
-      lng: 123.538899,
-      badge: 'UNIT BASARNAS',
-      type: 'Pos SAR Resmi',
-      dms: '05° 19\' 35" S - 123° 32\' 20" E'
-    },
-    {
-      name: 'Pos SAR Konawe Utara',
-      address: 'Jl. Poros Trans Sulawesi, Wanggudu, Kab. Konawe Utara',
-      lat: -3.513889,
-      lng: 122.180556,
-      badge: 'UNIT BASARNAS',
-      type: 'Pos SAR Resmi',
-      dms: '03° 30\' 50" S - 122° 10\' 50" E'
-    },
-    {
-      name: 'Unit Siaga SAR Muna',
-      address: 'Kawasan Pelabuhan Nusantara Raha, Kota Raha, Kab. Muna',
-      lat: -4.836111,
-      lng: 122.719444,
-      badge: 'UNIT BASARNAS',
-      type: 'Unit Siaga SAR',
-      dms: '04° 50\' 10" S - 122° 43\' 10" E'
-    },
-    {
-      name: 'Unit Siaga SAR Konawe',
-      address: 'Jl. Poros Kendari - Kolaka, Kota Unaaha, Kab. Konawe',
-      lat: -3.905556,
-      lng: 122.047222,
-      badge: 'UNIT BASARNAS',
-      type: 'Unit Siaga SAR',
-      dms: '03° 54\' 20" S - 122° 02\' 50" E'
-    },
-    {
-      name: 'Unit Siaga SAR Kolaka Utara',
-      address: 'Kawasan Pelabuhan Penyeberangan Tobaku, Lasusua, Kab. Kolaka Utara',
-      lat: -3.425,
-      lng: 120.897,
-      badge: 'UNIT BASARNAS',
-      type: 'Unit Siaga SAR',
-      dms: '03° 25\' 30" S - 120° 53\' 49" E'
-    },
-    {
-      name: 'Pelabuhan Nusantara Kendari',
-      address: 'Kawasan Pelabuhan Kandai, Kendari Barat',
-      lat: -3.978194,
-      lng: 122.593389,
-      badge: 'PELABUHAN',
-      type: 'Pelabuhan Samudera',
-      dms: '03° 58\' 41" S - 122° 35\' 36" E'
-    },
-    {
-      name: 'Pelabuhan Ferry Kolaka (Dermaga ASDP)',
-      address: 'Kolakaasi, Kec. Latambaga, Kab. Kolaka',
-      lat: -4.054167,
-      lng: 121.603333,
-      badge: 'PELABUHAN',
-      type: 'Pelabuhan Penyeberangan',
-      dms: '04° 03\' 15" S - 121° 36\' 12" E'
-    },
-    {
-      name: 'Pelabuhan Murhum Baubau (PELNI)',
-      address: 'Jl. Yos Sudarso, Wolio, Kota Baubau',
-      lat: -5.464722,
-      lng: 122.603889,
-      badge: 'PELABUHAN',
-      type: 'Pelabuhan Samudera',
-      dms: '05° 27\' 53" S - 122° 36\' 14" E'
-    },
-    {
-      name: 'Perairan Teluk Kendari',
-      address: 'Teluk Kendari, Sulawesi Tenggara',
-      lat: -3.97,
-      lng: 122.62,
-      badge: 'PERAIRAN',
-      type: 'Kawasan Perairan & Alur Masuk',
-      dms: '03° 58\' 12" S - 122° 37\' 12" E'
-    },
-    {
-      name: 'Pulau Labengki (Konawe Utara)',
-      address: 'Perairan Labengki, Kec. Lasolo Kepulauan, Konut',
-      lat: -3.44,
-      lng: 122.45,
-      badge: 'PERAIRAN',
-      type: 'Kawasan Wisata Maritim & Kepulauan',
-      dms: '03° 26\' 24" S - 122° 27\' 00" E'
-    },
-    {
-      name: 'Selat Tiworo (Muna Barat - Konsel)',
-      address: 'Perairan Selat Tiworo, Sulawesi Tenggara',
-      lat: -4.75,
-      lng: 122.4,
-      badge: 'PERAIRAN',
-      type: 'Alur Pelayaran Antar Pulau',
-      dms: '04° 45\' 00" S - 122° 24\' 00" E'
-    }
-  ];
+  // Dynamic Sultra Landmarks & Maritime Presets loaded from Database (SarUnit table)
+  function getVerifiedMaritimePresets() {
+    const rawUnits = (window.SAR_INITIAL_GIS_DATA && Array.isArray(window.SAR_INITIAL_GIS_DATA.sarUnits))
+      ? window.SAR_INITIAL_GIS_DATA.sarUnits
+      : [];
+
+    return rawUnits.map((u) => {
+      const j = (u.jenis_unit || '').toUpperCase();
+      let badge = 'SAR SULTRA';
+      let type = 'Fasilitas Operasional SAR';
+      if (j === 'KANSAR') { badge = 'UNIT BASARNAS'; type = 'Kantor SAR Utama'; }
+      else if (j === 'POS_SAR') { badge = 'UNIT BASARNAS'; type = 'Pos SAR Resmi'; }
+      else if (j === 'UNIT_SIAGA') { badge = 'UNIT BASARNAS'; type = 'Unit Siaga SAR'; }
+      else if (j === 'DERMAGA') { badge = 'PANGKALAN ALUT'; type = 'Pangkalan Kapal SAR'; }
+      else if (j === 'PELABUHAN') { badge = 'PELABUHAN'; type = 'Pelabuhan Maritim'; }
+      else if (j === 'PERAIRAN') { badge = 'PERAIRAN'; type = 'Kawasan Perairan & Alur Laut'; }
+
+      return {
+        name: u.nama_unit || '',
+        address: u.alamat || `${u.nama_unit}, ${u.wilayah || 'Sulawesi Tenggara'}`,
+        lat: parseFloat(u.latitude),
+        lng: parseFloat(u.longitude),
+        badge: badge,
+        type: type,
+        dms: u.koordinat_dms || ''
+      };
+    });
+  }
+
 
   // 12 Preset Point Icons configuration matching PointCreatorCard.tsx
   const PRESET_ICONS = [
@@ -266,51 +142,84 @@
     function formatDmsPart(val, isLat) {
       const dir = isLat ? (val < 0 ? 'S' : 'N') : (val < 0 ? 'W' : 'E');
       const absVal = Math.abs(val);
-      const d = Math.floor(absVal);
+      let d = Math.floor(absVal);
       const mFloat = (absVal - d) * 60;
-      const m = Math.floor(mFloat);
-      const s = Math.round((mFloat - m) * 60);
+      let m = Math.floor(mFloat);
+      let s = Math.round((mFloat - m) * 60);
+      if (s >= 60) {
+        s = 0;
+        m += 1;
+        if (m >= 60) {
+          m = 0;
+          d += 1;
+        }
+      }
       const padD = isLat ? String(d).padStart(2, '0') : String(d).padStart(3, '0');
       return `${padD}° ${String(m).padStart(2, '0')}' ${String(s).padStart(2, '0')}" ${dir}`;
     }
-    return `${formatDmsPart(lat, true)} - ${formatDmsPart(lng, false)}`;
+    return `${formatDmsPart(lat, true)}, ${formatDmsPart(lng, false)}`;
   }
 
   function parseCoordinatesString(text) {
-    if (!text) return null;
+    if (!text || typeof text !== 'string') return null;
     const clean = text.trim();
+    if (!clean) return null;
 
-    // DMS Format Regex: 04° 02' 16" S - 122° 29' 12" E or 04 02 16 S 122 29 12 E
-    const dmsRegex = /(\d{1,2})[°\s]+(\d{1,2})['\s]+(\d{1,2}(?:\.\d+)?)["]?\s*([NSns])\s*[-–,\s]+\s*(\d{1,3})[°\s]+(\d{1,2})['\s]+(\d{1,2}(?:\.\d+)?)["]?\s*([EWew])/i;
-    const match = clean.match(dmsRegex);
-    if (match) {
-      const latD = parseFloat(match[1]);
-      const latM = parseFloat(match[2]);
-      const latS = parseFloat(match[3]);
-      const latDir = match[4].toUpperCase();
+    // Normalise Indonesian cardinal letters (LS -> S, LU -> N, BT -> E, BB -> W)
+    const norm = clean
+      .replace(/\bLS\b/gi, 'S')
+      .replace(/\bLU\b/gi, 'N')
+      .replace(/\bBT\b/gi, 'E')
+      .replace(/\bBB\b/gi, 'W');
 
-      const lngD = parseFloat(match[5]);
-      const lngM = parseFloat(match[6]);
-      const lngS = parseFloat(match[7]);
-      const lngDir = match[8].toUpperCase();
-
-      let lat = latD + latM / 60 + latS / 3600;
-      if (latDir === 'S') lat = -lat;
-
-      let lng = lngD + lngM / 60 + lngS / 3600;
-      if (lngDir === 'W') lng = -lng;
-
-      return { lat, lng };
+    // 1. Full DMS Regex: e.g. 04° 02' 16" S, 122° 29' 12" E or 04 02 16 S 122 29 12 E
+    const dmsRegex = /(\d{1,2})[°\s]+(\d{1,2})['\s]+(\d{1,2}(?:\.\d+)?)["]?\s*([NSns])\s*[-–,\s/]+\s*(\d{1,3})[°\s]+(\d{1,2})['\s]+(\d{1,2}(?:\.\d+)?)["]?\s*([EWew])/i;
+    const mDms = norm.match(dmsRegex);
+    if (mDms) {
+      let lat = parseFloat(mDms[1]) + parseFloat(mDms[2]) / 60 + parseFloat(mDms[3]) / 3600;
+      if (mDms[4].toUpperCase() === 'S') lat = -lat;
+      let lng = parseFloat(mDms[5]) + parseFloat(mDms[6]) / 60 + parseFloat(mDms[7]) / 3600;
+      if (mDms[8].toUpperCase() === 'W') lng = -lng;
+      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { lat, lng };
+      }
     }
 
-    // Decimal comma separated e.g. -4.037694, 122.486694
-    const decRegex = /([-+]?\d{1,2}\.\d+)\s*,\s*([-+]?\d{1,3}\.\d+)/;
-    const decMatch = clean.match(decRegex);
-    if (decMatch) {
-      return {
-        lat: parseFloat(decMatch[1]),
-        lng: parseFloat(decMatch[2])
-      };
+    // 2. DDM (Degrees Decimal Minutes) Regex: e.g. 04° 02.266' S, 122° 29.200' E
+    const ddmRegex = /(\d{1,2})[°\s]+(\d{1,2}(?:\.\d+)?)[']?\s*([NSns])\s*[-–,\s/]+\s*(\d{1,3})[°\s]+(\d{1,2}(?:\.\d+)?)[']?\s*([EWew])/i;
+    const mDdm = norm.match(ddmRegex);
+    if (mDdm) {
+      let lat = parseFloat(mDdm[1]) + parseFloat(mDdm[2]) / 60;
+      if (mDdm[3].toUpperCase() === 'S') lat = -lat;
+      let lng = parseFloat(mDdm[4]) + parseFloat(mDdm[5]) / 60;
+      if (mDdm[6].toUpperCase() === 'W') lng = -lng;
+      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { lat, lng };
+      }
+    }
+
+    // 3. Decimal with Cardinal direction: e.g. 4.0376 S, 122.4866 E
+    const decCardRegex = /(\d{1,2}(?:\.\d+)?)\s*([NSns])\s*[-–,\s/]+\s*(\d{1,3}(?:\.\d+)?)\s*([EWew])/i;
+    const mDecCard = norm.match(decCardRegex);
+    if (mDecCard) {
+      let lat = parseFloat(mDecCard[1]);
+      if (mDecCard[2].toUpperCase() === 'S') lat = -lat;
+      let lng = parseFloat(mDecCard[3]);
+      if (mDecCard[4].toUpperCase() === 'W') lng = -lng;
+      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { lat, lng };
+      }
+    }
+
+    // 4. Standard Signed Decimal: e.g. -4.037664, 122.486662 or -4.037664 122.486662
+    const decRegex = /([-+]?\d{1,2}(?:\.\d+)?)\s*[,;\s]+\s*([-+]?\d{1,3}(?:\.\d+)?)/;
+    const mDec = clean.match(decRegex);
+    if (mDec) {
+      const lat = parseFloat(mDec[1]);
+      const lng = parseFloat(mDec[2]);
+      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { lat, lng };
+      }
     }
 
     return null;
@@ -323,9 +232,9 @@
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const km = R * c;
     const nm = km * 0.539957;
@@ -481,11 +390,11 @@
     const haloRing = isEditing
       ? `<circle cx="${cx}" cy="16" r="17" fill="none" stroke="#facc15" stroke-width="3" stroke-dasharray="3,3" />`
       : type === 'lkp'
-      ? `<circle cx="${cx}" cy="16" r="18" fill="none" stroke="${color}" stroke-width="1.5" stroke-opacity="0.6">
+        ? `<circle cx="${cx}" cy="16" r="18" fill="none" stroke="${color}" stroke-width="1.5" stroke-opacity="0.6">
           <animate attributeName="r" values="14;22;14" dur="2s" repeatCount="indefinite" />
           <animate attributeName="stroke-opacity" values="0.8;0.1;0.8" dur="2s" repeatCount="indefinite" />
          </circle>`
-      : '';
+        : '';
 
     return `
       <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="display:block;">
@@ -508,11 +417,18 @@
     const preset = PRESET_ICONS.find((p) => p.type === pType);
     const color = point.customColor || (preset ? preset.color : '#ea580c');
     const label = point.label || 'Titik SAR';
+    const width = isEditing ? 46 : 38;
+    const height = isEditing ? 54 : 46;
     const svg = createPointSvgHtml(pType, color, isEditing, point.customIconUrl, point.alphabetChar);
 
     return `
-      <div style="display:flex; flex-direction:column; align-items:center; user-select:none; pointer-events:auto; transform: translate(-50%, -100%);">
+      <div class="sar-marker-root" style="position: relative; width: ${width}px; height: ${height}px; user-select: none; pointer-events: auto;">
         <div style="
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          margin-bottom: 3px;
           background: rgba(15, 23, 42, 0.95);
           color: #f8fafc;
           font-size: 11px;
@@ -522,11 +438,11 @@
           border: 1px solid rgba(255, 255, 255, 0.4);
           box-shadow: 0 2px 6px rgba(0,0,0,0.6);
           white-space: nowrap;
-          margin-bottom: 2px;
           pointer-events: none;
           max-width: 160px;
           overflow: hidden;
           text-overflow: ellipsis;
+          z-index: 10;
         ">${label}</div>
         ${svg}
       </div>
@@ -536,10 +452,10 @@
   function createVertexBadgeHtml(letter, color = '#ea580c', isDragging = false) {
     const size = isDragging ? 36 : 30;
     return `
-      <div style="transform: translate(-50%, -50%); display: inline-block;">
+      <div style="display: block; width: ${size}px; height: ${size}px; user-select: none;">
         <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-          <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${color}" stroke="#ffffff" stroke-width="2.5" />
-          <text x="${size/2}" y="${size/2 + 4.5}" font-family="Arial, sans-serif" font-size="12" font-weight="900" fill="#ffffff" text-anchor="middle">${letter}</text>
+          <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" fill="${color}" stroke="#ffffff" stroke-width="2.5" />
+          <text x="${size / 2}" y="${size / 2 + 4.5}" font-family="Arial, sans-serif" font-size="12" font-weight="900" fill="#ffffff" text-anchor="middle">${letter}</text>
         </svg>
       </div>
     `;
@@ -553,7 +469,7 @@
     const size = 24;
 
     return `
-      <div style="transform: translate(-50%, -50%); display: inline-block;">
+      <div style="display: block; width: ${size}px; height: ${size}px; user-select: none;">
         <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
           <circle cx="12" cy="12" r="10" fill="${fillColor}" stroke="#ffffff" stroke-width="2" />
           ${letter ? `<text x="12" y="16" font-family="Arial, sans-serif" font-size="11" font-weight="900" fill="#ffffff" text-anchor="middle">${letter}</text>` : `<circle cx="12" cy="12" r="4" fill="#ffffff" />`}
@@ -570,10 +486,12 @@
     const mapElement = document.getElementById('gisLeafletMap');
     if (!mapElement) return;
 
-    // Kansar Kendari center
+    // Kansar Kendari center with maxZoom 22
     map = L.map('gisLeafletMap', {
       center: [-4.037694, 122.486694],
       zoom: 11,
+      minZoom: 4,
+      maxZoom: 22,
       zoomControl: false,
       attributionControl: false
     });
@@ -581,28 +499,38 @@
     // Zoom control on bottom right
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // 4 Basemap Tile Layers
+    // Modern High-Resolution Basemaps with maxNativeZoom Scaling (No Blank on Zoom)
+    // 1. Google Maps Hybrid (High-Res Satellite + Roads + Labels)
+    tileLayers.google_hybrid = L.tileLayer(
+      'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      { maxNativeZoom: 20, maxZoom: 22, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }
+    );
+
+    // 2. ESRI World Imagery (High-Res Satellite) with maxNativeZoom 18
     tileLayers.satellite = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      { maxZoom: 19 }
+      { maxNativeZoom: 18, maxZoom: 22 }
     );
 
+    // 3. CartoDB Labels overlay for ESRI Satellite
     tileLayers.labels = L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',
-      { subdomains: 'abcd', maxZoom: 19 }
+      { subdomains: 'abcd', maxNativeZoom: 19, maxZoom: 22 }
     );
 
+    // 4. Google Roadmap for crisp vector street networks
     tileLayers.roadmap = L.tileLayer(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom: 19 }
+      'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      { maxNativeZoom: 20, maxZoom: 22, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }
     );
 
+    // 5. OpenTopoMap for Relief & Contours with maxNativeZoom 17
     tileLayers.terrain = L.tileLayer(
       'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-      { maxZoom: 17 }
+      { maxNativeZoom: 17, maxZoom: 22 }
     );
 
-    // Set Default: Hybrid (Satellite + CartoDB Labels)
+    // Set Default: Hybrid (Google High-Res Satellite + Navigation Labels)
     setBasemapLayer('hybrid');
 
     // Map Event Listeners
@@ -630,11 +558,11 @@
       if (map.hasLayer(layer)) map.removeLayer(layer);
     });
 
-    if (type === 'hybrid') {
-      map.addLayer(tileLayers.satellite);
-      map.addLayer(tileLayers.labels);
+    if (type === 'hybrid' || type === 'google_hybrid') {
+      map.addLayer(tileLayers.google_hybrid);
     } else if (type === 'satellite') {
       map.addLayer(tileLayers.satellite);
+      map.addLayer(tileLayers.labels);
     } else if (type === 'roadmap') {
       map.addLayer(tileLayers.roadmap);
     } else if (type === 'terrain') {
@@ -678,7 +606,7 @@
       return;
     }
 
-    // 3. If Measure Distance is active, add measure point
+    // 3. If Measure Distance / Routing is active
     if (isMeasureModeActive) {
       addMeasurePoint(lat, lng);
       return;
@@ -736,9 +664,10 @@
         });
       }
 
-      // Check verified presets with multi-word matching
+      // Check verified presets with multi-word matching from database
       const terms = rawQ.toLowerCase().split(/\s+/).filter(Boolean);
-      VERIFIED_MARITIME_PRESETS.forEach((item) => {
+      const verifiedPresets = getVerifiedMaritimePresets();
+      verifiedPresets.forEach((item) => {
         const fullHaystack = `${item.name} ${item.address} ${item.type || ''} ${item.dms || ''}`.toLowerCase();
         const matchesAll = terms.every(t => fullHaystack.includes(t));
         if (matchesAll) {
@@ -815,7 +744,7 @@
               renderSearchResults(combined);
             }
           }
-        } catch (fallbackErr) {}
+        } catch (fallbackErr) { }
       }, 250);
     });
 
@@ -938,7 +867,7 @@
     resultsList.innerHTML = results
       .slice(0, 10)
       .map((r, idx) => {
-        const emoji = (function() {
+        const emoji = (function () {
           const t = (r.type || '').toLowerCase();
           const b = (r.badge || '').toLowerCase();
           if (b.includes('gps') || t.includes('koordinat')) return '📍';
@@ -1004,7 +933,7 @@
     if (temporarySearchMarker) map.removeLayer(temporarySearchMarker);
 
     const pinHtml = `
-      <div class="gm-pin-container" style="transform: translate(-50%, -100%);">
+      <div class="gm-pin-container" style="position: relative; width: 34px; height: 42px;">
         <div class="gm-pulse-ring"></div>
         <svg xmlns="http://www.w3.org/2000/svg" width="34" height="42" viewBox="0 0 34 42" fill="none">
           <path d="M17 0C7.611 0 0 7.611 0 17c0 12.75 17 25 17 25s17-12.25 17-25C34 7.611 26.389 0 17 0z" fill="#ea580c"/>
@@ -1015,7 +944,7 @@
     `;
 
     temporarySearchMarker = L.marker([result.lat, result.lng], {
-      icon: L.divIcon({ html: pinHtml, className: 'gm-temp-search-marker', iconSize: [34, 42] })
+      icon: L.divIcon({ html: pinHtml, className: 'gm-temp-search-marker', iconSize: [34, 42], iconAnchor: [17, 42], popupAnchor: [0, -42] })
     }).addTo(map);
 
     // Populate Google Maps Place Card
@@ -1033,7 +962,7 @@
     if (coordsEl) coordsEl.textContent = result.dms || decimalToDms(result.lat, result.lng);
     if (decEl) decEl.textContent = `${result.lat.toFixed(5)}, ${result.lng.toFixed(5)}`;
     if (iconEl) {
-      const emoji = (function() {
+      const emoji = (function () {
         const t = (result.type || '').toLowerCase();
         const b = (result.badge || '').toLowerCase();
         if (b.includes('gps') || t.includes('koordinat')) return '📍';
@@ -1174,6 +1103,82 @@
       btnSaveConfirm.addEventListener('click', handleSavePoint);
     }
 
+    // Custom Icon Upload & File Management Handlers
+    const fileInput = document.getElementById('pcCustomIconFile');
+    const triggerUploadBtn = document.getElementById('btnTriggerUploadIcon');
+    const removeIconBtn = document.getElementById('btnRemoveCustomIcon');
+    const urlInput = document.getElementById('pcCustomIconUrl');
+    const previewCard = document.getElementById('pcCustomIconPreviewCard');
+    const thumbImg = document.getElementById('pcCustomIconThumb');
+    const fileNameEl = document.getElementById('pcCustomIconFileName');
+
+    if (triggerUploadBtn && fileInput) {
+      triggerUploadBtn.addEventListener('click', () => {
+        fileInput.click();
+      });
+    }
+
+    if (fileInput) {
+      fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        // Instant local preview via DataURL
+        const reader = new FileReader();
+        reader.onload = (re) => {
+          pointCustomIconUrl = re.target.result;
+          if (thumbImg) thumbImg.src = pointCustomIconUrl;
+          if (fileNameEl) fileNameEl.textContent = file.name;
+          if (previewCard) previewCard.classList.remove('hidden');
+          updateDraftMarkerVisual();
+        };
+        reader.readAsDataURL(file);
+
+        // Upload to server endpoint /api/gis/upload-icon
+        const formData = new FormData();
+        formData.append('icon', file);
+        try {
+          const res = await fetch(`${BASE_URL}/api/gis/upload-icon`, {
+            method: 'POST',
+            body: formData
+          });
+          const json = await res.json();
+          if (json.success && json.url) {
+            pointCustomIconUrl = json.url;
+            if (urlInput) urlInput.value = json.url;
+            updateDraftMarkerVisual();
+          }
+        } catch (err) {
+          console.warn('Upload to server failed, using local DataURL:', err);
+        }
+      });
+    }
+
+    if (removeIconBtn) {
+      removeIconBtn.addEventListener('click', () => {
+        pointCustomIconUrl = '';
+        if (fileInput) fileInput.value = '';
+        if (urlInput) urlInput.value = '';
+        if (previewCard) previewCard.classList.add('hidden');
+        updateDraftMarkerVisual();
+      });
+    }
+
+    if (urlInput) {
+      urlInput.addEventListener('input', (e) => {
+        const val = e.target.value.trim();
+        pointCustomIconUrl = val;
+        if (val) {
+          if (thumbImg) thumbImg.src = val;
+          if (fileNameEl) fileNameEl.textContent = val.split('/').pop() || 'Custom Icon';
+          if (previewCard) previewCard.classList.remove('hidden');
+        } else {
+          if (previewCard) previewCard.classList.add('hidden');
+        }
+        updateDraftMarkerVisual();
+      });
+    }
+
     // Toggle Draggable Lock Button
     const btnLock = document.getElementById('btnToggleDragLock');
     if (btnLock) {
@@ -1234,6 +1239,21 @@
     pointAlphabetChar = data.alphabetChar || 'A';
     pointCustomIconUrl = data.customIconUrl || '';
 
+    const fileInput = document.getElementById('pcCustomIconFile');
+    const urlInput = document.getElementById('pcCustomIconUrl');
+    const previewCard = document.getElementById('pcCustomIconPreviewCard');
+    const thumbImg = document.getElementById('pcCustomIconThumb');
+    const fileNameEl = document.getElementById('pcCustomIconFileName');
+    if (fileInput) fileInput.value = '';
+    if (urlInput) urlInput.value = pointCustomIconUrl;
+    if (pointCustomIconUrl && previewCard) {
+      previewCard.classList.remove('hidden');
+      if (thumbImg) thumbImg.src = pointCustomIconUrl;
+      if (fileNameEl) fileNameEl.textContent = pointCustomIconUrl.split('/').pop() || 'Custom Icon';
+    } else if (previewCard) {
+      previewCard.classList.add('hidden');
+    }
+
     pointDraftCoords = {
       lat: data.lat !== undefined ? data.lat : -4.015,
       lng: data.lng !== undefined ? data.lng : 122.585
@@ -1256,6 +1276,11 @@
     isCreatingPoint = false;
     editingPointId = null;
     document.getElementById('pointCreatorCard').classList.add('hidden');
+
+    const previewCard = document.getElementById('pcCustomIconPreviewCard');
+    const fileInput = document.getElementById('pcCustomIconFile');
+    if (previewCard) previewCard.classList.add('hidden');
+    if (fileInput) fileInput.value = '';
 
     if (draftPointMarker) {
       map.removeLayer(draftPointMarker);
@@ -1352,7 +1377,9 @@
       L.divIcon({
         html: html,
         className: 'sar-draft-pin',
-        iconSize: [46, 54]
+        iconSize: [46, 54],
+        iconAnchor: [23, 50],
+        popupAnchor: [0, -50]
       })
     );
   }
@@ -1433,7 +1460,9 @@
         L.divIcon({
           html: html,
           className: 'sar-map-pin',
-          iconSize: [38, 46]
+          iconSize: [38, 46],
+          iconAnchor: [19, 42],
+          popupAnchor: [0, -42]
         })
       );
 
@@ -1461,7 +1490,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(pt)
           });
-        } catch (err) {}
+        } catch (err) { }
 
         renderSavedPointsList();
       });
@@ -1604,6 +1633,8 @@
 
     document.getElementById('polyEditorName').value = existingData ? existingData.name : 'Sektor Pencarian Alpha';
     document.getElementById('polygonDrawingEditorCard').classList.remove('hidden');
+    const btnNewPoly = document.getElementById('btnStartNewPolygon');
+    if (btnNewPoly) btnNewPoly.classList.add('hidden');
 
     updateLivePolygonVisual();
   }
@@ -1614,6 +1645,8 @@
     activePolygonPoints = [];
 
     document.getElementById('polygonDrawingEditorCard').classList.add('hidden');
+    const btnNewPoly = document.getElementById('btnStartNewPolygon');
+    if (btnNewPoly) btnNewPoly.classList.remove('hidden');
 
     if (activeDrawingPolygonOverlay) {
       map.removeLayer(activeDrawingPolygonOverlay);
@@ -1706,7 +1739,8 @@
         L.divIcon({
           html: createVertexBadgeHtml(letter, polyStrokeColor, false),
           className: 'sar-vertex-pin',
-          iconSize: [30, 30]
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
         })
       );
 
@@ -1799,6 +1833,11 @@
           <div class="text-[11px] text-slate-300">Luas: <strong>${stats.sqNm} NM²</strong> (${stats.sqKm} km²)</div>
           <div class="text-[11px] text-slate-300">Keliling: <strong>${stats.perimeterNm} NM</strong> (${stats.perimeterKm} km)</div>
           <div class="text-[10px] text-slate-400 font-mono">${poly.points.length} Sudut Vertices</div>
+          <div class="pt-2">
+            <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${poly.id}')" class="w-full py-1.5 px-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center gap-1 shadow-xs cursor-pointer">
+              <span>🚀 Buat Pola Lintasan SAR</span>
+            </button>
+          </div>
         </div>
       `);
 
@@ -1849,7 +1888,7 @@
             </div>
           </div>
 
-          <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${poly.id}')" class="w-full py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-orange-500/10 text-orange-600 dark:bg-slate-900 dark:hover:bg-orange-500/20 dark:text-orange-400 border border-slate-200 dark:border-slate-800 text-[10px] font-bold transition flex items-center justify-center gap-1.5">
+          <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${poly.id}')" class="w-full py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-orange-500/10 text-orange-600 dark:bg-slate-900 dark:hover:bg-orange-500/20 dark:text-orange-400 border border-slate-200 dark:border-slate-800 text-[10px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
             <span>🚀 Buat Pola SAR dari Area Ini</span>
           </button>
         </div>
@@ -1862,11 +1901,23 @@
     const sel = document.getElementById('patternTargetPolygon');
     if (!sel) return;
 
+    const currentVal = sel.value;
     let options = `<option value="datum_kansar">📍 Datum LKP Kansar Kendari</option>`;
+
+    if (activePolygonPoints && activePolygonPoints.length >= 3) {
+      options += `<option value="active_draft">✏️ Poligon Aktif Sedang Digambar (${activePolygonPoints.length} Sudut)</option>`;
+    }
+
     savedPolygons.forEach((p) => {
-      options += `<option value="${p.id}">📐 Area: ${p.name} (${p.points.length} Sudut)</option>`;
+      const ptCount = (p.points || []).length;
+      options += `<option value="${p.id}">📐 Area: ${p.name} (${ptCount} Sudut)</option>`;
     });
+
     sel.innerHTML = options;
+    if (currentVal && Array.from(sel.options).some((o) => o.value === currentVal)) {
+      sel.value = currentVal;
+    }
+    updatePatternAutoCalculation();
   }
 
   // ==========================================
@@ -1874,16 +1925,96 @@
   // ==========================================
 
   function initSearchPatternUI() {
-    // Pattern type buttons
+    // New Pattern Button (Show Form, Hide Button)
+    const btnNewPattern = document.getElementById('btnStartNewPattern');
+    if (btnNewPattern) {
+      btnNewPattern.addEventListener('click', () => {
+        const card = document.getElementById('patternCreationCard');
+        if (card) card.classList.remove('hidden');
+        btnNewPattern.classList.add('hidden');
+        updatePatternAutoCalculation();
+      });
+    }
+
+    // Cancel / Close Form Buttons
+    const btnCancelTop = document.getElementById('btnCancelPatternFormTop');
+    const btnCancelBottom = document.getElementById('btnCancelPatternForm');
+    [btnCancelTop, btnCancelBottom].forEach((btn) => {
+      if (btn) {
+        btn.addEventListener('click', () => {
+          clearCurrentPatternVisual();
+          const card = document.getElementById('patternCreationCard');
+          if (card) card.classList.add('hidden');
+          const btnNew = document.getElementById('btnStartNewPattern');
+          if (btnNew) btnNew.classList.remove('hidden');
+        });
+      }
+    });
+
+    // Pattern type buttons (Theme Adaptive)
     document.querySelectorAll('.pat-type-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         activePatternType = btn.getAttribute('data-ptype');
         document.querySelectorAll('.pat-type-btn').forEach((b) => {
-          b.className = 'pat-type-btn p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-left hover:text-white transition';
+          b.className = 'pat-type-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-left hover:border-orange-500 transition';
         });
-        btn.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/20 text-orange-400 text-left transition';
+        btn.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-left transition font-bold shadow-xs';
+        const statusMsg = document.getElementById('patternStatusMsg');
+        if (statusMsg) statusMsg.classList.add('hidden');
+        updatePatternAutoCalculation();
       });
     });
+
+    // Activate default parallel_track button style
+    const defaultPatBtn = document.querySelector('.pat-type-btn[data-ptype="parallel_track"]');
+    if (defaultPatBtn) {
+      defaultPatBtn.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-left transition font-bold shadow-xs';
+    }
+
+    // Target polygon select listener
+    const targetPolySel = document.getElementById('patternTargetPolygon');
+    if (targetPolySel) {
+      targetPolySel.addEventListener('change', () => {
+        updatePatternAutoCalculation();
+        const selectedId = targetPolySel.value;
+        let poly = null;
+        if (selectedId === 'active_draft' && activePolygonPoints && activePolygonPoints.length >= 3) {
+          poly = { points: activePolygonPoints };
+        } else {
+          poly = savedPolygons.find((p) => String(p.id) === String(selectedId));
+        }
+        if (poly && poly.points && poly.points.length >= 3 && map) {
+          const validPts = poly.points.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]).filter((p) => !isNaN(p[0]) && !isNaN(p[1]));
+          if (validPts.length >= 3) {
+            const bounds = L.latLngBounds(validPts);
+            map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
+          }
+        }
+      });
+    }
+
+    // Spacing unit select listener (NM vs KM)
+    const spacingUnitSel = document.getElementById('patternSpacingUnit');
+    const spacingInput = document.getElementById('patternTrackSpacing');
+    if (spacingUnitSel && spacingInput) {
+      spacingUnitSel.addEventListener('change', (e) => {
+        const newUnit = e.target.value;
+        const currentVal = parseFloat(spacingInput.value) || 1.0;
+        if (newUnit === 'KM' && patternSpacingUnit === 'NM') {
+          // Convert NM to KM
+          spacingInput.value = (currentVal * 1.852).toFixed(2);
+        } else if (newUnit === 'NM' && patternSpacingUnit === 'KM') {
+          // Convert KM to NM
+          spacingInput.value = (currentVal / 1.852).toFixed(2);
+        }
+        patternSpacingUnit = newUnit;
+        updatePatternAutoCalculation();
+      });
+    }
+
+    if (spacingInput) {
+      spacingInput.addEventListener('input', updatePatternAutoCalculation);
+    }
 
     // Generate Button
     const btnGen = document.getElementById('btnGenerateSearchPattern');
@@ -1891,10 +2022,16 @@
       btnGen.addEventListener('click', generateSearchPatternRoute);
     }
 
-    // Clear Button
+    // Clear Button (Batal / Bersihkan)
     const btnClear = document.getElementById('btnClearCurrentPattern');
     if (btnClear) {
-      btnClear.addEventListener('click', clearCurrentPatternVisual);
+      btnClear.addEventListener('click', () => {
+        clearCurrentPatternVisual();
+        const card = document.getElementById('patternCreationCard');
+        if (card) card.classList.add('hidden');
+        const btnNew = document.getElementById('btnStartNewPattern');
+        if (btnNew) btnNew.classList.remove('hidden');
+      });
     }
 
     // Save Button
@@ -1902,21 +2039,140 @@
     if (btnSave) {
       btnSave.addEventListener('click', handleSaveSearchPattern);
     }
+
+    // Only update preview metadata without generating pattern visual
+    updatePatternAutoCalculation();
+  }
+
+  function updatePatternAutoCalculation() {
+    if (!activePatternType) {
+      activePatternType = 'parallel_track';
+    }
+
+    const polySel = document.getElementById('patternTargetPolygon');
+    const targetPolyId = polySel ? polySel.value : 'datum_kansar';
+    const spacingInput = document.getElementById('patternTrackSpacing');
+    const unitSel = document.getElementById('patternSpacingUnit');
+    const unit = unitSel ? unitSel.value : 'NM';
+    patternSpacingUnit = unit;
+    const rawSpacing = parseFloat(spacingInput ? spacingInput.value : '1.0') || 1.0;
+    const spacingNm = unit === 'KM' ? (rawSpacing / 1.852) : rawSpacing;
+    const spacingKm = spacingNm * 1.852;
+
+    let targetPolygon = null;
+    if (targetPolyId === 'active_draft' && activePolygonPoints && activePolygonPoints.length >= 3) {
+      targetPolygon = { id: 'active_draft', name: 'Poligon Aktif', points: activePolygonPoints };
+    } else {
+      targetPolygon = savedPolygons.find((p) => String(p.id) === String(targetPolyId));
+    }
+
+    let rawCoords = (targetPolygon && targetPolygon.points && targetPolygon.points.length >= 3)
+      ? targetPolygon.points
+      : [
+        { lat: -3.98, lng: 122.50 },
+        { lat: -3.98, lng: 122.62 },
+        { lat: -4.08, lng: 122.62 },
+        { lat: -4.08, lng: 122.50 }
+      ];
+
+    const coords = rawCoords.map((p) => ({
+      lat: parseFloat(p.lat),
+      lng: parseFloat(p.lng)
+    })).filter((p) => !isNaN(p.lat) && !isNaN(p.lng));
+
+    let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+    coords.forEach((p) => {
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lng < minLng) minLng = p.lng;
+      if (p.lng > maxLng) maxLng = p.lng;
+    });
+
+    const midLat = (minLat + maxLat) / 2;
+    const heightKm = Math.abs(maxLat - minLat) * 110.574;
+    const widthKm = Math.abs(maxLng - minLng) * (111.32 * Math.cos((midLat * Math.PI) / 180));
+    const heightNm = heightKm * 0.539957;
+    const widthNm = widthKm * 0.539957;
+
+    const spanDimNm = (activePatternType === 'creeping_line') ? widthNm : heightNm;
+    const spanDimKm = (activePatternType === 'creeping_line') ? widthKm : heightKm;
+    const activeSpan = unit === 'KM' ? spanDimKm : spanDimNm;
+
+    // Recommended sweeps
+    const availSpan = Math.max(0, activeSpan - rawSpacing);
+    let recommendedSweeps = Math.max(2, Math.round(availSpan / rawSpacing) + 1);
+
+    if (activePatternType === 'sector_search') {
+      recommendedSweeps = 3;
+    } else if (activePatternType === 'expanding_square') {
+      const minDim = Math.min(heightNm, widthNm);
+      recommendedSweeps = Math.max(2, Math.min(10, Math.round(minDim / (2 * spacingNm))));
+    }
+
+    const legsInput = document.getElementById('patternLegsCount');
+    if (legsInput) {
+      legsInput.value = recommendedSweeps;
+    }
+
+    const badgeEl = document.getElementById('patternAutoBadge');
+    if (badgeEl) {
+      badgeEl.textContent = `${recommendedSweeps} SWEEPS`;
+    }
+
+    const dimInfoEl = document.getElementById('patternDimInfo');
+    if (dimInfoEl) {
+      if (unit === 'KM') {
+        dimInfoEl.textContent = `P: ${widthKm.toFixed(1)} km • L: ${heightKm.toFixed(1)} km`;
+      } else {
+        dimInfoEl.textContent = `P: ${widthNm.toFixed(1)} NM • L: ${heightNm.toFixed(1)} NM`;
+      }
+    }
+
+    const marginInfoEl = document.getElementById('patternMarginInfo');
+    if (marginInfoEl) {
+      const marginVal = rawSpacing / 2;
+      marginInfoEl.textContent = `${marginVal.toFixed(2)} ${unit} (S/2 Jarak Pandang)`;
+    }
   }
 
   function generateSearchPatternRoute() {
-    const targetPolyId = document.getElementById('patternTargetPolygon').value;
-    const spacingNm = parseFloat(document.getElementById('patternTrackSpacing').value) || 1.5;
-    const legs = parseInt(document.getElementById('patternLegsCount').value, 10) || 6;
-    const speed = parseFloat(document.getElementById('patternVesselSpeed').value) || 20;
+    const statusMsg = document.getElementById('patternStatusMsg');
+    if (!activePatternType) {
+      activePatternType = 'parallel_track';
+    }
 
-    let targetPolygon = savedPolygons.find((p) => p.id === targetPolyId);
+    const polySel = document.getElementById('patternTargetPolygon');
+    const targetPolyId = polySel ? polySel.value : 'datum_kansar';
+    const spacingInput = document.getElementById('patternTrackSpacing');
+    const unitSel = document.getElementById('patternSpacingUnit');
+    const unit = unitSel ? unitSel.value : 'NM';
+    const rawSpacing = parseFloat(spacingInput ? spacingInput.value : '1.0') || 1.0;
+    const spacingNm = unit === 'KM' ? (rawSpacing / 1.852) : rawSpacing;
+    const legsInput = document.getElementById('patternLegsCount');
+    const legs = parseInt(legsInput ? legsInput.value : '6', 10) || 6;
+
+    let targetPolygon = null;
+    if (targetPolyId === 'active_draft' && activePolygonPoints && activePolygonPoints.length >= 3) {
+      targetPolygon = { id: 'active_draft', name: 'Poligon Aktif', points: activePolygonPoints };
+    } else {
+      targetPolygon = savedPolygons.find((p) => String(p.id) === String(targetPolyId));
+    }
+
     let coords = [];
 
-    if (targetPolygon && targetPolygon.points.length >= 3) {
+    if (targetPolygon && targetPolygon.points && targetPolygon.points.length >= 3) {
       coords = generateFittedPatternInsidePolygon(activePatternType, targetPolygon.points, spacingNm, legs);
     } else {
-      coords = generateDatumPattern(activePatternType, { lat: -4.037694, lng: 122.486694 }, spacingNm, legs);
+      coords = generateDatumPattern(activePatternType, null, spacingNm, legs);
+    }
+
+    if (!coords || coords.length < 2) {
+      if (statusMsg) {
+        statusMsg.className = 'text-[11px] p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/30 flex items-center gap-1.5';
+        statusMsg.innerHTML = '<span>⚠️ Gagal membuat koordinat lintasan SAR. Pastikan poligon memiliki minimal 3 titik sudut yang valid.</span>';
+        statusMsg.classList.remove('hidden');
+      }
+      return;
     }
 
     activeGeneratedWaypoints = coords;
@@ -1928,20 +2184,45 @@
     }
     activeGeneratedDistanceNm = totalNm;
 
-    const etaMins = (totalNm / Math.max(1, speed)) * 60;
-
     // Show Results Card
-    document.getElementById('resPatternDistNm').textContent = `${totalNm.toFixed(2)} NM (${(totalNm * 1.852).toFixed(2)} km)`;
-    document.getElementById('resPatternEta').textContent = formatDurationIndonesian(etaMins);
-    document.getElementById('resPatternWpCount').textContent = `${coords.length} WP`;
-    document.getElementById('patternResultsCard').classList.remove('hidden');
+    const elDist = document.getElementById('resPatternDistNm');
+    if (elDist) {
+      elDist.textContent = `${totalNm.toFixed(2)} NM (${(totalNm * 1.852).toFixed(2)} km)`;
+    }
+    const elTypeInfo = document.getElementById('resPatternTypeInfo');
+    if (elTypeInfo) {
+      elTypeInfo.textContent = `${getPatternDisplayName(activePatternType)} (${legs} Sapuan)`;
+    }
+    const elWp = document.getElementById('resPatternWpCount');
+    if (elWp) {
+      elWp.textContent = `${coords.length} WP`;
+    }
+    const resCard = document.getElementById('patternResultsCard');
+    if (resCard) {
+      resCard.classList.remove('hidden');
+    }
+
+    if (statusMsg) {
+      const patTypeName = getPatternDisplayName(activePatternType);
+      statusMsg.className = 'text-[11px] p-2.5 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/30 flex items-center gap-1.5';
+      statusMsg.innerHTML = `<span>✨ Pola Lintasan <b>${patTypeName}</b> berhasil digenerate (${coords.length} WP, ${totalNm.toFixed(2)} NM). Klik <b>Simpan Pola SAR</b> untuk menyimpan ke database.</span>`;
+      statusMsg.classList.remove('hidden');
+    }
 
     renderActivePatternOnMap();
   }
 
   function generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount) {
+    const cleanPoints = (polygonPoints || []).map((p) => ({
+      lat: parseFloat(p.lat),
+      lng: parseFloat(p.lng),
+      label: p.label || ''
+    })).filter((p) => !isNaN(p.lat) && !isNaN(p.lng));
+
+    if (cleanPoints.length < 3) return [];
+
     let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-    polygonPoints.forEach((p) => {
+    cleanPoints.forEach((p) => {
       if (p.lat < minLat) minLat = p.lat;
       if (p.lat > maxLat) maxLat = p.lat;
       if (p.lng < minLng) minLng = p.lng;
@@ -1949,52 +2230,60 @@
     });
 
     const midLat = (minLat + maxLat) / 2;
-    const lngKmPerDeg = 111.32 * Math.cos((midLat * Math.PI) / 180);
+    const midLng = (minLng + maxLng) / 2;
+    const lngKmPerDeg = Math.max(0.1, 111.32 * Math.cos((midLat * Math.PI) / 180));
     const spacingKm = spacingNm * 1.852;
+
     const marginLat = (spacingKm / 2) / 110.574;
     const marginLng = (spacingKm / 2) / lngKmPerDeg;
 
-    const effMinLat = minLat + marginLat;
-    const effMaxLat = maxLat - marginLat;
-    const effMinLng = minLng + marginLng;
-    const effMaxLng = maxLng - marginLng;
+    const spanLat = Math.max(0.001, maxLat - minLat);
+    const spanLng = Math.max(0.001, maxLng - minLng);
+    const safeMarginLat = Math.min(marginLat, spanLat * 0.15);
+    const safeMarginLng = Math.min(marginLng, spanLng * 0.15);
+    const effMinLat = minLat + safeMarginLat;
+    const effMaxLat = maxLat - safeMarginLat;
+    const effMinLng = minLng + safeMarginLng;
+    const effMaxLng = maxLng - safeMarginLng;
 
     const points = [];
+    const effectiveLegs = Math.max(2, legsCount || 2);
 
     if (type === 'parallel_track') {
-      const stepY = legsCount > 1 ? (effMaxLat - effMinLat) / (legsCount - 1) : 0;
-      for (let i = 0; i < legsCount; i++) {
+      const stepY = (effMaxLat - effMinLat) / (effectiveLegs - 1);
+      for (let i = 0; i < effectiveLegs; i++) {
         const curLat = effMaxLat - i * stepY;
-        const sweepWest = i % 2 === 0;
+        const sweepEast = i % 2 === 0;
         points.push({
           lat: curLat,
-          lng: sweepWest ? effMinLng : effMaxLng,
+          lng: sweepEast ? effMinLng : effMaxLng,
           label: i === 0 ? 'Entry (S)' : `Lintasan ${i + 1}A`
         });
         points.push({
           lat: curLat,
-          lng: sweepWest ? effMaxLng : effMinLng,
-          label: i === legsCount - 1 ? 'Exit (E)' : `Lintasan ${i + 1}B`
+          lng: sweepEast ? effMaxLng : effMinLng,
+          label: i === effectiveLegs - 1 ? 'Exit (E)' : `Lintasan ${i + 1}B`
         });
       }
     } else if (type === 'creeping_line') {
-      const stepX = legsCount > 1 ? (effMaxLng - effMinLng) / (legsCount - 1) : 0;
-      for (let i = 0; i < legsCount; i++) {
+      const stepX = (effMaxLng - effMinLng) / (effectiveLegs - 1);
+      for (let i = 0; i < effectiveLegs; i++) {
         const curLng = effMinLng + i * stepX;
-        const sweepNorth = i % 2 === 0;
+        const sweepSouth = i % 2 === 0;
         points.push({
-          lat: sweepNorth ? effMaxLat : effMinLat,
+          lat: sweepSouth ? effMaxLat : effMinLat,
           lng: curLng,
           label: i === 0 ? 'Entry (S)' : `Sapu ${i + 1}A`
         });
         points.push({
-          lat: sweepNorth ? effMinLat : effMaxLat,
+          lat: sweepSouth ? effMinLat : effMaxLat,
           lng: curLng,
-          label: i === legsCount - 1 ? 'Exit (E)' : `Sapu ${i + 1}B`
+          label: i === effectiveLegs - 1 ? 'Exit (E)' : `Sapu ${i + 1}B`
         });
       }
     } else if (type === 'sector_search') {
-      const radiusKm = spacingKm * 2;
+      const maxRadiusKm = Math.min((effMaxLat - effMinLat) * 110.574, (effMaxLng - effMinLng) * lngKmPerDeg) / 2;
+      const radiusKm = Math.max(spacingKm, Math.min(spacingKm * 2, maxRadiusKm > 0 ? maxRadiusKm : spacingKm * 2));
       points.push({ lat: midLat, lng: midLng, label: 'Datum Centroid' });
       for (let i = 0; i < 3; i++) {
         const a1 = (i * 120 * Math.PI) / 180;
@@ -2011,7 +2300,7 @@
       // Expanding Square (SS)
       points.push({ lat: midLat, lng: midLng, label: 'Datum LKP (S)' });
       let curX = 0, curY = 0, step = 1, dir = 0;
-      for (let leg = 1; leg <= legsCount * 2; leg++) {
+      for (let leg = 1; leg <= effectiveLegs * 2; leg++) {
         const legKm = step * spacingKm;
         if (dir === 0) curX += legKm;
         else if (dir === 1) curY -= legKm;
@@ -2033,87 +2322,206 @@
   }
 
   function generateDatumPattern(type, center, spacingNm, legsCount) {
+    let c = center;
+    if (!c || typeof c.lat !== 'number' || isNaN(c.lat)) {
+      const lkpPoint = savedPoints.find((p) => p.category === 'LKP' || p.pointType === 'lkp');
+      if (lkpPoint && !isNaN(parseFloat(lkpPoint.lat))) {
+        c = { lat: parseFloat(lkpPoint.lat), lng: parseFloat(lkpPoint.lng) };
+      } else if (map) {
+        const mc = map.getCenter();
+        c = { lat: mc.lat, lng: mc.lng };
+      } else {
+        c = { lat: -4.037694, lng: 122.486694 };
+      }
+    } else {
+      c = { lat: parseFloat(c.lat), lng: parseFloat(c.lng) };
+    }
+    const spanDeg = Math.max(0.08, (spacingNm * Math.max(3, legsCount || 4) * 1.852) / 110.574);
     const fakePolygon = [
-      { lat: center.lat + 0.1, lng: center.lng - 0.1 },
-      { lat: center.lat + 0.1, lng: center.lng + 0.1 },
-      { lat: center.lat - 0.1, lng: center.lng + 0.1 },
-      { lat: center.lat - 0.1, lng: center.lng - 0.1 }
+      { lat: c.lat + spanDeg / 2, lng: c.lng - spanDeg / 2 },
+      { lat: c.lat + spanDeg / 2, lng: c.lng + spanDeg / 2 },
+      { lat: c.lat - spanDeg / 2, lng: c.lng + spanDeg / 2 },
+      { lat: c.lat - spanDeg / 2, lng: c.lng - spanDeg / 2 }
     ];
     return generateFittedPatternInsidePolygon(type, fakePolygon, spacingNm, legsCount);
   }
 
+  function removeActivePatternLayers() {
+    if (activePatternPolyline && map) {
+      map.removeLayer(activePatternPolyline);
+      activePatternPolyline = null;
+    }
+    activePatternMarkers.forEach((m) => {
+      if (map) map.removeLayer(m);
+    });
+    activePatternMarkers = [];
+  }
+
   function renderActivePatternOnMap() {
-    clearCurrentPatternVisual();
+    removeActivePatternLayers();
 
-    if (activeGeneratedWaypoints.length < 2) return;
+    if (!activeGeneratedWaypoints || activeGeneratedWaypoints.length < 2) return;
 
-    const latlngs = activeGeneratedWaypoints.map((p) => [p.lat, p.lng]);
+    const latlngs = activeGeneratedWaypoints.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]);
     activePatternPolyline = L.polyline(latlngs, {
       color: '#0284c7',
-      weight: 3,
+      weight: 3.5,
       dashArray: '6, 6'
     }).addTo(map);
 
-    // Corner markers: 'S' and 'E'
+    // Markers: 'S' (Start), 'E' (Exit), and intermediate waypoint dots
     activeGeneratedWaypoints.forEach((wp, idx) => {
       const isStart = idx === 0;
       const isEnd = idx === activeGeneratedWaypoints.length - 1;
+      const lat = parseFloat(wp.lat);
+      const lng = parseFloat(wp.lng);
       if (isStart || isEnd) {
-        const marker = L.marker([wp.lat, wp.lng], { zIndexOffset: 1500 }).addTo(map);
+        const marker = L.marker([lat, lng], { zIndexOffset: 1500 }).addTo(map);
         marker.setIcon(
           L.divIcon({
             html: createPatternCornerHtml(isStart ? 'start' : 'end'),
             className: 'sar-pat-corner',
-            iconSize: [24, 24]
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
           })
         );
-        marker.bindTooltip(wp.label, { direction: 'top', offset: [0, -12] });
+        marker.bindTooltip(wp.label || (isStart ? 'Start (S)' : 'Exit (E)'), { direction: 'top', offset: [0, -12] });
         activePatternMarkers.push(marker);
+      } else {
+        const dot = L.circleMarker([lat, lng], {
+          radius: 4,
+          color: '#ffffff',
+          fillColor: '#0284c7',
+          fillOpacity: 0.9,
+          weight: 1.5
+        }).addTo(map);
+        dot.bindTooltip(wp.label || `WP-${idx + 1}`, { direction: 'top', offset: [0, -6] });
+        activePatternMarkers.push(dot);
       }
     });
 
-    map.fitBounds(activePatternPolyline.getBounds(), { padding: [40, 40] });
+    if (activePatternPolyline && map) {
+      map.fitBounds(activePatternPolyline.getBounds(), { padding: [50, 50], maxZoom: 16 });
+    }
   }
 
   function clearCurrentPatternVisual() {
-    if (activePatternPolyline) {
-      map.removeLayer(activePatternPolyline);
-      activePatternPolyline = null;
+    removeActivePatternLayers();
+    activeGeneratedWaypoints = [];
+    activeGeneratedDistanceNm = 0;
+    const resCard = document.getElementById('patternResultsCard');
+    if (resCard) resCard.classList.add('hidden');
+    const statusMsg = document.getElementById('patternStatusMsg');
+    if (statusMsg) {
+      statusMsg.innerHTML = '';
+      statusMsg.classList.add('hidden');
     }
-    activePatternMarkers.forEach((m) => map.removeLayer(m));
-    activePatternMarkers = [];
-    document.getElementById('patternResultsCard').classList.add('hidden');
+  }
+
+  function getPatternDisplayName(type) {
+    if (type === 'parallel_track') return 'Parallel Track (PS)';
+    if (type === 'creeping_line') return 'Creeping Line (CS)';
+    if (type === 'expanding_square') return 'Expanding Square (SS)';
+    if (type === 'sector_search') return 'Sector Search (VS)';
+    return 'Lintasan IAMSAR';
   }
 
   async function handleSaveSearchPattern() {
-    const name = document.getElementById('patternFormName').value.trim();
-    if (!name || activeGeneratedWaypoints.length < 2) {
-      alert('Lintasan belum digenerate!');
+    const statusMsg = document.getElementById('patternStatusMsg');
+    const nameInput = document.getElementById('patternFormName');
+    const name = nameInput ? nameInput.value.trim() : '';
+
+    if (!activeGeneratedWaypoints || activeGeneratedWaypoints.length < 2) {
+      if (statusMsg) {
+        statusMsg.className = 'text-[11px] p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1.5';
+        statusMsg.innerHTML = '<span>⚠️ Harap lakukan generate pola SAR terlebih dahulu sebelum menyimpan!</span>';
+        statusMsg.classList.remove('hidden');
+      } else {
+        alert('Lintasan belum digenerate!');
+      }
       return;
+    }
+
+    const patTypeName = getPatternDisplayName(activePatternType);
+    const patName = name || `Pola Lintasan SAR ${patTypeName} #${savedPatterns.length + 1}`;
+
+    const polySel = document.getElementById('patternTargetPolygon');
+    const targetPolyId = polySel ? polySel.value : '';
+    const targetPolygon = savedPolygons.find((p) => String(p.id) === String(targetPolyId));
+    const polyName = targetPolygon ? targetPolygon.name : 'Datum LKP';
+
+    const spacingInput = document.getElementById('patternTrackSpacing');
+    const spacingVal = parseFloat(spacingInput ? spacingInput.value : '1.0') || 1.0;
+    const legsVal = parseInt(document.getElementById('patternLegsCount').value, 10) || 6;
+
+    const btnSave = document.getElementById('btnSavePatternConfirm');
+    if (btnSave) {
+      btnSave.disabled = true;
+      btnSave.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span><span>Menyimpan ke Database...</span>';
     }
 
     const payload = {
       id: `pattern-${Date.now()}`,
-      name: name,
+      name: patName,
+      polygonId: targetPolyId,
+      polygonName: polyName,
       patternType: activePatternType,
+      trackSpacingNm: patternSpacingUnit === 'KM' ? (spacingVal / 1.852) : spacingVal,
+      legsCount: legsVal,
+      color: '#0284c7',
       waypoints: activeGeneratedWaypoints,
       totalDistanceNm: activeGeneratedDistanceNm,
       createdAt: `${window.formatTanggalIndo(new Date())} ${window.formatJamWita(new Date())} WITA`
     };
 
     try {
-      await fetch(`${BASE_URL}/api/gis/search-patterns`, {
+      const resp = await fetch(`${BASE_URL}/api/gis/search-patterns`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      savedPatterns.unshift(payload);
-      clearCurrentPatternVisual();
+      const resJson = await resp.json().catch(() => ({}));
+      if (resJson && resJson.id) {
+        payload.id = resJson.id;
+      }
+      if (!savedPatterns.some(p => p.id === payload.id)) {
+        savedPatterns.unshift(payload);
+      }
       renderSavedPatterns();
+
+      if (btnSave) {
+        btnSave.innerHTML = '<span>✓ Berhasil Disimpan</span>';
+      }
+
+      setTimeout(() => {
+        clearCurrentPatternVisual();
+        const card = document.getElementById('patternCreationCard');
+        if (card) card.classList.add('hidden');
+        const btnNew = document.getElementById('btnStartNewPattern');
+        if (btnNew) btnNew.classList.remove('hidden');
+        if (btnSave) {
+          btnSave.disabled = false;
+          btnSave.innerHTML = '<span>💾 Simpan Pola SAR</span>';
+        }
+      }, 600);
     } catch (err) {
-      savedPatterns.unshift(payload);
-      clearCurrentPatternVisual();
+      console.error('Error saving search pattern:', err);
+      if (!savedPatterns.some(p => p.id === payload.id)) {
+        savedPatterns.unshift(payload);
+      }
       renderSavedPatterns();
+
+      setTimeout(() => {
+        clearCurrentPatternVisual();
+        const card = document.getElementById('patternCreationCard');
+        if (card) card.classList.add('hidden');
+        const btnNew = document.getElementById('btnStartNewPattern');
+        if (btnNew) btnNew.classList.remove('hidden');
+        if (btnSave) {
+          btnSave.disabled = false;
+          btnSave.innerHTML = '<span>💾 Simpan Pola SAR</span>';
+        }
+      }, 600);
     }
   }
 
@@ -2177,7 +2585,125 @@
 
   // ==========================================
   // 9. MEASURE DISTANCE & SPEED SIMULATOR
+  // (Jarak Lurus 2 Titik & Jalur Manual Multi-Titik)
   // ==========================================
+
+  function setMeasureMode(mode) {
+    measureModeType = mode === 'path' ? 'path' : 'straight';
+    const btnStraight = document.getElementById('btnModeStraight');
+    const btnPath = document.getElementById('btnModePath');
+    const activeClass = 'p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-center transition font-bold shadow-xs';
+    const inactiveClass = 'p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-center hover:text-slate-900 dark:hover:text-white transition font-bold';
+
+    if (btnStraight && btnPath) {
+      if (measureModeType === 'straight') {
+        btnStraight.className = activeClass;
+        btnPath.className = inactiveClass;
+      } else {
+        btnPath.className = activeClass;
+        btnStraight.className = inactiveClass;
+      }
+    }
+
+    const routeCard = document.getElementById('routePlanningCard');
+    if (routeCard && !routeCard.classList.contains('hidden')) {
+      isMeasureModeActive = true;
+    }
+
+    if (measureModeType === 'straight' && measurePoints.length > 2) {
+      measurePoints = measurePoints.slice(0, 2);
+    }
+
+    const counter = document.getElementById('manualPointsCounter');
+    if (counter) {
+      counter.textContent = `${measurePoints.length} Titik`;
+    }
+
+    const routeNameInput = document.getElementById('measureRouteNameInput');
+    if (routeNameInput && (!routeNameInput.value.trim() || routeNameInput.value.startsWith('Jarak Lurus') || routeNameInput.value.startsWith('Jalur Manual') || routeNameInput.value.startsWith('Rute Darat') || routeNameInput.value.startsWith('Rute Laut'))) {
+      const modeLabel = measureModeType === 'straight' ? 'Jarak Lurus' : 'Jalur Manual';
+      routeNameInput.value = `${modeLabel} #${savedRoutes.length + 1}`;
+    }
+
+    updateMeasureVisual();
+  }
+
+  function recalcRouteMetrics(points = measurePoints) {
+    const elNm = document.getElementById('liveRouteDistNm');
+    const elKm = document.getElementById('liveRouteDistKm');
+    const elBrg = document.getElementById('liveRouteBearing');
+    const elEta = document.getElementById('liveRouteEta');
+    const elStartDms = document.getElementById('liveRouteStartDms');
+    const elEndDms = document.getElementById('liveRouteEndDms');
+
+    const speedUnitSel = document.getElementById('measureSpeedUnit');
+    const currentUnit = speedUnitSel ? speedUnitSel.value : (speedUnit || 'knot');
+    speedUnit = currentUnit;
+    const speedInput = document.getElementById('measureVesselSpeed');
+    const enteredSpeed = parseFloat(speedInput ? speedInput.value : '25') || 25;
+
+    if (!points || !Array.isArray(points) || points.length < 2) {
+      if (elNm) elNm.textContent = '0.00 NM';
+      if (elKm) elKm.textContent = '0.00 km';
+      if (elBrg) elBrg.textContent = '0° (Utara)';
+      if (elEta) elEta.textContent = '0 Menit';
+      if (elStartDms && points && points.length > 0) {
+        elStartDms.textContent = decimalToDms(points[0].lat, points[0].lng);
+      }
+      return { totalKm: 0, totalNm: 0, lastBearing: 0, lastHeading: 'Utara', etaMins: 0 };
+    }
+
+    let totalKm = 0;
+    let totalNm = 0;
+    let lastBearing = 0;
+    let lastHeading = 'Utara';
+
+    for (let i = 0; i < points.length - 1; i++) {
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const res = calculateDistanceHaversine(p1.lat, p1.lng, p2.lat, p2.lng);
+      totalKm += res.km;
+      totalNm += res.nm;
+      lastBearing = res.bearing;
+      lastHeading = res.headingName;
+    }
+
+    let etaMins = 0;
+    if (currentUnit === 'kmh') {
+      // Perhitungan berbasis Km/Jam
+      const speedKmh = Math.max(0.1, enteredSpeed);
+      vesselSpeedKnots = speedKmh / 1.852;
+      etaMins = (totalKm / speedKmh) * 60;
+      if (elKm) {
+        elKm.textContent = `${totalKm.toFixed(2)} km`;
+        elKm.className = 'text-base font-black text-emerald-600 dark:text-emerald-400 font-mono';
+      }
+      if (elNm) {
+        elNm.textContent = `${totalNm.toFixed(2)} NM`;
+        elNm.className = 'text-[10px] text-slate-500 dark:text-slate-400 block font-mono';
+      }
+    } else {
+      // Perhitungan berbasis Knot (Kts)
+      const speedKts = Math.max(0.1, enteredSpeed);
+      vesselSpeedKnots = speedKts;
+      etaMins = (totalNm / speedKts) * 60;
+      if (elNm) {
+        elNm.textContent = `${totalNm.toFixed(2)} NM`;
+        elNm.className = 'text-base font-black text-emerald-600 dark:text-emerald-400 font-mono';
+      }
+      if (elKm) {
+        elKm.textContent = `${totalKm.toFixed(2)} km`;
+        elKm.className = 'text-[10px] text-slate-500 dark:text-slate-400 block font-mono';
+      }
+    }
+
+    if (elBrg) elBrg.textContent = `${lastBearing}° (${lastHeading})`;
+    if (elEta) elEta.textContent = formatDurationIndonesian(etaMins);
+    if (elStartDms) elStartDms.textContent = decimalToDms(points[0].lat, points[0].lng);
+    if (elEndDms) elEndDms.textContent = decimalToDms(points[points.length - 1].lat, points[points.length - 1].lng);
+
+    return { totalKm, totalNm, lastBearing, lastHeading, etaMins };
+  }
 
   function initMeasureDistanceUI() {
     const toggleSwitch = document.getElementById('toggleMeasureMode');
@@ -2190,53 +2716,100 @@
       });
     }
 
+    // Sub-mode (Jarak Lurus vs Jalur Manual)
     const btnStraight = document.getElementById('btnModeStraight');
     const btnPath = document.getElementById('btnModePath');
+    if (btnStraight) {
+      btnStraight.addEventListener('click', () => setMeasureMode('straight'));
+    }
+    if (btnPath) {
+      btnPath.addEventListener('click', () => setMeasureMode('path'));
+    }
 
-    if (btnStraight && btnPath) {
-      btnStraight.addEventListener('click', () => {
-        measureModeType = 'straight';
-        btnStraight.className = 'p-2 rounded-xl border border-orange-500 bg-orange-500/20 text-orange-400 text-center transition font-bold';
-        btnPath.className = 'p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-center hover:text-white transition font-bold';
-        if (measurePoints.length > 2) measurePoints = measurePoints.slice(0, 2);
-        updateMeasureVisual();
-      });
-
-      btnPath.addEventListener('click', () => {
-        measureModeType = 'path';
-        btnPath.className = 'p-2 rounded-xl border border-orange-500 bg-orange-500/20 text-orange-400 text-center transition font-bold';
-        btnStraight.className = 'p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-center hover:text-white transition font-bold';
-        updateMeasureVisual();
+    // Satuan Kecepatan & Navigasi: Otomatis konversi nilai dan hitung ulang seketika!
+    const speedUnitSel = document.getElementById('measureSpeedUnit');
+    if (speedUnitSel) {
+      let prevUnit = speedUnitSel.value || 'knot';
+      speedUnitSel.addEventListener('change', (e) => {
+        const newUnit = e.target.value;
+        const speedInput = document.getElementById('measureVesselSpeed');
+        if (speedInput) {
+          const curVal = parseFloat(speedInput.value) || 25;
+          if (newUnit === 'kmh' && prevUnit === 'knot') {
+            // Knot ➔ Km/Jam: curVal * 1.852
+            speedInput.value = (curVal * 1.852).toFixed(1);
+          } else if (newUnit === 'knot' && prevUnit === 'kmh') {
+            // Km/Jam ➔ Knot: curVal / 1.852
+            speedInput.value = (curVal / 1.852).toFixed(1);
+          }
+        }
+        prevUnit = newUnit;
+        speedUnit = newUnit;
+        recalcRouteMetrics(measurePoints);
       });
     }
 
-    // Quick Speed Preset Cards
+    // Quick Speed Preset Buttons (dengan dukungan unit otomatis)
     document.querySelectorAll('.speed-preset-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const speed = parseFloat(btn.getAttribute('data-speed'));
-        document.getElementById('measureVesselSpeed').value = speed;
-        vesselSpeedKnots = speed;
+        const unit = btn.getAttribute('data-unit') || 'knot';
+        const unitSel = document.getElementById('measureSpeedUnit');
+        if (unitSel) {
+          unitSel.value = unit;
+          speedUnit = unit;
+        }
+        const speedInput = document.getElementById('measureVesselSpeed');
+        if (speedInput) speedInput.value = speed;
+        recalcRouteMetrics(measurePoints);
         updateMeasureVisual();
       });
     });
 
     const speedInput = document.getElementById('measureVesselSpeed');
     if (speedInput) {
-      speedInput.addEventListener('input', (e) => {
-        vesselSpeedKnots = parseFloat(e.target.value) || 20;
-        updateMeasureVisual();
+      speedInput.addEventListener('input', () => {
+        recalcRouteMetrics(measurePoints);
       });
     }
 
-    const clearBtn = document.getElementById('btnClearMeasureRoute');
-    if (clearBtn) {
-      clearBtn.addEventListener('click', clearMeasureVisual);
+    // Start New Route Button
+    const btnNewRoute = document.getElementById('btnStartNewRoute');
+    if (btnNewRoute) {
+      btnNewRoute.addEventListener('click', () => {
+        const card = document.getElementById('routePlanningCard');
+        if (card) card.classList.remove('hidden');
+        btnNewRoute.classList.add('hidden');
+        isMeasureModeActive = true;
+        currentActiveRouteId = null;
+        clearMeasureVisual();
+        setMeasureMode(measureModeType);
+      });
     }
+
+    // Cancel / Clear Route Buttons
+    const clearBtn = document.getElementById('btnClearMeasureRoute');
+    const cancelTopBtn = document.getElementById('btnCancelRouteFormTop');
+    [clearBtn, cancelTopBtn].forEach((b) => {
+      if (b) {
+        b.addEventListener('click', () => {
+          clearMeasureVisual();
+          isMeasureModeActive = false;
+          const card = document.getElementById('routePlanningCard');
+          if (card) card.classList.add('hidden');
+          const btnNew = document.getElementById('btnStartNewRoute');
+          if (btnNew) btnNew.classList.remove('hidden');
+        });
+      }
+    });
 
     const saveBtn = document.getElementById('btnSaveMeasureRoute');
     if (saveBtn) {
-      saveBtn.addEventListener('click', handleSaveMeasureRoute);
+      saveBtn.addEventListener('click', () => performSaveRoute({ isManualClick: true }));
     }
+
+    // Initialize default mode
+    setMeasureMode(measureModeType);
   }
 
   function addMeasurePoint(lat, lng) {
@@ -2245,32 +2818,40 @@
     } else {
       measurePoints.push({ lat, lng });
     }
+
+    const counter = document.getElementById('manualPointsCounter');
+    if (counter) {
+      counter.textContent = `${measurePoints.length} Titik`;
+    }
+
+    const nameInput = document.getElementById('measureRouteNameInput');
+    if (nameInput && !nameInput.value.trim()) {
+      nameInput.value = `Jalur Manual Ops #${savedRoutes.length + 1}`;
+    }
+
     updateMeasureVisual();
+
+    const badge = document.getElementById('routeRealtimeStatusBadge');
+    if (measurePoints.length >= 2) {
+      if (badge) {
+        if (currentActiveRouteId) {
+          badge.textContent = '✏️ Mode Edit (Siap Disimpan)';
+          badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
+        } else {
+          badge.textContent = '✏️ Rute Belum Disimpan';
+          badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
+        }
+      }
+    } else {
+      if (badge) {
+        badge.textContent = 'Menunggu titik ke-2...';
+        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
+      }
+    }
   }
 
   function updateMeasureVisual() {
-    let totalKm = 0;
-    let totalNm = 0;
-    let lastBearing = 0;
-    let lastHeading = 'Utara';
-
-    for (let i = 0; i < measurePoints.length - 1; i++) {
-      const p1 = measurePoints[i];
-      const p2 = measurePoints[i + 1];
-      const res = calculateDistanceHaversine(p1.lat, p1.lng, p2.lat, p2.lng);
-      totalKm += res.km;
-      totalNm += res.nm;
-      lastBearing = res.bearing;
-      lastHeading = res.headingName;
-    }
-
-    const speedKnotsEffective = Math.max(1, vesselSpeedKnots);
-    const etaMins = (totalNm / speedKnotsEffective) * 60;
-
-    document.getElementById('liveRouteDistNm').textContent = `${totalNm.toFixed(2)} NM`;
-    document.getElementById('liveRouteDistKm').textContent = `${totalKm.toFixed(2)} km`;
-    document.getElementById('liveRouteBearing').textContent = `${lastBearing}° (${lastHeading})`;
-    document.getElementById('liveRouteEta').textContent = formatDurationIndonesian(etaMins);
+    recalcRouteMetrics(measurePoints);
 
     // Map Polyline & Waypoints
     if (measurePolyline) {
@@ -2289,21 +2870,105 @@
     }
 
     measurePoints.forEach((p, idx) => {
-      const marker = L.circleMarker([p.lat, p.lng], {
-        radius: 6,
-        fillColor: '#10b981',
-        color: '#ffffff',
-        weight: 2,
-        fillOpacity: 1
+      const isStart = idx === 0;
+      const isEnd = idx === measurePoints.length - 1 && measurePoints.length > 1;
+      const bgColor = isStart ? '#16a34a' : (isEnd ? '#dc2626' : '#0ea5e9');
+      const labelText = isStart ? 'A' : (isEnd ? 'B' : `${idx + 1}`);
+      const dmsP = decimalToDms(p.lat, p.lng);
+
+      const markerIcon = L.divIcon({
+        className: 'custom-measure-waypoint',
+        html: `<div style="
+          width: 22px; height: 22px;
+          border-radius: 50%;
+          background: ${bgColor};
+          border: 2px solid #ffffff;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+          display: flex; align-items: center; justify-content: center;
+          color: white; font-size: 10px; font-weight: bold; font-family: ui-sans-serif, system-ui;
+          cursor: grab;
+        ">${labelText}</div>`,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      });
+
+      const marker = L.marker([p.lat, p.lng], {
+        draggable: true,
+        icon: markerIcon
       }).addTo(map);
 
-      marker.bindTooltip(`WP-${idx + 1}`, { permanent: true, direction: 'top', offset: [0, -8] });
+      marker.bindTooltip(`WP-${idx + 1} (${dmsP})`, { permanent: true, direction: 'top', offset: [0, -11] });
+      marker.bindPopup(`
+        <div class="p-2 space-y-1 font-sans text-xs">
+          <div class="font-bold text-emerald-600 flex items-center gap-1"><span>📍</span> Waypoint ${idx + 1} (${labelText}) - Dapat Digeser</div>
+          <div class="font-mono text-[10px] text-slate-500 bg-slate-100 p-1 rounded border border-slate-200">DMS: ${dmsP}</div>
+          <div class="text-[9px] text-slate-400 italic">Geser titik ini pada peta untuk menyesuaikan posisi rute.</div>
+        </div>
+      `);
+
+      marker.on('drag', (e) => {
+        const newLatLng = e.target.getLatLng();
+        p.lat = newLatLng.lat;
+        p.lng = newLatLng.lng;
+        if (measurePolyline) {
+          measurePolyline.setLatLngs(measurePoints.map(pt => [pt.lat, pt.lng]));
+        }
+        recalcRouteMetrics(measurePoints);
+      });
+
+      marker.on('dragend', (e) => {
+        const newLatLng = e.target.getLatLng();
+        p.lat = newLatLng.lat;
+        p.lng = newLatLng.lng;
+        const newDms = decimalToDms(p.lat, p.lng);
+        marker.setTooltipContent(`WP-${idx + 1} (${newDms})`);
+        recalcRouteMetrics(measurePoints);
+        if (measurePoints.length >= 2) {
+          const badge = document.getElementById('routeRealtimeStatusBadge');
+          if (badge) {
+            badge.textContent = currentActiveRouteId ? '✏️ Mode Edit (Posisi Diubah)' : '✏️ Rute Belum Disimpan';
+            badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
+          }
+        }
+      });
+
       measureMarkers.push(marker);
     });
   }
 
   function clearMeasureVisual() {
     measurePoints = [];
+    currentActiveRouteId = null;
+    if (autoSaveRouteDebounceTimer) {
+      clearTimeout(autoSaveRouteDebounceTimer);
+      autoSaveRouteDebounceTimer = null;
+    }
+
+    const nameInput = document.getElementById('measureRouteNameInput');
+    if (nameInput) nameInput.value = '';
+
+    const saveBtn = document.getElementById('btnSaveMeasureRoute');
+    if (saveBtn) {
+      saveBtn.innerHTML = '<span>💾 Simpan Rute Ini</span>';
+    }
+
+    const realtimeBadge = document.getElementById('routeRealtimeStatusBadge');
+    if (realtimeBadge) {
+      realtimeBadge.textContent = '⚡ Siap Rancang';
+      realtimeBadge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
+    }
+
+    const manualCounter = document.getElementById('manualPointsCounter');
+    if (manualCounter) manualCounter.textContent = '0 Titik';
+
+    const feedbackBanner = document.getElementById('routeSaveFeedbackBanner');
+    if (feedbackBanner) feedbackBanner.classList.add('hidden');
+
+    const liveDmsStart = document.getElementById('liveRouteStartDms');
+    if (liveDmsStart) liveDmsStart.textContent = 'Belum ditentukan';
+    const liveDmsEnd = document.getElementById('liveRouteEndDms');
+    if (liveDmsEnd) liveDmsEnd.textContent = 'Belum ditentukan';
+
     if (measurePolyline) {
       map.removeLayer(measurePolyline);
       measurePolyline = null;
@@ -2311,42 +2976,230 @@
     measureMarkers.forEach((m) => map.removeLayer(m));
     measureMarkers = [];
 
-    document.getElementById('liveRouteDistNm').textContent = '0.00 NM';
-    document.getElementById('liveRouteDistKm').textContent = '0.00 km';
-    document.getElementById('liveRouteBearing').textContent = '0° (Utara)';
-    document.getElementById('liveRouteEta').textContent = '0 Menit';
+    const distNmEl = document.getElementById('liveRouteDistNm');
+    if (distNmEl) distNmEl.textContent = '0.00 NM';
+    const distKmEl = document.getElementById('liveRouteDistKm');
+    if (distKmEl) distKmEl.textContent = '0.00 km';
+    const brgEl = document.getElementById('liveRouteBearing');
+    if (brgEl) brgEl.textContent = '0° (Utara)';
+    const etaEl = document.getElementById('liveRouteEta');
+    if (etaEl) etaEl.textContent = '0 Menit';
   }
 
-  async function handleSaveMeasureRoute() {
-    if (measurePoints.length < 2) {
-      alert('Minimal tentukan 2 titik rute!');
+  async function performSaveRoute(options = {}) {
+    const isManualClick = !!options.isManualClick;
+
+    if (!measurePoints || measurePoints.length < 2) {
+      const badge = document.getElementById('routeRealtimeStatusBadge');
+      if (badge) {
+        badge.textContent = measurePoints.length === 1 ? 'Menunggu titik ke-2' : '⚡ Siap Rancang';
+        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
+      }
+      showRouteSaveFeedback('Minimal tentukan 2 titik rute!', 'warning');
       return;
     }
 
+    // 1. Resolve Route Name directly from Form Input (No localhost prompt!)
+    const nameInput = document.getElementById('measureRouteNameInput');
+    let routeName = nameInput ? nameInput.value.trim() : '';
+    if (!routeName) {
+      const modeLabel = measureModeType === 'straight' ? 'Jarak Lurus' : 'Jalur Manual';
+      routeName = `${modeLabel} #${savedRoutes.length + 1}`;
+      if (nameInput) nameInput.value = routeName;
+    }
+
+    const isEditing = !!currentActiveRouteId && savedRoutes.some(r => String(r.id) === String(currentActiveRouteId));
+    if (!currentActiveRouteId) {
+      currentActiveRouteId = `route-${Date.now()}`;
+    }
+
+    const metrics = recalcRouteMetrics(measurePoints);
+    const strokeColor = '#10b981';
+
     const payload = {
-      id: `route-${Date.now()}`,
-      name: `Rute Operasi #${savedRoutes.length + 1}`,
+      id: currentActiveRouteId,
+      name: routeName,
       points: measurePoints,
       vesselSpeedKnots: vesselSpeedKnots,
-      strokeColor: '#059669',
+      speedUnit: speedUnit || 'knot',
+      distanceNm: metrics.totalNm,
+      distanceKm: metrics.totalKm,
+      bearing: metrics.lastBearing,
+      heading: metrics.lastHeading,
+      etaText: formatDurationIndonesian(metrics.etaMins),
+      routingMode: measureModeType,
+      strokeColor: strokeColor,
       strokeWeight: 3.5,
       strokeOpacity: 0.9,
       createdAt: `${window.formatTanggalIndo(new Date())} WITA`
     };
 
+    const saveBtn = document.getElementById('btnSaveMeasureRoute');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span><span>Menyimpan Rute...</span>';
+    }
+
+    const badge = document.getElementById('routeRealtimeStatusBadge');
+    if (badge) {
+      badge.textContent = '⏳ Menyimpan...';
+      badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition animate-pulse';
+    }
+
     try {
-      await fetch(`${BASE_URL}/api/gis/routes`, {
+      const resp = await fetch(`${BASE_URL}/api/gis/routes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      savedRoutes.unshift(payload);
-      clearMeasureVisual();
+      const resJson = await resp.json().catch(() => ({}));
+      if (resJson && resJson.id) {
+        currentActiveRouteId = resJson.id;
+        payload.id = resJson.id;
+      }
+
+      // Update in-memory saved routes list
+      const existingIdx = savedRoutes.findIndex(r => String(r.id) === String(payload.id));
+      if (existingIdx >= 0) {
+        savedRoutes[existingIdx] = payload;
+      } else {
+        savedRoutes.unshift(payload);
+      }
       renderSavedRoutes();
+
+      const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      if (badge) {
+        badge.textContent = `⚡ Tersimpan (${timeStr})`;
+        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold transition';
+      }
+
+      const counter = document.getElementById('manualPointsCounter');
+      if (counter) {
+        counter.textContent = `${measurePoints.length} Titik (Tersimpan)`;
+      }
+
+      const actionText = isEditing ? 'diperbarui' : 'disimpan';
+      showRouteSaveFeedback(`✅ Rute "${escapeHtml(routeName)}" berhasil ${actionText} (${metrics.totalNm.toFixed(2)} NM, ETA ${formatDurationIndonesian(metrics.etaMins)}).`, 'success');
+      currentActiveRouteId = null;
     } catch (err) {
-      savedRoutes.unshift(payload);
-      clearMeasureVisual();
+      console.warn('Save route offline or failed:', err);
+      const existingIdx = savedRoutes.findIndex(r => String(r.id) === String(payload.id));
+      if (existingIdx >= 0) {
+        savedRoutes[existingIdx] = payload;
+      } else {
+        savedRoutes.unshift(payload);
+      }
       renderSavedRoutes();
+
+      if (badge) {
+        badge.textContent = '⚡ Tersimpan Lokal';
+        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 font-bold transition';
+      }
+
+      showRouteSaveFeedback(`✅ Rute "${escapeHtml(routeName)}" disimpan secara lokal (${metrics.totalNm.toFixed(2)} NM).`, 'info');
+      currentActiveRouteId = null;
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<span>💾 Simpan Rute Ini</span>';
+      }
+    }
+  }
+
+  function showRouteSaveFeedback(msg, type = 'success') {
+    const banner = document.getElementById('routeSaveFeedbackBanner');
+    if (!banner) return;
+    banner.classList.remove('hidden');
+    if (type === 'success') {
+      banner.className = 'text-xs p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center justify-between animate-in fade-in';
+      banner.innerHTML = `<span>${msg}</span><button type="button" onclick="this.parentElement.classList.add('hidden')" class="ml-2 font-bold opacity-60 hover:opacity-100">&times;</button>`;
+    } else if (type === 'warning') {
+      banner.className = 'text-xs p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center justify-between animate-in fade-in';
+      banner.innerHTML = `<span>⚠️ ${msg}</span><button type="button" onclick="this.parentElement.classList.add('hidden')" class="ml-2 font-bold opacity-60 hover:opacity-100">&times;</button>`;
+    } else {
+      banner.className = 'text-xs p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 flex items-center justify-between animate-in fade-in';
+      banner.innerHTML = `<span>${msg}</span><button type="button" onclick="this.parentElement.classList.add('hidden')" class="ml-2 font-bold opacity-60 hover:opacity-100">&times;</button>`;
+    }
+    setTimeout(() => {
+      if (banner) banner.classList.add('hidden');
+    }, 6000);
+  }
+
+  function editRoute(id) {
+    const rt = savedRoutes.find((r) => String(r.id) === String(id));
+    if (!rt) return;
+
+    // Switch to measure tab
+    switchActiveTab('tab-measure');
+
+    // Ensure sidebar is visible
+    const sidebar = document.getElementById('gisSidebarPanel');
+    const floatingBtn = document.getElementById('btnFloatingOpenSidebar');
+    const iconClose = document.getElementById('iconSidebarClose');
+    const iconOpen = document.getElementById('iconSidebarOpen');
+    const label = document.getElementById('labelSidebarToggle');
+    if (sidebar && sidebar.classList.contains('-ml-[390px]')) {
+      isSidebarVisible = true;
+      sidebar.classList.remove('-ml-[390px]');
+      if (floatingBtn) floatingBtn.classList.add('hidden');
+      if (iconClose) iconClose.classList.remove('hidden');
+      if (iconOpen) iconOpen.classList.add('hidden');
+      if (label) label.textContent = 'Sembunyikan Tools';
+    }
+
+    // Open route card & activate measure mode
+    const card = document.getElementById('routePlanningCard');
+    if (card) card.classList.remove('hidden');
+    const btnNew = document.getElementById('btnStartNewRoute');
+    if (btnNew) btnNew.classList.add('hidden');
+
+    isMeasureModeActive = true;
+    currentActiveRouteId = rt.id;
+    measurePoints = Array.isArray(rt.points)
+      ? rt.points.map((p) => ({ lat: parseFloat(p.lat), lng: parseFloat(p.lng), label: p.label || '' }))
+      : [];
+    measureModeType = rt.routingMode || (measurePoints.length > 2 ? 'path' : 'straight');
+
+    const nameInput = document.getElementById('measureRouteNameInput');
+    if (nameInput) nameInput.value = rt.name || '';
+
+    const speedInput = document.getElementById('measureVesselSpeed');
+    const speedUnitSel = document.getElementById('measureSpeedUnit');
+    const rUnit = rt.speedUnit || 'knot';
+    if (speedUnitSel) {
+      speedUnitSel.value = rUnit;
+      speedUnit = rUnit;
+    }
+    if (speedInput) {
+      if (rUnit === 'kmh') {
+        speedInput.value = ((parseFloat(rt.vesselSpeedKnots) || 25) * 1.852).toFixed(1);
+      } else {
+        speedInput.value = parseFloat(rt.vesselSpeedKnots) || 25;
+      }
+    }
+
+    const saveBtn = document.getElementById('btnSaveMeasureRoute');
+    if (saveBtn) {
+      saveBtn.innerHTML = '<span>💾 Perbarui Rute</span>';
+    }
+
+    const badge = document.getElementById('routeRealtimeStatusBadge');
+    if (badge) {
+      badge.textContent = `✏️ Mengedit: ${rt.name || 'Rute'}`;
+      badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
+    }
+
+    const counter = document.getElementById('manualPointsCounter');
+    if (counter) {
+      counter.textContent = `${measurePoints.length} Titik (Mode Edit)`;
+    }
+
+    setMeasureMode(measureModeType);
+    updateMeasureVisual();
+
+    if (measurePoints.length >= 2 && map) {
+      const bounds = L.latLngBounds(measurePoints.map((p) => [p.lat, p.lng]));
+      map.fitBounds(bounds, { padding: [60, 60] });
     }
   }
 
@@ -2388,21 +3241,34 @@
           distNm += calculateDistanceHaversine(rt.points[i].lat, rt.points[i].lng, rt.points[i + 1].lat, rt.points[i + 1].lng).nm;
         }
 
+        const startDms = rt.points && rt.points[0] ? decimalToDms(rt.points[0].lat, rt.points[0].lng) : '-';
+        const endDms = rt.points && rt.points.length > 1 ? decimalToDms(rt.points[rt.points.length - 1].lat, rt.points[rt.points.length - 1].lng) : '-';
+        const speedDisplay = rt.speedUnit === 'kmh'
+          ? `${((parseFloat(rt.vesselSpeedKnots) || 25) * 1.852).toFixed(1)} km/jam`
+          : `${rt.vesselSpeedKnots || 25} Knot`;
+
         return `
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
             <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusRoute('${rt.id}')">
               <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${rt.name}</div>
               <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
-                ${distNm.toFixed(2)} NM (${(distNm * 1.852).toFixed(2)} km) • @ ${rt.vesselSpeedKnots} Knot
+                ${distNm.toFixed(2)} NM (${(distNm * 1.852).toFixed(2)} km) • @ ${speedDisplay}
+              </div>
+              <div class="text-[9px] font-mono text-slate-400 mt-1 flex flex-col gap-0.5">
+                <span class="truncate"><b class="text-emerald-400">A:</b> ${startDms}</span>
+                <span class="truncate"><b class="text-red-400">B:</b> ${endDms}</span>
               </div>
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
-              <button type="button" onclick="window.SAR_GIS.toggleRouteVisibility('${rt.id}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded">
+              <button type="button" onclick="window.SAR_GIS.editRoute('${rt.id}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded transition" title="Edit Rute Ini">
+                ✏️
+              </button>
+              <button type="button" onclick="window.SAR_GIS.toggleRouteVisibility('${rt.id}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded" title="Tampilkan/Sembunyikan">
                 ${isHidden ? '👁️‍🗨️' : '👁️'}
               </button>
-              <button type="button" onclick="window.SAR_GIS.deleteRoute('${rt.id}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded">
+              <button type="button" onclick="window.SAR_GIS.deleteRoute('${rt.id}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded" title="Hapus Rute">
                 🗑️
               </button>
             </div>
@@ -2616,7 +3482,9 @@
           icon: L.divIcon({
             html: createMarkerHtml(pt, false),
             className: 'sar-print-pin',
-            iconSize: [30, 36]
+            iconSize: [38, 46],
+            iconAnchor: [19, 42],
+            popupAnchor: [0, -42]
           })
         }).addTo(printPreviewMap);
       });
@@ -2687,15 +3555,17 @@
   function switchActiveTab(tabId) {
     activeTab = tabId;
 
+    // 1. Update tab navigation button styling (Theme Adaptive)
     document.querySelectorAll('.gis-tab-nav-btn').forEach((btn) => {
       const t = btn.getAttribute('data-tab');
       if (t === tabId) {
-        btn.className = 'gis-tab-nav-btn py-3 px-1 border-b-2 border-orange-500 text-orange-400 flex flex-col items-center justify-center gap-1 transition';
+        btn.className = 'gis-tab-nav-btn py-3 px-1 border-b-2 border-orange-500 text-orange-600 dark:text-orange-400 flex flex-col items-center justify-center gap-1 transition';
       } else {
-        btn.className = 'gis-tab-nav-btn py-3 px-1 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex flex-col items-center justify-center gap-1 transition';
+        btn.className = 'gis-tab-nav-btn py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-1 transition';
       }
     });
 
+    // 2. Toggle panes
     document.querySelectorAll('.gis-tab-pane').forEach((pane) => {
       if (pane.id === tabId) {
         pane.classList.remove('hidden');
@@ -2703,6 +3573,36 @@
         pane.classList.add('hidden');
       }
     });
+
+    // 3. User Requirement 4: Invalidate & cancel route measurement when switching away from tab-measure
+    if (tabId !== 'tab-measure') {
+      isMeasureModeActive = false;
+      clearMeasureVisual();
+      const routeCard = document.getElementById('routePlanningCard');
+      if (routeCard) routeCard.classList.add('hidden');
+      const btnNewRoute = document.getElementById('btnStartNewRoute');
+      if (btnNewRoute) btnNewRoute.classList.remove('hidden');
+    }
+
+    // 4. Automatically cancel unsaved pattern preview when switching away from tab-pattern
+    if (tabId !== 'tab-pattern') {
+      clearCurrentPatternVisual();
+      const patternCard = document.getElementById('patternCreationCard');
+      if (patternCard) patternCard.classList.add('hidden');
+      const btnNewPat = document.getElementById('btnStartNewPattern');
+      if (btnNewPat) btnNewPat.classList.remove('hidden');
+    }
+
+    // 5. Automatically cancel unsaved polygon drawing when switching away from tab-polygon
+    if (tabId !== 'tab-polygon') {
+      if (isDrawingPolygon) {
+        cancelPolygonDrawing();
+      }
+      const polyCard = document.getElementById('polygonDrawingEditorCard');
+      if (polyCard) polyCard.classList.add('hidden');
+      const btnNewPoly = document.getElementById('btnStartNewPolygon');
+      if (btnNewPoly) btnNewPoly.classList.remove('hidden');
+    }
   }
 
   function initSidebarToggle() {
@@ -2888,8 +3788,23 @@
 
     applyPatternFromPolygon: (id) => {
       switchActiveTab('tab-pattern');
+      const card = document.getElementById('patternCreationCard');
+      if (card) card.classList.remove('hidden');
+      const btnNew = document.getElementById('btnStartNewPattern');
+      if (btnNew) btnNew.classList.add('hidden');
       const sel = document.getElementById('patternTargetPolygon');
-      if (sel) sel.value = id;
+      if (sel) {
+        sel.value = id;
+        updatePatternAutoCalculation();
+      }
+      const poly = savedPolygons.find((p) => String(p.id) === String(id));
+      if (poly && poly.points && poly.points.length >= 3 && map) {
+        const validPts = poly.points.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]).filter((p) => !isNaN(p[0]) && !isNaN(p[1]));
+        if (validPts.length >= 3) {
+          const bounds = L.latLngBounds(validPts);
+          map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
+        }
+      }
       generateSearchPatternRoute();
     },
 
@@ -2924,11 +3839,15 @@
     },
 
     focusRoute: (id) => {
-      const rt = savedRoutes.find((r) => r.id === id);
+      const rt = savedRoutes.find((r) => String(r.id) === String(id));
       if (rt && rt.points.length >= 2 && map) {
         const bounds = L.latLngBounds(rt.points.map((p) => [p.lat, p.lng]));
         map.fitBounds(bounds, { padding: [50, 50] });
       }
+    },
+
+    editRoute: (id) => {
+      editRoute(id);
     },
 
     toggleRouteVisibility: (id) => {
@@ -2951,14 +3870,18 @@
         savedRoutes = savedRoutes.filter((r) => r.id !== id);
         renderSavedRoutes();
       }
-    }
+    },
+
+    setMeasureMode: (mode) => setMeasureMode(mode),
+    saveRoute: () => performSaveRoute({ isManualClick: true }),
+    clearRoute: () => clearMeasureVisual()
   };
 
   // ==========================================
   // 14. BOOTSTRAP APPLICATION
   // ==========================================
 
-  document.addEventListener('DOMContentLoaded', () => {
+  function bootstrapApp() {
     initLeafletMap();
     initLocationSearchBar();
     initPointCreatorUI();
@@ -2971,5 +3894,11 @@
     initBasemapSwitcher();
     initExportDropdown();
     initFullscreenToggle();
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootstrapApp);
+  } else {
+    bootstrapApp();
+  }
 })();

@@ -2,9 +2,40 @@
 /**
  * QR-SAR - Dedicated View Form Laporan Perkembangan & Penutupan (SITREP / LAPBANG)
  * KPP Kendari - Basarnas
+ *
+ * @var int $idOperasi
+ * @var bool $editMode
+ * @var int $idLaporan
+ * @var array $operasi
+ * @var array $masterTim
+ * @var array $masterAlut
+ * @var string $hariKe
+ * @var string $jenisLaporan
+ * @var string $waktuLaporan
+ * @var string $waktuDebrief
+ * @var string $cuaca
+ * @var string $isiLaporan
+ * @var array $initialUnsurData
+ * @var array $initialAlutData
  */
 
 declare(strict_types=1);
+
+// Defensive fallback initialization for IDE static analysis and safe isolated view evaluation
+$idOperasi = $idOperasi ?? (int)($_GET['id_operasi'] ?? 0);
+$editMode = $editMode ?? false;
+$idLaporan = $idLaporan ?? (int)($_GET['id_laporan'] ?? 0);
+$operasi = $operasi ?? [];
+$hariKe = $hariKe ?? 'H.1';
+$jenisLaporan = $jenisLaporan ?? 'PERKEMBANGAN';
+$waktuLaporan = $waktuLaporan ?? date('Y-m-d\TH:i');
+$waktuDebrief = $waktuDebrief ?? date('Y-m-d\TH:i');
+$cuaca = $cuaca ?? 'Cerah Berawan';
+$isiLaporan = $isiLaporan ?? '';
+$masterTim = $masterTim ?? [];
+$masterAlut = $masterAlut ?? [];
+$initialUnsurData = $initialUnsurData ?? [];
+$initialAlutData = $initialAlutData ?? [];
 ?>
 
 <div class="max-w-7xl mx-auto space-y-6 pb-20">
@@ -90,6 +121,42 @@ declare(strict_types=1);
             <input type="radio" name="jenis_laporan" value="PENUTUPAN" <?= $jenisLaporan === 'PENUTUPAN' ? 'checked' : '' ?> onchange="handleJenisLaporanChange(this.value)" class="hidden">
             <span>🔒 Penutupan Operasi</span>
           </label>
+        </div>
+      </div>
+
+      <?php
+        $dayNumExtracted = (int)filter_var($hariKe, FILTER_SANITIZE_NUMBER_INT);
+        $isH7Active = strtoupper(trim((string)$hariKe)) === 'H.7' || $dayNumExtracted >= 7;
+      ?>
+      <!-- Advisory Banner Batas Waktu Operasi SAR (UU No. 29/2014) -->
+      <div id="h7-advisory-banner" class="p-4 rounded-2xl border <?= $isH7Active ? 'border-red-500/40 bg-red-500/10 text-red-900 dark:text-red-200' : 'border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200 hidden' ?> text-xs space-y-2.5 shadow-xs transition-all">
+        <div class="flex items-start gap-3">
+          <div class="w-8 h-8 rounded-xl <?= $isH7Active ? 'bg-red-500/20 text-red-600 dark:text-red-400' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400' ?> flex items-center justify-center shrink-0 font-black text-sm">
+            ⚖️
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h4 class="font-black text-xs sm:text-sm uppercase tracking-wide <?= $isH7Active ? 'text-red-800 dark:text-red-300' : 'text-amber-800 dark:text-amber-300' ?>">
+                Ketentuan Penutupan Operasi SAR Hari Ke-7 (Pasal 34 UU No. 29 Tahun 2014)
+              </h4>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-black <?= $isH7Active ? 'bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/40' : 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30' ?>">
+                REGULASI RESMI BASARNAS
+              </span>
+            </div>
+            <p class="text-[11px] leading-relaxed mt-1 text-slate-700 dark:text-slate-300">
+              Sesuai UU No. 29 Tahun 2014, jangka waktu pelaksanaan operasi SAR adalah <strong>paling lama 7 (tujuh) hari</strong>. Pada Hari Ke-7, SMC dan Tim Gabungan melaksanakan evaluasi bersama potensi SAR dan keluarga korban. Jika hasil pencarian tidak menunjukkan tanda-tanda korban ditemukan, operasi resmi diusulkan untuk <strong>DITUTUP</strong>, atau dapat diperpanjang jika terdapat petunjuk baru yang valid.
+            </p>
+            <div class="flex flex-wrap items-center gap-2 pt-2">
+              <button type="button" onclick="applyH7ClosureTemplate()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15v2m0 0v2m0-2h2m-2 0H10"/><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>1-Klik: Terapkan Naskah Resmi Penutupan H.7 (Nihil / Sesuai UU 29/2014)</span>
+              </button>
+              <button type="button" onclick="applyH7ExtensionTemplate()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>1-Klik: Usulan Perpanjangan Operasi H.7</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -527,6 +594,62 @@ function handleJenisLaporanChange(val) {
     }
   }
 }
+
+// ── Quick Templates for Day 7 (H.7) Operations Closure / Extension per UU No. 29/2014 ──
+function applyH7ClosureTemplate() {
+  const radioPenutupan = document.querySelector('input[name="jenis_laporan"][value="PENUTUPAN"]');
+  if (radioPenutupan) {
+    radioPenutupan.checked = true;
+    handleJenisLaporanChange('PENUTUPAN');
+  }
+  const debriefInput = document.getElementById('sitrep_waktu_debrief');
+  if (debriefInput && !debriefInput.value) {
+    const now = new Date();
+    debriefInput.value = now.toISOString().slice(0, 16);
+  }
+  const isiEl = document.getElementById('sitrep_isi_laporan');
+  if (isiEl) {
+    const namaOps = <?= json_encode($operasi['nama_operasi']) ?>;
+    isiEl.value = `1. Tim SAR Gabungan telah melaksanakan upaya pencarian dan pertolongan maksimal hingga hari ke-7 (H.7) sesuai Rencana Operasi (RENOPS H.7).\n2. Hingga pukul 17.00 WITA, hasil penyisiran lapangan di seluruh sektor pencarian masih NIHIL dan tidak ditemukan tanda-tanda keberadaan korban.\n3. Berdasarkan hasil evaluasi menyeluruh, debriefing bersama seluruh Potensi SAR yang terlibat, serta musyawarah bersama pihak keluarga korban, dengan merujuk pada ketentuan Pasal 34 Undang-Undang No. 29 Tahun 2014 tentang Pencarian dan Pertolongan, maka Operasi SAR ${namaOps} secara resmi diusulkan untuk DITUTUP.\n4. Seluruh unsur Potensi SAR yang terlibat dikembalikan ke kesatuan dan instansi masing-masing dengan ucapan terima kasih dan apresiasi setinggi-tingginya.\n5. Operasi SAR dapat dibuka kembali sewaktu-waktu apabila di kemudian hari ditemukan petunjuk atau tanda-tanda baru mengenai keberadaan korban.`;
+    isiEl.focus();
+  }
+  if (typeof showToast === 'function') {
+    showToast('Format naskah resmi Penutupan Operasi SAR H.7 (UU 29/2014) berhasil diterapkan.', 'success');
+  }
+}
+
+function applyH7ExtensionTemplate() {
+  const radioPerkembangan = document.querySelector('input[name="jenis_laporan"][value="PERKEMBANGAN"]');
+  if (radioPerkembangan) {
+    radioPerkembangan.checked = true;
+    handleJenisLaporanChange('PERKEMBANGAN');
+  }
+  const isiEl = document.getElementById('sitrep_isi_laporan');
+  if (isiEl) {
+    const namaOps = <?= json_encode($operasi['nama_operasi']) ?>;
+    isiEl.value = `1. Pada pelaksanaan operasi SAR hari ke-7 (H.7), Tim SAR Gabungan memperoleh petunjuk dan laporan informasi mengenai kemungkinan posisi korban di lapangan.\n2. Berdasarkan hasil analisa SMC dan kesepakatan bersama Potensi SAR serta pihak keluarga korban, diputuskan bahwa Operasi SAR ${namaOps} diusulkan untuk DIPERPANJANG selama 3 (tiga) hari ke depan sesuai wewenang Kepala Kantor SAR guna mengoptimalkan pencarian.\n3. Rencana operasi lanjutan (RENOPS H.8) akan difokuskan pada perluasan area pencarian sesuai datum dan perkembangan terkini.`;
+    isiEl.focus();
+  }
+  if (typeof showToast === 'function') {
+    showToast('Format naskah Usulan Perpanjangan Operasi H.7 berhasil diterapkan.', 'info');
+  }
+}
+
+// Auto reveal H.7 banner on user input
+document.addEventListener('DOMContentLoaded', function() {
+  const hariInput = document.getElementById('sitrep_hari_ke');
+  if (hariInput) {
+    hariInput.addEventListener('input', function(e) {
+      const val = (e.target.value || '').toUpperCase().trim();
+      const banner = document.getElementById('h7-advisory-banner');
+      if (!banner) return;
+      const num = parseInt(val.replace(/\D/g, ''), 10);
+      if (val.includes('7') || num >= 7 || val === 'H.7') {
+        banner.classList.remove('hidden');
+      }
+    });
+  }
+});
 
 // ── Quick AI Refinement & Interactive Assistant for Sitrep ──
 async function quickAiRefineSitrep(btn) {

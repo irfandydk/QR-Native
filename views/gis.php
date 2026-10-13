@@ -16,10 +16,8 @@ $sarUnits = MasterModel::getSarUnits();
 $alutList = MasterModel::getAlut();
 ?>
 
-<!-- External Leaflet CSS, JSZip for KMZ export & High-Resolution Icons -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- JSZip for KMZ export (Local Offline) -->
+<script src="<?= BASE_URL ?>/assets/js/jszip.min.js?v=<?= APP_VERSION ?>"></script>
 
 <style>
   /* Tactical GIS Custom Styling & Animations */
@@ -95,6 +93,12 @@ $alutList = MasterModel::getAlut();
   #printMapModal {
     backdrop-filter: blur(4px);
   }
+
+  /* Leaflet custom divIcon styling - zero drift & transparent container */
+  .sar-map-pin, .sar-draft-pin, .sar-vertex-pin, .sar-pat-corner, .sar-print-pin, .gm-temp-search-marker {
+    background: transparent !important;
+    border: none !important;
+  }
 </style>
 
 <div id="gisRootContainer" class="w-full h-full flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 select-none" style="height: 100%; flex: 1;">
@@ -118,11 +122,8 @@ $alutList = MasterModel::getAlut();
         <span id="labelSidebarToggle" class="hidden sm:inline">Sembunyikan Tools</span>
       </button>
 
-      <div class="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700 pl-3">
-        <span class="relative flex h-2.5 w-2.5">
-          <span class="sar-radar-pulse absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-        </span>
+      <div class="flex items-center gap-2.5 border-l border-slate-200 dark:border-slate-700 pl-3">
+        <img src="<?= e(getAppLogoUrl()) ?>" alt="Logo Basarnas" class="w-8 h-8 object-contain drop-shadow-sm shrink-0" onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'">
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-xs sm:text-sm font-black tracking-wide text-slate-900 dark:text-white uppercase flex items-center gap-1.5">
@@ -266,13 +267,13 @@ $alutList = MasterModel::getAlut();
         <!-- Top Controls: Draggable Lock & Add Point Button -->
         <div class="space-y-2">
           <div class="flex items-center justify-between gap-2">
-            <button type="button" id="btnToggleDragLock" class="flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750">
+            <button type="button" id="btnToggleDragLock" class="flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-750">
               <svg id="iconLockClosed" class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <svg id="iconLockOpen" class="w-3.5 h-3.5 text-amber-400 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+              <svg id="iconLockOpen" class="w-3.5 h-3.5 text-amber-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
               <span id="labelLockStatus">🔒 Posisi Terkunci</span>
             </button>
 
-            <button type="button" id="btnFocusKansarQuick" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition" title="Pusatkan Peta ke Kansar Kendari">
+            <button type="button" id="btnFocusKansarQuick" class="p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition cursor-pointer" title="Pusatkan Peta ke Kansar Kendari">
               📍
             </button>
           </div>
@@ -284,12 +285,12 @@ $alutList = MasterModel::getAlut();
         </div>
 
         <!-- Point Creator / Editor Card (PointCreatorCard.tsx) -->
-        <div id="pointCreatorCard" class="hidden p-3.5 bg-slate-950/90 rounded-2xl border border-orange-500/40 shadow-xl space-y-3 animate-in fade-in">
-          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-            <span id="pointCreatorTitle" class="text-xs font-black uppercase text-orange-400 flex items-center gap-1.5">
+        <div id="pointCreatorCard" class="hidden p-3.5 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl space-y-3 animate-in fade-in">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <span id="pointCreatorTitle" class="text-xs font-black uppercase text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
               <span>📍 Plot Titik Taktis Baru</span>
             </span>
-            <button type="button" id="btnCancelPointCreator" class="p-1 text-slate-400 hover:text-white rounded-lg">
+            <button type="button" id="btnCancelPointCreator" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition" title="Tutup Form">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
@@ -297,13 +298,13 @@ $alutList = MasterModel::getAlut();
           <!-- Name & Category -->
           <div class="space-y-2">
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 mb-1">Nama / Label Titik <span class="text-orange-400">*</span></label>
-              <input type="text" id="pcPointName" placeholder="Contoh: LKP KM Sumber Bahagia / Posko Kendari" class="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-orange-500">
+              <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Nama / Label Titik <span class="text-orange-500">*</span></label>
+              <input type="text" id="pcPointName" placeholder="Contoh: LKP KM Sumber Bahagia / Posko Kendari" class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500">
             </div>
 
             <div>
-              <label class="block text-[10px] font-bold text-slate-400 mb-1">Kategori Titik Operasi</label>
-              <select id="pcPointCategory" class="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-orange-500">
+              <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Kategori Titik Operasi</label>
+              <select id="pcPointCategory" class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500">
                 <option value="LKP">🚨 LKP (Last Known Position / Tempat Kejadian)</option>
                 <option value="Kantor SAR">🏢 Kantor SAR (Kansar)</option>
                 <option value="POS SAR">⛺ Pos SAR Resmi</option>
@@ -318,12 +319,12 @@ $alutList = MasterModel::getAlut();
 
           <!-- Icon Preset Selector (12 Preset SAR Icons + Alphabet A-Z) -->
           <div class="space-y-2">
-            <label class="block text-[10px] font-bold text-slate-400">Pilih Desain Logo / Pin Peta:</label>
+            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400">Pilih Desain Logo / Pin Peta:</label>
             
-            <div class="grid grid-cols-3 gap-1 p-1 bg-slate-900 rounded-xl border border-slate-800 text-[10px] font-bold text-center">
+            <div class="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-center">
               <button type="button" id="tabIconPresetSar" class="py-1 rounded-lg bg-orange-500 text-white">Preset SAR</button>
-              <button type="button" id="tabIconAlphabet" class="py-1 rounded-lg text-slate-400 hover:text-white">Huruf (A-Z)</button>
-              <button type="button" id="tabIconCustom" class="py-1 rounded-lg text-slate-400 hover:text-white">Koleksi</button>
+              <button type="button" id="tabIconAlphabet" class="py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">Huruf (A-Z)</button>
+              <button type="button" id="tabIconCustom" class="py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">Koleksi</button>
             </div>
 
             <!-- Panel 1: 12 Preset SAR Icons -->
@@ -337,27 +338,56 @@ $alutList = MasterModel::getAlut();
             </div>
 
             <!-- Panel 3: Custom / Upload -->
-            <div id="iconGridCustom" class="hidden p-2 text-center text-xs text-slate-400 space-y-2">
-              <p class="text-[10px]">Gunakan ikon khusus atau gambar logo kustom:</p>
-              <input type="text" id="pcCustomIconUrl" placeholder="https://... atau /assets/icons/..." class="w-full px-2 py-1 rounded bg-slate-900 border border-slate-700 text-xs text-white">
+            <div id="iconGridCustom" class="hidden p-2 text-center text-xs text-slate-600 dark:text-slate-400 space-y-2.5">
+              <p class="text-[10px] font-medium text-slate-700 dark:text-slate-300">Upload ikon/logo kustom (PNG, JPG, SVG, WebP) atau gunakan URL:</p>
+              
+              <!-- File Upload Input (Hidden) & Dropzone Button -->
+              <input type="file" id="pcCustomIconFile" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" class="hidden">
+              <button type="button" id="btnTriggerUploadIcon" class="w-full py-2 px-3 rounded-xl border border-dashed border-orange-500/60 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Pilih File Ikon / Logo</span>
+              </button>
+
+              <!-- Uploaded Preview Card -->
+              <div id="pcCustomIconPreviewCard" class="hidden p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-left">
+                <div class="flex items-center gap-2 min-w-0">
+                  <img id="pcCustomIconThumb" src="" alt="Custom Icon" class="w-8 h-8 rounded-lg object-contain bg-white dark:bg-white/10 p-0.5 border border-slate-200 dark:border-slate-700 shrink-0">
+                  <div class="min-w-0 flex-1">
+                    <div id="pcCustomIconFileName" class="text-xs font-bold text-slate-900 dark:text-white truncate">icon.png</div>
+                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                      <span>✓ Ikon Siap Digunakan</span>
+                    </div>
+                  </div>
+                </div>
+                <button type="button" id="btnRemoveCustomIcon" class="p-1 text-slate-400 hover:text-red-500 rounded transition cursor-pointer" title="Hapus ikon kustom">
+                  ✕
+                </button>
+              </div>
+
+              <div class="relative flex items-center justify-center">
+                <span class="text-[9px] text-slate-500 uppercase tracking-wider bg-white dark:bg-slate-900 px-2 z-10">atau via URL</span>
+                <div class="absolute inset-x-0 h-px bg-slate-200 dark:bg-slate-800"></div>
+              </div>
+
+              <input type="text" id="pcCustomIconUrl" placeholder="https://... atau /assets/icons/..." class="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-orange-500 transition">
             </div>
           </div>
 
           <!-- DMS Numeric Editor (Deg/Min/Sec with S/N & E/W) -->
-          <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs">
-            <div class="flex items-center justify-between text-[10px] font-bold text-slate-400">
+          <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+            <div class="flex items-center justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400">
               <span>INPUT KOORDINAT NUMERIK (DMS)</span>
-              <span class="text-orange-400 font-mono">Realtime WGS 84</span>
+              <span class="text-orange-600 dark:text-orange-400 font-mono">Realtime WGS 84</span>
             </div>
 
             <!-- Lintang (Latitude) -->
             <div>
-              <span class="text-[10px] text-slate-400 block mb-0.5">Lintang (Latitude / S-N):</span>
+              <span class="text-[10px] text-slate-600 dark:text-slate-400 block mb-0.5 font-bold">Lintang (Latitude / S-N):</span>
               <div class="grid grid-cols-4 gap-1 items-center font-mono">
-                <input type="number" id="dmsLatDeg" min="0" max="90" placeholder="04" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
-                <input type="number" id="dmsLatMin" min="0" max="59" placeholder="02" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
-                <input type="number" id="dmsLatSec" min="0" max="59.9" step="0.1" placeholder="16.0" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
-                <select id="dmsLatDir" class="w-full px-1 py-1 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold text-center text-xs">
+                <input type="number" id="dmsLatDeg" min="0" max="90" placeholder="04" class="w-full px-1.5 py-1 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-center font-bold text-xs text-slate-900 dark:text-white">
+                <input type="number" id="dmsLatMin" min="0" max="59" placeholder="02" class="w-full px-1.5 py-1 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-center font-bold text-xs text-slate-900 dark:text-white">
+                <input type="number" id="dmsLatSec" min="0" max="59.9" step="0.1" placeholder="16.0" class="w-full px-1.5 py-1 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-center font-bold text-xs text-slate-900 dark:text-white">
+                <select id="dmsLatDir" class="w-full px-1 py-1 rounded bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 font-bold text-center text-xs">
                   <option value="S">S (LS)</option>
                   <option value="N">N (LU)</option>
                 </select>
@@ -366,12 +396,12 @@ $alutList = MasterModel::getAlut();
 
             <!-- Bujur (Longitude) -->
             <div>
-              <span class="text-[10px] text-slate-400 block mb-0.5">Bujur (Longitude / E-W):</span>
+              <span class="text-[10px] text-slate-600 dark:text-slate-400 block mb-0.5 font-bold">Bujur (Longitude / E-W):</span>
               <div class="grid grid-cols-4 gap-1 items-center font-mono">
-                <input type="number" id="dmsLngDeg" min="0" max="180" placeholder="122" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
-                <input type="number" id="dmsLngMin" min="0" max="59" placeholder="29" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
-                <input type="number" id="dmsLngSec" min="0" max="59.9" step="0.1" placeholder="12.0" class="w-full px-1.5 py-1 rounded bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white">
-                <select id="dmsLngDir" class="w-full px-1 py-1 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30 font-bold text-center text-xs">
+                <input type="number" id="dmsLngDeg" min="0" max="180" placeholder="122" class="w-full px-1.5 py-1 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-center font-bold text-xs text-slate-900 dark:text-white">
+                <input type="number" id="dmsLngMin" min="0" max="59" placeholder="29" class="w-full px-1.5 py-1 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-center font-bold text-xs text-slate-900 dark:text-white">
+                <input type="number" id="dmsLngSec" min="0" max="59.9" step="0.1" placeholder="12.0" class="w-full px-1.5 py-1 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-center font-bold text-xs text-slate-900 dark:text-white">
+                <select id="dmsLngDir" class="w-full px-1 py-1 rounded bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 font-bold text-center text-xs">
                   <option value="E">E (BT)</option>
                   <option value="W">W (BB)</option>
                 </select>
@@ -379,21 +409,21 @@ $alutList = MasterModel::getAlut();
             </div>
 
             <!-- Readout Decimal -->
-            <div class="text-[10px] font-mono text-slate-400 text-right pt-1">
-              Desimal: <span id="pcReadoutDecimal" class="text-orange-400 font-bold">-4.037694, 122.486694</span>
+            <div class="text-[10px] font-mono text-slate-500 dark:text-slate-400 text-right pt-1">
+              Desimal: <span id="pcReadoutDecimal" class="text-orange-600 dark:text-orange-400 font-bold">-4.037694, 122.486694</span>
             </div>
           </div>
 
           <!-- Description / Notes -->
           <div>
-            <label class="block text-[10px] font-bold text-slate-400 mb-1">Catatan Tambahan</label>
-            <input type="text" id="pcPointDesc" placeholder="Kondisi cuaca, kontak pelapor, kedalaman..." class="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white">
+            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Catatan Tambahan</label>
+            <input type="text" id="pcPointDesc" placeholder="Kondisi cuaca, kontak pelapor, kedalaman..." class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500">
           </div>
 
           <!-- Action Buttons -->
-          <div class="flex items-center justify-between pt-1">
-            <button type="button" id="btnCancelSavePoint" class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded-lg">Batal</button>
-            <button type="button" id="btnSavePointConfirm" class="px-4 py-1.5 text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-md transition flex items-center gap-1.5">
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" id="btnCancelSavePoint" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">Batal</button>
+            <button type="button" id="btnSavePointConfirm" class="px-4 py-2 text-xs font-black bg-orange-600 hover:bg-orange-500 text-white rounded-xl shadow-md shadow-orange-600/20 transition flex items-center gap-1.5 cursor-pointer">
               <span>Simpan Titik SAR</span>
             </button>
           </div>
@@ -413,62 +443,62 @@ $alutList = MasterModel::getAlut();
       </div>
 
       <!-- TAB 2: POLYGON SEARCH AREA (POLYGON MANAGER) -->
-      <div id="tab-polygon" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar">
+      <div id="tab-polygon" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
         <!-- New Polygon Button -->
-        <button type="button" id="btnStartNewPolygon" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer">
+        <button type="button" id="btnStartNewPolygon" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-orange-600/20 transition cursor-pointer">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/></svg>
           <span>+ Buat Poligon Area Baru</span>
         </button>
 
         <!-- Drawing & Editing Mode Panel -->
-        <div id="polygonDrawingEditorCard" class="hidden p-3.5 bg-slate-950/90 rounded-2xl border border-orange-500/40 shadow-xl space-y-3 animate-in fade-in">
-          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-            <span id="polyEditorTitle" class="text-xs font-black uppercase text-orange-400 flex items-center gap-1.5">
+        <div id="polygonDrawingEditorCard" class="hidden p-3.5 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl space-y-3 animate-in fade-in">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <span id="polyEditorTitle" class="text-xs font-black uppercase text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
               <span>📐 Gambar Polygon Baru</span>
             </span>
-            <button type="button" id="btnCancelDrawingPoly" class="p-1 text-slate-400 hover:text-white rounded-lg">
+            <button type="button" id="btnCancelDrawingPoly" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition" title="Tutup Form">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
 
           <div>
-            <label class="block text-[10px] font-bold text-slate-400 mb-1">Nama / Sektor Poligon:</label>
-            <input type="text" id="polyEditorName" placeholder="Contoh: Sektor Pencarian Alpha / Saponda" class="w-full px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white">
+            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Nama / Sektor Poligon:</label>
+            <input type="text" id="polyEditorName" placeholder="Contoh: Sektor Pencarian Alpha / Saponda" class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500">
           </div>
 
-          <div class="p-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[11px] text-orange-300">
+          <div class="p-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[11px] text-orange-700 dark:text-orange-300">
             👉 <strong>Klik di atas peta</strong> untuk menambah Titik A, B, C, dst. Semua titik sudut <strong>dapat digeser langsung</strong> pada peta.
           </div>
 
           <!-- Real-Time Metrics -->
           <div class="grid grid-cols-2 gap-2 text-xs">
             <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-              <span class="text-[10px] text-slate-400 block font-semibold">Luas Search Area</span>
-              <span id="polyLiveSqNm" class="text-sm font-black text-emerald-400 font-mono">0.00 NM²</span>
-              <span id="polyLiveSqKm" class="text-[10px] text-slate-400 block font-mono">0.00 km² (0 Ha)</span>
+              <span class="text-[10px] text-slate-500 dark:text-slate-400 block font-semibold">Luas Search Area</span>
+              <span id="polyLiveSqNm" class="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">0.00 NM²</span>
+              <span id="polyLiveSqKm" class="text-[10px] text-slate-500 dark:text-slate-400 block font-mono">0.00 km² (0 Ha)</span>
             </div>
             <div class="p-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20">
-              <span class="text-[10px] text-slate-400 block font-semibold">Keliling Perimeter</span>
-              <span id="polyLivePerimeterNm" class="text-sm font-black text-orange-400 font-mono">0.00 NM</span>
-              <span id="polyLivePerimeterKm" class="text-[10px] text-slate-400 block font-mono">0.00 km</span>
+              <span class="text-[10px] text-slate-500 dark:text-slate-400 block font-semibold">Keliling Perimeter</span>
+              <span id="polyLivePerimeterNm" class="text-sm font-black text-orange-600 dark:text-orange-400 font-mono">0.00 NM</span>
+              <span id="polyLivePerimeterKm" class="text-[10px] text-slate-500 dark:text-slate-400 block font-mono">0.00 km</span>
             </div>
           </div>
 
           <!-- Nearest Posko Detection -->
-          <div class="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-300 flex items-center justify-between">
+          <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] text-slate-700 dark:text-slate-300 flex items-center justify-between">
             <span>Posko Terdekat:</span>
-            <span id="polyLiveNearestPosko" class="font-bold text-orange-400 font-mono">Kansar Kendari</span>
+            <span id="polyLiveNearestPosko" class="font-bold text-orange-600 dark:text-orange-400 font-mono">Kansar Kendari</span>
           </div>
 
           <!-- Styling Controls (Stroke color, weight, fill color, fill opacity) -->
-          <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2 text-xs">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Penyesuaian Garis & Warna:</span>
+          <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+            <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">Penyesuaian Garis & Warna:</span>
 
             <!-- Stroke Color Swatches -->
             <div>
               <div class="flex items-center justify-between text-[11px] mb-1">
-                <span class="text-slate-400">1. Warna Garis:</span>
-                <span id="labelStrokeColor" class="font-mono text-orange-400 font-bold">#EA580C</span>
+                <span class="text-slate-600 dark:text-slate-400">1. Warna Garis:</span>
+                <span id="labelStrokeColor" class="font-mono text-orange-600 dark:text-orange-400 font-bold">#EA580C</span>
               </div>
               <div class="flex items-center gap-1.5 flex-wrap" id="polyStrokeColorSwatches">
                 <!-- Color dots -->
@@ -478,8 +508,8 @@ $alutList = MasterModel::getAlut();
             <!-- Stroke Weight Slider -->
             <div>
               <div class="flex items-center justify-between text-[11px] mb-0.5">
-                <span class="text-slate-400">2. Ketebalan Garis:</span>
-                <span id="labelStrokeWeight" class="font-mono text-white">2.5 px</span>
+                <span class="text-slate-600 dark:text-slate-400">2. Ketebalan Garis:</span>
+                <span id="labelStrokeWeight" class="font-mono text-slate-900 dark:text-white font-bold">2.5 px</span>
               </div>
               <input type="range" id="polyStrokeWeightSlider" min="1" max="8" step="0.5" value="2.5" class="w-full accent-orange-500">
             </div>
@@ -487,8 +517,8 @@ $alutList = MasterModel::getAlut();
             <!-- Fill Opacity Slider -->
             <div>
               <div class="flex items-center justify-between text-[11px] mb-0.5">
-                <span class="text-slate-400">3. Transparansi Arsiran:</span>
-                <span id="labelFillOpacity" class="font-mono text-white">20%</span>
+                <span class="text-slate-600 dark:text-slate-400">3. Transparansi Arsiran:</span>
+                <span id="labelFillOpacity" class="font-mono text-slate-900 dark:text-white font-bold">20%</span>
               </div>
               <input type="range" id="polyFillOpacitySlider" min="0.05" max="0.8" step="0.05" value="0.2" class="w-full accent-orange-500">
             </div>
@@ -496,24 +526,24 @@ $alutList = MasterModel::getAlut();
 
           <!-- Vertices Table (Titik A, B, C...) -->
           <div class="space-y-1.5">
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Daftar Titik Sudut:</span>
+            <span class="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">Daftar Titik Sudut:</span>
             <div id="polyVerticesListTable" class="space-y-1 max-h-36 overflow-y-auto gis-scrollbar text-xs">
               <!-- Rendered via JS -->
             </div>
           </div>
 
           <!-- Action Buttons -->
-          <div class="flex items-center justify-between pt-1">
-            <button type="button" id="btnCancelPolyForm" class="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded-lg">Batal</button>
-            <button type="button" id="btnSavePolygonConfirm" class="px-4 py-1.5 text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-xl shadow-md transition">
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" id="btnCancelPolyForm" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">Batal</button>
+            <button type="button" id="btnSavePolygonConfirm" class="px-4 py-2 text-xs font-black bg-orange-600 hover:bg-orange-500 text-white rounded-xl shadow-md shadow-orange-600/20 transition cursor-pointer">
               Simpan Polygon Area
             </button>
           </div>
         </div>
 
         <!-- Saved Polygons List -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider">
+        <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+          <div class="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             <span>Sektor Area Tersimpan</span>
           </div>
 
@@ -524,104 +554,137 @@ $alutList = MasterModel::getAlut();
       </div>
 
       <!-- TAB 3: POLA SAR (SEARCH PATTERNS IAMSAR) -->
-      <div id="tab-pattern" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar">
-        <div class="space-y-3">
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 mb-1">Nama Pola Lintasan:</label>
-            <input type="text" id="patternFormName" value="Pola Lintasan SAR Sektor Alpha" class="w-full px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white">
+      <div id="tab-pattern" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
+        <!-- New Search Pattern Button -->
+        <button type="button" id="btnStartNewPattern" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-orange-600/20 transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+          <span>+ Buat Pola Lintasan SAR Baru</span>
+        </button>
+
+        <!-- Pattern Creation / Editor Card -->
+        <div id="patternCreationCard" class="hidden p-3.5 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl space-y-3 animate-in fade-in">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <span class="text-xs font-black uppercase text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
+              <span>📐 Parameter Pola Lintasan IAMSAR</span>
+            </span>
+            <button type="button" id="btnCancelPatternFormTop" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition" title="Tutup Form">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
           </div>
 
-          <!-- Pattern Types Selector (4 Buttons) -->
           <div>
-            <label class="block text-[10px] font-bold text-slate-400 mb-1.5">Metode Pola IAMSAR:</label>
-            <div class="grid grid-cols-2 gap-1.5 text-xs font-bold">
-              <button type="button" data-ptype="parallel_track" class="pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/20 text-orange-400 text-left transition">
-                <div class="text-xs font-black">Parallel Track (PS)</div>
-                <div class="text-[10px] font-normal text-slate-300">Lintasan sejajar sapuan luas</div>
-              </button>
-              <button type="button" data-ptype="creeping_line" class="pat-type-btn p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-left hover:text-white transition">
-                <div class="text-xs font-black">Creeping Line (CS)</div>
-                <div class="text-[10px] font-normal text-slate-400">Sapuan rapat tegak lurus</div>
-              </button>
-              <button type="button" data-ptype="expanding_square" class="pat-type-btn p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-left hover:text-white transition">
-                <div class="text-xs font-black">Expanding Square (SS)</div>
-                <div class="text-[10px] font-normal text-slate-400">Kotak spiral dari datum LKP</div>
-              </button>
-              <button type="button" data-ptype="sector_search" class="pat-type-btn p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-left hover:text-white transition">
-                <div class="text-xs font-black">Sector Search (VS)</div>
-                <div class="text-[10px] font-normal text-slate-400">Pola radial bintang 3 sektor</div>
-              </button>
-            </div>
+            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Nama Pola Lintasan:</label>
+            <input type="text" id="patternFormName" value="Pola Lintasan SAR Sektor Alpha" class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500">
           </div>
 
           <!-- Base Polygon / Datum Selection -->
           <div>
-            <label class="block text-[10px] font-bold text-slate-400 mb-1">Target Area Poligon / Datum Basis:</label>
-            <select id="patternTargetPolygon" class="w-full px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white">
+            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Target Area Poligon / Datum Basis:</label>
+            <select id="patternTargetPolygon" class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500">
               <!-- Populated with savedPolygons or LKP -->
             </select>
           </div>
 
-          <!-- Parameters: Track Spacing & Legs Count -->
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 mb-1">Track Spacing (S):</label>
-              <div class="flex items-center gap-1.5">
-                <input type="number" id="patternTrackSpacing" value="1.5" step="0.1" min="0.1" class="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-mono">
-                <span class="text-xs text-slate-400 font-bold">NM</span>
-              </div>
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-slate-400 mb-1">Jumlah Sweep / Legs:</label>
-              <input type="number" id="patternLegsCount" value="6" min="1" max="25" class="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-mono">
+          <!-- Pattern Types Selector (4 Buttons) -->
+          <div>
+            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1.5">Metode Pola IAMSAR (Pilih Salah Satu):</label>
+            <div class="grid grid-cols-2 gap-1.5 text-xs font-bold">
+              <button type="button" data-ptype="parallel_track" class="pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-left transition font-bold shadow-xs">
+                <div class="text-xs font-black">Parallel Track (PS)</div>
+                <div class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Lintasan sejajar sapuan luas</div>
+              </button>
+              <button type="button" data-ptype="creeping_line" class="pat-type-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-left hover:border-orange-500 transition">
+                <div class="text-xs font-black">Creeping Line (CS)</div>
+                <div class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Sapuan rapat tegak lurus</div>
+              </button>
+              <button type="button" data-ptype="expanding_square" class="pat-type-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-left hover:border-orange-500 transition">
+                <div class="text-xs font-black">Expanding Square (SS)</div>
+                <div class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Kotak spiral dari datum LKP</div>
+              </button>
+              <button type="button" data-ptype="sector_search" class="pat-type-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-left hover:border-orange-500 transition">
+                <div class="text-xs font-black">Sector Search (VS)</div>
+                <div class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Pola radial bintang 3 sektor</div>
+              </button>
             </div>
           </div>
 
-          <!-- Vessel Search Speed -->
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 mb-1">Kecepatan Alut Pencari (Speed):</label>
-            <div class="flex items-center gap-1.5">
-              <input type="number" id="patternVesselSpeed" value="20" min="1" class="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-mono">
-              <span class="text-xs text-slate-400 font-bold">Knot</span>
+          <!-- Parameters: Track Spacing & Auto Sweep Calculation -->
+          <div class="space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Track Spacing (S):</label>
+                <div class="flex items-center gap-1">
+                  <input type="number" id="patternTrackSpacing" value="1.0" step="0.1" min="0.1" class="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono font-bold focus:border-orange-500 transition">
+                  <select id="patternSpacingUnit" class="px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-orange-600 dark:text-orange-400 font-bold focus:border-orange-500">
+                    <option value="NM" selected>NM</option>
+                    <option value="KM">Km</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400">Jumlah Sweep:</label>
+                  <span id="patternAutoBadge" class="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">AUTO</span>
+                </div>
+                <input type="number" id="patternLegsCount" value="6" min="2" max="50" class="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono font-bold focus:border-orange-500 transition">
+              </div>
+            </div>
+
+            <!-- Auto Calculation Live Indicator & Margin Note -->
+            <div id="patternAutoCalcBox" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 text-[11px] space-y-1.5 font-mono">
+              <div class="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                <span class="text-[10px] font-sans text-slate-500 dark:text-slate-400">Dimensi Area & Sweep:</span>
+                <span id="patternDimInfo" class="text-orange-600 dark:text-orange-400 font-bold">P: - • L: -</span>
+              </div>
+              <div class="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                <span class="text-[10px] font-sans text-slate-500 dark:text-slate-400">Margin Batas Poligon:</span>
+                <span id="patternMarginInfo" class="text-emerald-600 dark:text-emerald-400 font-bold">0.50 NM (S/2)</span>
+              </div>
+              <div class="text-[9px] font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-1 leading-relaxed">
+                💡 <span class="text-slate-600 dark:text-slate-300">Garis sweep diberi jarak aman (margin) dari batas poligon agar tidak rapat/menempel di dinding area.</span>
+              </div>
             </div>
           </div>
 
           <!-- Generate Pattern Button -->
-          <button type="button" id="btnGenerateSearchPattern" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition cursor-pointer">
+          <button type="button" id="btnGenerateSearchPattern" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
             <span>✨ Generate Lintasan IAMSAR</span>
           </button>
 
-          <!-- Pattern Results Box -->
-          <div id="patternResultsCard" class="hidden p-3 bg-slate-950 rounded-2xl border border-sky-500/40 space-y-2 text-xs">
-            <div class="flex items-center justify-between font-bold">
-              <span class="text-slate-400">Total Panjang Lintasan:</span>
-              <span id="resPatternDistNm" class="text-sm font-black text-sky-400 font-mono">0.00 NM</span>
-            </div>
-            <div class="flex items-center justify-between text-slate-400">
-              <span>Estimasi Waktu Operasi:</span>
-              <span id="resPatternEta" class="font-bold text-orange-400 font-mono">0 Jam 0 Menit</span>
-            </div>
-            <div class="flex items-center justify-between text-slate-400">
-              <span>Jumlah Waypoint (WP):</span>
-              <span id="resPatternWpCount" class="font-mono text-white font-bold">0 WP</span>
-            </div>
+          <!-- Pattern Status / Alert Box -->
+          <div id="patternStatusMsg" class="hidden text-[11px] p-2.5 rounded-xl transition"></div>
 
-            <!-- Save Pattern Button -->
-            <div class="pt-2 border-t border-slate-800 flex gap-2">
-              <button type="button" id="btnClearCurrentPattern" class="flex-1 py-1.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold transition">
-                Bersihkan
-              </button>
-              <button type="button" id="btnSavePatternConfirm" class="flex-1 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow">
-                Simpan Pola SAR
-              </button>
+          <!-- Pattern Results Box -->
+          <div id="patternResultsCard" class="hidden p-3 bg-slate-50 dark:bg-slate-900/90 rounded-2xl border border-sky-500/30 space-y-2 text-xs">
+            <div class="flex items-center justify-between font-bold">
+              <span class="text-slate-600 dark:text-slate-400">Total Panjang Lintasan:</span>
+              <span id="resPatternDistNm" class="text-sm font-black text-sky-600 dark:text-sky-400 font-mono">0.00 NM</span>
             </div>
+            <div class="flex items-center justify-between text-slate-600 dark:text-slate-400">
+              <span>Metode & Sapuan:</span>
+              <span id="resPatternTypeInfo" class="font-bold text-orange-600 dark:text-orange-400 font-mono">-</span>
+            </div>
+            <div class="flex items-center justify-between text-slate-600 dark:text-slate-400">
+              <span>Jumlah Waypoint (WP):</span>
+              <span id="resPatternWpCount" class="font-mono text-slate-900 dark:text-white font-bold">0 WP</span>
+            </div>
+          </div>
+
+          <!-- Save Pattern & Cancel Action Buttons (Always Visible in Form Footer) -->
+          <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+            <button type="button" id="btnCancelPatternForm" class="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-xs font-bold transition">
+              Batal / Bersihkan
+            </button>
+            <button type="button" id="btnSavePatternConfirm" class="flex-1 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-md shadow-sky-600/20 flex items-center justify-center gap-1.5 cursor-pointer">
+              <span>💾 Simpan Pola SAR</span>
+            </button>
           </div>
         </div>
 
         <!-- Saved Search Patterns List -->
-        <div class="space-y-2 pt-2 border-t border-slate-800">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pola Lintasan Tersimpan</div>
+        <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+          <div class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pola Lintasan Tersimpan</div>
           <div id="savedPatternsListContainer" class="space-y-2">
             <!-- Populated by JS -->
           </div>
@@ -629,109 +692,166 @@ $alutList = MasterModel::getAlut();
       </div>
 
       <!-- TAB 4: JARAK & ETA (MEASURE DISTANCE & SPEED SIMULATOR) -->
-      <div id="tab-measure" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar">
-        <!-- Enable / Disable Measurement Toggle Switch -->
-        <div class="p-3 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between">
-          <div>
-            <div class="text-xs font-black text-white">Mode Ukur Jarak Peta</div>
-            <div class="text-[10px] text-slate-400">Klik peta untuk menaruh waypoint rute</div>
+      <div id="tab-measure" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
+        <!-- New Route Button -->
+        <button type="button" id="btnStartNewRoute" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-orange-600/20 transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 11 18-5-5 18-3-8-10-5z"/></svg>
+          <span>+ Buat / Rencanakan Rute Baru</span>
+        </button>
+
+        <!-- Route Planning & Measuring Form Card -->
+        <div id="routePlanningCard" class="hidden p-3.5 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl space-y-3 animate-in fade-in">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <span class="text-xs font-black uppercase text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
+              <span>🧭 Perencanaan Rute Navigasi SAR</span>
+            </span>
+            <button type="button" id="btnCancelRouteFormTop" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition" title="Tutup Form">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
           </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="toggleMeasureMode" class="sr-only peer">
-            <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
-          </label>
-        </div>
 
-        <!-- Mode selector: Straight line (2 points) vs Continuous Path -->
-        <div class="grid grid-cols-2 gap-1.5 text-xs font-bold">
-          <button type="button" id="btnModeStraight" class="p-2 rounded-xl border border-orange-500 bg-orange-500/20 text-orange-400 text-center transition">
-            Jarak Lurus (2 Titik)
-          </button>
-          <button type="button" id="btnModePath" class="p-2 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 text-center hover:text-white transition">
-            Jalur Multi-Titik
-          </button>
-        </div>
+          <!-- Input Nama Jalur Operasi Langsung Pada Form (Bukan Konfirmasi Browser/Localhost) -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                Nama / Label Jalur Operasi <span class="text-orange-500">*</span>
+              </label>
+              <span id="routeRealtimeStatusBadge" class="text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition">
+                ⚡ Siap Rancang
+              </span>
+            </div>
+            <input 
+              type="text" 
+              id="measureRouteNameInput" 
+              placeholder="Contoh: Rute Patroli Darat Sektor Kendari" 
+              class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-orange-500 transition font-medium"
+            >
+          </div>
 
-        <!-- Live Distance & ETA Card -->
-        <div class="p-3.5 bg-slate-950 rounded-2xl border border-emerald-500/30 space-y-2.5 text-xs">
-          <div class="flex items-center justify-between">
-            <span class="text-slate-400 font-bold">Total Jarak Tempuh:</span>
-            <div class="text-right">
-              <span id="liveRouteDistNm" class="text-base font-black text-emerald-400 font-mono">0.00 NM</span>
-              <span id="liveRouteDistKm" class="text-[10px] text-slate-400 block font-mono">0.00 km</span>
+          <!-- Pilihan Mode Pengukuran / Rute: Jarak Lurus & Jalur Manual -->
+          <div>
+            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1.5">Metode Pengukuran / Rute:</label>
+            <div class="grid grid-cols-2 gap-2 text-xs font-bold">
+              <button type="button" id="btnModeStraight" class="p-2.5 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-center transition shadow-xs flex flex-col items-center gap-1 cursor-pointer">
+                <span class="text-sm">📏</span>
+                <span class="font-extrabold text-xs">Jarak Lurus (2 Titik)</span>
+                <span class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Garis lurus asal ➔ tujuan</span>
+              </button>
+              <button type="button" id="btnModePath" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-center hover:text-slate-900 dark:hover:text-white transition flex flex-col items-center gap-1 cursor-pointer">
+                <span class="text-sm">📍</span>
+                <span class="font-extrabold text-xs">Jalur Manual (Multi-Titik)</span>
+                <span class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Plot waypoint bebas di peta</span>
+              </button>
             </div>
           </div>
 
-          <div class="flex items-center justify-between text-slate-300">
-            <span>Arah Haluan (Bearing):</span>
-            <span id="liveRouteBearing" class="font-bold text-orange-400 font-mono">0° (Utara)</span>
+          <!-- Petunjuk & Counter Plotting Manual -->
+          <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-700 dark:text-emerald-300 space-y-1">
+            <div class="font-bold flex items-center justify-between">
+              <span class="flex items-center gap-1.5 font-bold"><span>🎯</span> Plotting Titik Pada Peta</span>
+              <span id="manualPointsCounter" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">0 Titik</span>
+            </div>
+            <p class="text-[10px] text-slate-600 dark:text-slate-400 leading-tight">
+              Klik pada peta untuk menambah titik rute. Pin waypoint dapat digeser pada peta untuk koreksi posisi. Klik tombol <b>Simpan Rute Ini</b> untuk menyimpan rute ke database.
+            </p>
           </div>
 
-          <div class="flex items-center justify-between text-slate-300">
-            <span>Estimasi Waktu Tiba (ETA):</span>
-            <span id="liveRouteEta" class="font-bold text-white font-mono text-sm">0 Menit</span>
-          </div>
-        </div>
+          <!-- Live Distance & ETA Card with DMS Coordinates Readout -->
+          <div class="p-3.5 bg-slate-50 dark:bg-slate-900/90 rounded-2xl border border-emerald-500/30 space-y-2.5 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-slate-600 dark:text-slate-400 font-bold">Total Jarak Tempuh:</span>
+              <div class="text-right">
+                <span id="liveRouteDistNm" class="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">0.00 NM</span>
+                <span id="liveRouteDistKm" class="text-[10px] text-slate-500 dark:text-slate-400 block font-mono">0.00 km</span>
+              </div>
+            </div>
 
-        <!-- Quick Speed Presets -->
-        <div class="space-y-1.5">
-          <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preset Armada SAR Kendari:</label>
-          <div class="grid grid-cols-2 gap-1.5 text-[11px]">
-            <button type="button" data-speed="29" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
-              <div class="font-bold text-white">KN SAR Pacitan</div>
-              <div class="text-[10px] text-orange-400 font-mono">29 Knot</div>
-            </button>
-            <button type="button" data-speed="24" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
-              <div class="font-bold text-white">Rescue Boat 210</div>
-              <div class="text-[10px] text-orange-400 font-mono">24 Knot</div>
-            </button>
-            <button type="button" data-speed="32" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
-              <div class="font-bold text-white">RIB 01 Kendari</div>
-              <div class="text-[10px] text-orange-400 font-mono">32 Knot</div>
-            </button>
-            <button type="button" data-speed="8" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
-              <div class="font-bold text-white">Rubber Boat</div>
-              <div class="text-[10px] text-orange-400 font-mono">8 Knot</div>
-            </button>
-            <button type="button" data-speed="130" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
-              <div class="font-bold text-white">Heli Dauphin</div>
-              <div class="text-[10px] text-orange-400 font-mono">130 Knot</div>
-            </button>
-            <button type="button" data-speed="32.4" class="speed-preset-btn p-2 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 text-left transition">
-              <div class="font-bold text-white">Rescue Car Darat</div>
-              <div class="text-[10px] text-orange-400 font-mono">60 km/jam</div>
-            </button>
-          </div>
-        </div>
+            <div class="flex items-center justify-between text-slate-700 dark:text-slate-300">
+              <span>Arah Haluan (Bearing):</span>
+              <span id="liveRouteBearing" class="font-bold text-orange-600 dark:text-orange-400 font-mono">0° (Utara)</span>
+            </div>
 
-        <!-- Custom Speed Input -->
-        <div class="flex items-center gap-2">
-          <div class="flex-1">
-            <label class="block text-[10px] font-bold text-slate-400 mb-1">Kecepatan Manual:</label>
-            <input type="number" id="measureVesselSpeed" value="25" min="1" class="w-full px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-mono">
-          </div>
-          <div>
-            <label class="block text-[10px] font-bold text-slate-400 mb-1">Satuan:</label>
-            <select id="measureSpeedUnit" class="px-2 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white font-bold">
-              <option value="knot">Knot (Kts)</option>
-              <option value="kmh">Km / Jam</option>
-            </select>
-          </div>
-        </div>
+            <div class="flex items-center justify-between text-slate-700 dark:text-slate-300">
+              <span>Estimasi Waktu Tiba (ETA):</span>
+              <span id="liveRouteEta" class="font-bold text-slate-900 dark:text-white font-mono text-sm">0 Menit</span>
+            </div>
 
-        <!-- Action Buttons -->
-        <div class="flex gap-2 pt-2 border-t border-slate-800">
-          <button type="button" id="btnClearMeasureRoute" class="flex-1 py-2 text-xs font-bold rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
-            Bersihkan Rute
-          </button>
-          <button type="button" id="btnSaveMeasureRoute" class="flex-1 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow">
-            Simpan Rute Ini
-          </button>
+            <!-- DMS Coordinates Result Box -->
+            <div class="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5 text-[11px] font-mono">
+              <div class="flex items-start justify-between gap-1">
+                <span class="text-emerald-600 dark:text-emerald-400 font-bold shrink-0">📍 Asal (A):</span>
+                <span id="liveRouteStartDms" class="text-slate-700 dark:text-slate-200 text-right font-bold text-[10px]">Belum ditentukan</span>
+              </div>
+              <div class="flex items-start justify-between gap-1">
+                <span class="text-red-600 dark:text-red-400 font-bold shrink-0">🎯 Tujuan (B):</span>
+                <span id="liveRouteEndDms" class="text-slate-700 dark:text-slate-200 text-right font-bold text-[10px]">Belum ditentukan</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Speed Presets -->
+          <div class="space-y-1.5">
+            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Preset Armada SAR Kendari:</label>
+            <div class="grid grid-cols-2 gap-1.5 text-[11px]">
+              <button type="button" data-speed="29" data-unit="knot" class="speed-preset-btn p-2 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-left transition">
+                <div class="font-bold text-slate-900 dark:text-white">KN SAR Pacitan</div>
+                <div class="text-[10px] text-orange-600 dark:text-orange-400 font-mono">29 Knot</div>
+              </button>
+              <button type="button" data-speed="24" data-unit="knot" class="speed-preset-btn p-2 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-left transition">
+                <div class="font-bold text-slate-900 dark:text-white">Rescue Boat 210</div>
+                <div class="text-[10px] text-orange-600 dark:text-orange-400 font-mono">24 Knot</div>
+              </button>
+              <button type="button" data-speed="32" data-unit="knot" class="speed-preset-btn p-2 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-left transition">
+                <div class="font-bold text-slate-900 dark:text-white">RIB 01 Kendari</div>
+                <div class="text-[10px] text-orange-600 dark:text-orange-400 font-mono">32 Knot</div>
+              </button>
+              <button type="button" data-speed="8" data-unit="knot" class="speed-preset-btn p-2 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-left transition">
+                <div class="font-bold text-slate-900 dark:text-white">Rubber Boat</div>
+                <div class="text-[10px] text-orange-600 dark:text-orange-400 font-mono">8 Knot</div>
+              </button>
+              <button type="button" data-speed="130" data-unit="knot" class="speed-preset-btn p-2 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-left transition">
+                <div class="font-bold text-slate-900 dark:text-white">Heli Dauphin</div>
+                <div class="text-[10px] text-orange-600 dark:text-orange-400 font-mono">130 Knot</div>
+              </button>
+              <button type="button" data-speed="60" data-unit="kmh" class="speed-preset-btn p-2 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 text-left transition">
+                <div class="font-bold text-slate-900 dark:text-white">Rescue Car Darat</div>
+                <div class="text-[10px] text-orange-600 dark:text-orange-400 font-mono">60 km/jam</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Custom Speed Input -->
+          <div class="flex items-center gap-2">
+            <div class="flex-1">
+              <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Kecepatan Manual:</label>
+              <input type="number" id="measureVesselSpeed" value="25" min="1" class="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Satuan:</label>
+              <select id="measureSpeedUnit" class="px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-bold">
+                <option value="knot">Knot (Kts)</option>
+                <option value="kmh">Km / Jam</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Feedback Alert Banner -->
+          <div id="routeSaveFeedbackBanner" class="hidden text-xs p-2.5 rounded-xl transition"></div>
+
+          <!-- Action Buttons (Batal / Bersihkan & Simpan Rute) -->
+          <div class="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button type="button" id="btnClearMeasureRoute" onclick="window.SAR_GIS && window.SAR_GIS.clearRoute()" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+              Batal / Bersihkan Rute
+            </button>
+            <button type="button" id="btnSaveMeasureRoute" onclick="window.SAR_GIS && window.SAR_GIS.saveRoute()" class="flex-1 py-2 text-xs font-black rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shadow-md shadow-emerald-600/20 flex items-center justify-center gap-1.5 cursor-pointer">
+              <span>💾 Simpan Rute Ini</span>
+            </button>
+          </div>
         </div>
 
         <!-- Saved Routes List -->
-        <div class="space-y-2 pt-2 border-t border-slate-800">
-          <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">Rute Terukur Tersimpan</div>
+        <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+          <div class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Rute Terukur Tersimpan</div>
           <div id="savedRoutesListContainer" class="space-y-2">
             <!-- Populated by JS -->
           </div>
@@ -870,7 +990,7 @@ $alutList = MasterModel::getAlut();
         <!-- Kop Surat Basarnas Kendari -->
         <div class="flex items-center justify-between pb-3 border-b-2 border-slate-900">
           <div class="flex items-center gap-3">
-            <img src="<?= BASE_URL ?>/assets/images/logo-basarnas.png" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/4/4e/Basarnas_Logo.png'" class="h-14 w-auto object-contain" alt="Logo Basarnas">
+            <img src="<?= e(getAppLogoUrl()) ?>" onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'" class="h-14 w-auto object-contain" alt="Logo Basarnas">
             <div>
               <div class="text-[11px] font-bold tracking-widest text-slate-700">BADAN NASIONAL PENCARIAN DAN PERTOLONGAN</div>
               <div class="text-sm font-black tracking-wide text-slate-950">KANTOR PENCARIAN DAN PERTOLONGAN KENDARI</div>

@@ -16,13 +16,14 @@ class GisModel {
         $db = getDB();
         $id = $data['id'] ?? ('pt-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
 
-        $stmt = $db->prepare("REPLACE INTO GisPoint (id, lat, lng, label, pointType, description) VALUES (:id, :lat, :lng, :label, :type, :desc)");
+        $stmt = $db->prepare("REPLACE INTO GisPoint (id, lat, lng, label, pointType, customIconUrl, description) VALUES (:id, :lat, :lng, :label, :type, :customIcon, :desc)");
         $stmt->execute([
             ':id' => $id,
             ':lat' => (float)$data['lat'],
             ':lng' => (float)$data['lng'],
             ':label' => $data['label'] ?? 'Titik Koordinat',
             ':type' => $data['pointType'] ?? ($data['point_type'] ?? 'lkp'),
+            ':customIcon' => $data['customIconUrl'] ?? ($data['custom_icon_url'] ?? null),
             ':desc' => $data['description'] ?? ''
         ]);
 
@@ -41,7 +42,15 @@ class GisModel {
         foreach ($polys as &$p) {
             $stmtPts = $db->prepare("SELECT lat, lng, label FROM GisPolygonPoint WHERE polygonId = :id ORDER BY id ASC");
             $stmtPts->execute([':id' => $p['id']]);
-            $p['points'] = $stmtPts->fetchAll();
+            $rawPts = $stmtPts->fetchAll();
+            $p['points'] = [];
+            foreach ($rawPts as $pt) {
+                $p['points'][] = [
+                    'lat' => (float)$pt['lat'],
+                    'lng' => (float)$pt['lng'],
+                    'label' => $pt['label'] ?? ''
+                ];
+            }
         }
         return $polys;
     }
@@ -101,9 +110,20 @@ class GisModel {
         $db = getDB();
         $routes = $db->query("SELECT * FROM GisRoute ORDER BY id DESC")->fetchAll();
         foreach ($routes as &$r) {
+            $r['vesselSpeedKnots'] = (float)($r['vesselSpeedKnots'] ?? 25);
+            $r['strokeWeight'] = (float)($r['strokeWeight'] ?? 3.5);
+            $r['strokeOpacity'] = (float)($r['strokeOpacity'] ?? 0.9);
             $stmtPts = $db->prepare("SELECT lat, lng, label FROM GisRoutePoint WHERE routeId = :id ORDER BY id ASC");
             $stmtPts->execute([':id' => $r['id']]);
-            $r['points'] = $stmtPts->fetchAll();
+            $rawPts = $stmtPts->fetchAll();
+            $r['points'] = [];
+            foreach ($rawPts as $pt) {
+                $r['points'][] = [
+                    'lat' => (float)$pt['lat'],
+                    'lng' => (float)$pt['lng'],
+                    'label' => $pt['label'] ?? ''
+                ];
+            }
         }
         return $routes;
     }
@@ -114,11 +134,16 @@ class GisModel {
         try {
             $id = $data['id'] ?? ('route-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
 
-            $stmt = $db->prepare("REPLACE INTO GisRoute (
+            $stmt = $db->prepare("INSERT INTO GisRoute (
                 id, name, vesselSpeedKnots, strokeColor, strokeWeight, strokeOpacity, createdAt
             ) VALUES (
                 :id, :name, :speed, :color, :weight, :opacity, :created
-            )");
+            ) ON DUPLICATE KEY UPDATE 
+                name = VALUES(name),
+                vesselSpeedKnots = VALUES(vesselSpeedKnots),
+                strokeColor = VALUES(strokeColor),
+                strokeWeight = VALUES(strokeWeight),
+                strokeOpacity = VALUES(strokeOpacity)");
 
             $stmt->execute([
                 ':id' => $id,

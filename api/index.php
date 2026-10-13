@@ -808,6 +808,34 @@ try {
         exit;
     }
 
+    if ($path === '/gis/upload-icon' && $method === 'POST') {
+        if (!empty($_FILES['icon']) && $_FILES['icon']['error'] === UPLOAD_ERR_OK) {
+            $file = $_FILES['icon'];
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed = ['png', 'jpg', 'jpeg', 'svg', 'webp', 'gif'];
+            if (!in_array($ext, $allowed)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Format file tidak didukung (gunakan PNG, JPG, SVG, WebP)']);
+                exit;
+            }
+            $targetDir = ROOT_DIR . '/uploads/icons';
+            if (!is_dir($targetDir)) {
+                mkdir($targetDir, 0755, true);
+            }
+            $filename = 'icon_' . time() . '_' . substr(bin2hex(random_bytes(3)), 0, 6) . '.' . $ext;
+            $dest = $targetDir . '/' . $filename;
+            if (move_uploaded_file($file['tmp_name'], $dest)) {
+                $appRootUrl = preg_replace('#/api/?$#i', '', BASE_URL);
+                $url = $appRootUrl . '/uploads/icons/' . $filename;
+                echo json_encode(['success' => true, 'url' => $url, 'filename' => $filename]);
+                exit;
+            }
+        }
+        http_response_code(400);
+        echo json_encode(['success' => false, 'message' => 'Gagal mengunggah file ikon']);
+        exit;
+    }
+
     if (($path === '/gis/polygon' || $path === '/gis/polygons') && $method === 'GET') {
         echo json_encode(['success' => true, 'data' => GisModel::getPolygons()]);
         exit;
@@ -870,6 +898,70 @@ try {
     if (preg_match('#^/gis/route(?:s)?/(.+)$#', $path, $m) && $method === 'DELETE') {
         $ok = GisModel::deleteRoute($m[1]);
         echo json_encode(['success' => $ok]);
+        exit;
+    }
+
+    if ($path === '/gis/directions' && $method === 'POST') {
+        $startLat = (float)($input['startLat'] ?? 0);
+        $startLng = (float)($input['startLng'] ?? 0);
+        $destLat = (float)($input['destLat'] ?? 0);
+        $destLng = (float)($input['destLng'] ?? 0);
+        $mode = (string)($input['mode'] ?? 'road');
+
+        if (!$startLat || !$startLng || !$destLat || !$destLng) {
+            echo json_encode(['success' => false, 'message' => 'Koordinat asal dan tujuan tidak valid']);
+            exit;
+        }
+
+        $points = [];
+        $engine = 'Jalur Navigasi Standar';
+        $distanceMeters = 0;
+        $durationSeconds = 0;
+
+        // 4. Fallback OSRM if road mode and no custom API points
+        if (empty($points) && $mode === 'road') {
+            $osrmUrl = "https://router.project-osrm.org/route/v1/driving/{$startLng},{$startLat};{$destLng},{$destLat}?overview=full&geometries=geojson";
+            $ch = curl_init($osrmUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 7,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_USERAGENT => 'QR-SAR-Kendari/2.5.0 (basarnas-kendari; contact: admin@basarnas.go.id)'
+            ]);
+            $osrmRes = curl_exec($ch);
+            if (!empty($osrmRes)) {
+                $osrmData = json_decode($osrmRes, true);
+                if (!empty($osrmData['routes'][0]['geometry']['coordinates'])) {
+                    $allCoords = $osrmData['routes'][0]['geometry']['coordinates'];
+                    $totalPts = count($allCoords);
+                    if ($totalPts > 250) {
+                        $step = ($totalPts - 1) / 249;
+                        for ($idx = 0; $idx < 250; $idx++) {
+                            $coordIndex = (int)round($idx * $step);
+                            if ($coordIndex >= $totalPts) $coordIndex = $totalPts - 1;
+                            $c = $allCoords[$coordIndex];
+                            $points[] = ['lat' => (float)$c[1], 'lng' => (float)$c[0]];
+                        }
+                    } else {
+                        foreach ($allCoords as $c) {
+                            $points[] = ['lat' => (float)$c[1], 'lng' => (float)$c[0]];
+                        }
+                    }
+                    $distanceMeters = (float)($osrmData['routes'][0]['distance'] ?? 0);
+                    $durationSeconds = (float)($osrmData['routes'][0]['duration'] ?? 0);
+                    $engine = 'OSRM Server Live Routing';
+                }
+            }
+        }
+
+        echo json_encode([
+            'success' => true,
+            'engine' => $engine,
+            'hasRoadApi' => !empty($points),
+            'points' => $points,
+            'distanceMeters' => $distanceMeters,
+            'durationSeconds' => $durationSeconds
+        ]);
         exit;
     }
 

@@ -38,7 +38,9 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
         })();
     </script>
     <title><?= e($pageTitle) ?></title>
-    <link rel="icon" href="<?= e($logoUrl) ?>">
+    <link rel="icon" type="image/png" href="<?= BASE_URL ?>/favicon.png?v=<?= APP_VERSION ?>">
+    <link rel="shortcut icon" href="<?= BASE_URL ?>/favicon.ico?v=<?= APP_VERSION ?>">
+    <link rel="apple-touch-icon" href="<?= e($logoUrl) ?>">
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

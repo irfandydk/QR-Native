@@ -363,4 +363,47 @@ class SettingsModel {
         $out .= "SET FOREIGN_KEY_CHECKS = 1;\n";
         return $out;
     }
+
+    public static function restoreFromSQL(string $sql): bool {
+        $db = getDB();
+
+        try {
+            $db->exec("SET FOREIGN_KEY_CHECKS = 0");
+
+            // Split statements by semicolon while respecting line breaks
+            $lines = explode("\n", $sql);
+            $currentStatement = '';
+
+            foreach ($lines as $line) {
+                $trimmed = trim($line);
+                if ($trimmed === '' || str_starts_with($trimmed, '--') || str_starts_with($trimmed, '/*')) {
+                    continue;
+                }
+                $currentStatement .= $line . "\n";
+                if (str_ends_with($trimmed, ';')) {
+                    $stmtText = trim($currentStatement);
+                    if ($stmtText !== '') {
+                        $db->exec($stmtText);
+                    }
+                    $currentStatement = '';
+                }
+            }
+
+            if (trim($currentStatement) !== '') {
+                $db->exec(trim($currentStatement));
+            }
+
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            return true;
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            throw $e;
+        }
+    }
 }

@@ -32,15 +32,19 @@ foreach ($sections as $sec) {
 $jumlahKataStr = $bra['jumlah_kata'] ?? ($totalWords > 0 ? "{$totalWords} KATA" : '-');
 
 $verifyUrl = BASE_URL . "/bra.php?view=" . $bra['id_bra'];
+$isGuest = !AuthHelper::isLoggedIn();
+$docHash = strtoupper(substr(hash('sha256', (string)($bra['id_bra'] ?? '') . ($bra['no_bra'] ?? '') . ($bra['twu'] ?? '') . 'BASARNAS_KENDARI'), 0, 16));
 ?>
 
 <div class="space-y-6">
   <!-- Top Action Toolbar (Hidden on print) -->
   <div class="print:hidden card p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg border border-slate-200 dark:border-slate-800">
     <div class="flex flex-wrap items-center gap-2">
-      <a href="<?= BASE_URL ?>/bra.php" class="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-lg transition" title="Kembali ke Daftar">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-      </a>
+      <?php if (!$isGuest): ?>
+        <a href="<?= BASE_URL ?>/bra.php" class="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-lg transition" title="Kembali ke Daftar">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        </a>
+      <?php endif; ?>
 
       <span class="px-2.5 py-1 text-xs font-bold rounded-lg border uppercase tracking-wider <?= $bra['kategori'] === 'MAPEL' ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border-cyan-500/30' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30') ?>">
         <?= $bra['kategori'] === 'MAPEL' ? '📡 BRA MAPEL' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? '🚢 BRA KAPAL' : '📋 BRA SAR OPERASI SAR') ?>
@@ -72,9 +76,11 @@ $verifyUrl = BASE_URL . "/bra.php?view=" . $bra['id_bra'];
       </div>
 
       <!-- Action Buttons -->
-      <a href="<?= BASE_URL ?>/bra.php?action=edit&id=<?= $bra['id_bra'] ?>" class="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition">
-        Edit Form
-      </a>
+      <?php if (!$isGuest): ?>
+        <a href="<?= BASE_URL ?>/bra.php?action=edit&id=<?= $bra['id_bra'] ?>" class="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition">
+          Edit Form
+        </a>
+      <?php endif; ?>
 
       <button type="button" id="btnCopyTelegram" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition" title="Salin Naskah Telegram Plain Text">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
@@ -98,13 +104,48 @@ $verifyUrl = BASE_URL . "/bra.php?view=" . $bra['id_bra'];
     </div>
   </div>
 
-  <!-- Verification Notice Banner (Hidden on print) -->
-  <div class="print:hidden card p-3 flex items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs">
-    <div class="flex items-center gap-2">
-      <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-      <span><strong>Dokumen Asli Resmi Terverifikasi:</strong> Naskah telegram radio ini disahkan dengan Barcode QR Digital terenkripsi.</span>
+  <!-- Official Digital Verification Certificate Banner (Public & Authenticated) -->
+  <div class="print:hidden rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-50 to-teal-50/50 dark:from-emerald-950/40 dark:to-slate-900/60 p-4 sm:p-5 shadow-sm space-y-3">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-200 dark:border-emerald-800/60">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-600 text-white tracking-wider uppercase">TERVALIDASI RESMI</span>
+            <span class="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">HASH: <?= htmlspecialchars($docHash) ?></span>
+          </div>
+          <h3 class="text-sm font-black text-slate-900 dark:text-white mt-0.5">
+            Sertifikat Keabsahan Dokumen Digital Berita Radio SAR (BRA)
+          </h3>
+        </div>
+      </div>
+      <div class="text-left sm:text-right">
+        <span class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 block">BASARNAS KPP KENDARI</span>
+        <span class="text-[10px] text-slate-500 dark:text-slate-400">Status Integritas Data: ASLI & SAH</span>
+      </div>
     </div>
-    <span class="font-mono text-[11px] text-emerald-600 dark:text-emerald-400">Status: RESMI AKTIF</span>
+
+    <!-- Verification Metadata Grid -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+      <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nomor Registrasi</span>
+        <span class="font-bold font-mono text-slate-800 dark:text-slate-200 mt-0.5 block truncate"><?= htmlspecialchars($bra['no_bra']) ?></span>
+      </div>
+      <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Waktu Sandi (TWU)</span>
+        <span class="font-bold font-mono text-slate-800 dark:text-slate-200 mt-0.5 block truncate"><?= htmlspecialchars($bra['twu']) ?></span>
+      </div>
+      <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Penandatangan (SMC)</span>
+        <span class="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block truncate"><?= htmlspecialchars($bra['nama_smc'] ?: 'KEPALA KANSAR KENDARI') ?></span>
+      </div>
+      <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Derajat Kecepatan</span>
+        <span class="font-bold font-mono text-slate-800 dark:text-slate-200 mt-0.5 block"><?= htmlspecialchars($bra['derajat'] ?? 'SGR') ?> (SEGERA)</span>
+      </div>
+    </div>
   </div>
 
   <!-- ============================================================== -->

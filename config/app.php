@@ -113,7 +113,7 @@ function verifyCsrfToken(?string $token = null): bool {
 }
 
 // Global sanitization helper
-function e($value): string {
+function e(mixed $value): string {
     return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');
 }
 

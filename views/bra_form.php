@@ -35,8 +35,8 @@ $nomorUrutPlaceholder = $seq['nomor_urut'];
 $bulanTahunPlaceholder = $seq['bulan_tahun'];
 
 $now = date('Y-m-d H:i:s');
-$twuPlaceholder = BraHelper::formatMilitaryTw($now, 'H');
-$twbPlaceholder = BraHelper::formatMilitaryTw(date('Y-m-d H:i:s', strtotime('-15 minutes')), 'H');
+$twuPlaceholder = BraHelper::formatMilitaryTW($now, 'H');
+$twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15 minutes')), 'H');
 
 $currentKategori = strtoupper($bra['kategori'] ?? $initialKategori);
 $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
