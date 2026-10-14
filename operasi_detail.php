@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config/app.php';
 
+AuthHelper::requireLogin();
+
 $id = (int)($_GET['id'] ?? 0);
 
 if (!$id) {

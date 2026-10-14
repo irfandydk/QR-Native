@@ -296,18 +296,20 @@ function showToast(message, type = 'info') {
         transform:translateY(20px);opacity:0;transition:all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     `;
 
+    const safeMessage = typeof escapeHtml === 'function' ? escapeHtml(message) : message;
+
     if (type === 'success') {
         toast.style.backgroundColor = '#10B981';
         toast.style.color = '#FFFFFF';
-        toast.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> <span>${message}</span>`;
+        toast.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> <span>${safeMessage}</span>`;
     } else if (type === 'error') {
         toast.style.backgroundColor = '#EF4444';
         toast.style.color = '#FFFFFF';
-        toast.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> <span>${message}</span>`;
+        toast.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> <span>${safeMessage}</span>`;
     } else {
         toast.style.backgroundColor = '#F97316';
         toast.style.color = '#FFFFFF';
-        toast.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> <span>${message}</span>`;
+        toast.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> <span>${safeMessage}</span>`;
     }
 
     container.appendChild(toast);
@@ -487,10 +489,85 @@ document.addEventListener('submit', async (e) => {
     if (ok) {
         form.dataset.swalApproved = 'true';
         if (typeof form.requestSubmit === 'function') {
-            form.submit();
+            form.requestSubmit();
         } else {
             form.submit();
         }
     }
 }, true);
+
+// Global Form Auto-Submit Loading Feedback & Double-Submission Guard
+document.addEventListener('submit', (e) => {
+    const form = e.target;
+    if (e.defaultPrevented) return;
+
+    const submitBtn = form.querySelector('button[type="submit"]:not([data-no-loading])');
+    if (submitBtn && !submitBtn.disabled) {
+        setTimeout(() => {
+            if (!submitBtn.dataset.originalHtml) {
+                submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+            }
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-80', 'cursor-wait');
+            const svg = submitBtn.querySelector('svg');
+            if (svg) {
+                svg.classList.add('animate-spin');
+            } else {
+                submitBtn.insertAdjacentHTML('afterbegin', '<span class="inline-block animate-spin mr-1.5 font-bold">⟳</span> ');
+            }
+        }, 15);
+    }
+});
+
+// ==========================================
+// GLOBAL HTML SANITIZATION UTILITY
+// ==========================================
+window.escapeHtml = function (str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+};
+
+// ==========================================
+// GLOBAL AUTOMATIC FETCH CSRF INTERCEPTOR
+// ==========================================
+(function() {
+    const originalFetch = window.fetch;
+    if (!originalFetch) return;
+
+    window.fetch = function(input, init) {
+        init = init || {};
+        const method = (init.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+
+        if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+            const token = window.CSRF_TOKEN || 
+                          (document.querySelector('meta[name="csrf-token"]') ? 
+                           document.querySelector('meta[name="csrf-token"]').getAttribute('content') : null);
+
+            if (token) {
+                if (init.headers instanceof Headers) {
+                    if (!init.headers.has('X-CSRF-Token')) {
+                        init.headers.set('X-CSRF-Token', token);
+                    }
+                } else if (Array.isArray(init.headers)) {
+                    const hasCsrf = init.headers.some(h => (h[0] || '').toLowerCase() === 'x-csrf-token');
+                    if (!hasCsrf) {
+                        init.headers.push(['X-CSRF-Token', token]);
+                    }
+                } else {
+                    init.headers = init.headers || {};
+                    if (!init.headers['X-CSRF-Token'] && !init.headers['x-csrf-token']) {
+                        init.headers['X-CSRF-Token'] = token;
+                    }
+                }
+            }
+        }
+
+        return originalFetch.call(this, input, init);
+    };
+})();
 

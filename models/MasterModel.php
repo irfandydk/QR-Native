@@ -167,6 +167,10 @@ class MasterModel {
     public static function createPejabat(array $data): string {
         $db = getDB();
         $id = $data['id'] ?? ('pej-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
+        $isDef = !empty($data['is_default_smc']) ? 1 : 0;
+        if ($isDef === 1) {
+            $db->query("UPDATE Pejabat SET is_default_smc = 0");
+        }
 
         $stmt = $db->prepare("INSERT INTO Pejabat (id, nama, nip, pangkat, jabatan, is_default_smc) VALUES (:id, :nama, :nip, :pangkat, :jabatan, :def)");
         $stmt->execute([
@@ -175,7 +179,7 @@ class MasterModel {
             ':nip' => $data['nip'] ?? '',
             ':pangkat' => $data['pangkat'] ?? '',
             ':jabatan' => $data['jabatan'] ?? '',
-            ':def' => !empty($data['is_default_smc']) ? 1 : 0
+            ':def' => $isDef
         ]);
 
         return $id;

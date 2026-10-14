@@ -4,6 +4,11 @@
  * Kantor Pencarian dan Pertolongan (Basarnas) Kendari
  */
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 if (empty($operasi)) {
     echo "<div class='p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'>Operasi SAR tidak ditemukan.</div>";
     return;
@@ -65,10 +70,14 @@ $countBra = count($operasi['bra_sar'] ?? []);
     </div>
 
     <?php if (AuthHelper::isAdmin()): ?>
-    <a href="<?= BASE_URL ?>/operasi.php?action=delete&id=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/20 font-semibold text-xs transition" data-confirm="Apakah Anda yakin ingin menghapus Operasi SAR ini secara permanen beserta seluruh Renops, Sitrep, dan data terkait? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Operasi SAR Permanen" data-confirm-btn="Ya, Hapus Permanen" data-confirm-danger="true" title="Hapus Operasi">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
-        <span>Hapus Operasi</span>
-    </a>
+    <form method="POST" action="<?= BASE_URL ?>/operasi.php?action=delete" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus Operasi SAR ini secara permanen beserta seluruh Renops, Sitrep, dan data terkait? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Operasi SAR Permanen" data-confirm-btn="Ya, Hapus Permanen" data-confirm-danger="true">
+        <?= csrfInput() ?>
+        <input type="hidden" name="id" value="<?= $id ?>">
+        <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/20 font-semibold text-xs transition cursor-pointer" title="Hapus Operasi">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+            <span>Hapus Operasi</span>
+        </button>
+    </form>
     <?php endif; ?>
 </div>
 
@@ -130,6 +139,11 @@ $countBra = count($operasi['bra_sar'] ?? []);
 
         <!-- Action Toolbar -->
         <div class="flex flex-wrap items-center gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800">
+            <a href="<?= BASE_URL ?>/gis.php?id=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-xs transition" title="Buka Peta Taktis GIS">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                <span>Peta GIS</span>
+            </a>
+
             <button type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-view-wa-awal')" title="Lihat naskah laporan awal format WhatsApp">
                 <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.774-.954l.583-2.183A7.95 7.95 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
                 <span>Naskah WA</span>
@@ -141,7 +155,7 @@ $countBra = count($operasi['bra_sar'] ?? []);
                 <span>Edit Lap Awal</span>
             </a>
 
-            <button type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-close-ops-detail')" title="Tutup Operasi SAR secara resmi">
+            <button type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-600 text-red-600 hover:text-white border border-red-500/25 font-bold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-close-ops-detail')" title="Tutup Operasi SAR secara resmi">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
                 <span>Tutup Operasi</span>
             </button>
@@ -1165,6 +1179,7 @@ $countBra = count($operasi['bra_sar'] ?? []);
             <button type="button" class="btn btn-secondary btn-sm" data-close-modal>✕</button>
         </div>
         <form method="POST" action="<?= BASE_URL ?>/operasi.php?action=close">
+            <?= csrfInput() ?>
             <input type="hidden" name="id_operasi" value="<?= $id ?>">
             <div class="modal-body space-y-3">
                 <p class="font-bold text-xs text-slate-800 dark:text-slate-200">
@@ -1416,5 +1431,6 @@ function printBerkas(type) {
 
 <!-- Fallback Hidden Form for Rollback -->
 <form id="form-fallback-rollback" method="POST" action="<?= BASE_URL ?>/operasi.php?action=rollback" style="display: none;">
+    <?= csrfInput() ?>
     <input type="hidden" name="id_operasi" value="<?= $id ?>">
 </form>

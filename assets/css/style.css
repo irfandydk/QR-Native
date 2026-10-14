@@ -3,7 +3,8 @@
  * Kantor Pencarian dan Pertolongan (KPP) Kendari
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+/* Fonts are loaded asynchronously via HTML link headers for optimal offline rendering */
+/* @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap'); */
 
 :root {
   --primary: #f97316;
@@ -853,17 +854,41 @@ select.input {
 }
 
 .tab-btn.active {
-  color: #0284C7;
-  border-bottom-color: #0284C7;
-  background: rgba(14, 165, 233, 0.08);
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: var(--primary-light);
   font-weight: 700;
   border-radius: 8px 8px 0 0;
 }
 
 [data-theme="dark"] .tab-btn.active {
-  color: #38BDF8;
-  border-bottom-color: #38BDF8;
-  background: rgba(56, 189, 248, 0.12);
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: var(--primary-light);
+}
+
+/* Form Ergonomics (42px Touch Target & Smooth Focus Ring) */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  min-height: 40px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Tactical Pulse Radar Animation */
+@keyframes tacticalRadarSweep {
+  0% { transform: scale(0.95); opacity: 0.85; }
+  50% { transform: scale(1.06); opacity: 0.35; }
+  100% { transform: scale(0.95); opacity: 0.85; }
+}
+
+.radar-sweep-tactical {
+  animation: tacticalRadarSweep 2.5s infinite ease-in-out;
 }
 
 /* Modal Dialog */

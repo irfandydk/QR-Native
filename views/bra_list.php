@@ -13,36 +13,24 @@
 
 declare(strict_types=1);
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 $kategoriFilter = strtoupper($_GET['kategori'] ?? 'SEMUA');
 $searchQuery = trim($_GET['q'] ?? '');
 
-$allBra = BraModel::getAll();
+// Counts for Summary Cards via single aggregated query
+$braStats = BraModel::getStats();
+$countAll = $braStats['total'];
+$countMapel = $braStats['mapel'];
+$countSarUmum = $braStats['sar_umum'];
+$countKapal = $braStats['kapal'];
 
-// Filter list
-$braList = $allBra;
-
-if ($kategoriFilter !== 'SEMUA') {
-    $braList = array_filter($braList, fn($b) => strtoupper($b['kategori'] ?? '') === $kategoriFilter);
-}
-
-if ($searchQuery !== '') {
-    $q = strtolower($searchQuery);
-    $braList = array_filter($braList, function($b) use ($q) {
-        return str_contains(strtolower($b['no_bra'] ?? ''), $q) ||
-               str_contains(strtolower($b['perihal'] ?? ''), $q) ||
-               str_contains(strtolower($b['nama_smc'] ?? ''), $q) ||
-               str_contains(strtolower($b['dari'] ?? ''), $q) ||
-               str_contains(strtolower($b['aksi'] ?? ''), $q) ||
-               str_contains(strtolower($b['twu'] ?? ''), $q) ||
-               str_contains(strtolower($b['twb'] ?? ''), $q);
-    });
-}
-
-// Counts for Summary Cards
-$countAll = count($allBra);
-$countMapel = count(array_filter($allBra, fn($b) => strtoupper($b['kategori'] ?? '') === 'MAPEL'));
-$countSarUmum = count(array_filter($allBra, fn($b) => in_array(strtoupper($b['kategori'] ?? ''), ['SAR_UMUM', 'OPERASI_SAR'])));
-$countKapal = count(array_filter($allBra, fn($b) => strtoupper($b['kategori'] ?? '') === 'PERGERAKAN_KAPAL'));
+// Fetch filtered list directly from database without N+1 section queries
+$katParam = ($kategoriFilter !== 'SEMUA') ? $kategoriFilter : null;
+$braList = BraModel::getAll($katParam, $searchQuery !== '' ? $searchQuery : null, false);
 $totalFiltered = count($braList);
 ?>
 
@@ -386,15 +374,13 @@ $totalFiltered = count($braList);
             </a>
 
             <?php if (AuthHelper::canDelete()): ?>
-              <a href="<?= BASE_URL ?>/bra.php?action=delete&id=<?= $bra['id_bra'] ?>"
-                 data-confirm="Apakah Anda yakin ingin menghapus naskah Berita Radio SAR <?= htmlspecialchars($bra['no_bra']) ?>? Tindakan ini tidak dapat dibatalkan."
-                 data-confirm-title="Hapus Dokumen BRA SAR"
-                 data-confirm-btn="Ya, Hapus"
-                 data-confirm-danger="true"
-                 class="p-2 text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-500/10 rounded-xl transition cursor-pointer"
-                 title="Hapus Dokumen">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </a>
+              <form method="POST" action="<?= BASE_URL ?>/bra.php?action=delete" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus naskah Berita Radio SAR <?= htmlspecialchars($bra['no_bra']) ?>? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Dokumen BRA SAR" data-confirm-btn="Ya, Hapus" data-confirm-danger="true">
+                <?= csrfInput() ?>
+                <input type="hidden" name="id" value="<?= (int)$bra['id_bra'] ?>">
+                <button type="submit" class="p-2 text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-500/10 rounded-xl transition cursor-pointer" title="Hapus Dokumen">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </form>
             <?php endif; ?>
           </div>
         </div>
@@ -510,15 +496,13 @@ $totalFiltered = count($braList);
                     </a>
 
                     <?php if (AuthHelper::canDelete()): ?>
-                      <a href="<?= BASE_URL ?>/bra.php?action=delete&id=<?= $bra['id_bra'] ?>"
-                         data-confirm="Apakah Anda yakin ingin menghapus naskah Berita Radio SAR <?= htmlspecialchars($bra['no_bra']) ?>? Tindakan ini tidak dapat dibatalkan."
-                         data-confirm-title="Hapus Dokumen BRA SAR"
-                         data-confirm-btn="Ya, Hapus"
-                         data-confirm-danger="true"
-                         class="p-1.5 text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 rounded-xl transition"
-                         title="Hapus Dokumen">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                      </a>
+                      <form method="POST" action="<?= BASE_URL ?>/bra.php?action=delete" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus naskah Berita Radio SAR <?= htmlspecialchars($bra['no_bra']) ?>? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Dokumen BRA SAR" data-confirm-btn="Ya, Hapus" data-confirm-danger="true">
+                        <?= csrfInput() ?>
+                        <input type="hidden" name="id" value="<?= (int)$bra['id_bra'] ?>">
+                        <button type="submit" class="p-1.5 text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-500/10 hover:bg-red-100 rounded-xl transition cursor-pointer" title="Hapus Dokumen">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </form>
                     <?php endif; ?>
                   </div>
                 </td>

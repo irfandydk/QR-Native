@@ -6,6 +6,11 @@
 
 declare(strict_types=1);
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 $activeTab = $_GET['tab'] ?? 'alut';
 
 $masterAlut = MasterModel::getAlut();

@@ -11,6 +11,19 @@
   const BASE_URL = window.location.origin;
   const initialData = window.SAR_INITIAL_GIS_DATA || {};
 
+  // Safe HTML Escaping Helper
+  const escapeHtml = typeof window.escapeHtml === 'function'
+    ? window.escapeHtml
+    : function (str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      };
+
   // 1. STATE MANAGEMENT
   let savedPoints = Array.isArray(initialData.points) ? [...initialData.points] : [];
   let savedPolygons = Array.isArray(initialData.polygons) ? [...initialData.polygons] : [];
@@ -106,20 +119,71 @@
   }
 
 
-  // 12 Preset Point Icons configuration matching PointCreatorCard.tsx
+  // Comprehensive Preset Point Icons for SAR operations, incidents, places, assets, and tactical markers
   const PRESET_ICONS = [
-    { type: 'lkp', label: 'LKP Kejadian', color: '#dc2626', emoji: '🚨' },
-    { type: 'kantor', label: 'Kantor SAR', color: '#1e3a8a', emoji: '🏢' },
-    { type: 'pos_sar', label: 'Pos / Unit SAR', color: '#ea580c', emoji: '📻' },
-    { type: 'posko_sar', label: 'Posko Taktis', color: '#059669', emoji: '🏕️' },
-    { type: 'rumah', label: 'Rumah/Shelter', color: '#16a34a', emoji: '🏠' },
-    { type: 'kapal', label: 'Kapal SAR KN', color: '#0284c7', emoji: '🚢' },
-    { type: 'perahu', label: 'Perahu Nelayan', color: '#06b6d4', emoji: '⛵' },
-    { type: 'rib', label: 'RIB Basarnas', color: '#f97316', emoji: '🚤' },
-    { type: 'orang_hilang', label: 'Orang Hilang', color: '#ef4444', emoji: '👤' },
-    { type: 'kecelakaan_kapal', label: 'Laka Kapal', color: '#b91c1c', emoji: '🔥' },
-    { type: 'kecelakaan_pesawat', label: 'Laka Udara', color: '#7c3aed', emoji: '✈️' },
-    { type: 'bencana', label: 'Bencana Alam', color: '#d97706', emoji: '⚠️' }
+    // --- KEJADIAN & BENCANA ---
+    { type: 'lkp', label: 'LKP / Titik Kejadian', color: '#dc2626', emoji: '🚨', group: 'kejadian' },
+    { type: 'orang_hilang', label: 'Orang Hilang / Survivor', color: '#ef4444', emoji: '👤', group: 'kejadian' },
+    { type: 'tenggelam', label: 'Korban Tenggelam / Laka Air', color: '#0284c7', emoji: '🏊', group: 'kejadian' },
+    { type: 'kecelakaan_kapal', label: 'Laka Kapal / Karam', color: '#b91c1c', emoji: '🚢', group: 'kejadian' },
+    { type: 'perahu', label: 'Perahu Terbalik / Nelayan', color: '#06b6d4', emoji: '⛵', group: 'kejadian' },
+    { type: 'kecelakaan_pesawat', label: 'Laka Pesawat / Jatuh', color: '#7c3aed', emoji: '✈️', group: 'kejadian' },
+    { type: 'laka_darat', label: 'Laka Transportasi Darat', color: '#d97706', emoji: '🚗', group: 'kejadian' },
+    { type: 'kmm', label: 'KMM / Bahaya Jiwa', color: '#ea580c', emoji: '🧗', group: 'kejadian' },
+    { type: 'banjir', label: 'Banjir / Luapan Air', color: '#2563eb', emoji: '🌊', group: 'kejadian' },
+    { type: 'longsor', label: 'Tanah Longsor', color: '#78350f', emoji: '⛰️', group: 'kejadian' },
+    { type: 'gempa', label: 'Gempa / Runtuhan', color: '#854d0e', emoji: '🏚️', group: 'kejadian' },
+    { type: 'kebakaran', label: 'Kebakaran / Karhutla', color: '#ea580c', emoji: '🔥', group: 'kejadian' },
+    { type: 'gunung_api', label: 'Erupsi Gunung Berapi', color: '#991b1b', emoji: '🌋', group: 'kejadian' },
+    { type: 'badai', label: 'Cuaca Buruk / Badai', color: '#475569', emoji: '🌪️', group: 'kejadian' },
+    { type: 'hewan_buas', label: 'Serangan Satwa / Buaya', color: '#15803d', emoji: '🐊', group: 'kejadian' },
+    { type: 'medis_gawat', label: 'Korban Medis Kritis', color: '#be123c', emoji: '🩸', group: 'kejadian' },
+    { type: 'bencana', label: 'Bencana Alam / Hazard', color: '#d97706', emoji: '⚠️', group: 'kejadian' },
+
+    // --- TEMPAT & FASILITAS ---
+    { type: 'kantor', label: 'Kantor / Pangkalan SAR', color: '#1e3a8a', emoji: '🏢', group: 'tempat' },
+    { type: 'pos_sar', label: 'Pos / Stasiun SAR', color: '#ea580c', emoji: '📻', group: 'tempat' },
+    { type: 'posko_sar', label: 'Posko Taktis Lapangan', color: '#059669', emoji: '🏕️', group: 'tempat' },
+    { type: 'tenda', label: 'Tenda Siaga / Pengungsi', color: '#0d9488', emoji: '⛺', group: 'tempat' },
+    { type: 'rumah_sakit', label: 'Rumah Sakit / Faskes', color: '#e11d48', emoji: '🏥', group: 'tempat' },
+    { type: 'pelabuhan', label: 'Pelabuhan / Dermaga', color: '#0284c7', emoji: '⚓', group: 'tempat' },
+    { type: 'bandara', label: 'Bandara / Airstrip', color: '#4338ca', emoji: '🛫', group: 'tempat' },
+    { type: 'helipad', label: 'Helipad / LZ Evakuasi', color: '#ca8a04', emoji: '🚁', group: 'tempat' },
+    { type: 'mercusuar', label: 'Mercusuar / Tower Pantau', color: '#334155', emoji: '🗼', group: 'tempat' },
+    { type: 'spbu_bbm', label: 'Depot BBM / Pengisian', color: '#d97706', emoji: '⛽', group: 'tempat' },
+    { type: 'rumah', label: 'Rumah / Titik Hunian', color: '#16a34a', emoji: '🏠', group: 'tempat' },
+    { type: 'pantai', label: 'Pantai / Area Pesisir', color: '#0891b2', emoji: '🏖️', group: 'tempat' },
+    { type: 'pulau', label: 'Pulau / Terumbu Karang', color: '#059669', emoji: '🏝️', group: 'tempat' },
+    { type: 'hutan', label: 'Hutan / Pegunungan', color: '#166534', emoji: '🌲', group: 'tempat' },
+    { type: 'jembatan', label: 'Jembatan / Akses Utama', color: '#64748b', emoji: '🌉', group: 'tempat' },
+
+    // --- ARMADA, ALUT & TIM SAR ---
+    { type: 'kapal', label: 'Kapal SAR KN / KRI', color: '#0284c7', emoji: '🚢', group: 'alut' },
+    { type: 'rib', label: 'RIB Basarnas', color: '#f97316', emoji: '🚤', group: 'alut' },
+    { type: 'perahu_karet', label: 'Perahu Karet / Raft', color: '#dc2626', emoji: '🛶', group: 'alut' },
+    { type: 'speedboat', label: 'Speedboat / Patroli', color: '#0ea5e9', emoji: '🛥️', group: 'alut' },
+    { type: 'helikopter', label: 'Helikopter SAR', color: '#ea580c', emoji: '🚁', group: 'alut' },
+    { type: 'pesawat', label: 'Pesawat Patroli Udara', color: '#7c3aed', emoji: '🛩️', group: 'alut' },
+    { type: 'rescue_car', label: 'Rescue Car / D-Max', color: '#ea580c', emoji: '🚙', group: 'alut' },
+    { type: 'rescue_truck', label: 'Truk Angkut / Truk SAR', color: '#475569', emoji: '🚛', group: 'alut' },
+    { type: 'ambulans', label: 'Ambulans Evakuasi Medis', color: '#dc2626', emoji: '🚑', group: 'alut' },
+    { type: 'motor_trail', label: 'Motor Trail Rescuer', color: '#c2410c', emoji: '🏍️', group: 'alut' },
+    { type: 'penyelam', label: 'Tim Selam / Under-Water', color: '#0369a1', emoji: '🤿', group: 'alut' },
+    { type: 'k9', label: 'Unit Anjing Pelacak K-9', color: '#854d0e', emoji: '🐕', group: 'alut' },
+    { type: 'drone', label: 'Drone / UAV Thermal', color: '#6d28d9', emoji: '🛰️', group: 'alut' },
+    { type: 'tim_rescuer', label: 'Tim Personel Rescuer', color: '#ea580c', emoji: '👷', group: 'alut' },
+
+    // --- TAKTIS & NAVIGASI ---
+    { type: 'titik_kumpul', label: 'Titik Kumpul / Assembly', color: '#16a34a', emoji: '🏁', group: 'taktis' },
+    { type: 'entry_point', label: 'Entry Poin / Pintu Masuk', color: '#15803d', emoji: '🟢', group: 'taktis' },
+    { type: 'exit_point', label: 'Exit Poin / Titik Keluar', color: '#b91c1c', emoji: '🔴', group: 'taktis' },
+    { type: 'target', label: 'Objek Sasaran / Datum', color: '#dc2626', emoji: '🎯', group: 'taktis' },
+    { type: 'bendera', label: 'Bendera Marker Taktis', color: '#ef4444', emoji: '🚩', group: 'taktis' },
+    { type: 'rintangan', label: 'Bahaya / Rintangan Alur', color: '#eab308', emoji: '⚠️', group: 'taktis' },
+    { type: 'logistik', label: 'Drop Zone Logistik / Air', color: '#b45309', emoji: '📦', group: 'taktis' },
+    { type: 'komunikasi', label: 'Stasiun Radio / Repeater', color: '#0891b2', emoji: '📡', group: 'taktis' },
+    { type: 'bintang', label: 'Titik Prioritas Utama', color: '#eab308', emoji: '⭐', group: 'taktis' },
+    { type: 'pin_umum', label: 'Pin Marker Default', color: '#ea580c', emoji: '📍', group: 'taktis' }
   ];
 
   // Color Palette for Polygons and Routes
@@ -321,75 +385,32 @@
         <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
         <image href="${customUrl}" x="${cx - 10}" y="6" width="20" height="20" preserveAspectRatio="xMidYMid slice" />
       `;
+    } else if (type === 'alphabet') {
+      const char = (labelNumber || 'A').toUpperCase();
+      innerContent = `
+        <circle cx="${cx}" cy="16" r="10" fill="#ffffff" />
+        <text x="${cx}" y="20.5" font-family="Arial, system-ui, sans-serif" font-size="12" font-weight="900" fill="${color}" text-anchor="middle">${char}</text>
+      `;
+    } else if (type === 'lkp' || type === 'target') {
+      innerContent = `
+        <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
+        <circle cx="${cx}" cy="16" r="9" fill="${color}" />
+        <circle cx="${cx}" cy="16" r="4" fill="#ffffff" />
+        <line x1="${cx - 10}" y1="16" x2="${cx + 10}" y2="16" stroke="#ffffff" stroke-width="1.8" />
+        <line x1="${cx}" y1="6" x2="${cx}" y2="26" stroke="#ffffff" stroke-width="1.8" />
+      `;
     } else {
-      switch (type) {
-        case 'alphabet':
-          const char = (labelNumber || 'A').toUpperCase();
-          innerContent = `
-            <circle cx="${cx}" cy="16" r="10" fill="#ffffff" />
-            <text x="${cx}" y="20.5" font-family="Arial, system-ui, sans-serif" font-size="12" font-weight="900" fill="${color}" text-anchor="middle">${char}</text>
-          `;
-          break;
-        case 'lkp':
-          innerContent = `
-            <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-            <circle cx="${cx}" cy="16" r="9" fill="${color}" />
-            <circle cx="${cx}" cy="16" r="4" fill="#ffffff" />
-            <line x1="${cx - 10}" y1="16" x2="${cx + 10}" y2="16" stroke="#ffffff" stroke-width="1.8" />
-            <line x1="${cx}" y1="6" x2="${cx}" y2="26" stroke="#ffffff" stroke-width="1.8" />
-          `;
-          break;
-        case 'kantor':
-          innerContent = `
-            <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-            <path d="M${cx - 6} 22 V14 L${cx} 9 L${cx + 6} 14 V22 H${cx - 6} Z" fill="${color}" />
-            <rect x="${cx - 2}" y="17" width="4" height="5" fill="#ffffff" />
-          `;
-          break;
-        case 'pos_sar':
-          innerContent = `
-            <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-            <path d="M${cx - 4} 22 L${cx} 11 L${cx + 4} 22 Z" fill="${color}" />
-            <circle cx="${cx}" cy="11" r="2" fill="${color}" />
-            <path d="M${cx - 6} 11 A6 6 0 0 1 ${cx + 6} 11" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" />
-          `;
-          break;
-        case 'posko_sar':
-          innerContent = `
-            <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-            <path d="M${cx - 7} 22 L${cx} 12 L${cx + 7} 22 Z" fill="${color}" />
-            <line x1="${cx}" y1="7" x2="${cx}" y2="12" stroke="${color}" stroke-width="1.5" stroke-linecap="round" />
-            <polygon points="${cx},7 ${cx + 4.5},8.5 ${cx},10" fill="#dc2626" />
-            <polygon points="${cx - 2.5},22 ${cx},17.5 ${cx + 2.5},22" fill="#ffffff" />
-          `;
-          break;
-        case 'kapal':
-          innerContent = `
-            <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-            <path d="M${cx - 8} 17 L${cx - 5} 21 H${cx + 5} L${cx + 8} 17 Z" fill="${color}" />
-            <rect x="${cx - 4}" y="12" width="8" height="5" fill="${color}" />
-            <line x1="${cx}" y1="8" x2="${cx}" y2="12" stroke="${color}" stroke-width="1.5" />
-          `;
-          break;
-        case 'rib':
-        case 'perahu':
-          innerContent = `
-            <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-            <path d="M${cx - 7} 17 Q${cx} 22 ${cx + 7} 17 L${cx + 5} 20 H${cx - 5} Z" fill="${color}" />
-            <polygon points="${cx - 1},10 ${cx + 4},13 ${cx - 1},16" fill="${color}" />
-          `;
-          break;
-        default:
-          innerContent = `
-            <circle cx="${cx}" cy="16" r="10" fill="#ffffff" />
-            <text x="${cx}" y="20" font-family="Arial, sans-serif" font-size="11" font-weight="900" fill="${color}" text-anchor="middle">📍</text>
-          `;
-      }
+      const preset = PRESET_ICONS.find((p) => p.type === type);
+      const emoji = preset ? preset.emoji : '📍';
+      innerContent = `
+        <circle cx="${cx}" cy="16" r="10" fill="#ffffff" />
+        <text x="${cx}" y="16.5" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', Arial, sans-serif" font-size="12" text-anchor="middle" dominant-baseline="central">${emoji}</text>
+      `;
     }
 
     const haloRing = isEditing
       ? `<circle cx="${cx}" cy="16" r="17" fill="none" stroke="#facc15" stroke-width="3" stroke-dasharray="3,3" />`
-      : type === 'lkp'
+      : (type === 'lkp' || type === 'target' || type === 'medis_gawat' || type === 'bencana')
         ? `<circle cx="${cx}" cy="16" r="18" fill="none" stroke="${color}" stroke-width="1.5" stroke-opacity="0.6">
           <animate attributeName="r" values="14;22;14" dur="2s" repeatCount="indefinite" />
           <animate attributeName="stroke-opacity" values="0.8;0.1;0.8" dur="2s" repeatCount="indefinite" />
@@ -413,16 +434,17 @@
   }
 
   function createMarkerHtml(point, isEditing = false) {
-    const pType = point.pointType || point.type || 'lkp';
+    const pType = point.pointType || point.type || 'pin_umum';
     const preset = PRESET_ICONS.find((p) => p.type === pType);
     const color = point.customColor || (preset ? preset.color : '#ea580c');
-    const label = point.label || 'Titik SAR';
+    const label = point.label !== undefined && point.label !== null ? String(point.label).trim() : '';
     const width = isEditing ? 46 : 38;
     const height = isEditing ? 54 : 46;
     const svg = createPointSvgHtml(pType, color, isEditing, point.customIconUrl, point.alphabetChar);
 
-    return `
-      <div class="sar-marker-root" style="position: relative; width: ${width}px; height: ${height}px; user-select: none; pointer-events: auto;">
+    // Requirement 1: If label is empty, only show the point without any name above it
+    const labelBadge = label
+      ? `
         <div style="
           position: absolute;
           bottom: 100%;
@@ -439,11 +461,17 @@
           box-shadow: 0 2px 6px rgba(0,0,0,0.6);
           white-space: nowrap;
           pointer-events: none;
-          max-width: 160px;
+          max-width: 180px;
           overflow: hidden;
           text-overflow: ellipsis;
           z-index: 10;
         ">${label}</div>
+      `
+      : '';
+
+    return `
+      <div class="sar-marker-root" style="position: relative; width: ${width}px; height: ${height}px; user-select: none; pointer-events: auto;">
+        ${labelBadge}
         ${svg}
       </div>
     `;
@@ -540,6 +568,41 @@
       const zoomEl = document.getElementById('hudZoomLevel');
       if (zoomEl) zoomEl.textContent = String(map.getZoom());
     });
+
+    // Offline / Blank Spot Connectivity Monitoring
+    const offlineIndicator = document.getElementById('gisOfflineIndicator');
+    function checkConnectivity(forcedOffline = false) {
+      if (!offlineIndicator) return;
+      if (forcedOffline || !navigator.onLine) {
+        offlineIndicator.classList.remove('hidden');
+      } else {
+        offlineIndicator.classList.add('hidden');
+      }
+    }
+
+    window.addEventListener('online', () => checkConnectivity(false));
+    window.addEventListener('offline', () => checkConnectivity(true));
+
+    // Detect tile load failures in maritime blank spots
+    let consecutiveTileErrors = 0;
+    Object.values(tileLayers).forEach((layer) => {
+      layer.on('tileerror', () => {
+        consecutiveTileErrors++;
+        if (consecutiveTileErrors >= 4) {
+          checkConnectivity(true);
+        }
+      });
+      layer.on('tileload', () => {
+        if (consecutiveTileErrors > 0) {
+          consecutiveTileErrors = Math.max(0, consecutiveTileErrors - 1);
+          if (consecutiveTileErrors === 0 && navigator.onLine) {
+            checkConnectivity(false);
+          }
+        }
+      });
+    });
+
+    checkConnectivity();
 
     setTimeout(() => {
       map.invalidateSize();
@@ -796,7 +859,8 @@
           label: currentSelectedSearchResult.name,
           lat: currentSelectedSearchResult.lat,
           lng: currentSelectedSearchResult.lng,
-          category: 'None'
+          category: 'Tanpa Kategori',
+          pointType: 'pin_umum'
         });
         document.getElementById('floatingSearchBanner').classList.add('hidden');
       });
@@ -812,7 +876,7 @@
           lat: currentSelectedSearchResult.lat,
           lng: currentSelectedSearchResult.lng,
           category: 'LKP',
-          iconType: 'alert'
+          pointType: 'lkp'
         });
         document.getElementById('floatingSearchBanner').classList.add('hidden');
       });
@@ -888,11 +952,11 @@
             </div>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="text-slate-900 dark:text-white font-bold text-xs truncate">${r.name}</span>
-                ${r.badge ? `<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/30 shrink-0">${r.badge}</span>` : ''}
+                <span class="text-slate-900 dark:text-white font-bold text-xs truncate">${escapeHtml(r.name)}</span>
+                ${r.badge ? `<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/30 shrink-0">${escapeHtml(r.badge)}</span>` : ''}
               </div>
-              <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">${r.address || ''}</div>
-              <div class="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">${r.dms || decimalToDms(r.lat, r.lng)}</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">${escapeHtml(r.address || '')}</div>
+              <div class="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">${escapeHtml(r.dms || decimalToDms(r.lat, r.lng))}</div>
             </div>
             <span class="text-xs text-orange-500 dark:text-orange-400 shrink-0 font-bold self-center">➔</span>
           </div>
@@ -985,25 +1049,68 @@
   // ==========================================
 
   function initPointCreatorUI() {
-    // Populate 12 Preset SAR Icons
-    const gridSar = document.getElementById('iconGridSar');
-    if (gridSar) {
-      gridSar.innerHTML = PRESET_ICONS.map(
-        (p) => `
-        <button type="button" data-icon="${p.type}" class="preset-icon-btn p-1.5 rounded-xl border border-slate-800 bg-slate-900 hover:border-orange-500 text-center flex flex-col items-center justify-center gap-1 transition ${pointIconType === p.type ? 'border-orange-500 ring-2 ring-orange-500/30' : ''}">
-          <span class="text-base">${p.emoji}</span>
-          <span class="text-[9px] font-bold text-slate-300 truncate w-full">${p.label}</span>
-        </button>
-      `
-      ).join('');
+    let currentPresetGroup = 'all';
+    let currentPresetQuery = '';
+
+    function renderPresetIcons(group = 'all', query = '') {
+      currentPresetGroup = group;
+      currentPresetQuery = query;
+      const gridSar = document.getElementById('iconGridSar');
+      if (!gridSar) return;
+
+      const q = (query || '').toLowerCase().trim();
+      const filtered = PRESET_ICONS.filter((p) => {
+        const matchGroup = group === 'all' || p.group === group;
+        const matchQuery = !q || p.label.toLowerCase().includes(q) || p.type.toLowerCase().includes(q);
+        return matchGroup && matchQuery;
+      });
+
+      if (filtered.length === 0) {
+        gridSar.innerHTML = `<div class="col-span-4 p-3 text-center text-[10px] text-slate-400 italic">Tidak ada logo yang cocok dengan pencarian.</div>`;
+        return;
+      }
+
+      gridSar.innerHTML = filtered
+        .map(
+          (p) => `
+          <button type="button" data-icon="${p.type}" title="${p.label}" class="preset-icon-btn p-1.5 rounded-xl border border-slate-800 bg-slate-900 hover:border-orange-500 text-center flex flex-col items-center justify-center gap-1 transition cursor-pointer ${pointIconType === p.type ? 'border-orange-500 ring-2 ring-orange-500/30 bg-orange-500/10' : ''}">
+            <span class="text-base select-none">${p.emoji}</span>
+            <span class="text-[9px] font-bold text-slate-300 truncate w-full px-0.5">${p.label}</span>
+          </button>
+        `
+        )
+        .join('');
 
       gridSar.querySelectorAll('.preset-icon-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           pointIconType = btn.getAttribute('data-icon');
-          gridSar.querySelectorAll('.preset-icon-btn').forEach((b) => b.classList.remove('border-orange-500', 'ring-2', 'ring-orange-500/30'));
-          btn.classList.add('border-orange-500', 'ring-2', 'ring-orange-500/30');
+          gridSar.querySelectorAll('.preset-icon-btn').forEach((b) => b.classList.remove('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/10'));
+          btn.classList.add('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/10');
           updateDraftMarkerVisual();
         });
+      });
+    }
+
+    // Initial render of preset icons
+    renderPresetIcons('all', '');
+
+    // Preset group filter buttons
+    document.querySelectorAll('.preset-filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.preset-filter-btn').forEach((b) => {
+          b.className = 'preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition';
+        });
+        btn.className = 'preset-filter-btn px-2 py-0.5 rounded-lg bg-orange-500 text-white shrink-0 cursor-pointer transition';
+        const group = btn.getAttribute('data-group') || 'all';
+        renderPresetIcons(group, currentPresetQuery);
+      });
+    });
+
+    // Preset search input
+    const searchInput = document.getElementById('pcPresetSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        renderPresetIcons(currentPresetGroup, e.target.value);
       });
     }
 
@@ -1014,7 +1121,7 @@
       gridAlphabet.innerHTML = letters
         .map(
           (char) => `
-        <button type="button" data-char="${char}" class="alpha-icon-btn py-1 rounded-lg border border-slate-800 bg-slate-900 text-center font-bold text-xs text-white hover:border-orange-500 transition ${pointAlphabetChar === char ? 'border-orange-500 bg-orange-500/20' : ''}">
+        <button type="button" data-char="${char}" class="alpha-icon-btn py-1 rounded-lg border border-slate-800 bg-slate-900 text-center font-bold text-xs text-white hover:border-orange-500 transition cursor-pointer ${pointAlphabetChar === char ? 'border-orange-500 bg-orange-500/20' : ''}">
           ${char}
         </button>
       `
@@ -1036,34 +1143,43 @@
     const tabSar = document.getElementById('tabIconPresetSar');
     const tabAlpha = document.getElementById('tabIconAlphabet');
     const tabCustom = document.getElementById('tabIconCustom');
+    const panelSar = document.getElementById('iconGridSarPanel');
+    const panelAlpha = document.getElementById('iconGridAlphabet');
+    const panelCustom = document.getElementById('iconGridCustom');
 
     if (tabSar && tabAlpha && tabCustom) {
       tabSar.addEventListener('click', () => {
-        tabSar.className = 'py-1 rounded-lg bg-orange-500 text-white';
-        tabAlpha.className = 'py-1 rounded-lg text-slate-400 hover:text-white';
-        tabCustom.className = 'py-1 rounded-lg text-slate-400 hover:text-white';
-        document.getElementById('iconGridSar').classList.remove('hidden');
-        document.getElementById('iconGridAlphabet').classList.add('hidden');
-        document.getElementById('iconGridCustom').classList.add('hidden');
+        tabSar.className = 'py-1 rounded-lg bg-orange-500 text-white cursor-pointer transition';
+        tabAlpha.className = 'py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition';
+        tabCustom.className = 'py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition';
+        if (panelSar) panelSar.classList.remove('hidden');
+        if (panelAlpha) panelAlpha.classList.add('hidden');
+        if (panelCustom) panelCustom.classList.add('hidden');
       });
 
       tabAlpha.addEventListener('click', () => {
-        tabAlpha.className = 'py-1 rounded-lg bg-orange-500 text-white';
-        tabSar.className = 'py-1 rounded-lg text-slate-400 hover:text-white';
-        tabCustom.className = 'py-1 rounded-lg text-slate-400 hover:text-white';
-        document.getElementById('iconGridAlphabet').classList.remove('hidden');
-        document.getElementById('iconGridSar').classList.add('hidden');
-        document.getElementById('iconGridCustom').classList.add('hidden');
+        tabAlpha.className = 'py-1 rounded-lg bg-orange-500 text-white cursor-pointer transition';
+        tabSar.className = 'py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition';
+        tabCustom.className = 'py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition';
+        if (panelAlpha) panelAlpha.classList.remove('hidden');
+        if (panelSar) panelSar.classList.add('hidden');
+        if (panelCustom) panelCustom.classList.add('hidden');
       });
 
       tabCustom.addEventListener('click', () => {
-        tabCustom.className = 'py-1 rounded-lg bg-orange-500 text-white';
-        tabSar.className = 'py-1 rounded-lg text-slate-400 hover:text-white';
-        tabAlpha.className = 'py-1 rounded-lg text-slate-400 hover:text-white';
-        document.getElementById('iconGridCustom').classList.remove('hidden');
-        document.getElementById('iconGridSar').classList.add('hidden');
-        document.getElementById('iconGridAlphabet').classList.add('hidden');
+        tabCustom.className = 'py-1 rounded-lg bg-orange-500 text-white cursor-pointer transition';
+        tabSar.className = 'py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition';
+        tabAlpha.className = 'py-1 rounded-lg text-slate-400 hover:text-white cursor-pointer transition';
+        if (panelCustom) panelCustom.classList.remove('hidden');
+        if (panelSar) panelSar.classList.add('hidden');
+        if (panelAlpha) panelAlpha.classList.add('hidden');
       });
+    }
+
+    // Realtime update of draft marker when user types or clears point name
+    const nameInput = document.getElementById('pcPointName');
+    if (nameInput) {
+      nameInput.addEventListener('input', updateDraftMarkerVisual);
     }
 
     // DMS Numeric Inputs Event Listeners
@@ -1084,8 +1200,8 @@
           label: '',
           lat: center.lat,
           lng: center.lng,
-          category: 'None',
-          pointType: 'lkp'
+          category: 'Tanpa Kategori',
+          pointType: 'pin_umum'
         });
       });
     }
@@ -1232,12 +1348,75 @@
     editingPointId = data.id || null;
 
     document.getElementById('pcPointName').value = data.label || '';
-    document.getElementById('pcPointCategory').value = data.category || 'None';
+
+    // Normalize category strictly to the 8 valid options
+    const VALID_CATEGORIES = [
+      'Kantor SAR',
+      'POS SAR',
+      'Unit Siaga SAR',
+      'LKP',
+      'Posko',
+      'Entry Poin',
+      'Exit Poin',
+      'Tanpa Kategori'
+    ];
+    let cat = data.category || 'Tanpa Kategori';
+    if (cat === 'None' || cat === 'none' || !cat) cat = 'Tanpa Kategori';
+    if (cat === 'Entry Point') cat = 'Entry Poin';
+    if (cat === 'Exit Point') cat = 'Exit Poin';
+    if (!VALID_CATEGORIES.includes(cat)) {
+      if (cat.toUpperCase() === 'LKP') cat = 'LKP';
+      else if (cat.includes('Kantor')) cat = 'Kantor SAR';
+      else if (cat.includes('Posko')) cat = 'Posko';
+      else if (cat.includes('POS')) cat = 'POS SAR';
+      else if (cat.includes('Siaga')) cat = 'Unit Siaga SAR';
+      else cat = 'Tanpa Kategori';
+    }
+    const catSelect = document.getElementById('pcPointCategory');
+    if (catSelect) catSelect.value = cat;
+
     document.getElementById('pcPointDesc').value = data.description || '';
 
-    pointIconType = data.pointType || 'lkp';
+    pointIconType = data.pointType || 'pin_umum';
     pointAlphabetChar = data.alphabetChar || 'A';
     pointCustomIconUrl = data.customIconUrl || '';
+
+    // Reset search and filter pills in preset selector
+    const searchInput = document.getElementById('pcPresetSearch');
+    if (searchInput) searchInput.value = '';
+    document.querySelectorAll('.preset-filter-btn').forEach((b) => {
+      if (b.getAttribute('data-group') === 'all') {
+        b.className = 'preset-filter-btn px-2 py-0.5 rounded-lg bg-orange-500 text-white shrink-0 cursor-pointer transition';
+      } else {
+        b.className = 'preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition';
+      }
+    });
+
+    const tabSar = document.getElementById('tabIconPresetSar');
+    const tabAlpha = document.getElementById('tabIconAlphabet');
+    const tabCustom = document.getElementById('tabIconCustom');
+    const panelSar = document.getElementById('iconGridSarPanel');
+    const panelAlpha = document.getElementById('iconGridAlphabet');
+    const panelCustom = document.getElementById('iconGridCustom');
+
+    if (pointCustomIconUrl) {
+      if (tabCustom) tabCustom.click();
+    } else if (pointIconType === 'alphabet') {
+      if (tabAlpha) tabAlpha.click();
+    } else {
+      if (tabSar) tabSar.click();
+      const gridSar = document.getElementById('iconGridSar');
+      if (gridSar) {
+        gridSar.querySelectorAll('.preset-icon-btn').forEach((b) => {
+          if (b.getAttribute('data-icon') === pointIconType) {
+            b.classList.add('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/10');
+            b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          } else {
+            b.classList.remove('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/10');
+          }
+        });
+      }
+    }
 
     const fileInput = document.getElementById('pcCustomIconFile');
     const urlInput = document.getElementById('pcCustomIconUrl');
@@ -1362,7 +1541,8 @@
       draftPointMarker.setLatLng([pointDraftCoords.lat, pointDraftCoords.lng]);
     }
 
-    const name = document.getElementById('pcPointName').value || 'Titik Baru';
+    const nameInput = document.getElementById('pcPointName');
+    const name = nameInput ? nameInput.value.trim() : '';
     const html = createMarkerHtml(
       {
         label: name,
@@ -1385,14 +1565,16 @@
   }
 
   async function handleSavePoint() {
-    const name = document.getElementById('pcPointName').value.trim();
-    if (!name) {
-      alert('Nama / Label Titik wajib diisi!');
-      return;
-    }
+    // 1. Point name is completely optional! If left blank, point appears without label
+    const nameInput = document.getElementById('pcPointName');
+    const name = nameInput ? nameInput.value.trim() : '';
 
-    const category = document.getElementById('pcPointCategory').value;
-    const desc = document.getElementById('pcPointDesc').value.trim();
+    // 2. Category strictly from input select
+    const categorySelect = document.getElementById('pcPointCategory');
+    const category = categorySelect ? categorySelect.value : 'Tanpa Kategori';
+
+    const descInput = document.getElementById('pcPointDesc');
+    const desc = descInput ? descInput.value.trim() : '';
 
     const pointPayload = {
       id: editingPointId || `pt-${Date.now()}`,
@@ -1436,6 +1618,27 @@
     }
   }
 
+  function getCategoryBadgeHtml(cat) {
+    switch (cat) {
+      case 'Kantor SAR':
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/20 text-blue-400 border border-blue-500/30">🏢 Kantor SAR</span>';
+      case 'POS SAR':
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-orange-500/20 text-orange-400 border border-orange-500/30">📻 POS SAR</span>';
+      case 'Unit Siaga SAR':
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">📡 Unit Siaga SAR</span>';
+      case 'LKP':
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-500/20 text-red-400 border border-red-500/30">🚨 LKP</span>';
+      case 'Posko':
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🏕️ Posko</span>';
+      case 'Entry Poin':
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-green-500/20 text-green-400 border border-green-500/30">🟢 Entry Poin</span>';
+      case 'Exit Poin':
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-rose-500/20 text-rose-400 border border-rose-500/30">🔴 Exit Poin</span>';
+      default:
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-slate-500/20 text-slate-400 border border-slate-500/30">⚪ Tanpa Kategori</span>';
+    }
+  }
+
   function renderSavedPoints() {
     // 1. Update Badge
     const badge = document.getElementById('pointsBadgeCount');
@@ -1468,12 +1671,18 @@
 
       // Popup
       const dms = decimalToDms(pt.lat, pt.lng);
+      const cat = pt.category || 'Tanpa Kategori';
+      const labelText = pt.label && pt.label.trim() ? pt.label : (cat !== 'Tanpa Kategori' ? cat : 'Titik SAR');
+
       marker.bindPopup(`
-        <div class="p-3 text-xs space-y-1">
-          <div class="font-bold text-orange-400 text-sm">${pt.label}</div>
-          <div class="text-[10px] text-slate-300">Kategori: <strong>${pt.category || pt.pointType || 'LKP'}</strong></div>
-          <div class="text-[10px] font-mono text-slate-400">${dms}</div>
-          ${pt.description ? `<div class="text-[10px] text-slate-300 pt-1 border-t border-slate-700">${pt.description}</div>` : ''}
+        <div class="p-3 text-xs space-y-1.5 min-w-[190px]">
+          <div class="font-bold text-orange-400 text-sm">${escapeHtml(labelText)}</div>
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-200 border border-slate-700">
+            <span>Kategori:</span>
+            <span class="text-orange-400 font-extrabold">${escapeHtml(cat)}</span>
+          </div>
+          <div class="text-[10px] font-mono text-slate-400 pt-0.5">${escapeHtml(dms)}</div>
+          ${pt.description ? `<div class="text-[10px] text-slate-300 pt-1 border-t border-slate-700">${escapeHtml(pt.description)}</div>` : ''}
         </div>
       `);
 
@@ -1516,30 +1725,47 @@
         const dms = decimalToDms(pt.lat, pt.lng);
         const distFromKansar = calculateDistanceHaversine(-4.037694, 122.486694, pt.lat, pt.lng);
         const preset = PRESET_ICONS.find((p) => p.type === pt.pointType) || PRESET_ICONS[0];
+        const category = pt.category || 'Tanpa Kategori';
+        const hasName = pt.label && pt.label.trim();
+        const displayTitle = hasName
+          ? pt.label
+          : (category !== 'Tanpa Kategori' ? `[${category}] (Tanpa Nama)` : '(Titik Tanpa Nama)');
+
+        const iconDisplay = pt.customIconUrl
+          ? `<img src="${pt.customIconUrl}" class="w-full h-full object-contain rounded-lg p-0.5">`
+          : pt.pointType === 'alphabet'
+            ? `<span class="font-black text-sm">${pt.alphabetChar || 'A'}</span>`
+            : `<span class="text-base">${preset.emoji}</span>`;
+
+        const safeId = escapeHtml(pt.id);
+        const safeTitle = escapeHtml(displayTitle);
 
         return `
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
-            <div class="flex items-start gap-2.5 flex-1 min-w-0 cursor-pointer" onclick="window.SAR_GIS.focusPoint('${pt.id}')">
-              <span class="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 border border-slate-200 dark:border-slate-700" style="background:${preset.color}25; color:${preset.color};">
-                ${preset.emoji}
+            <div class="flex items-start gap-2.5 flex-1 min-w-0 cursor-pointer" onclick="window.SAR_GIS.focusPoint('${safeId}')">
+              <span class="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 border border-slate-200 dark:border-slate-700 select-none" style="background:${preset.color}25; color:${preset.color};">
+                ${iconDisplay}
               </span>
               <div class="min-w-0 flex-1">
-                <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${pt.label}</div>
-                <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate">${dms}</div>
-                <div class="text-[9px] text-orange-600 dark:text-orange-400 font-mono mt-0.5">${distFromKansar.nm} NM dari Kansar (${distFromKansar.bearing}° ${distFromKansar.headingName})</div>
+                <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeTitle}</div>
+                <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  ${getCategoryBadgeHtml(category)}
+                  <span class="text-[9px] text-orange-600 dark:text-orange-400 font-mono">${distFromKansar.nm} NM (${distFromKansar.bearing}° ${distFromKansar.headingName})</span>
+                </div>
+                <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">${escapeHtml(dms)}</div>
               </div>
             </div>
 
             <!-- Action Buttons -->
             <div class="flex items-center gap-1 shrink-0">
-              <button type="button" onclick="window.SAR_GIS.togglePointVisibility('${pt.id}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded" title="${isHidden ? 'Tampilkan' : 'Sembunyikan'}">
+              <button type="button" onclick="window.SAR_GIS.togglePointVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded cursor-pointer" title="${isHidden ? 'Tampilkan' : 'Sembunyikan'}">
                 ${isHidden ? '👁️‍🗨️' : '👁️'}
               </button>
-              <button type="button" onclick="window.SAR_GIS.editPoint('${pt.id}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded" title="Edit">
+              <button type="button" onclick="window.SAR_GIS.editPoint('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded cursor-pointer" title="Edit">
                 ✏️
               </button>
-              <button type="button" onclick="window.SAR_GIS.deletePoint('${pt.id}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded" title="Hapus">
+              <button type="button" onclick="window.SAR_GIS.deletePoint('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded cursor-pointer" title="Hapus">
                 🗑️
               </button>
             </div>
@@ -1827,14 +2053,17 @@
       }).addTo(map);
 
       const stats = calculatePolygonSphericalArea(poly.points);
+      const safePolyId = escapeHtml(poly.id);
+      const safePolyName = escapeHtml(poly.name);
+
       overlay.bindPopup(`
         <div class="p-3 text-xs space-y-1">
-          <div class="font-bold text-orange-400 text-sm">${poly.name}</div>
+          <div class="font-bold text-orange-400 text-sm">${safePolyName}</div>
           <div class="text-[11px] text-slate-300">Luas: <strong>${stats.sqNm} NM²</strong> (${stats.sqKm} km²)</div>
           <div class="text-[11px] text-slate-300">Keliling: <strong>${stats.perimeterNm} NM</strong> (${stats.perimeterKm} km)</div>
           <div class="text-[10px] text-slate-400 font-mono">${poly.points.length} Sudut Vertices</div>
           <div class="pt-2">
-            <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${poly.id}')" class="w-full py-1.5 px-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center gap-1 shadow-xs cursor-pointer">
+            <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${safePolyId}')" class="w-full py-1.5 px-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center gap-1 shadow-xs cursor-pointer">
               <span>🚀 Buat Pola Lintasan SAR</span>
             </button>
           </div>
@@ -1861,14 +2090,17 @@
       .map((poly) => {
         const isHidden = hiddenPolygonIds.has(poly.id);
         const stats = calculatePolygonSphericalArea(poly.points);
+        const safeId = escapeHtml(poly.id);
+        const safeName = escapeHtml(poly.name);
+        const safeColor = escapeHtml(poly.strokeColor || '#ea580c');
 
         return `
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
-            <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusPolygon('${poly.id}')">
+            <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusPolygon('${safeId}')">
               <div class="flex items-center gap-2">
-                <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${poly.strokeColor};"></span>
-                <span class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${poly.name}</span>
+                <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${safeColor};"></span>
+                <span class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</span>
               </div>
               <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-1">
                 ${stats.sqNm} NM² (${stats.sqKm} km²) • Keliling: ${stats.perimeterNm} NM
@@ -1876,13 +2108,13 @@
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
-              <button type="button" onclick="window.SAR_GIS.togglePolygonVisibility('${poly.id}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded" title="Sembunyikan / Tampilkan">
+              <button type="button" onclick="window.SAR_GIS.togglePolygonVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded" title="Sembunyikan / Tampilkan">
                 ${isHidden ? '👁️‍🗨️' : '👁️'}
               </button>
-              <button type="button" onclick="window.SAR_GIS.editPolygon('${poly.id}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded" title="Edit">
+              <button type="button" onclick="window.SAR_GIS.editPolygon('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded" title="Edit">
                 ✏️
               </button>
-              <button type="button" onclick="window.SAR_GIS.deletePolygon('${poly.id}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded" title="Hapus">
+              <button type="button" onclick="window.SAR_GIS.deletePolygon('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded" title="Hapus">
                 🗑️
               </button>
             </div>
@@ -2558,21 +2790,24 @@
     container.innerHTML = savedPatterns
       .map((pat) => {
         const isHidden = hiddenPatternIds.has(pat.id);
+        const safeId = escapeHtml(pat.id);
+        const safeName = escapeHtml(pat.name);
+
         return `
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
-            <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusPattern('${pat.id}')">
-              <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${pat.name}</div>
+            <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusPattern('${safeId}')">
+              <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</div>
               <div class="text-[10px] font-mono text-sky-600 dark:text-sky-400 mt-0.5">
                 ${pat.totalDistanceNm ? `${pat.totalDistanceNm.toFixed(1)} NM` : ''} • ${pat.waypoints ? pat.waypoints.length : 0} Waypoints
               </div>
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
-              <button type="button" onclick="window.SAR_GIS.togglePatternVisibility('${pat.id}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded">
+              <button type="button" onclick="window.SAR_GIS.togglePatternVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded">
                 ${isHidden ? '👁️‍🗨️' : '👁️'}
               </button>
-              <button type="button" onclick="window.SAR_GIS.deletePattern('${pat.id}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded">
+              <button type="button" onclick="window.SAR_GIS.deletePattern('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded">
                 🗑️
               </button>
             </div>
@@ -3236,6 +3471,9 @@
     container.innerHTML = savedRoutes
       .map((rt) => {
         const isHidden = hiddenRouteIds.has(rt.id);
+        const safeId = escapeHtml(rt.id);
+        const safeName = escapeHtml(rt.name);
+
         let distNm = 0;
         for (let i = 0; i < (rt.points ? rt.points.length - 1 : 0); i++) {
           distNm += calculateDistanceHaversine(rt.points[i].lat, rt.points[i].lng, rt.points[i + 1].lat, rt.points[i + 1].lng).nm;
@@ -3250,25 +3488,25 @@
         return `
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
-            <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusRoute('${rt.id}')">
-              <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${rt.name}</div>
+            <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusRoute('${safeId}')">
+              <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</div>
               <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
-                ${distNm.toFixed(2)} NM (${(distNm * 1.852).toFixed(2)} km) • @ ${speedDisplay}
+                ${distNm.toFixed(2)} NM (${(distNm * 1.852).toFixed(2)} km) • @ ${escapeHtml(speedDisplay)}
               </div>
               <div class="text-[9px] font-mono text-slate-400 mt-1 flex flex-col gap-0.5">
-                <span class="truncate"><b class="text-emerald-400">A:</b> ${startDms}</span>
-                <span class="truncate"><b class="text-red-400">B:</b> ${endDms}</span>
+                <span class="truncate"><b class="text-emerald-400">A:</b> ${escapeHtml(startDms)}</span>
+                <span class="truncate"><b class="text-red-400">B:</b> ${escapeHtml(endDms)}</span>
               </div>
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
-              <button type="button" onclick="window.SAR_GIS.editRoute('${rt.id}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded transition" title="Edit Rute Ini">
+              <button type="button" onclick="window.SAR_GIS.editRoute('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded transition" title="Edit Rute Ini">
                 ✏️
               </button>
-              <button type="button" onclick="window.SAR_GIS.toggleRouteVisibility('${rt.id}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded" title="Tampilkan/Sembunyikan">
+              <button type="button" onclick="window.SAR_GIS.toggleRouteVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded" title="Tampilkan/Sembunyikan">
                 ${isHidden ? '👁️‍🗨️' : '👁️'}
               </button>
-              <button type="button" onclick="window.SAR_GIS.deleteRoute('${rt.id}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded" title="Hapus Rute">
+              <button type="button" onclick="window.SAR_GIS.deleteRoute('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded" title="Hapus Rute">
                 🗑️
               </button>
             </div>
@@ -3350,7 +3588,7 @@
     savedPoints.forEach((p) => {
       features.push({
         type: 'Feature',
-        properties: { name: p.label, category: p.category, type: p.pointType },
+        properties: { name: p.label || '', category: p.category || 'Tanpa Kategori', type: p.pointType },
         geometry: { type: 'Point', coordinates: [p.lng, p.lat] }
       });
     });
@@ -3418,8 +3656,8 @@
         .map(
           (p) => `
         <tr>
-          <td class="py-1 font-bold text-slate-800">${p.label}</td>
-          <td class="py-1 text-slate-600">${p.category || p.pointType || 'LKP'}</td>
+          <td class="py-1 font-bold text-slate-800">${p.label || '(Tanpa Nama)'}</td>
+          <td class="py-1 text-slate-600">${p.category || 'Tanpa Kategori'}</td>
           <td class="py-1 text-slate-700">${decimalToDms(p.lat, p.lng)}</td>
         </tr>
       `
@@ -3516,7 +3754,7 @@
       <html>
         <head>
           <title>LEMBAR OPERASIONAL SAR KENDARI</title>
-          <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+          <link rel="stylesheet" href="/assets/css/leaflet.min.css"/>
           <style>
             @page { size: A4 portrait; margin: 10mm; }
             body { font-family: system-ui, -apple-system, sans-serif; color: #000; background: #fff; margin: 0; padding: 0; }

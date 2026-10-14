@@ -7,9 +7,21 @@
 
 declare(strict_types=1);
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 $tab = $tab ?? 'admin';
 $settings = $settings ?? [];
 $dbStats = $dbStats ?? [];
+$usersList = $usersList ?? [];
+$auditLogs = $auditLogs ?? [];
+$totalLogs = $totalLogs ?? 0;
+$logPage = $logPage ?? 1;
+$totalPages = $totalPages ?? 1;
+$logActionFilter = $logActionFilter ?? null;
+$logSearch = $logSearch ?? null;
 $logoUrl = getAppLogoUrl();
 ?>
 
@@ -78,6 +90,15 @@ $logoUrl = getAppLogoUrl();
           </span>
         </a>
 
+        <!-- Tab 5: logs (Audit Trail) -->
+        <a href="<?= BASE_URL ?>/admin.php?tab=logs" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 <?= $tab === 'logs' ? 'bg-orange-600 text-white shadow-md shadow-orange-600/25 font-black' : 'bg-white dark:bg-slate-800/60 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/60' ?>">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <span>Log Aktivitas (Audit Trail)</span>
+          <span class="text-[9px] px-1.5 py-0.2 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400 font-extrabold border border-blue-500/30">
+            AUDIT
+          </span>
+        </a>
+
       </div>
     </div>
   </div>
@@ -108,6 +129,7 @@ $logoUrl = getAppLogoUrl();
             </div>
 
             <form action="<?= BASE_URL ?>/admin.php?action=save_admin" method="POST" class="mt-6 space-y-4">
+              <?= csrfInput() ?>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 
                 <!-- Nama Lengkap -->
@@ -200,6 +222,7 @@ $logoUrl = getAppLogoUrl();
             </div>
 
             <form action="<?= BASE_URL ?>/admin.php?action=change_admin_pass" method="POST" class="space-y-4">
+              <?= csrfInput() ?>
               <div>
                 <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Kata Sandi Saat Ini <span class="text-red-500">*</span>
@@ -253,6 +276,7 @@ $logoUrl = getAppLogoUrl();
 
             <!-- Tombol Reset ke Standar with SweetAlert2 data-confirm -->
             <form action="<?= BASE_URL ?>/admin.php?action=reset_user" method="POST" data-confirm="Apakah Anda yakin ingin mereset akun pengguna operasional ke setelan standar (Username: user, Kata Sandi: Kendari304)?" data-confirm-title="Konfirmasi Reset Akun Pengguna" data-confirm-btn="Ya, Reset ke Standar">
+              <?= csrfInput() ?>
               <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 text-xs font-bold transition-colors cursor-pointer">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
                 <span>Reset ke Standar</span>
@@ -261,6 +285,7 @@ $logoUrl = getAppLogoUrl();
           </div>
 
           <form action="<?= BASE_URL ?>/admin.php?action=save_user" method="POST" class="mt-6 space-y-4">
+            <?= csrfInput() ?>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               
               <!-- Nama Petugas -->
@@ -338,6 +363,84 @@ $logoUrl = getAppLogoUrl();
           </form>
 
         </div>
+
+        <!-- Tabel Ringkasan Akun Pengguna Sistem -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center">
+                <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">Daftar Akun Pengguna Sistem</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Status otoritas akun aktif yang terhubung pada sistem QR-SAR</p>
+              </div>
+            </div>
+            <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+              <?= count($usersList) ?> Akun Terdaftar
+            </span>
+          </div>
+
+          <div class="mt-4 overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 uppercase font-black tracking-wider text-[10px]">
+                <tr>
+                  <th class="py-3 px-4 rounded-l-xl">Identitas Pengguna</th>
+                  <th class="py-3 px-4">Role Akses</th>
+                  <th class="py-3 px-4">Pangkat / NIP</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4 rounded-r-xl">Login Terakhir</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                <?php if (empty($usersList)): ?>
+                  <tr>
+                    <td colspan="5" class="py-6 text-center text-slate-400">Tidak ada data pengguna yang ditemukan.</td>
+                  </tr>
+                <?php else: ?>
+                  <?php foreach ($usersList as $u): ?>
+                    <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td class="py-3.5 px-4">
+                        <div class="font-bold text-slate-900 dark:text-white"><?= e($u['nama'] ?? '') ?></div>
+                        <div class="text-[11px] font-mono text-slate-500 dark:text-slate-400">@<?= e($u['username'] ?? '') ?></div>
+                      </td>
+                      <td class="py-3.5 px-4">
+                        <?php if (($u['role'] ?? '') === 'ADMIN'): ?>
+                          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
+                            ADMINISTRATOR
+                          </span>
+                        <?php else: ?>
+                          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                            PETUGAS SIAGA
+                          </span>
+                        <?php endif; ?>
+                      </td>
+                      <td class="py-3.5 px-4">
+                        <div class="text-slate-700 dark:text-slate-300"><?= e($u['pangkat'] ?: '-') ?></div>
+                        <div class="text-[11px] font-mono text-slate-400"><?= e($u['nip'] ?: '-') ?></div>
+                      </td>
+                      <td class="py-3.5 px-4">
+                        <?php if (!empty($u['is_active'])): ?>
+                          <span class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Aktif
+                          </span>
+                        <?php else: ?>
+                          <span class="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400">
+                            <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> Nonaktif
+                          </span>
+                        <?php endif; ?>
+                      </td>
+                      <td class="py-3.5 px-4 text-slate-600 dark:text-slate-400 font-mono text-[11px]">
+                        <?= !empty($u['last_login_at']) ? date('d/m/Y H:i', strtotime($u['last_login_at'])) : '<span class="text-slate-400 italic">Belum pernah</span>' ?>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     <?php endif; ?>
 
@@ -358,6 +461,7 @@ $logoUrl = getAppLogoUrl();
           </div>
 
           <form action="<?= BASE_URL ?>/admin.php?action=save_satker" method="POST" enctype="multipart/form-data" class="mt-6 space-y-5">
+            <?= csrfInput() ?>
             
             <!-- Logo Satker Section -->
             <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row items-center gap-5">
@@ -662,6 +766,7 @@ $logoUrl = getAppLogoUrl();
             </div>
 
             <form action="<?= BASE_URL ?>/admin.php?action=restore_sql" method="POST" enctype="multipart/form-data" class="space-y-4" data-confirm="Apakah Anda yakin ingin memulihkan seluruh basis data sistem dari berkas SQL yang dipilih? Tindakan ini akan menimpa data yang ada saat ini." data-confirm-title="Konfirmasi Pemulihan SQL" data-confirm-btn="Ya, Pulihkan Sekarang">
+              <?= csrfInput() ?>
               <div>
                 <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Pilih Berkas Cadangan Database (.sql) <span class="text-red-500">*</span>
@@ -677,6 +782,271 @@ $logoUrl = getAppLogoUrl();
               </div>
             </form>
           </div>
+
+        </div>
+
+      </div>
+    <?php endif; ?>
+
+    <!-- ==================== TAB 5: LOG AKTIVITAS (AUDIT TRAIL) ==================== -->
+    <?php if ($tab === 'logs'): ?>
+      <div class="space-y-6">
+
+        <!-- Header & Filter Bar -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              </div>
+              <div>
+                <h2 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>Log Aktivitas & Jejak Audit (Audit Trail)</span>
+                  <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    REAL-TIME
+                  </span>
+                </h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Rekam jejak otentikasi, pergerakan misi SAR, penerbitan naskah BRA, dan pemeliharaan basis data
+                </p>
+              </div>
+            </div>
+
+            <!-- Ringkasan Counter & Aksi Pemeliharaan -->
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+                <span class="text-slate-400">Total Log:</span>
+                <span class="font-bold text-slate-900 dark:text-white ml-1"><?= number_format($totalLogs) ?></span>
+              </div>
+
+              <!-- Tombol Ekspor CSV -->
+              <a href="<?= BASE_URL ?>/admin.php?action=export_audit_csv<?= !empty($logActionFilter) ? '&log_action=' . urlencode($logActionFilter) : '' ?><?= !empty($logSearch) ? '&log_search=' . urlencode($logSearch) : '' ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20 text-xs font-bold border border-blue-200 dark:border-blue-900/30 transition-colors cursor-pointer" title="Unduh Rekam Jejak Audit ke format CSV Excel">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                <span>Ekspor CSV</span>
+              </a>
+
+              <!-- Tombol Pembersihan / Pruning Log Lama -->
+              <form method="POST" action="<?= BASE_URL ?>/admin.php" class="inline m-0" onsubmit="return confirm('PERINGATAN PEMELIHARAAN LOG AUDIT:\n\nApakah Anda yakin ingin membersihkan seluruh rekaman log audit yang telah berumur lebih dari 180 hari?\n\nTindakan ini akan mengosongkan arsip lama demi menjaga performa basis data.');">
+                <?= csrfInput() ?>
+                <input type="hidden" name="action" value="prune_audit">
+                <input type="hidden" name="older_than_days" value="180">
+                <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/20 text-xs font-bold border border-rose-200 dark:border-rose-900/30 transition-colors cursor-pointer" title="Pangkas log berumur lebih dari 180 hari">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  <span>Pangkas > 180 Hari</span>
+                </button>
+              </form>
+
+              <?php if (!empty($logActionFilter) || !empty($logSearch)): ?>
+                <a href="<?= BASE_URL ?>/admin.php?tab=logs" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 text-xs font-bold border border-red-200 dark:border-red-900/30 transition-colors cursor-pointer">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  <span>Reset Filter</span>
+                </a>
+              <?php endif; ?>
+            </div>
+          </div>
+
+          <!-- Form Filter & Pencarian -->
+          <form method="GET" action="<?= BASE_URL ?>/admin.php" class="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-3">
+            <input type="hidden" name="tab" value="logs" />
+
+            <!-- Filter Kategori Aksi -->
+            <div class="sm:col-span-4">
+              <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Kategori Aksi Operasional</label>
+              <select name="log_action" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-orange-500 focus:outline-none">
+                <option value="">Semua Kategori Aksi</option>
+                <optgroup label="Autentikasi & Akun">
+                  <option value="LOGIN_SUCCESS" <?= $logActionFilter === 'LOGIN_SUCCESS' ? 'selected' : '' ?>>LOGIN_SUCCESS (Login Berhasil)</option>
+                  <option value="LOGIN_FAILED" <?= $logActionFilter === 'LOGIN_FAILED' ? 'selected' : '' ?>>LOGIN_FAILED (Gagal Login)</option>
+                  <option value="LOGOUT" <?= $logActionFilter === 'LOGOUT' ? 'selected' : '' ?>>LOGOUT (Keluar Sistem)</option>
+                  <option value="PROFILE_UPDATE" <?= $logActionFilter === 'PROFILE_UPDATE' ? 'selected' : '' ?>>PROFILE_UPDATE (Pembaruan Profil)</option>
+                  <option value="PASSWORD_CHANGE" <?= $logActionFilter === 'PASSWORD_CHANGE' ? 'selected' : '' ?>>PASSWORD_CHANGE (Ubah Kata Sandi)</option>
+                  <option value="USER_RESET" <?= $logActionFilter === 'USER_RESET' ? 'selected' : '' ?>>USER_RESET (Reset Pengguna)</option>
+                </optgroup>
+                <optgroup label="Operasi SAR">
+                  <option value="OPS_CREATE" <?= $logActionFilter === 'OPS_CREATE' ? 'selected' : '' ?>>OPS_CREATE (Buka Misi Operasi)</option>
+                  <option value="OPS_CLOSE" <?= $logActionFilter === 'OPS_CLOSE' ? 'selected' : '' ?>>OPS_CLOSE (Tutup Misi Operasi)</option>
+                  <option value="OPS_ROLLBACK" <?= $logActionFilter === 'OPS_ROLLBACK' ? 'selected' : '' ?>>OPS_ROLLBACK (Buka Kembali Misi)</option>
+                </optgroup>
+                <optgroup label="Naskah Berita SAR (BRA)">
+                  <option value="BRA_CREATE" <?= $logActionFilter === 'BRA_CREATE' ? 'selected' : '' ?>>BRA_CREATE (Terbitkan Naskah)</option>
+                  <option value="BRA_UPDATE" <?= $logActionFilter === 'BRA_UPDATE' ? 'selected' : '' ?>>BRA_UPDATE (Perbarui Naskah)</option>
+                  <option value="BRA_DELETE" <?= $logActionFilter === 'BRA_DELETE' ? 'selected' : '' ?>>BRA_DELETE (Hapus Naskah)</option>
+                </optgroup>
+                <optgroup label="Sistem & Basis Data">
+                  <option value="SETTINGS_UPDATE" <?= $logActionFilter === 'SETTINGS_UPDATE' ? 'selected' : '' ?>>SETTINGS_UPDATE (Pengaturan Satker)</option>
+                  <option value="DATABASE_BACKUP" <?= $logActionFilter === 'DATABASE_BACKUP' ? 'selected' : '' ?>>DATABASE_BACKUP (Ekspor Cadangan)</option>
+                  <option value="DATABASE_RESTORE" <?= $logActionFilter === 'DATABASE_RESTORE' ? 'selected' : '' ?>>DATABASE_RESTORE (Pemulihan Database)</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <!-- Pencarian Teks Bebas -->
+            <div class="sm:col-span-6">
+              <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Cari Keterangan / Pengguna / IP / Sasaran</label>
+              <div class="relative">
+                <input type="text" name="log_search" value="<?= e($logSearch ?? '') ?>" placeholder="Ketik kata kunci pencarian..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-orange-500 focus:outline-none" />
+                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              </div>
+            </div>
+
+            <!-- Tombol Filter -->
+            <div class="sm:col-span-2 flex items-end">
+              <button type="submit" class="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                <span>Saring</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Tabel Riwayat Log Audit -->
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 uppercase font-black tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800">
+                <tr>
+                  <th class="py-3 px-4">Waktu (WITA)</th>
+                  <th class="py-3 px-4">Aktor / Otoritas</th>
+                  <th class="py-3 px-4">Aksi Operasional</th>
+                  <th class="py-3 px-4">Sasaran Objek</th>
+                  <th class="py-3 px-4">Uraian Aktivitas</th>
+                  <th class="py-3 px-4">Alamat IP / Klien</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                <?php if (empty($auditLogs)): ?>
+                  <tr>
+                    <td colspan="6" class="py-12 text-center text-slate-400">
+                      <div class="flex flex-col items-center justify-center gap-2">
+                        <svg class="w-8 h-8 text-slate-300 dark:text-slate-600" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="9" x2="15" y1="9" y2="9"/><line x1="9" x2="15" y1="13" y2="13"/><line x1="9" x2="11" y1="17" y2="17"/></svg>
+                        <p class="font-semibold text-xs">Tidak ada rekaman jejak audit yang sesuai dengan kriteria filter.</p>
+                      </div>
+                    </td>
+                  </tr>
+                <?php else: ?>
+                  <?php foreach ($auditLogs as $log): ?>
+                    <?php
+                      $action = strtoupper((string)($log['action'] ?? ''));
+                      // Klasifikasi badge warna semantik
+                      $badgeClass = 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30';
+                      if (in_array($action, ['LOGIN_SUCCESS', 'DATABASE_BACKUP', 'BRA_CREATE'], true)) {
+                          $badgeClass = 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
+                      } elseif (in_array($action, ['OPS_CREATE', 'BRA_UPDATE', 'SETTINGS_UPDATE'], true)) {
+                          $badgeClass = 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30';
+                      } elseif (in_array($action, ['PROFILE_UPDATE', 'PASSWORD_CHANGE', 'PASSWORD_RESET', 'OPS_ROLLBACK', 'USER_RESET'], true)) {
+                          $badgeClass = 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30';
+                      } elseif (in_array($action, ['LOGIN_FAILED', 'OPS_CLOSE', 'BRA_DELETE', 'DATABASE_RESTORE'], true)) {
+                          $badgeClass = 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30';
+                      }
+                    ?>
+                    <tr class="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                      <!-- Kolom Waktu -->
+                      <td class="py-3 px-4 whitespace-nowrap">
+                        <div class="font-mono text-[11px] font-bold text-slate-900 dark:text-white">
+                          <?= date('d/m/Y H:i:s', strtotime($log['created_at'])) ?>
+                        </div>
+                        <div class="text-[10px] text-slate-400 font-sans">
+                          <?= date('l', strtotime($log['created_at'])) ?>
+                        </div>
+                      </td>
+
+                      <!-- Kolom Aktor & Role -->
+                      <td class="py-3 px-4 whitespace-nowrap">
+                        <div class="font-bold text-slate-900 dark:text-white">
+                          <?= e($log['username'] ?? 'system') ?>
+                        </div>
+                        <span class="inline-flex items-center text-[9px] font-black uppercase px-2 py-0.2 rounded-full mt-0.5 <?= ($log['role'] ?? '') === 'ADMIN' ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' ?>">
+                          <?= e($log['role'] ?? 'GUEST') ?>
+                        </span>
+                      </td>
+
+                      <!-- Kolom Aksi -->
+                      <td class="py-3 px-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black border tracking-wide font-mono <?= $badgeClass ?>">
+                          <?= e($action) ?>
+                        </span>
+                      </td>
+
+                      <!-- Kolom Sasaran -->
+                      <td class="py-3 px-4 whitespace-nowrap">
+                        <?php if (!empty($log['target_type'])): ?>
+                          <div class="font-semibold text-slate-700 dark:text-slate-300">
+                            <?= e($log['target_type']) ?>
+                          </div>
+                          <?php if (!empty($log['target_id'])): ?>
+                            <div class="text-[10px] font-mono text-slate-400">
+                              #<?= e($log['target_id']) ?>
+                            </div>
+                          <?php endif; ?>
+                        <?php else: ?>
+                          <span class="text-slate-400 text-[11px]">-</span>
+                        <?php endif; ?>
+                      </td>
+
+                      <!-- Kolom Deskripsi -->
+                      <td class="py-3 px-4">
+                        <div class="text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-normal max-w-md sm:max-w-lg break-words">
+                          <?= e($log['description']) ?>
+                        </div>
+                      </td>
+
+                      <!-- Kolom IP / Klien -->
+                      <td class="py-3 px-4 whitespace-nowrap">
+                        <div class="font-mono text-[11px] text-slate-600 dark:text-slate-400 font-semibold">
+                          <?= e($log['ip_address'] ?? '127.0.0.1') ?>
+                        </div>
+                        <?php if (!empty($log['user_agent'])): ?>
+                          <div class="text-[10px] text-slate-400 truncate max-w-[140px]" title="<?= e($log['user_agent']) ?>">
+                            <?= e(substr($log['user_agent'], 0, 30)) ?>...
+                          </div>
+                        <?php endif; ?>
+                      </td>
+                    </tr>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination Bar -->
+          <?php if ($totalPages > 1): ?>
+            <div class="p-4 bg-slate-50 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div class="text-xs text-slate-500 dark:text-slate-400">
+                Halaman <span class="font-bold text-slate-900 dark:text-white"><?= $logPage ?></span> dari <span class="font-bold text-slate-900 dark:text-white"><?= $totalPages ?></span> (Total <?= number_format($totalLogs) ?> baris)
+              </div>
+              <div class="flex items-center gap-1.5">
+                <?php
+                  $buildQuery = function(int $p) use ($logActionFilter, $logSearch): string {
+                      $params = ['tab' => 'logs', 'page' => $p];
+                      if (!empty($logActionFilter)) $params['log_action'] = $logActionFilter;
+                      if (!empty($logSearch)) $params['log_search'] = $logSearch;
+                      return http_build_query($params);
+                  };
+                ?>
+                <!-- Previous Button -->
+                <?php if ($logPage > 1): ?>
+                  <a href="<?= BASE_URL ?>/admin.php?<?= $buildQuery($logPage - 1) ?>" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 text-xs font-bold transition-colors">
+                    &larr; Sebelumnya
+                  </a>
+                <?php else: ?>
+                  <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-400 text-xs font-bold cursor-not-allowed">
+                    &larr; Sebelumnya
+                  </span>
+                <?php endif; ?>
+
+                <!-- Next Button -->
+                <?php if ($logPage < $totalPages): ?>
+                  <a href="<?= BASE_URL ?>/admin.php?<?= $buildQuery($logPage + 1) ?>" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 text-xs font-bold transition-colors">
+                    Selanjutnya &rarr;
+                  </a>
+                <?php else: ?>
+                  <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 text-slate-400 text-xs font-bold cursor-not-allowed">
+                    Selanjutnya &rarr;
+                  </span>
+                <?php endif; ?>
+              </div>
+            </div>
+          <?php endif; ?>
 
         </div>
 

@@ -8,5 +8,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config/app.php';
 
-header("Location: " . BASE_URL . "/settings.php?tab=keamanan");
+AuthHelper::requireLogin();
+
+if (AuthHelper::isAdmin()) {
+    header("Location: " . BASE_URL . "/admin.php?tab=admin");
+    exit;
+}
+
+header("Location: " . BASE_URL . "/master.php?tab=alut");
 exit;

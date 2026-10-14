@@ -77,86 +77,93 @@ class SettingsModel {
         $db = getDB();
         $dbData = $data['data'] ?? $data['database'] ?? $data['backup'] ?? $data;
 
-        // 1. AppSettings
-        if (!empty($dbData['app_settings']) && is_array($dbData['app_settings'])) {
-            self::updateSettings($dbData['app_settings']);
-        }
+        $allowedTables = [
+            'MasterAlut', 'MasterTim', 'SarUnit', 'Pejabat', 'Operasi',
+            'Korban', 'DetailUnsur', 'DetailAlut', 'DetailTimBerangkat',
+            'Renops', 'RenopsSRU', 'LaporanHarian', 'BraSar', 'BraSection',
+            'GisPoint', 'GisPolygon', 'GisPolygonPoint', 'GisRoute', 'GisRoutePoint',
+            'GisSearchPattern', 'GisSearchPatternWaypoint', 'GisCustomIcon',
+            'Users', 'AuditLog'
+        ];
 
-        // Helper to import array table
-        $importTable = function(string $table, array $rows) use ($db) {
-            if (empty($rows)) return;
-            try {
-                $db->exec("SET FOREIGN_KEY_CHECKS = 0");
-                $db->exec("TRUNCATE TABLE `{$table}`");
+        $db->beginTransaction();
+        try {
+            $db->exec("SET FOREIGN_KEY_CHECKS = 0");
+
+            // 1. AppSettings (sanitized update)
+            if (!empty($dbData['app_settings']) && is_array($dbData['app_settings'])) {
+                $cleanSettings = $dbData['app_settings'];
+                unset($cleanSettings['admin_password'], $cleanSettings['user_password']);
+                self::updateSettings($cleanSettings);
+            }
+
+            // Helper to import array table safely
+            $importTable = function(string $table, array $rows) use ($db, $allowedTables) {
+                if (empty($rows) || !in_array($table, $allowedTables, true)) return;
+                $db->exec("DELETE FROM `{$table}`");
                 foreach ($rows as $row) {
                     if (!is_array($row)) continue;
                     $cols = array_keys($row);
-                    $colList = implode('`, `', $cols);
-                    $paramList = ':' . implode(', :', $cols);
+                    // Sanitasi nama kolom
+                    $safeCols = [];
+                    foreach ($cols as $c) {
+                        if (preg_match('/^[a-zA-Z0-9_]+$/', (string)$c)) {
+                            $safeCols[] = $c;
+                        }
+                    }
+                    if (empty($safeCols)) continue;
+
+                    $colList = implode('`, `', $safeCols);
+                    $paramList = ':' . implode(', :', $safeCols);
                     $stmt = $db->prepare("INSERT INTO `{$table}` (`{$colList}`) VALUES ({$paramList})");
                     $binds = [];
-                    foreach ($row as $k => $v) {
+                    foreach ($safeCols as $k) {
+                        $v = $row[$k] ?? null;
                         $binds[":{$k}"] = is_array($v) ? json_encode($v) : $v;
                     }
                     $stmt->execute($binds);
                 }
-            } catch (Throwable $e) {
-                // Ignore single table restore failure
-            } finally {
-                $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            };
+
+            $tableMap = [
+                'master_alut' => 'MasterAlut',
+                'master_tim' => 'MasterTim',
+                'sar_units' => 'SarUnit',
+                'pejabat' => 'Pejabat',
+                'operasi' => 'Operasi',
+                'korban' => 'Korban',
+                'detail_unsur' => 'DetailUnsur',
+                'detail_alut' => 'DetailAlut',
+                'detail_tim_berangkat' => 'DetailTimBerangkat',
+                'renops' => 'Renops',
+                'renops_sru' => 'RenopsSRU',
+                'laporan_harian' => 'LaporanHarian',
+                'bra_sar' => 'BraSar',
+                'gis_points' => 'GisPoint',
+                'gis_polygons' => 'GisPolygon',
+                'gis_routes' => 'GisRoute',
+                'gis_search_patterns' => 'GisSearchPattern',
+                'users' => 'Users',
+                'audit_log' => 'AuditLog'
+            ];
+
+            foreach ($tableMap as $key => $table) {
+                if (!empty($dbData[$key]) && is_array($dbData[$key])) {
+                    $importTable($table, $dbData[$key]);
+                }
             }
-        };
 
-        if (!empty($dbData['master_alut']) && is_array($dbData['master_alut'])) {
-            $importTable('MasterAlut', $dbData['master_alut']);
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            $db->commit();
+            AuditHelper::log('DATABASE_RESTORE', "Memulihkan basis data dari berkas cadangan JSON", 'Database', 'SYSTEM');
+            return true;
+        } catch (Throwable $e) {
+            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
         }
-        if (!empty($dbData['master_tim']) && is_array($dbData['master_tim'])) {
-            $importTable('MasterTim', $dbData['master_tim']);
-        }
-        if (!empty($dbData['sar_units']) && is_array($dbData['sar_units'])) {
-            $importTable('SarUnit', $dbData['sar_units']);
-        }
-        if (!empty($dbData['pejabat']) && is_array($dbData['pejabat'])) {
-            $importTable('Pejabat', $dbData['pejabat']);
-        }
-        if (!empty($dbData['operasi']) && is_array($dbData['operasi'])) {
-            $importTable('Operasi', $dbData['operasi']);
-        }
-        if (!empty($dbData['korban']) && is_array($dbData['korban'])) {
-            $importTable('Korban', $dbData['korban']);
-        }
-        if (!empty($dbData['detail_unsur']) && is_array($dbData['detail_unsur'])) {
-            $importTable('DetailUnsur', $dbData['detail_unsur']);
-        }
-        if (!empty($dbData['detail_alut']) && is_array($dbData['detail_alut'])) {
-            $importTable('DetailAlut', $dbData['detail_alut']);
-        }
-        if (!empty($dbData['detail_tim_berangkat']) && is_array($dbData['detail_tim_berangkat'])) {
-            $importTable('DetailTimBerangkat', $dbData['detail_tim_berangkat']);
-        }
-        if (!empty($dbData['renops']) && is_array($dbData['renops'])) {
-            $importTable('Renops', $dbData['renops']);
-        }
-        if (!empty($dbData['renops_sru']) && is_array($dbData['renops_sru'])) {
-            $importTable('RenopsSRU', $dbData['renops_sru']);
-        }
-        if (!empty($dbData['laporan_harian']) && is_array($dbData['laporan_harian'])) {
-            $importTable('LaporanHarian', $dbData['laporan_harian']);
-        }
-        if (!empty($dbData['bra_sar']) && is_array($dbData['bra_sar'])) {
-            $importTable('BraSar', $dbData['bra_sar']);
-        }
-        if (!empty($dbData['gis_points']) && is_array($dbData['gis_points'])) {
-            $importTable('GisPoint', $dbData['gis_points']);
-        }
-        if (!empty($dbData['gis_polygons']) && is_array($dbData['gis_polygons'])) {
-            $importTable('GisPolygon', $dbData['gis_polygons']);
-        }
-        if (!empty($dbData['gis_routes']) && is_array($dbData['gis_routes'])) {
-            $importTable('GisRoute', $dbData['gis_routes']);
-        }
-
-        return true;
     }
 
     public static function updateSettings(array $data): bool {
@@ -180,11 +187,16 @@ class SettingsModel {
 
         $sql = "UPDATE AppSettings SET " . implode(', ', $sets) . " WHERE id = :id";
         $stmt = $db->prepare($sql);
-        return $stmt->execute($params);
+        $res = $stmt->execute($params);
+        if ($res) {
+            AuditHelper::log('SETTINGS_UPDATE', "Memperbarui konfigurasi sistem & profil satker", 'AppSettings', '1');
+        }
+        return $res;
     }
 
     public static function updateAdminProfile(array $data): bool {
         $db = getDB();
+        $adminUser = !empty($data['username']) ? trim($data['username']) : 'admin';
         $stmt = $db->prepare("UPDATE AppSettings SET
             admin_username = :username,
             admin_nama = :nama,
@@ -195,8 +207,8 @@ class SettingsModel {
             admin_no_hp = :no_hp
             WHERE id = 1");
 
-        return $stmt->execute([
-            ':username' => !empty($data['username']) ? trim($data['username']) : 'admin',
+        $res = $stmt->execute([
+            ':username' => $adminUser,
             ':nama' => $data['nama'] ?? '',
             ':nip' => $data['nip'] ?? '',
             ':pangkat' => $data['pangkat'] ?? '',
@@ -204,10 +216,40 @@ class SettingsModel {
             ':email' => $data['email'] ?? '',
             ':no_hp' => $data['no_hp'] ?? ''
         ]);
+
+        if ($res) {
+            try {
+                UserModel::ensureTableExists();
+                $db->prepare("UPDATE `Users` SET 
+                    username = :username, 
+                    nama = :nama, 
+                    nip = :nip, 
+                    pangkat = :pangkat, 
+                    jabatan = :jabatan, 
+                    email = :email, 
+                    no_hp = :no_hp, 
+                    updated_at = :now 
+                    WHERE id = 'USR-ADMIN' OR username = 'admin'")->execute([
+                    ':username' => $adminUser,
+                    ':nama' => $data['nama'] ?? '',
+                    ':nip' => $data['nip'] ?? '',
+                    ':pangkat' => $data['pangkat'] ?? '',
+                    ':jabatan' => $data['jabatan'] ?? '',
+                    ':email' => $data['email'] ?? '',
+                    ':no_hp' => $data['no_hp'] ?? '',
+                    ':now' => date('Y-m-d H:i:s')
+                ]);
+            } catch (Throwable $e) {}
+
+            AuditHelper::log('PROFILE_UPDATE', "Memperbarui profil administrator (" . ($data['nama'] ?? $adminUser) . ")", 'Users', 'USR-ADMIN');
+        }
+
+        return $res;
     }
 
     public static function updateUserProfile(array $data): bool {
         $db = getDB();
+        $userUser = !empty($data['username']) ? trim($data['username']) : 'user';
         $sql = "UPDATE AppSettings SET
             user_username = :username,
             user_nama = :nama,
@@ -218,7 +260,7 @@ class SettingsModel {
             user_no_hp = :no_hp";
 
         $params = [
-            ':username' => !empty($data['username']) ? trim($data['username']) : 'user',
+            ':username' => $userUser,
             ':nama' => $data['nama'] ?? '',
             ':nip' => $data['nip'] ?? '',
             ':pangkat' => $data['pangkat'] ?? '',
@@ -227,14 +269,49 @@ class SettingsModel {
             ':no_hp' => $data['no_hp'] ?? ''
         ];
 
-        if (!empty($data['password'])) {
+        $hasPass = !empty($data['password']);
+        if ($hasPass) {
             $sql .= ", user_password = :password";
             $params[':password'] = password_hash(trim($data['password']), PASSWORD_DEFAULT);
         }
 
         $sql .= " WHERE id = 1";
         $stmt = $db->prepare($sql);
-        return $stmt->execute($params);
+        $res = $stmt->execute($params);
+
+        if ($res) {
+            try {
+                UserModel::ensureTableExists();
+                $uSql = "UPDATE `Users` SET 
+                    username = :username, 
+                    nama = :nama, 
+                    nip = :nip, 
+                    pangkat = :pangkat, 
+                    jabatan = :jabatan, 
+                    email = :email, 
+                    no_hp = :no_hp";
+                $uParams = [
+                    ':username' => $userUser,
+                    ':nama' => $data['nama'] ?? '',
+                    ':nip' => $data['nip'] ?? '',
+                    ':pangkat' => $data['pangkat'] ?? '',
+                    ':jabatan' => $data['jabatan'] ?? '',
+                    ':email' => $data['email'] ?? '',
+                    ':no_hp' => $data['no_hp'] ?? ''
+                ];
+                if ($hasPass) {
+                    $uSql .= ", password_hash = :password";
+                    $uParams[':password'] = $params[':password'];
+                }
+                $uSql .= ", updated_at = :now WHERE id = 'USR-USER' OR username = 'user'";
+                $uParams[':now'] = date('Y-m-d H:i:s');
+                $db->prepare($uSql)->execute($uParams);
+            } catch (Throwable $e) {}
+
+            AuditHelper::log('PROFILE_UPDATE', "Memperbarui profil petugas siaga (" . ($data['nama'] ?? $userUser) . ")", 'Users', 'USR-USER');
+        }
+
+        return $res;
     }
 
     public static function resetUserToDefault(): bool {
@@ -250,7 +327,31 @@ class SettingsModel {
             user_email = 'operator.kendari@basarnas.go.id',
             user_no_hp = '0811-4091-115'
             WHERE id = 1");
-        return $stmt->execute([':p' => $defaultHash]);
+        $res = $stmt->execute([':p' => $defaultHash]);
+
+        if ($res) {
+            try {
+                UserModel::ensureTableExists();
+                $db->prepare("UPDATE `Users` SET 
+                    username = 'user', 
+                    password_hash = :p, 
+                    nama = 'Petugas Siaga SAR', 
+                    nip = '199501012020121001', 
+                    pangkat = 'PENGATUR (II/c)', 
+                    jabatan = 'Operator Komunikasi & Petugas Siaga SAR', 
+                    email = 'operator.kendari@basarnas.go.id', 
+                    no_hp = '0811-4091-115', 
+                    updated_at = :now 
+                    WHERE id = 'USR-USER' OR username = 'user'")->execute([
+                    ':p' => $defaultHash, 
+                    ':now' => date('Y-m-d H:i:s')
+                ]);
+            } catch (Throwable $e) {}
+
+            AuditHelper::log('USER_RESET', "Mereset akun Petugas Siaga SAR ke pengaturan awal sistem", 'Users', 'USR-USER');
+        }
+
+        return $res;
     }
 
     public static function changePassword(string $role, string $oldPass, string $newPass): array {
@@ -264,8 +365,8 @@ class SettingsModel {
             return ['success' => false, 'error' => 'Kata sandi lama tidak cocok.'];
         }
 
-        if (strlen($newPass) < 4) {
-            return ['success' => false, 'error' => 'Kata sandi baru minimal 4 karakter.'];
+        if (strlen($newPass) < 8) {
+            return ['success' => false, 'error' => 'Kata sandi baru minimal 8 karakter demi standar keamanan akun.'];
         }
 
         $newHash = password_hash($newPass, PASSWORD_DEFAULT);
@@ -276,24 +377,61 @@ class SettingsModel {
             $stmt = $db->prepare("UPDATE AppSettings SET user_password = :p WHERE id = 1");
         }
 
-        $stmt->execute([':p' => $newHash]);
+        $res = $stmt->execute([':p' => $newHash]);
+
+        if ($res) {
+            try {
+                UserModel::ensureTableExists();
+                $usrId = ($roleUpper === 'ADMIN') ? 'USR-ADMIN' : 'USR-USER';
+                $db->prepare("UPDATE `Users` SET password_hash = :p, updated_at = :now WHERE id = :id OR role = :role")->execute([
+                    ':p' => $newHash,
+                    ':now' => date('Y-m-d H:i:s'),
+                    ':id' => $usrId,
+                    ':role' => $roleUpper
+                ]);
+            } catch (Throwable $e) {}
+
+            AuditHelper::log('PASSWORD_CHANGE', "Mengubah kata sandi untuk otoritas {$roleUpper}", 'Users', $roleUpper);
+        }
+
         return ['success' => true, 'message' => 'Kata sandi berhasil diperbarui dengan aman.'];
     }
 
     public static function resetToDefaultPassword(): bool {
         $db = getDB();
         $defaultHash = password_hash('Kendari304', PASSWORD_DEFAULT);
-        $stmt = $db->prepare("UPDATE AppSettings SET admin_password = :p, user_password = :p WHERE id = 1");
-        return $stmt->execute([':p' => $defaultHash]);
+        $stmt = $db->prepare("UPDATE AppSettings SET admin_password = :pa, user_password = :pu WHERE id = 1");
+        $res = $stmt->execute([':pa' => $defaultHash, ':pu' => $defaultHash]);
+
+        if ($res) {
+            try {
+                UserModel::ensureTableExists();
+                $db->prepare("UPDATE `Users` SET password_hash = :p, updated_at = :now")->execute([
+                    ':p' => $defaultHash,
+                    ':now' => date('Y-m-d H:i:s')
+                ]);
+            } catch (Throwable $e) {}
+
+            AuditHelper::log('PASSWORD_RESET', "Mereset semua kata sandi pengguna ke bawaan sistem (Kendari304)", 'Users', 'ALL');
+        }
+
+        return $res;
     }
 
     public static function exportJsonBackup(): array {
         $db = getDB();
-        return [
+        $cleanSettings = self::getSettings();
+        // Sensor data sensitif kredensial dari file export cadangan
+        unset($cleanSettings['admin_password'], $cleanSettings['user_password']);
+        if (!empty($cleanSettings['gemini_api_key'])) {
+            $cleanSettings['gemini_api_key'] = '********';
+        }
+
+        $backup = [
             'version' => APP_VERSION,
             'appName' => 'SISTEM QR SAR - KPP KENDARI (PHP NATIVE)',
             'exported_at' => date('Y-m-d H:i:s'),
-            'app_settings' => self::getSettings(),
+            'app_settings' => $cleanSettings,
             'master_alut' => MasterModel::getAlut(),
             'master_tim' => MasterModel::getTim(),
             'sar_units' => MasterModel::getSarUnits(),
@@ -309,8 +447,13 @@ class SettingsModel {
             'gis_points' => GisModel::getPoints(),
             'gis_polygons' => GisModel::getPolygons(),
             'gis_routes' => GisModel::getRoutes(),
-            'gis_search_patterns' => GisModel::getSearchPatterns()
+            'gis_search_patterns' => GisModel::getSearchPatterns(),
+            'users' => class_exists('UserModel') ? UserModel::getAll() : [],
+            'audit_log' => class_exists('AuditHelper') ? AuditHelper::getLogs(200) : []
         ];
+
+        AuditHelper::log('DATABASE_BACKUP', "Mengekspor cadangan basis data format JSON", 'Database', 'SYSTEM');
+        return $backup;
     }
 
     public static function generateSQLDump(): string {
@@ -328,40 +471,145 @@ class SettingsModel {
             'Operasi', 'Korban', 'DetailUnsur', 'DetailAlut', 'DetailTimBerangkat',
             'Renops', 'RenopsSRU', 'LaporanHarian', 'BraSar', 'BraSection',
             'GisPoint', 'GisPolygon', 'GisPolygonPoint', 'GisRoute', 'GisRoutePoint',
-            'GisSearchPattern', 'GisSearchPatternWaypoint', 'GisCustomIcon'
+            'GisSearchPattern', 'GisSearchPatternWaypoint', 'GisCustomIcon',
+            'Users', 'AuditLog'
         ];
 
         foreach ($tables as $table) {
-            $createRow = $db->query("SHOW CREATE TABLE `{$table}`")->fetch();
-            if ($createRow && isset($createRow['Create Table'])) {
-                $out .= "DROP TABLE IF EXISTS `{$table}`;\n";
-                $out .= $createRow['Create Table'] . ";\n\n";
+            try {
+                $createRow = $db->query("SHOW CREATE TABLE `{$table}`")->fetch();
+                if ($createRow && isset($createRow['Create Table'])) {
+                    $out .= "DROP TABLE IF EXISTS `{$table}`;\n";
+                    $out .= $createRow['Create Table'] . ";\n\n";
 
-                $rows = $db->query("SELECT * FROM `{$table}`")->fetchAll();
-                if (!empty($rows)) {
-                    $cols = array_keys($rows[0]);
-                    $colList = implode('`, `', $cols);
+                    $rows = $db->query("SELECT * FROM `{$table}`")->fetchAll();
+                    if (!empty($rows)) {
+                        $cols = array_keys($rows[0]);
+                        $colList = implode('`, `', $cols);
 
-                    $insertLines = [];
-                    foreach ($rows as $row) {
-                        $valList = [];
-                        foreach ($row as $v) {
-                            if ($v === null) {
-                                $valList[] = "NULL";
-                            } else {
-                                $valList[] = "'" . addslashes((string)$v) . "'";
+                        $insertLines = [];
+                        foreach ($rows as $row) {
+                            $valList = [];
+                            foreach ($row as $v) {
+                                if ($v === null) {
+                                    $valList[] = "NULL";
+                                } else {
+                                    $valList[] = "'" . addslashes((string)$v) . "'";
+                                }
                             }
+                            $insertLines[] = "(" . implode(', ', $valList) . ")";
                         }
-                        $insertLines[] = "(" . implode(', ', $valList) . ")";
-                    }
 
-                    $out .= "INSERT INTO `{$table}` (`{$colList}`) VALUES\n" . implode(",\n", $insertLines) . ";\n\n";
+                        $out .= "INSERT INTO `{$table}` (`{$colList}`) VALUES\n" . implode(",\n", $insertLines) . ";\n\n";
+                    }
                 }
+            } catch (Throwable $e) {
+                // Table might not exist yet, skip gracefully
             }
         }
 
         $out .= "SET FOREIGN_KEY_CHECKS = 1;\n";
+        AuditHelper::log('DATABASE_BACKUP', "Mengekspor cadangan basis data format SQL Dump", 'Database', 'SYSTEM');
         return $out;
+    }
+
+    /**
+     * Parse and split SQL file content into individual executable statements.
+     * Accurately handles semicolons inside quotes, backticks, and comments.
+     *
+     * @param string $sql
+     * @return array<string>
+     */
+    public static function splitSqlStatements(string $sql): array {
+        $statements = [];
+        $len = strlen($sql);
+        $buffer = '';
+        $inSingleQuote = false;
+        $inDoubleQuote = false;
+        $inBacktick = false;
+        $inLineComment = false;
+        $inBlockComment = false;
+
+        for ($i = 0; $i < $len; $i++) {
+            $char = $sql[$i];
+            $nextChar = $i + 1 < $len ? $sql[$i + 1] : '';
+
+            // Handle line comments: -- or #
+            if (!$inSingleQuote && !$inDoubleQuote && !$inBacktick && !$inBlockComment) {
+                if (($char === '-' && $nextChar === '-') || $char === '#') {
+                    $inLineComment = true;
+                }
+            }
+
+            if ($inLineComment) {
+                if ($char === "\n") {
+                    $inLineComment = false;
+                }
+                // Skip line comments
+                continue;
+            }
+
+            // Handle block comments: /* ... */ (preserve MySQL conditional comments /*! ... */)
+            if (!$inSingleQuote && !$inDoubleQuote && !$inBacktick && !$inLineComment) {
+                if ($char === '/' && $nextChar === '*' && ($i + 2 >= $len || $sql[$i + 2] !== '!')) {
+                    $inBlockComment = true;
+                    $i++; // skip '*'
+                    continue;
+                }
+            }
+
+            if ($inBlockComment) {
+                if ($char === '*' && $nextChar === '/') {
+                    $inBlockComment = false;
+                    $i++; // skip '/'
+                }
+                continue;
+            }
+
+            // Handle quotes & escaping
+            if ($char === "'" && !$inDoubleQuote && !$inBacktick) {
+                $numBackslashes = 0;
+                $k = $i - 1;
+                while ($k >= 0 && $sql[$k] === '\\') {
+                    $numBackslashes++;
+                    $k--;
+                }
+                if ($numBackslashes % 2 === 0) {
+                    $inSingleQuote = !$inSingleQuote;
+                }
+            } elseif ($char === '"' && !$inSingleQuote && !$inBacktick) {
+                $numBackslashes = 0;
+                $k = $i - 1;
+                while ($k >= 0 && $sql[$k] === '\\') {
+                    $numBackslashes++;
+                    $k--;
+                }
+                if ($numBackslashes % 2 === 0) {
+                    $inDoubleQuote = !$inDoubleQuote;
+                }
+            } elseif ($char === '`' && !$inSingleQuote && !$inDoubleQuote) {
+                $inBacktick = !$inBacktick;
+            }
+
+            // Detect statement terminator ';' outside quotes & comments
+            if ($char === ';' && !$inSingleQuote && !$inDoubleQuote && !$inBacktick) {
+                $stmt = trim($buffer);
+                if ($stmt !== '') {
+                    $statements[] = $stmt;
+                }
+                $buffer = '';
+                continue;
+            }
+
+            $buffer .= $char;
+        }
+
+        $trailing = trim($buffer);
+        if ($trailing !== '') {
+            $statements[] = $trailing;
+        }
+
+        return $statements;
     }
 
     public static function restoreFromSQL(string $sql): bool {
@@ -369,40 +617,27 @@ class SettingsModel {
 
         try {
             $db->exec("SET FOREIGN_KEY_CHECKS = 0");
+            $statements = self::splitSqlStatements($sql);
 
-            // Split statements by semicolon while respecting line breaks
-            $lines = explode("\n", $sql);
-            $currentStatement = '';
-
-            foreach ($lines as $line) {
-                $trimmed = trim($line);
-                if ($trimmed === '' || str_starts_with($trimmed, '--') || str_starts_with($trimmed, '/*')) {
+            foreach ($statements as $stmtText) {
+                if ($stmtText === '' || $stmtText === ';') {
                     continue;
                 }
-                $currentStatement .= $line . "\n";
-                if (str_ends_with($trimmed, ';')) {
-                    $stmtText = trim($currentStatement);
-                    if ($stmtText !== '') {
-                        $db->exec($stmtText);
-                    }
-                    $currentStatement = '';
+                // Skip GTID / SET @@GLOBAL lines that require SUPER privilege in managed MySQL
+                if (stripos($stmtText, 'SET @@GLOBAL.GTID_PURGED') !== false) {
+                    continue;
                 }
-            }
-
-            if (trim($currentStatement) !== '') {
-                $db->exec(trim($currentStatement));
+                $db->exec($stmtText);
             }
 
             $db->exec("SET FOREIGN_KEY_CHECKS = 1");
-            if ($db->inTransaction()) {
-                $db->commit();
-            }
+            AuditHelper::log('DATABASE_RESTORE', "Memulihkan basis data dari berkas cadangan SQL Dump", 'Database', 'SYSTEM');
             return true;
         } catch (Throwable $e) {
-            if ($db->inTransaction()) {
-                $db->rollBack();
-            }
-            $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            try {
+                $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            } catch (Throwable) {}
+            error_log("[QR-SAR Restore Error] " . $e->getMessage());
             throw $e;
         }
     }

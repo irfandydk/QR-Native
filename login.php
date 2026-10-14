@@ -10,7 +10,18 @@ require_once __DIR__ . '/config/app.php';
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
+if (AuthHelper::isLoggedIn() && $method === 'GET') {
+    header("Location: " . BASE_URL . "/index.php");
+    exit;
+}
+
 if ($method === 'POST') {
+    if (!validateCsrf($_POST['csrf_token'] ?? null)) {
+        setFlash('error', 'Token keamanan CSRF tidak valid atau sesi Anda telah kedaluwarsa. Silakan muat ulang halaman.');
+        header("Location: " . BASE_URL . "/login.php");
+        exit;
+    }
+
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
 
@@ -20,7 +31,7 @@ if ($method === 'POST') {
         header("Location: " . BASE_URL . "/index.php");
         exit;
     } else {
-        setFlash('error', $res['message'] ?? 'Nama pengguna atau kata sandi tidak valid.');
+        setFlash('error', $res['error'] ?? $res['message'] ?? 'Nama pengguna atau kata sandi tidak valid.');
         header("Location: " . BASE_URL . "/login.php");
         exit;
     }

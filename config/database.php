@@ -55,7 +55,11 @@ class Database {
                         // Throw original error
                     }
                 }
-                throw new RuntimeException("Gagal terhubung ke basis data MySQL: " . $e->getMessage());
+                error_log("[QR-SAR DB Error] " . $e->getMessage());
+                if (defined('APP_DEBUG') && APP_DEBUG) {
+                    throw new RuntimeException("Gagal terhubung ke basis data MySQL: " . $e->getMessage());
+                }
+                throw new RuntimeException("Gagal terhubung ke basis data MySQL. Pastikan konfigurasi dan server basis data aktif.");
             }
         }
         return self::$instance;

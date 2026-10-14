@@ -8,6 +8,11 @@
 
 declare(strict_types=1);
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 $activeTab = $tab ?? 'alut';
 $searchQ = trim($_GET['q'] ?? '');
 
@@ -79,6 +84,7 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
         </div>
 
         <form method="POST" action="<?= BASE_URL ?>/master.php?action=add_alut" class="space-y-4">
+          <?= csrfInput() ?>
           <div>
             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Nama Alut / Peralatan SAR <span class="text-red-500">*</span></label>
             <input type="text" name="nama_alut" required placeholder="Contoh: KN SAR Pacitan / Rigid Inflatable Boat (RIB)" class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
@@ -135,9 +141,13 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
                       <button type="button" onclick="openEditAlutModal(<?= (int)$a['id_alut'] ?>, '<?= e(addslashes($a['nama_alut'])) ?>', '<?= e(addslashes($a['satuan'] ?? 'Unit')) ?>')" class="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Edit Alut">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
-                      <a href="<?= BASE_URL ?>/master.php?action=delete_alut&id=<?= $a['id_alut'] ?>" data-confirm="Apakah Anda yakin ingin menghapus alut &quot;<?= e($a['nama_alut']) ?>&quot; dari master data?" data-confirm-title="Hapus Master Alut" data-confirm-btn="Ya, Hapus" data-confirm-danger="true" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Hapus Alut">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                      </a>
+                      <form method="POST" action="<?= BASE_URL ?>/master.php?action=delete_alut" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus alut &quot;<?= e($a['nama_alut']) ?>&quot; dari master data?" data-confirm-title="Hapus Master Alut" data-confirm-btn="Ya, Hapus" data-confirm-danger="true">
+                        <?= csrfInput() ?>
+                        <input type="hidden" name="id" value="<?= (int)$a['id_alut'] ?>">
+                        <button type="submit" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Hapus Alut">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </form>
                     </div>
                   </td>
                 </tr>
@@ -169,6 +179,7 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
         </div>
 
         <form method="POST" action="<?= BASE_URL ?>/master.php?action=add_tim" class="space-y-4">
+          <?= csrfInput() ?>
           <div>
             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Nama Instansi / Potensi SAR <span class="text-red-500">*</span></label>
             <input type="text" name="nama_tim" required placeholder="Contoh: Rescuer KPP Kendari / Polairud Polda Sultra" class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
@@ -214,9 +225,13 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
                       <button type="button" onclick="openEditTimModal(<?= (int)$t['id_tim'] ?>, '<?= e(addslashes($t['nama_tim'])) ?>')" class="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Edit Potensi SAR">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
-                      <a href="<?= BASE_URL ?>/master.php?action=delete_tim&id=<?= $t['id_tim'] ?>" data-confirm="Apakah Anda yakin ingin menghapus unsur potensi &quot;<?= e($t['nama_tim']) ?>&quot;?" data-confirm-title="Hapus Potensi SAR" data-confirm-btn="Ya, Hapus" data-confirm-danger="true" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Hapus Potensi">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                      </a>
+                      <form method="POST" action="<?= BASE_URL ?>/master.php?action=delete_tim" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus unsur potensi &quot;<?= e($t['nama_tim']) ?>&quot;?" data-confirm-title="Hapus Potensi SAR" data-confirm-btn="Ya, Hapus" data-confirm-danger="true">
+                        <?= csrfInput() ?>
+                        <input type="hidden" name="id" value="<?= (int)$t['id_tim'] ?>">
+                        <button type="submit" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Hapus Potensi">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </form>
                     </div>
                   </td>
                 </tr>
@@ -248,6 +263,7 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
         </div>
 
         <form method="POST" action="<?= BASE_URL ?>/master.php?action=add_pejabat" class="space-y-3.5">
+          <?= csrfInput() ?>
           <div>
             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Nama Lengkap Pejabat <span class="text-red-500">*</span></label>
             <input type="text" name="nama" required placeholder="Contoh: AMIRUDDIN AS, S.Sos." class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
@@ -322,9 +338,13 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
                         ⭐ DEFAULT SMC
                       </span>
                     <?php else: ?>
-                      <a href="<?= BASE_URL ?>/master.php?action=toggle_smc&id=<?= urlencode((string)$p['id']) ?>" class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-orange-500 border border-slate-200 dark:border-slate-700 transition cursor-pointer" title="Jadikan default SMC">
-                        Set Default
-                      </a>
+                      <form method="POST" action="<?= BASE_URL ?>/master.php?action=toggle_smc" class="inline-block">
+                        <?= csrfInput() ?>
+                        <input type="hidden" name="id" value="<?= e((string)$p['id']) ?>">
+                        <button type="submit" class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-orange-500 border border-slate-200 dark:border-slate-700 transition cursor-pointer" title="Jadikan default SMC">
+                          Set Default
+                        </button>
+                      </form>
                     <?php endif; ?>
                   </td>
                   <td class="py-2.5 px-3 text-right">
@@ -332,9 +352,13 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
                       <button type="button" onclick="openEditPejabatModal('<?= e(addslashes((string)$p['id'])) ?>', '<?= e(addslashes($p['nama'])) ?>', '<?= e(addslashes($p['jabatan'])) ?>', '<?= e(addslashes($p['pangkat'] ?? '')) ?>', '<?= e(addslashes($p['nip'] ?? '')) ?>', <?= !empty($p['is_default_smc']) ? 'true' : 'false' ?>)" class="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Edit Pejabat">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
-                      <a href="<?= BASE_URL ?>/master.php?action=delete_pejabat&id=<?= urlencode((string)$p['id']) ?>" data-confirm="Apakah Anda yakin ingin menghapus pejabat &quot;<?= e($p['nama']) ?>&quot;?" data-confirm-title="Hapus Pejabat" data-confirm-btn="Ya, Hapus" data-confirm-danger="true" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Hapus Pejabat">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                      </a>
+                      <form method="POST" action="<?= BASE_URL ?>/master.php?action=delete_pejabat" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus pejabat &quot;<?= e($p['nama']) ?>&quot;?" data-confirm-title="Hapus Pejabat" data-confirm-btn="Ya, Hapus" data-confirm-danger="true">
+                        <?= csrfInput() ?>
+                        <input type="hidden" name="id" value="<?= e((string)$p['id']) ?>">
+                        <button type="submit" class="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Hapus Pejabat">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                      </form>
                     </div>
                   </td>
                 </tr>
@@ -374,6 +398,7 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
     </div>
 
     <form method="POST" action="<?= BASE_URL ?>/master.php?action=edit_alut" class="flex flex-col flex-1 overflow-hidden">
+      <?= csrfInput() ?>
       <input type="hidden" name="id_alut" id="edit_id_alut">
 
       <div class="p-6 space-y-4 overflow-y-auto">
@@ -423,6 +448,7 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
     </div>
 
     <form method="POST" action="<?= BASE_URL ?>/master.php?action=edit_tim" class="flex flex-col flex-1 overflow-hidden">
+      <?= csrfInput() ?>
       <input type="hidden" name="id_tim" id="edit_id_tim">
 
       <div class="p-6 space-y-4 overflow-y-auto">
@@ -467,6 +493,7 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
     </div>
 
     <form method="POST" action="<?= BASE_URL ?>/master.php?action=edit_pejabat" class="flex flex-col flex-1 overflow-hidden">
+      <?= csrfInput() ?>
       <input type="hidden" name="id" id="edit_id_pejabat">
 
       <div class="p-6 space-y-3.5 overflow-y-auto">

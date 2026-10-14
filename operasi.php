@@ -12,6 +12,14 @@ $action = $_GET['action'] ?? null;
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
 if ($method === 'POST') {
+    AuthHelper::requireLogin();
+
+    if (!validateCsrf($_POST['csrf_token'] ?? null)) {
+        setFlash('error', 'Token keamanan CSRF tidak valid atau sesi Anda telah kedaluwarsa. Silakan muat ulang halaman.');
+        header("Location: " . BASE_URL . "/index.php");
+        exit;
+    }
+
     if (!empty($_POST['detail_alut_json']) && is_string($_POST['detail_alut_json'])) {
         $decodedA = json_decode($_POST['detail_alut_json'], true);
         if (is_array($decodedA)) $_POST['detail_alut'] = $decodedA;
@@ -35,7 +43,7 @@ if ($method === 'POST') {
     }
 
     if ($action === 'update') {
-        $id = (int)($_GET['id'] ?? 0);
+        $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
         try {
             OperasiModel::update($id, $_POST);
             setFlash('success', 'Data Operasi SAR berhasil diperbarui!');
@@ -79,25 +87,32 @@ if ($method === 'POST') {
         header("Location: " . BASE_URL . "/operasi_detail.php?id={$id}");
         exit;
     }
-}
 
-// Delete action (GET or POST)
-if ($action === 'delete') {
-    if (!AuthHelper::canDelete()) {
-        setFlash('error', 'Akses ditolak: Hanya administrator yang dapat menghapus data operasi.');
+    // Delete action (POST Only with CSRF)
+    if ($action === 'delete') {
+        if (!AuthHelper::canDelete()) {
+            setFlash('error', 'Akses ditolak: Hanya administrator yang dapat menghapus data operasi.');
+            header("Location: " . BASE_URL . "/index.php");
+            exit;
+        }
+
+        $id = (int)($_POST['id'] ?? 0);
+        if ($id > 0) {
+            try {
+                OperasiModel::delete($id);
+                setFlash('success', 'Laporan Awal Operasi SAR berhasil dihapus secara permanen.');
+            } catch (Throwable $e) {
+                setFlash('error', 'Gagal menghapus operasi: ' . $e->getMessage());
+            }
+        }
         header("Location: " . BASE_URL . "/index.php");
         exit;
     }
+}
 
-    $id = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
-    if ($id > 0) {
-        try {
-            OperasiModel::delete($id);
-            setFlash('success', 'Laporan Awal Operasi SAR berhasil dihapus secara permanen.');
-        } catch (Throwable $e) {
-            setFlash('error', 'Gagal menghapus operasi: ' . $e->getMessage());
-        }
-    }
+// Reject any unauthenticated or GET-based delete attempt
+if ($action === 'delete' && $method !== 'POST') {
+    setFlash('error', 'Metode tidak diizinkan: Penghapusan data harus melalui metode POST dengan token keamanan.');
     header("Location: " . BASE_URL . "/index.php");
     exit;
 }

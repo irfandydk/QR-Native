@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config/app.php';
 
+AuthHelper::requireLogin();
+
 $pageTitle = 'Tactical Maritime GIS & Map Plotting';
 $currentRoute = 'gis';
 $navbarTitle = 'Plotting Taktis Operasi & Wilayah Kerja SAR Kendari';

@@ -26,9 +26,10 @@ class BraHelper {
         return date('my', $timestamp); // e.g. "0926"
     }
 
-    public static function getNextNomorBra(string $kategori = 'MAPEL', string $satkerKode = 'SAR-304'): array {
-        $db = getDB();
-        $stmt = $db->query("SELECT MAX(nomor_urut) as max_urut FROM BraSar");
+    public static function getNextNomorBra(string $kategori = 'MAPEL', string $satkerKode = 'SAR-304', ?PDO $db = null, bool $forUpdate = false): array {
+        $db = $db ?: getDB();
+        $query = "SELECT MAX(nomor_urut) as max_urut FROM BraSar" . ($forUpdate ? " FOR UPDATE" : "");
+        $stmt = $db->query($query);
         $row = $stmt->fetch();
         $nextUrut = ($row && $row['max_urut']) ? (int)$row['max_urut'] + 1 : 1;
 

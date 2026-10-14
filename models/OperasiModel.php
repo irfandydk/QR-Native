@@ -7,7 +7,7 @@
 declare(strict_types=1);
 
 class OperasiModel {
-    public static function getAll(?string $status = null, ?string $search = null): array {
+    public static function getAll(?string $status = null, ?string $search = null, ?int $limit = null, int $offset = 0): array {
         $db = getDB();
         $sql = "SELECT o.*, 
             (SELECT COUNT(*) FROM Korban k WHERE k.id_operasi = o.id_operasi) as total_korban_count,
@@ -36,9 +36,49 @@ class OperasiModel {
         }
 
         $sql .= " ORDER BY o.id_operasi DESC";
+
+        if ($limit !== null && $limit > 0) {
+            $sql .= " LIMIT " . (int)$limit . " OFFSET " . max(0, (int)$offset);
+        }
+
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
+    }
+
+    public static function getListSimple(?string $status = null): array {
+        $db = getDB();
+        $sql = "SELECT id_operasi, nama_operasi, status, lokasi_kejadian, koordinat, waktu_kejadian, created_at FROM Operasi";
+        $params = [];
+        if ($status && in_array(strtoupper($status), ['OPEN', 'CLOSED'], true)) {
+            $sql .= " WHERE status = :status";
+            $params[':status'] = strtoupper($status);
+        }
+        $sql .= " ORDER BY id_operasi DESC";
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    public static function countAll(?string $status = null, ?string $search = null): int {
+        $db = getDB();
+        $sql = "SELECT COUNT(*) FROM Operasi o WHERE 1=1";
+        $params = [];
+        if ($status && in_array(strtoupper($status), ['OPEN', 'CLOSED'])) {
+            $sql .= " AND o.status = :status";
+            $params[':status'] = strtoupper($status);
+        }
+        if (!empty($search)) {
+            $sql .= " AND (o.nama_operasi LIKE :q1 OR o.lokasi_kejadian LIKE :q2 OR o.nama_pelapor LIKE :q3 OR o.koordinat LIKE :q4)";
+            $q = "%{$search}%";
+            $params[':q1'] = $q;
+            $params[':q2'] = $q;
+            $params[':q3'] = $q;
+            $params[':q4'] = $q;
+        }
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        return (int)$stmt->fetchColumn();
     }
 
     public static function getById(int $id): ?array {
@@ -71,14 +111,28 @@ class OperasiModel {
         // Laporan harian with snapshot decoding
         $ops['laporan_harian'] = LaporanModel::getByOperasiId($id);
 
-        // Linked BRA SAR
+        // Linked BRA SAR (Optimized batched section loading)
         $stmtB = $db->prepare("SELECT * FROM BraSar WHERE id_operasi = :id ORDER BY id_bra DESC");
         $stmtB->execute([':id' => $id]);
         $bras = $stmtB->fetchAll();
-        foreach ($bras as &$braItem) {
-            $stmtSec = $db->prepare("SELECT kode, isi FROM BraSection WHERE id_bra = :id_bra ORDER BY id ASC");
-            $stmtSec->execute([':id_bra' => $braItem['id_bra']]);
-            $braItem['sections'] = $stmtSec->fetchAll();
+        if (!empty($bras)) {
+            $braIds = array_column($bras, 'id_bra');
+            $placeholders = implode(',', array_fill(0, count($braIds), '?'));
+            $stmtSec = $db->prepare("SELECT id_bra, kode, isi FROM BraSection WHERE id_bra IN ({$placeholders}) ORDER BY id ASC");
+            $stmtSec->execute($braIds);
+            $allSecs = $stmtSec->fetchAll();
+
+            $secsByBra = [];
+            foreach ($allSecs as $s) {
+                $secsByBra[$s['id_bra']][] = [
+                    'kode' => $s['kode'],
+                    'isi' => $s['isi']
+                ];
+            }
+
+            foreach ($bras as &$braItem) {
+                $braItem['sections'] = $secsByBra[$braItem['id_bra']] ?? [];
+            }
         }
         $ops['bra_sar'] = $bras;
 
@@ -90,26 +144,35 @@ class OperasiModel {
 
     public static function getStats(): array {
         $db = getDB();
-        $totalOps = (int)$db->query("SELECT COUNT(*) FROM Operasi")->fetchColumn();
-        $openOps = (int)$db->query("SELECT COUNT(*) FROM Operasi WHERE status = 'OPEN'")->fetchColumn();
-        $closedOps = (int)$db->query("SELECT COUNT(*) FROM Operasi WHERE status = 'CLOSED'")->fetchColumn();
-        $totalKorban = (int)$db->query("SELECT COUNT(*) FROM Korban")->fetchColumn();
-        $korbanS = (int)$db->query("SELECT COUNT(*) FROM Korban WHERE status_korban = 'S'")->fetchColumn();
-        $korbanMd = (int)$db->query("SELECT COUNT(*) FROM Korban WHERE status_korban = 'MD'")->fetchColumn();
-        $korbanDp = (int)$db->query("SELECT COUNT(*) FROM Korban WHERE status_korban = 'DP'")->fetchColumn();
-        $korbanH = (int)$db->query("SELECT COUNT(*) FROM Korban WHERE status_korban = 'H'")->fetchColumn();
-        $totalBra = (int)$db->query("SELECT COUNT(*) FROM BraSar")->fetchColumn();
+        $rowOps = $db->query("
+            SELECT 
+                COUNT(*) as total_operasi,
+                COALESCE(SUM(CASE WHEN status = 'OPEN' THEN 1 ELSE 0 END), 0) as operasi_aktif,
+                COALESCE(SUM(CASE WHEN status = 'CLOSED' THEN 1 ELSE 0 END), 0) as operasi_selesai,
+                (SELECT COUNT(*) FROM BraSar) as total_bra
+            FROM Operasi
+        ")->fetch() ?: [];
+
+        $rowKorban = $db->query("
+            SELECT 
+                COUNT(*) as total_korban,
+                COALESCE(SUM(CASE WHEN status_korban = 'S' THEN 1 ELSE 0 END), 0) as korban_selamat,
+                COALESCE(SUM(CASE WHEN status_korban = 'MD' THEN 1 ELSE 0 END), 0) as korban_meninggal,
+                COALESCE(SUM(CASE WHEN status_korban = 'DP' THEN 1 ELSE 0 END), 0) as korban_dalam_pencarian,
+                COALESCE(SUM(CASE WHEN status_korban = 'H' THEN 1 ELSE 0 END), 0) as korban_hilang
+            FROM Korban
+        ")->fetch() ?: [];
 
         return [
-            'total_operasi' => $totalOps,
-            'operasi_aktif' => $openOps,
-            'operasi_selesai' => $closedOps,
-            'total_korban' => $totalKorban,
-            'korban_selamat' => $korbanS,
-            'korban_meninggal' => $korbanMd,
-            'korban_dalam_pencarian' => $korbanDp,
-            'korban_hilang' => $korbanH,
-            'total_bra' => $totalBra
+            'total_operasi' => (int)($rowOps['total_operasi'] ?? 0),
+            'operasi_aktif' => (int)($rowOps['operasi_aktif'] ?? 0),
+            'operasi_selesai' => (int)($rowOps['operasi_selesai'] ?? 0),
+            'total_korban' => (int)($rowKorban['total_korban'] ?? 0),
+            'korban_selamat' => (int)($rowKorban['korban_selamat'] ?? 0),
+            'korban_meninggal' => (int)($rowKorban['korban_meninggal'] ?? 0),
+            'korban_dalam_pencarian' => (int)($rowKorban['korban_dalam_pencarian'] ?? 0),
+            'korban_hilang' => (int)($rowKorban['korban_hilang'] ?? 0),
+            'total_bra' => (int)($rowOps['total_bra'] ?? 0)
         ];
     }
 
@@ -227,6 +290,11 @@ class OperasiModel {
             }
 
             $db->commit();
+
+            if (class_exists('AuditHelper')) {
+                AuditHelper::log('CREATE_OPERASI', "Operasi SAR dibuka: {$data['nama_operasi']}", 'OPERASI', "OPS-{$idOperasi}");
+            }
+
             return $idOperasi;
         } catch (Throwable $e) {
             $db->rollBack();
@@ -363,6 +431,13 @@ class OperasiModel {
         if (!$inTx) $db->beginTransaction();
 
         try {
+            // Retrieve operation metadata for descriptive audit trail before deletion
+            $stmtOps = $db->prepare("SELECT nama_operasi, waktu_kejadian, status FROM Operasi WHERE id_operasi = :id");
+            $stmtOps->execute([':id' => $id]);
+            $ops = $stmtOps->fetch();
+            $namaOps = $ops['nama_operasi'] ?? "ID #{$id}";
+            $statusOps = $ops['status'] ?? 'OPEN';
+
             // 1. Delete SRU from Renops belonging to this operation
             $stmtRenopsIds = $db->prepare("SELECT id_renops FROM Renops WHERE id_operasi = :id");
             $stmtRenopsIds->execute([':id' => $id]);
@@ -382,7 +457,7 @@ class OperasiModel {
             $stmtDelLap = $db->prepare("DELETE FROM LaporanHarian WHERE id_operasi = :id");
             $stmtDelLap->execute([':id' => $id]);
 
-            // 4. Detach or update linked BRA SAR (set id_operasi = NULL to preserve archive)
+            // 4. Detach linked BRA SAR (set id_operasi = NULL to preserve archive telegram)
             $stmtDetachBra = $db->prepare("UPDATE BraSar SET id_operasi = NULL WHERE id_operasi = :id");
             $stmtDetachBra->execute([':id' => $id]);
 
@@ -399,6 +474,11 @@ class OperasiModel {
             $result = $stmtDelOps->execute([':id' => $id]);
 
             if (!$inTx) $db->commit();
+
+            if ($result && class_exists('AuditHelper')) {
+                AuditHelper::log('DELETE_OPERASI', "Operasi SAR dihapus permanen: {$namaOps} [Status: {$statusOps}] beserta seluruh data turunan.", 'OPERASI', "OPS-{$id}");
+            }
+
             return $result;
         } catch (Throwable $e) {
             if (!$inTx && $db->inTransaction()) $db->rollBack();
@@ -410,42 +490,61 @@ class OperasiModel {
         $db = getDB();
         $waktu = $waktuSelesai ?: date('Y-m-d H:i:s');
         $stmt = $db->prepare("UPDATE Operasi SET status = 'CLOSED', waktu_selesai = :waktu WHERE id_operasi = :id");
-        return $stmt->execute([':waktu' => $waktu, ':id' => $id]);
+        $res = $stmt->execute([':waktu' => $waktu, ':id' => $id]);
+        if ($res && class_exists('AuditHelper')) {
+            AuditHelper::log('CLOSE_OPERASI', "Operasi SAR resmi ditutup (CLOSED): ID {$id}", 'OPERASI', "OPS-{$id}");
+        }
+        return $res;
     }
 
     public static function rollbackPenutupan(int $id): bool {
         $db = getDB();
         $stmt = $db->prepare("UPDATE Operasi SET status = 'OPEN', waktu_selesai = NULL WHERE id_operasi = :id");
-        return $stmt->execute([':id' => $id]);
+        $res = $stmt->execute([':id' => $id]);
+        if ($res && class_exists('AuditHelper')) {
+            AuditHelper::log('REOPEN_OPERASI', "Operasi SAR dibuka kembali (RE-OPEN): ID {$id}", 'OPERASI', "OPS-{$id}");
+        }
+        return $res;
     }
 
     public static function syncUnsurAlut(int $idOperasi, array $unsurData, array $alutData): void {
         $db = getDB();
-        if (!empty($unsurData)) {
+        $inTx = $db->inTransaction();
+        if (!$inTx) $db->beginTransaction();
+
+        try {
             $db->prepare("DELETE FROM DetailUnsur WHERE id_operasi = :id")->execute([':id' => $idOperasi]);
-            $stmtU = $db->prepare("INSERT INTO DetailUnsur (id_operasi, nama_unsur, jumlah_personil) VALUES (:id_ops, :nama, :jml)");
-            foreach ($unsurData as $u) {
-                if (empty($u['nama_unsur'])) continue;
-                $stmtU->execute([
-                    ':id_ops' => $idOperasi,
-                    ':nama' => $u['nama_unsur'],
-                    ':jml' => (int)($u['jumlah_personil'] ?? 1)
-                ]);
+            if (!empty($unsurData)) {
+                $stmtU = $db->prepare("INSERT INTO DetailUnsur (id_operasi, nama_unsur, jumlah_personil) VALUES (:id_ops, :nama, :jml)");
+                foreach ($unsurData as $u) {
+                    if (empty($u['nama_unsur'])) continue;
+                    $stmtU->execute([
+                        ':id_ops' => $idOperasi,
+                        ':nama' => $u['nama_unsur'],
+                        ':jml' => (int)($u['jumlah_personil'] ?? 1)
+                    ]);
+                }
             }
-        }
-        if (!empty($alutData)) {
+
             $db->prepare("DELETE FROM DetailAlut WHERE id_operasi = :id")->execute([':id' => $idOperasi]);
-            $stmtA = $db->prepare("INSERT INTO DetailAlut (id_operasi, id_alut, nama_alut, satuan, jumlah_alut) VALUES (:id_ops, :id_alut, :nama, :sat, :jml)");
-            foreach ($alutData as $a) {
-                if (empty($a['nama_alut'])) continue;
-                $stmtA->execute([
-                    ':id_ops' => $idOperasi,
-                    ':id_alut' => (int)($a['id_alut'] ?? 0),
-                    ':nama' => $a['nama_alut'],
-                    ':sat' => $a['satuan'] ?? 'Unit',
-                    ':jml' => (int)($a['jumlah_alut'] ?? 1)
-                ]);
+            if (!empty($alutData)) {
+                $stmtA = $db->prepare("INSERT INTO DetailAlut (id_operasi, id_alut, nama_alut, satuan, jumlah_alut) VALUES (:id_ops, :id_alut, :nama, :sat, :jml)");
+                foreach ($alutData as $a) {
+                    if (empty($a['nama_alut'])) continue;
+                    $stmtA->execute([
+                        ':id_ops' => $idOperasi,
+                        ':id_alut' => (int)($a['id_alut'] ?? 0),
+                        ':nama' => $a['nama_alut'],
+                        ':sat' => $a['satuan'] ?? 'Unit',
+                        ':jml' => (int)($a['jumlah_alut'] ?? 1)
+                    ]);
+                }
             }
+
+            if (!$inTx) $db->commit();
+        } catch (Throwable $e) {
+            if (!$inTx && $db->inTransaction()) $db->rollBack();
+            throw $e;
         }
     }
 }

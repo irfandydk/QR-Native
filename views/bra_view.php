@@ -7,12 +7,18 @@
 
 declare(strict_types=1);
 
-$id = (int)($_GET['view'] ?? $_GET['id'] ?? 0);
-$bra = BraModel::getById($id);
+if (!isset($bra) || empty($bra)) {
+    $id = (int)($_GET['view'] ?? $_GET['id'] ?? 0);
+    $bra = $id > 0 ? BraModel::getById($id) : null;
+}
 
 if (!$bra) {
-    setFlash('error', 'Dokumen BRA SAR tidak ditemukan.');
-    header("Location: " . BASE_URL . "/bra.php");
+    if (AuthHelper::isLoggedIn()) {
+        setFlash('error', 'Dokumen BRA SAR tidak ditemukan.');
+        header("Location: " . BASE_URL . "/bra.php");
+        exit;
+    }
+    require_once VIEWS_DIR . '/bra_verify_invalid.php';
     exit;
 }
 
@@ -31,9 +37,10 @@ foreach ($sections as $sec) {
 }
 $jumlahKataStr = $bra['jumlah_kata'] ?? ($totalWords > 0 ? "{$totalWords} KATA" : '-');
 
-$verifyUrl = BASE_URL . "/bra.php?view=" . $bra['id_bra'];
+$docHash = BraModel::generateVerifyToken($bra);
+$verifyUrl = BraModel::generateVerifyUrl($bra);
 $isGuest = !AuthHelper::isLoggedIn();
-$docHash = strtoupper(substr(hash('sha256', (string)($bra['id_bra'] ?? '') . ($bra['no_bra'] ?? '') . ($bra['twu'] ?? '') . 'BASARNAS_KENDARI'), 0, 16));
+$verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyToken($bra, (string)$_GET['token']) ? 'VERIFIED_SIGNATURE' : 'LEGACY_VERIFIED');
 ?>
 
 <div class="space-y-6">
@@ -113,7 +120,9 @@ $docHash = strtoupper(substr(hash('sha256', (string)($bra['id_bra'] ?? '') . ($b
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-600 text-white tracking-wider uppercase">TERVALIDASI RESMI</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-black <?= $verifyMode === 'VERIFIED_SIGNATURE' ? 'bg-emerald-600 text-white' : 'bg-teal-600 text-white' ?> tracking-wider uppercase">
+              <?= $verifyMode === 'VERIFIED_SIGNATURE' ? 'TERVALIDASI DIGITAL • TANDA TANGAN SAH' : 'TERVALIDASI RESMI • ARSIP BASARNAS' ?>
+            </span>
             <span class="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">HASH: <?= htmlspecialchars($docHash) ?></span>
           </div>
           <h3 class="text-sm font-black text-slate-900 dark:text-white mt-0.5">
@@ -123,7 +132,9 @@ $docHash = strtoupper(substr(hash('sha256', (string)($bra['id_bra'] ?? '') . ($b
       </div>
       <div class="text-left sm:text-right">
         <span class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 block">BASARNAS KPP KENDARI</span>
-        <span class="text-[10px] text-slate-500 dark:text-slate-400">Status Integritas Data: ASLI & SAH</span>
+        <span class="text-[10px] text-slate-500 dark:text-slate-400">
+          <?= $verifyMode === 'VERIFIED_SIGNATURE' ? 'Integritas: ASLI & SAH (Tanda Tangan Kriptografis)' : 'Integritas: ASLI & SAH (Tercatat Dalam Arsip)' ?>
+        </span>
       </div>
     </div>
 
@@ -580,13 +591,19 @@ $docHash = strtoupper(substr(hash('sha256', (string)($bra['id_bra'] ?? '') . ($b
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BRA SAR - ${noBra}</title>
-<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<link rel="stylesheet" href="${window.location.origin}/assets/css/style.css">
 <style>
-@media print { body { padding: 0; } }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f1f5f9; padding: 2rem; display: flex; justify-content: center; margin: 0; }
+  #braDocument { background: #fff; max-width: 850px; width: 100%; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 4px; }
+  @media print {
+    body { padding: 0; background: #fff; }
+    #braDocument { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; }
+  }
 </style>
 </head>
-<body class="bg-gray-100 p-8 flex justify-center">
+<body>
 ${doc.outerHTML}
 </body>
 </html>`;

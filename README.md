@@ -108,12 +108,36 @@ DB_USERNAME=root
 DB_PASSWORD=
 ```
 
-### 4. Menjalankan Server Lokal
-Cukup jalankan perintah built-in web server PHP dari direktori root proyek:
+### 4. Menjalankan Server Lokal & Pilihan Arsitektur
+
+Aplikasi QR-SAR mendukung arsitektur **Dual-Mode Deployment** yang fleksibel:
+
+#### Opsi 1: Mode Cepat Pangkalan (Root Document Root)
+Sangat cocok untuk pengujian cepat di laptop siaga menggunakan PHP Built-in Server:
 ```bash
-php -S 127.0.0.1:8000
+php -S 127.0.0.1:8000 router.php
 ```
-Buka browser dan akses alamat:
+
+#### Opsi 2: Mode Modern Aman Produksi (Public Document Root)
+Direkomendasikan untuk server produksi Linux (Apache / Nginx). Direktori privat (`config`, `models`, `helpers`, `views`, `database`) berada 100% di luar Document Root:
+```bash
+php -S 127.0.0.1:8000 -t public public/router.php
+```
+
+#### Manajemen & Sinkronisasi Aset Publik (Single Source of Truth)
+Seluruh aset desain dan berkas unggahan berpusat pada folder `/assets` dan `/uploads`. Folder `/public` secara cerdas terhubung melalui tautan simbolik (*symlink*) otomatis dengan sistem *fallback streaming* PHP jika server tidak mendukung symlink. Gunakan alat bantu CLI untuk mengelola keterhubungan aset:
+```bash
+# Periksa status keterhubungan aset publik:
+php cli/sync_assets.php --status
+
+# Pasang / perbarui tautan simbolik relatif (Linux/macOS):
+php cli/sync_assets.php --symlink
+
+# Sinkronisasi salinan fisik penuh (Windows / Hosting tanpa dukungan symlink):
+php cli/sync_assets.php --mirror
+```
+
+Buka peramban (*browser*) dan akses alamat:
 👉 **`http://localhost:8000`**
 
 ---

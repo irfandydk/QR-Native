@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config/app.php';
 
+AuthHelper::requireLogin();
+
 $idOperasi = isset($_GET['id_operasi']) ? (int)$_GET['id_operasi'] : (int)($_POST['id_operasi'] ?? 0);
 if ($idOperasi <= 0) {
     setFlash('error', 'ID Operasi SAR tidak valid.');

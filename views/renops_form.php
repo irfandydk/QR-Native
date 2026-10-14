@@ -21,6 +21,11 @@
 
 declare(strict_types=1);
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 // Defensive fallback initialization for IDE static analysis and safe isolated view evaluation
 $idOperasi = $idOperasi ?? (int)($_GET['id_operasi'] ?? 0);
 $editMode = $editMode ?? false;

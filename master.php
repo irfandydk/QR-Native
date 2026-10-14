@@ -27,6 +27,12 @@ if ($method === 'POST') {
         exit;
     }
 
+    if (!validateCsrf($_POST['csrf_token'] ?? null)) {
+        setFlash('error', 'Token keamanan CSRF tidak valid atau sesi Anda telah kedaluwarsa.');
+        header("Location: " . BASE_URL . "/master.php?tab=" . urlencode($tab));
+        exit;
+    }
+
     if ($action === 'add_alut') {
         $namaAlut = trim($_POST['nama_alut'] ?? '');
         $satuan = trim($_POST['satuan'] ?? 'Unit');
@@ -59,6 +65,13 @@ if ($method === 'POST') {
         exit;
     }
 
+    if ($action === 'delete_alut') {
+        MasterModel::deleteAlut((int)($_POST['id'] ?? 0));
+        setFlash('success', 'Alut berhasil dihapus dari master data.');
+        header("Location: " . BASE_URL . "/master.php?tab=alut");
+        exit;
+    }
+
     if ($action === 'add_tim') {
         $namaTim = trim($_POST['nama_tim'] ?? '');
         if ($namaTim !== '') {
@@ -83,6 +96,13 @@ if ($method === 'POST') {
             ]);
             setFlash('success', "Data Potensi SAR berhasil diperbarui.");
         }
+        header("Location: " . BASE_URL . "/master.php?tab=tim");
+        exit;
+    }
+
+    if ($action === 'delete_tim') {
+        MasterModel::deleteTim((int)($_POST['id'] ?? 0));
+        setFlash('success', 'Unsur potensi berhasil dihapus dari master data.');
         header("Location: " . BASE_URL . "/master.php?tab=tim");
         exit;
     }
@@ -112,39 +132,16 @@ if ($method === 'POST') {
         header("Location: " . BASE_URL . "/master.php?tab=pejabat");
         exit;
     }
-}
 
-// Handle GET actions (delete & toggle)
-if ($action === 'delete_alut') {
-    if (AuthHelper::isAdmin()) {
-        MasterModel::deleteAlut((int)($_GET['id'] ?? 0));
-        setFlash('success', 'Alut berhasil dihapus dari master data.');
-    }
-    header("Location: " . BASE_URL . "/master.php?tab=alut");
-    exit;
-}
-
-if ($action === 'delete_tim') {
-    if (AuthHelper::isAdmin()) {
-        MasterModel::deleteTim((int)($_GET['id'] ?? 0));
-        setFlash('success', 'Unsur potensi berhasil dihapus dari master data.');
-    }
-    header("Location: " . BASE_URL . "/master.php?tab=tim");
-    exit;
-}
-
-if ($action === 'delete_pejabat') {
-    if (AuthHelper::isAdmin()) {
-        MasterModel::deletePejabat($_GET['id'] ?? '');
+    if ($action === 'delete_pejabat') {
+        MasterModel::deletePejabat((string)($_POST['id'] ?? ''));
         setFlash('success', 'Data pejabat berhasil dihapus.');
+        header("Location: " . BASE_URL . "/master.php?tab=pejabat");
+        exit;
     }
-    header("Location: " . BASE_URL . "/master.php?tab=pejabat");
-    exit;
-}
 
-if ($action === 'toggle_smc') {
-    if (AuthHelper::isAdmin()) {
-        $id = $_GET['id'] ?? '';
+    if ($action === 'toggle_smc') {
+        $id = (string)($_POST['id'] ?? '');
         $pejabatList = MasterModel::getPejabat();
         foreach ($pejabatList as $p) {
             if (($p['id'] ?? '') === $id) {
@@ -158,8 +155,15 @@ if ($action === 'toggle_smc') {
                 break;
             }
         }
+        header("Location: " . BASE_URL . "/master.php?tab=pejabat");
+        exit;
     }
-    header("Location: " . BASE_URL . "/master.php?tab=pejabat");
+}
+
+// Reject any GET-based delete or toggle actions
+if (in_array($action, ['delete_alut', 'delete_tim', 'delete_pejabat', 'toggle_smc']) && $method !== 'POST') {
+    setFlash('error', 'Metode tidak diizinkan: Tindakan ini harus menggunakan metode POST dengan token keamanan.');
+    header("Location: " . BASE_URL . "/master.php?tab=" . urlencode($tab));
     exit;
 }
 

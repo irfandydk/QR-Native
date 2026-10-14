@@ -111,17 +111,69 @@ $logoUrl = getAppLogoUrl();
   </div>
 
   <!-- Unified System Controls & User Footer -->
-  <div class="p-2.5 border-t border-inherit shrink-0 space-y-2">
-    <!-- Live Clock & Emergency 115 (Unified here) -->
-    <div class="sidebar-clock-full p-2 rounded-xl border text-[11px] flex items-center justify-between transition-colors bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-      <div class="flex items-center gap-1.5 font-mono text-[10px] min-w-0">
+  <div class="p-2 border-t border-inherit shrink-0 space-y-1.5">
+    <!-- Live Clock & Quick Utility Dock -->
+    <div class="sidebar-clock-full px-2 py-1.5 rounded-xl border text-[11px] flex items-center justify-between transition-colors bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+      <div class="flex items-center gap-1.5 font-mono text-[10px] min-w-0" title="Waktu Indonesia Tengah">
         <svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span id="sidebarWitaTime" class="truncate font-bold">--:--:-- WITA</span>
       </div>
-      <a href="tel:115" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-red-500/10 text-red-500 font-bold text-[10px] hover:bg-red-500/20 transition-colors shrink-0" title="Panggil Call Center 115">
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-        <span>115</span>
-      </a>
+      <div class="flex items-center gap-1 shrink-0">
+        <!-- Emergency Call 115 -->
+        <a href="tel:115" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-red-500/10 text-red-500 font-bold text-[10px] hover:bg-red-500/20 transition-colors shrink-0" title="Panggil Call Center 115">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <span>115</span>
+        </a>
+
+        <!-- Dark/Light Mode Button -->
+        <button type="button" id="sidebarThemeToggleBtn" class="p-1 rounded-lg border transition-colors cursor-pointer bg-white hover:bg-slate-100 text-amber-600 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-amber-300 dark:border-slate-700" title="Beralih Mode Gelap / Terang">
+          <span id="sidebarThemeIcon" class="w-3.5 h-3.5 flex items-center justify-center"></span>
+          <span id="sidebarThemeLabel" class="sidebar-ctrl-label hidden">Terang</span>
+        </button>
+
+        <!-- Palette Dropdown Popover Button -->
+        <div class="relative">
+          <button type="button" id="sidebarPaletteBtn" class="p-1 rounded-lg border transition-colors cursor-pointer bg-white hover:bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-700" title="Ganti Tema Warna">
+            <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+            <span class="sidebar-ctrl-label hidden">Tema</span>
+          </button>
+
+          <!-- Theme Picker Popover Menu -->
+          <div id="sidebarPalettePopover" class="hidden absolute bottom-full right-0 mb-2 w-48 p-1.5 rounded-xl border shadow-xl z-50 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
+            <p class="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+              Warna Aksen
+            </p>
+            <button type="button" data-palette="orange" class="palette-choice w-full flex items-center justify-between p-1.5 rounded-lg text-left text-[11px] transition-colors cursor-pointer">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                <span class="truncate">Basarnas Orange</span>
+              </div>
+              <span class="palette-check hidden"><svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+            </button>
+            <button type="button" data-palette="navy" class="palette-choice w-full flex items-center justify-between p-1.5 rounded-lg text-left text-[11px] transition-colors cursor-pointer">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                <span class="truncate">Operasi Laut (Navy)</span>
+              </div>
+              <span class="palette-check hidden"><svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+            </button>
+            <button type="button" data-palette="emerald" class="palette-choice w-full flex items-center justify-between p-1.5 rounded-lg text-left text-[11px] transition-colors cursor-pointer">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                <span class="truncate">SAR Hutan (Emerald)</span>
+              </div>
+              <span class="palette-check hidden"><svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+            </button>
+            <button type="button" data-palette="gold" class="palette-choice w-full flex items-center justify-between p-1.5 rounded-lg text-left text-[11px] transition-colors cursor-pointer">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                <span class="truncate">Taktis Emas (Gold)</span>
+              </div>
+              <span class="palette-check hidden"><svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Collapsed Mini Clock / Call 115 -->
@@ -129,58 +181,6 @@ $logoUrl = getAppLogoUrl();
       <a href="tel:115" class="w-8 h-8 rounded-lg bg-red-500/10 text-red-500 flex items-center justify-center hover:bg-red-500/20 transition-colors" title="Panggil Call Center 115">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
       </a>
-    </div>
-
-    <!-- Theme & Palette Controls -->
-    <div class="grid grid-cols-2 gap-1.5">
-      <!-- Dark/Light Mode Button -->
-      <button type="button" id="sidebarThemeToggleBtn" class="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-[11px] font-medium border transition-colors cursor-pointer bg-slate-100 hover:bg-slate-200 text-amber-600 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-amber-300 dark:border-slate-700" title="Beralih Mode Gelap / Terang">
-        <span id="sidebarThemeIcon" class="w-3.5 h-3.5 flex items-center justify-center"></span>
-        <span id="sidebarThemeLabel" class="sidebar-ctrl-label truncate">Terang</span>
-      </button>
-
-      <!-- Palette Dropdown Popover Button -->
-      <div class="relative">
-        <button type="button" id="sidebarPaletteBtn" class="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-[11px] font-medium border transition-colors cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:border-slate-700" title="Ganti Tema Warna">
-          <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
-          <span class="sidebar-ctrl-label truncate">Tema</span>
-        </button>
-
-        <!-- Theme Picker Popover Menu -->
-        <div id="sidebarPalettePopover" class="hidden absolute bottom-full left-0 mb-2 w-48 p-1.5 rounded-xl border shadow-xl z-50 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
-          <p class="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
-            Warna Aksen
-          </p>
-          <button type="button" data-palette="orange" class="palette-choice w-full flex items-center justify-between p-1.5 rounded-lg text-left text-[11px] transition-colors cursor-pointer">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
-              <span class="truncate">Basarnas Orange</span>
-            </div>
-            <span class="palette-check hidden"><svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
-          </button>
-          <button type="button" data-palette="navy" class="palette-choice w-full flex items-center justify-between p-1.5 rounded-lg text-left text-[11px] transition-colors cursor-pointer">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
-              <span class="truncate">Operasi Laut (Navy)</span>
-            </div>
-            <span class="palette-check hidden"><svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
-          </button>
-          <button type="button" data-palette="emerald" class="palette-choice w-full flex items-center justify-between p-1.5 rounded-lg text-left text-[11px] transition-colors cursor-pointer">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-              <span class="truncate">SAR Hutan (Emerald)</span>
-            </div>
-            <span class="palette-check hidden"><svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
-          </button>
-          <button type="button" data-palette="gold" class="palette-choice w-full flex items-center justify-between p-1.5 rounded-lg text-left text-[11px] transition-colors cursor-pointer">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-              <span class="truncate">Taktis Emas (Gold)</span>
-            </div>
-            <span class="palette-check hidden"><svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span>
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- User Session & Logout -->
@@ -201,7 +201,7 @@ $logoUrl = getAppLogoUrl();
           <?= e($currentUser['jabatan'] ?? (($currentUser['role'] ?? '') === 'USER' ? 'Operator SAR Kendari' : 'Admin SAR Kendari')) ?>
         </p>
       </div>
-      <a href="<?= BASE_URL ?>/logout.php" data-confirm="Apakah Anda yakin ingin keluar dari sistem QR-SAR?" data-confirm-title="Konfirmasi Keluar Sesi" data-confirm-btn="Ya, Keluar" class="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0" title="Keluar dari sistem">
+      <a href="<?= BASE_URL ?>/logout.php?csrf_token=<?= e(csrfToken()) ?>" data-confirm="Apakah Anda yakin ingin keluar dari sistem QR-SAR?" data-confirm-title="Konfirmasi Keluar Sesi" data-confirm-btn="Ya, Keluar" class="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0" title="Keluar dari sistem">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
       </a>
     </div>

@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config/app.php';
 
+AuthHelper::requireLogin();
+
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $operasi = $id ? OperasiModel::getById($id) : null;
 

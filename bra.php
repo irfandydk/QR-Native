@@ -9,27 +9,71 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/app.php';
 
 $action = $_GET['action'] ?? null;
-$viewId = $_GET['view'] ?? null;
+$viewId = $_GET['view'] ?? ($action === 'view' ? ($_GET['id'] ?? null) : null);
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-// View single BRA document sheet
+// View single BRA document sheet / Public QR Verification Portal
 if ($viewId !== null) {
-    $pageTitle = 'Dokumen Resmi Berita Radio SAR';
+    $pageTitle = 'Verifikasi Dokumen Resmi Berita Radio SAR';
     $currentRoute = 'bra';
     $navbarTitle = 'Naskah Resmi BRA SAR Terverifikasi';
-
     $isGuest = !AuthHelper::isLoggedIn();
 
-    if ($isGuest) {
-        // Public / External Guest Verification Portal (No internal admin sidebar)
-        require_once VIEWS_DIR . '/layout/header.php';
-        echo '<div class="min-h-screen bg-slate-100 dark:bg-slate-950 py-6 px-3 sm:px-6">';
-        require_once VIEWS_DIR . '/bra_view.php';
-        echo '</div>';
-        require_once VIEWS_DIR . '/layout/footer.php';
+    $rawView = trim((string)$viewId);
+    $rawToken = isset($_GET['token']) ? trim((string)$_GET['token']) : null;
+
+    // 1. Sanitasi Ketat Parameter URL: Hanya izinkan integer positif murni (1-9999999999)
+    $isValidParam = (bool)preg_match('/^[1-9][0-9]{0,9}$/', $rawView);
+    $docId = $isValidParam ? (int)$rawView : 0;
+
+    // 2. Query Record Dokumen secara aman via prepared statement
+    $bra = $docId > 0 ? BraModel::getById($docId) : null;
+
+    // 3. Evaluasi Status Keabsahan Dokumen & Token Tanda Tangan Digital
+    $verificationStatus = 'VALID';
+    $verificationMessage = '';
+
+    if (!$bra) {
+        $verificationStatus = 'NOT_FOUND';
+        $verificationMessage = 'Dokumen Berita Radio SAR dengan ID ini tidak terdaftar dalam pangkalan data resmi Basarnas KPP Kendari.';
+    } else {
+        if ($rawToken !== null) {
+            // Jika token disertakan di URL, verifikasi kecocokan tanda tangan digital
+            if (!BraModel::verifyToken($bra, $rawToken)) {
+                $verificationStatus = 'INVALID_TOKEN';
+                $verificationMessage = 'Tanda tangan digital atau token verifikasi tidak valid. Dokumen diduga mengalami manipulasi URL atau tidak sah.';
+            } else {
+                $verificationStatus = 'VERIFIED_SIGNATURE';
+            }
+        } else {
+            // Dokumen terdaftar tanpa token di URL (pencarian internal atau QR generasi lama)
+            $verificationStatus = 'LEGACY_VERIFIED';
+        }
+    }
+
+    // 4. Tangani Dokumen Tidak Sah / Parameter URL Manipulasi (Zero-Leakage Policy)
+    if ($verificationStatus === 'NOT_FOUND' || $verificationStatus === 'INVALID_TOKEN') {
+        // Penting: JANGAN PERNAH redirect tamu ke login.php atau bra.php!
+        http_response_code(404);
+        $invalidRef = htmlspecialchars($rawView, ENT_QUOTES, 'UTF-8');
+        $invalidToken = $rawToken !== null ? htmlspecialchars($rawToken, ENT_QUOTES, 'UTF-8') : null;
+        
+        require_once VIEWS_DIR . '/layout/public_header.php';
+        require_once VIEWS_DIR . '/bra_verify_invalid.php';
+        require_once VIEWS_DIR . '/layout/public_footer.php';
         exit;
     }
 
+    // 5. Dokumen Sah: Render Portal Khusus Publik jika Guest
+    if ($isGuest) {
+        // Portal Verifikasi Publik Terisolasi (Bebas dari sidebar/navbar internal & DOM mismatch)
+        require_once VIEWS_DIR . '/layout/public_header.php';
+        require_once VIEWS_DIR . '/bra_view.php';
+        require_once VIEWS_DIR . '/layout/public_footer.php';
+        exit;
+    }
+
+    // 6. Dokumen Sah: Render Layout Lengkap Internal jika Pengguna Sudah Login
     require_once VIEWS_DIR . '/layout/header.php';
     require_once VIEWS_DIR . '/layout/sidebar.php';
     require_once VIEWS_DIR . '/layout/navbar.php';
@@ -40,6 +84,14 @@ if ($viewId !== null) {
 
 // Action: Save (Create or Update)
 if ($method === 'POST' && $action === 'save') {
+    AuthHelper::requireLogin();
+
+    if (!validateCsrf($_POST['csrf_token'] ?? null)) {
+        setFlash('error', 'Token keamanan CSRF tidak valid atau sesi Anda telah kedaluwarsa.');
+        header("Location: " . BASE_URL . "/bra.php");
+        exit;
+    }
+
     try {
         $id = (int)($_POST['id_bra'] ?? $_GET['id'] ?? 0);
         if ($id > 0) {
@@ -60,14 +112,29 @@ if ($method === 'POST' && $action === 'save') {
     }
 }
 
-// Action: Delete
+// Action: Delete (POST Only with CSRF)
 if ($action === 'delete') {
+    AuthHelper::requireLogin();
+
+    if ($method !== 'POST') {
+        setFlash('error', 'Metode tidak diizinkan: Penghapusan naskah BRA harus menggunakan metode POST.');
+        header("Location: " . BASE_URL . "/bra.php");
+        exit;
+    }
+
+    if (!validateCsrf($_POST['csrf_token'] ?? null)) {
+        setFlash('error', 'Token keamanan CSRF tidak valid atau sesi Anda telah kedaluwarsa.');
+        header("Location: " . BASE_URL . "/bra.php");
+        exit;
+    }
+
     if (!AuthHelper::canDelete()) {
         setFlash('error', 'Akses ditolak: Hanya administrator yang berwenang menghapus arsip BRA.');
         header("Location: " . BASE_URL . "/bra.php");
         exit;
     }
-    $id = (int)($_GET['id'] ?? 0);
+
+    $id = (int)($_POST['id'] ?? 0);
     if ($id > 0) {
         BraModel::delete($id);
         setFlash('success', 'Dokumen Berita Radio SAR berhasil dihapus dari arsip.');
@@ -78,6 +145,8 @@ if ($action === 'delete') {
 
 // Action: Create or Edit Form
 if ($action === 'create' || $action === 'edit') {
+    AuthHelper::requireLogin();
+
     $pageTitle = $action === 'edit' ? 'Edit Naskah BRA' : 'Buat Naskah BRA Baru';
     $currentRoute = 'bra';
     $navbarTitle = $pageTitle;
@@ -91,6 +160,8 @@ if ($action === 'create' || $action === 'edit') {
 }
 
 // Default: List Archive
+AuthHelper::requireLogin();
+
 $pageTitle = 'Arsip Berita Radio SAR (BRA)';
 $currentRoute = 'bra';
 $navbarTitle = 'Arsip Berita Radio SAR KPP Kendari';

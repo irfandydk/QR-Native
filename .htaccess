@@ -1,8 +1,9 @@
-# QR-SAR - Root Apache Security Configuration
+# QR-SAR - Root Apache Security & Routing Configuration
+# Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
 Options -Indexes
 
-# Block sensitive files and directories
-<FilesMatch "^\.(env|git|gitignore|htaccess)|(\.sql|\.sqlite|\.log|\.md)$">
+# 1. Block access to hidden, environment, database dumps, and configuration files
+<FilesMatch "^\.(env|git|gitignore|htaccess)|(\.sql|\.sqlite|\.log|\.md|\.sample)$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>
@@ -12,10 +13,27 @@ Options -Indexes
     </IfModule>
 </FilesMatch>
 
-# Block access to database, config, and models directories directly
-RedirectMatch 403 ^/(database|config|models|helpers)/.*$
+# 2. Block direct HTTP access to core application folders
+RedirectMatch 403 ^/(database|config|models|helpers|views|storage)/.*$
 
-# Security Headers
+# 3. Clean URLs & Front Controller Routing (Supports /operasi, /admin, /gis, /api, etc.)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Pass Authorization Header to PHP
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Do not rewrite if physical file or directory exists
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Route clean URLs through router.php
+    RewriteRule ^ router.php [L,QSA]
+</IfModule>
+
+# 4. Standard Security Headers
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
     Header always set X-Frame-Options "SAMEORIGIN"

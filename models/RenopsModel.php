@@ -12,11 +12,23 @@ class RenopsModel {
         $stmt = $db->prepare("SELECT * FROM Renops WHERE id_operasi = :id ORDER BY id_renops ASC");
         $stmt->execute([':id' => $idOperasi]);
         $list = $stmt->fetchAll();
+        if (empty($list)) {
+            return [];
+        }
+
+        $renopsIds = array_column($list, 'id_renops');
+        $placeholders = implode(',', array_fill(0, count($renopsIds), '?'));
+        $stmtS = $db->prepare("SELECT * FROM RenopsSRU WHERE id_renops IN ({$placeholders}) ORDER BY id_sru ASC");
+        $stmtS->execute($renopsIds);
+        $allSrus = $stmtS->fetchAll();
+
+        $srusByRenops = [];
+        foreach ($allSrus as $sru) {
+            $srusByRenops[$sru['id_renops']][] = $sru;
+        }
 
         foreach ($list as &$r) {
-            $stmtS = $db->prepare("SELECT * FROM RenopsSRU WHERE id_renops = :rid ORDER BY id_sru ASC");
-            $stmtS->execute([':rid' => $r['id_renops']]);
-            $r['srus'] = $stmtS->fetchAll();
+            $r['srus'] = $srusByRenops[$r['id_renops']] ?? [];
 
             // Decode snapshots if present
             if (!empty($r['detail_unsur']) && is_string($r['detail_unsur'])) {

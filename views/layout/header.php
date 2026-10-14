@@ -19,8 +19,50 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="description" content="QR-SAR KPP Kendari - Sistem Pelaporan Operasi SAR & Berita Radio SAR Resmi Basarnas">
+    <meta name="theme-color" content="#f97316">
+    <meta name="csrf-token" content="<?= e(csrfToken()) ?>">
     <!-- Immediate Anti-Flicker & Layout State Script -->
     <script>
+        window.BASE_URL = <?= json_encode(BASE_URL) ?>;
+        window.CSRF_TOKEN = <?= json_encode(csrfToken()) ?>;
+
+        // Global Fetch Interceptor to automatically attach CSRF Token to state-changing requests
+        (function() {
+            var origFetch = window.fetch;
+            if (typeof origFetch === 'function') {
+                window.fetch = function(resource, config) {
+                    config = config || {};
+                    var method = (config.method || 'GET').toUpperCase();
+                    if (['POST', 'PUT', 'DELETE', 'PATCH'].indexOf(method) !== -1) {
+                        config.headers = config.headers || {};
+                        var token = window.CSRF_TOKEN;
+                        if (token) {
+                            if (typeof Headers !== 'undefined' && config.headers instanceof Headers) {
+                                if (!config.headers.has('X-CSRF-Token')) {
+                                    config.headers.append('X-CSRF-Token', token);
+                                }
+                            } else if (Array.isArray(config.headers)) {
+                                var found = false;
+                                for (var i = 0; i < config.headers.length; i++) {
+                                    if (config.headers[i][0] && config.headers[i][0].toLowerCase() === 'x-csrf-token') {
+                                        found = true; break;
+                                    }
+                                }
+                                if (!found) config.headers.push(['X-CSRF-Token', token]);
+                            } else {
+                                if (!config.headers['X-CSRF-Token'] && !config.headers['x-csrf-token']) {
+                                    config.headers['X-CSRF-Token'] = token;
+                                }
+                            }
+                        }
+                    }
+                    return origFetch.call(this, resource, config);
+                };
+            }
+        })();
+
         (function() {
             var sysDefault = <?= json_encode($defaultSystemTheme) ?>;
             var savedTheme = localStorage.getItem('qr_sar_theme') || sysDefault || 'dark';

@@ -14,6 +14,11 @@
 
 declare(strict_types=1);
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 $id = (int)($_GET['id'] ?? 0);
 $isEdit = $id > 0;
 $bra = $isEdit ? BraModel::getById($id) : null;
@@ -21,7 +26,7 @@ $bra = $isEdit ? BraModel::getById($id) : null;
 $initialKategori = $_GET['kategori'] ?? ($bra['kategori'] ?? 'MAPEL');
 $preselectedOpId = (int)($_GET['id_operasi'] ?? ($bra['id_operasi'] ?? 0));
 
-$operasiList = OperasiModel::getAll();
+$operasiList = OperasiModel::getListSimple();
 $settings = SettingsModel::get();
 $pejabatList = $settings['pejabat_list'] ?? [];
 $satkerKode = $settings['satker_kode'] ?? 'SAR-304';

@@ -11,12 +11,15 @@ require_once dirname(__DIR__) . '/config/app.php';
 header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Pragma: no-cache');
-// Secure Origin Matching (Prevent open CSRF wildcard)
+// Secure Origin Matching (Strict in production, relaxed only in local dev)
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $appHost = parse_url(BASE_URL, PHP_URL_HOST) ?: 'localhost';
 if ($origin) {
     $originHost = parse_url($origin, PHP_URL_HOST);
-    if ($originHost === $appHost || $originHost === 'localhost' || $originHost === '127.0.0.1') {
+    $isDev = (defined('APP_ENV') && APP_ENV === 'development') || in_array($appHost, ['localhost', '127.0.0.1'], true);
+    $allowLocal = $isDev && in_array($originHost, ['localhost', '127.0.0.1'], true);
+
+    if ($originHost === $appHost || $allowLocal) {
         header("Access-Control-Allow-Origin: {$origin}");
         header('Access-Control-Allow-Credentials: true');
     }
@@ -70,6 +73,47 @@ $requireAdmin = function(): void {
     }
 };
 
+// CSRF Guard Middleware for State-Changing Requests (POST, PUT, DELETE)
+$requireCsrf = function() use ($input): void {
+    if (AuthHelper::isLoggedIn()) {
+        $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($input['csrf_token'] ?? ($_POST['csrf_token'] ?? ($_GET['csrf_token'] ?? null)));
+        if (!validateCsrf($csrfToken)) {
+            http_response_code(403);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Validasi CSRF gagal: Token keamanan tidak valid atau sesi Anda telah kedaluwarsa.'
+            ]);
+            exit;
+        }
+    }
+};
+
+if (in_array($method, ['POST', 'PUT', 'DELETE'], true) && $path !== '/auth/login') {
+    $requireCsrf();
+}
+
+$checkAiRateLimit = function(): void {
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        session_start();
+    }
+    $now = time();
+    $history = $_SESSION['ai_req_history'] ?? [];
+    if (!is_array($history)) {
+        $history = [];
+    }
+    $history = array_filter($history, fn($t) => is_numeric($t) && ($now - (int)$t) < 60);
+    if (count($history) >= 15) {
+        http_response_code(429);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Batas kuota panggilan AI terlampaui (Maksimal 15 permintaan per menit). Mohon tunggu sejenak.'
+        ]);
+        exit;
+    }
+    $history[] = $now;
+    $_SESSION['ai_req_history'] = array_values($history);
+};
+
 try {
     // Health check
     if ($path === '/' || $path === '/health') {
@@ -90,14 +134,14 @@ try {
     }
 
     if ($path === '/auth/profile' && $method === 'GET') {
-        $settings = SettingsModel::getSettings();
         echo json_encode(['success' => true, 'data' => AuthHelper::getCurrentUser()]);
         exit;
     }
 
     if ($path === '/auth/change-password' && $method === 'POST') {
         $requireAuth();
-        $role = $input['role'] ?? 'ADMIN';
+        $currentUser = AuthHelper::getCurrentUser();
+        $role = $currentUser['role'] ?? 'USER';
         $old = $input['oldPassword'] ?? '';
         $new = $input['newPassword'] ?? '';
         $res = SettingsModel::changePassword($role, $old, $new);
@@ -115,6 +159,7 @@ try {
 
     // Stats
     if ($path === '/laporan/stats' || $path === '/monitoring/stats') {
+        $requireAuth();
         echo json_encode(['success' => true, 'data' => OperasiModel::getStats()]);
         exit;
     }
@@ -201,26 +246,32 @@ try {
             exit;
         }
 
-        // 2. Query MySQL SarUnit & GisPoint for official SAR locations
+        // 2. Query MySQL SarUnit & GisPoint for official SAR locations (Optimized indexed search)
         try {
             $db = getDB();
-            $terms = explode(' ', strtolower($q));
-            $stmt = $db->query("
-                SELECT nama_unit as name, COALESCE(NULLIF(alamat, ''), wilayah, 'Pos Operasional Basarnas') as address, latitude as lat, longitude as lng, jenis_unit as type FROM SarUnit
-                UNION
-                SELECT label as name, COALESCE(NULLIF(description, ''), 'Titik Plotting SAR') as address, lat, lng, pointType as type FROM GisPoint
+            $likeParam = '%' . $q . '%';
+
+            $stmtSar = $db->prepare("
+                SELECT nama_unit as name, COALESCE(NULLIF(alamat, ''), wilayah, 'Pos Operasional Basarnas') as address, latitude as lat, longitude as lng, jenis_unit as type
+                FROM SarUnit
+                WHERE (nama_unit LIKE :q1 OR alamat LIKE :q2 OR wilayah LIKE :q3)
+                LIMIT 8
             ");
-            $sarRows = $stmt->fetchAll();
-            foreach ($sarRows as $row) {
-                $full = strtolower(($row['name'] ?? '') . ' ' . ($row['address'] ?? '') . ' ' . ($row['type'] ?? ''));
-                $match = true;
-                foreach ($terms as $t) {
-                    if ($t !== '' && !str_contains($full, $t)) {
-                        $match = false;
-                        break;
-                    }
-                }
-                if ($match && !empty($row['lat']) && !empty($row['lng'])) {
+            $stmtSar->execute([':q1' => $likeParam, ':q2' => $likeParam, ':q3' => $likeParam]);
+            $sarRows = $stmtSar->fetchAll();
+
+            $stmtGis = $db->prepare("
+                SELECT COALESCE(NULLIF(label, ''), NULLIF(category, 'Tanpa Kategori'), 'Titik Plotting SAR') as name, COALESCE(NULLIF(description, ''), 'Titik Plotting SAR') as address, lat, lng, pointType as type
+                FROM GisPoint
+                WHERE (label LIKE :q4 OR description LIKE :q5 OR category LIKE :q6)
+                LIMIT 8
+            ");
+            $stmtGis->execute([':q4' => $likeParam, ':q5' => $likeParam, ':q6' => $likeParam]);
+            $gisRows = $stmtGis->fetchAll();
+
+            $localRows = array_merge($sarRows, $gisRows);
+            foreach ($localRows as $row) {
+                if (!empty($row['lat']) && !empty($row['lng'])) {
                     $lat = (float)$row['lat'];
                     $lng = (float)$row['lng'];
                     $results[] = [
@@ -357,14 +408,18 @@ try {
         exit;
     }
 
-    // AI Endpoints
+    // AI Endpoints (Protected: Requires Authenticated Operator & Rate Limited)
     if ($path === '/ai/refine-kronologi' && $method === 'POST') {
+        $requireAuth();
+        $checkAiRateLimit();
         $raw = $input['rawDraft'] ?? ($input['draftInput'] ?? '');
         echo json_encode(AiHelper::refineRawDraft($raw));
         exit;
     }
 
     if ($path === '/ai/draft-kronologi' && $method === 'POST') {
+        $requireAuth();
+        $checkAiRateLimit();
         $mode = $input['mode'] ?? 'quick_draft';
         if ($mode === 'refine_raw') {
             $raw = $input['rawDraft'] ?? ($input['draftInput'] ?? '');
@@ -388,6 +443,8 @@ try {
     }
 
     if ($path === '/ai/refine-sitrep' && $method === 'POST') {
+        $requireAuth();
+        $checkAiRateLimit();
         $raw = $input['rawDraft'] ?? ($input['catatan'] ?? ($input['rawText'] ?? ($input['draftInput'] ?? ($input['isi_laporan'] ?? ''))));
         $hariKe = $input['hariKe'] ?? ($input['hari_ke'] ?? 'H.1');
         $nama = $input['namaOperasi'] ?? ($input['nama_operasi'] ?? '');
@@ -401,6 +458,8 @@ try {
     }
 
     if ($path === '/ai/draft-sitrep' && $method === 'POST') {
+        $requireAuth();
+        $checkAiRateLimit();
         $mode = $input['mode'] ?? 'quick_draft';
         $hariKe = $input['hariKe'] ?? ($input['hari_ke'] ?? 'H.1');
         $nama = $input['namaOperasi'] ?? ($input['nama_operasi'] ?? '');
@@ -430,6 +489,7 @@ try {
 
     // Operasi CRUD
     if ($path === '/operasi' && $method === 'GET') {
+        $requireAuth();
         $status = $_GET['status'] ?? null;
         $q = $_GET['q'] ?? null;
         echo json_encode(['success' => true, 'data' => OperasiModel::getAll($status, $q)]);
@@ -437,6 +497,7 @@ try {
     }
 
     if ($path === '/operasi' && $method === 'POST') {
+        $requireAuth();
         $newId = OperasiModel::create($input);
         echo json_encode(['success' => true, 'id' => $newId, 'message' => 'Laporan Awal Operasi SAR berhasil disimpan.']);
         exit;
@@ -445,6 +506,7 @@ try {
     if (preg_match('#^/operasi/(\d+)$#', $path, $m)) {
         $id = (int)$m[1];
         if ($method === 'GET') {
+            $requireAuth();
             $ops = OperasiModel::getById($id);
             if (!$ops) {
                 http_response_code(404);
@@ -456,12 +518,14 @@ try {
         }
 
         if ($method === 'PUT' || $method === 'POST') {
+            $requireAuth();
             $ok = OperasiModel::update($id, $input);
             echo json_encode(['success' => $ok, 'message' => 'Data Operasi SAR berhasil diperbarui.']);
             exit;
         }
 
         if ($method === 'DELETE') {
+            $requireAuth();
             if (!AuthHelper::canDelete()) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'Akses ditolak: Hanya administrator yang dapat menghapus data operasi.']);
@@ -474,6 +538,7 @@ try {
     }
 
     if (preg_match('#^/operasi/(\d+)/close$#', $path, $m) && $method === 'POST') {
+        $requireAuth();
         $id = (int)$m[1];
         $waktu = $input['waktu_selesai'] ?? date('Y-m-d H:i:s');
         $ok = OperasiModel::closeOperation($id, $waktu);
@@ -482,6 +547,7 @@ try {
     }
 
     if (preg_match('#^/operasi/(\d+)/rollback-penutupan$#', $path, $m) && $method === 'POST') {
+        $requireAuth();
         $id = (int)$m[1];
         $ok = OperasiModel::rollbackPenutupan($id);
         echo json_encode(['success' => $ok, 'message' => 'Status Operasi SAR berhasil dikembalikan ke OPEN.']);
@@ -490,6 +556,7 @@ try {
 
     // Renops
     if (preg_match('#^/operasi/(\d+)/renops$#', $path, $m) && $method === 'POST') {
+        $requireAuth();
         $idOps = (int)$m[1];
         $ops = OperasiModel::getById($idOps);
         if (!$ops) {
@@ -531,11 +598,13 @@ try {
             }
         }
         if ($method === 'PUT' || $method === 'POST') {
+            $requireAuth();
             $ok = RenopsModel::update($id, $input);
             echo json_encode(['success' => $ok, 'message' => 'Rencana Operasi berhasil diperbarui.']);
             exit;
         }
         if ($method === 'DELETE') {
+            $requireAuth();
             if (!AuthHelper::canDelete()) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'Akses ditolak.']);
@@ -549,6 +618,7 @@ try {
 
     // Sitrep / Laporan Harian
     if (preg_match('#^/operasi/(\d+)/laporan$#', $path, $m) && $method === 'POST') {
+        $requireAuth();
         $idOps = (int)$m[1];
         $ops = OperasiModel::getById($idOps);
         if (!$ops) {
@@ -590,11 +660,13 @@ try {
             }
         }
         if ($method === 'PUT' || $method === 'POST') {
+            $requireAuth();
             $ok = LaporanModel::update($id, $input);
             echo json_encode(['success' => $ok, 'message' => 'Laporan Perkembangan berhasil diperbarui.']);
             exit;
         }
         if ($method === 'DELETE') {
+            $requireAuth();
             if (!AuthHelper::canDelete()) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'Akses ditolak.']);
@@ -608,6 +680,7 @@ try {
 
     // BRA SAR
     if ($path === '/bra' && $method === 'GET') {
+        $requireAuth();
         $kat = $_GET['kategori'] ?? null;
         $q = $_GET['q'] ?? null;
         echo json_encode(['success' => true, 'data' => BraModel::getAll($kat, $q)]);
@@ -615,6 +688,7 @@ try {
     }
 
     if ($path === '/bra/next-number' && $method === 'GET') {
+        $requireAuth();
         $kat = $_GET['kategori'] ?? 'MAPEL';
         $satker = $_GET['satker'] ?? DEFAULT_SATKER_KODE;
         echo json_encode(['success' => true, 'data' => BraHelper::getNextNomorBra($kat, $satker)]);
@@ -622,6 +696,7 @@ try {
     }
 
     if ($path === '/bra' && $method === 'POST') {
+        $requireAuth();
         $newId = BraModel::create($input);
         echo json_encode(['success' => true, 'id' => $newId, 'message' => 'Berita Radio SAR (BRA) berhasil disimpan.']);
         exit;
@@ -630,6 +705,7 @@ try {
     if (preg_match('#^/bra/(\d+)$#', $path, $m)) {
         $id = (int)$m[1];
         if ($method === 'GET') {
+            $requireAuth();
             $bra = BraModel::getById($id);
             if (!$bra) {
                 http_response_code(404);
@@ -640,11 +716,13 @@ try {
             exit;
         }
         if ($method === 'PUT' || $method === 'POST') {
+            $requireAuth();
             $ok = BraModel::update($id, $input);
             echo json_encode(['success' => $ok, 'message' => 'Dokumen BRA SAR berhasil diperbarui.']);
             exit;
         }
         if ($method === 'DELETE') {
+            $requireAuth();
             if (!AuthHelper::canDelete()) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'Akses ditolak.']);
@@ -659,6 +737,7 @@ try {
     // Master Data
     if ($path === '/master/alut') {
         if ($method === 'GET') {
+            $requireAuth();
             echo json_encode(['success' => true, 'data' => MasterModel::getAlut()]);
             exit;
         }
@@ -688,6 +767,7 @@ try {
 
     if ($path === '/master/tim') {
         if ($method === 'GET') {
+            $requireAuth();
             echo json_encode(['success' => true, 'data' => MasterModel::getTim()]);
             exit;
         }
@@ -717,6 +797,7 @@ try {
 
     if ($path === '/sar-units') {
         if ($method === 'GET') {
+            $requireAuth();
             echo json_encode(['success' => true, 'data' => MasterModel::getSarUnits()]);
             exit;
         }
@@ -730,7 +811,27 @@ try {
 
     // Settings & Pejabat
     if ($path === '/settings' && $method === 'GET') {
-        echo json_encode(['success' => true, 'data' => SettingsModel::getSettings()]);
+        $settings = SettingsModel::getSettings();
+        if (AuthHelper::isAdmin()) {
+            // Strip password hashes even for admin API output
+            unset($settings['admin_password'], $settings['user_password']);
+            echo json_encode(['success' => true, 'data' => $settings]);
+        } else {
+            // Publik / Non-Admin: Hanya metadata publik kantor SAR
+            $publicData = [
+                'satker_kode' => $settings['satker_kode'] ?? 'SAR-304',
+                'satker_nama' => $settings['satker_nama'] ?? 'Kantor Pencarian dan Pertolongan Kelas A Kendari',
+                'alamat' => $settings['alamat'] ?? '',
+                'no_telp' => $settings['no_telp'] ?? '',
+                'email' => $settings['email'] ?? '',
+                'call_sign' => $settings['call_sign'] ?? '',
+                'frekuensi_default' => $settings['frekuensi_default'] ?? '',
+                'default_theme' => $settings['default_theme'] ?? 'dark',
+                'logo_url' => $settings['logo_url'] ?? '',
+                'pejabat_list' => $settings['pejabat_list'] ?? []
+            ];
+            echo json_encode(['success' => true, 'data' => $publicData]);
+        }
         exit;
     }
 
@@ -743,6 +844,7 @@ try {
 
     if ($path === '/settings/pejabat') {
         if ($method === 'GET') {
+            $requireAuth();
             echo json_encode(['success' => true, 'data' => MasterModel::getPejabat()]);
             exit;
         }
@@ -772,6 +874,7 @@ try {
 
     // GIS endpoints
     if ($path === '/gis/data' && $method === 'GET') {
+        $requireAuth();
         echo json_encode([
             'success' => true,
             'sar_units' => MasterModel::getSarUnits(),
@@ -785,17 +888,20 @@ try {
     }
 
     if (($path === '/gis/point' || $path === '/gis/points') && $method === 'GET') {
+        $requireAuth();
         echo json_encode(['success' => true, 'data' => GisModel::getPoints()]);
         exit;
     }
 
     if (($path === '/gis/point' || $path === '/gis/points') && in_array($method, ['POST', 'PUT'])) {
+        $requireAuth();
         $id = GisModel::savePoint($input);
         echo json_encode(['success' => true, 'id' => $id, 'data' => $input]);
         exit;
     }
 
     if (preg_match('#^/gis/point(?:s)?/(.+)$#', $path, $m) && in_array($method, ['POST', 'PUT'])) {
+        $requireAuth();
         $input['id'] = $m[1];
         $id = GisModel::savePoint($input);
         echo json_encode(['success' => true, 'id' => $id, 'data' => $input]);
@@ -803,26 +909,58 @@ try {
     }
 
     if (preg_match('#^/gis/point(?:s)?/(.+)$#', $path, $m) && $method === 'DELETE') {
+        $requireAuth();
         $ok = GisModel::deletePoint($m[1]);
         echo json_encode(['success' => $ok]);
         exit;
     }
 
     if ($path === '/gis/upload-icon' && $method === 'POST') {
+        $requireAuth();
         if (!empty($_FILES['icon']) && $_FILES['icon']['error'] === UPLOAD_ERR_OK) {
             $file = $_FILES['icon'];
-            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-            $allowed = ['png', 'jpg', 'jpeg', 'svg', 'webp', 'gif'];
-            if (!in_array($ext, $allowed)) {
+
+            // 1. Validasi Batas Ukuran Berkas (Maksimal 2MB)
+            if ($file['size'] > 2 * 1024 * 1024) {
                 http_response_code(400);
-                echo json_encode(['success' => false, 'message' => 'Format file tidak didukung (gunakan PNG, JPG, SVG, WebP)']);
+                echo json_encode(['success' => false, 'message' => 'Ukuran file ikon terlalu besar (Maksimal 2 MB).']);
                 exit;
             }
+
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed = ['png', 'jpg', 'jpeg', 'svg', 'webp'];
+            if (!in_array($ext, $allowed, true)) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Format file tidak didukung (Gunakan PNG, JPG, JPEG, SVG, WebP).']);
+                exit;
+            }
+
+            // 2. Validasi Keamanan Khusus SVG terhadap XSS
+            if ($ext === 'svg') {
+                $svgContent = file_get_contents($file['tmp_name']);
+                if ($svgContent !== false && preg_match('/<script|javascript:|onload|onerror|onclick|onmouseover|<iframe|<embed|<object|<foreignobject/i', $svgContent)) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'message' => 'Berkas SVG ditolak: Terdeteksi skrip atau tag tidak aman.']);
+                    exit;
+                }
+            } else {
+                // 3. Validasi MIME Type Riil untuk Gambar Raster
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime = finfo_file($finfo, $file['tmp_name']);
+                finfo_close($finfo);
+                $validMimes = ['image/png', 'image/jpeg', 'image/webp'];
+                if (!in_array($mime, $validMimes, true)) {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'message' => 'MIME type gambar tidak valid atau berkas rusak.']);
+                    exit;
+                }
+            }
+
             $targetDir = ROOT_DIR . '/uploads/icons';
             if (!is_dir($targetDir)) {
-                mkdir($targetDir, 0755, true);
+                @mkdir($targetDir, 0755, true);
             }
-            $filename = 'icon_' . time() . '_' . substr(bin2hex(random_bytes(3)), 0, 6) . '.' . $ext;
+            $filename = 'icon_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
             $dest = $targetDir . '/' . $filename;
             if (move_uploaded_file($file['tmp_name'], $dest)) {
                 $appRootUrl = preg_replace('#/api/?$#i', '', BASE_URL);
@@ -832,22 +970,25 @@ try {
             }
         }
         http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Gagal mengunggah file ikon']);
+        echo json_encode(['success' => false, 'message' => 'Gagal mengunggah file ikon.']);
         exit;
     }
 
     if (($path === '/gis/polygon' || $path === '/gis/polygons') && $method === 'GET') {
+        $requireAuth();
         echo json_encode(['success' => true, 'data' => GisModel::getPolygons()]);
         exit;
     }
 
     if (($path === '/gis/polygon' || $path === '/gis/polygons') && in_array($method, ['POST', 'PUT'])) {
+        $requireAuth();
         $id = GisModel::savePolygon($input);
         echo json_encode(['success' => true, 'id' => $id, 'data' => $input]);
         exit;
     }
 
     if (preg_match('#^/gis/polygon(?:s)?/(.+)$#', $path, $m) && in_array($method, ['POST', 'PUT'])) {
+        $requireAuth();
         $input['id'] = $m[1];
         $id = GisModel::savePolygon($input);
         echo json_encode(['success' => true, 'id' => $id, 'data' => $input]);
@@ -855,23 +996,27 @@ try {
     }
 
     if (preg_match('#^/gis/polygon(?:s)?/(.+)$#', $path, $m) && $method === 'DELETE') {
+        $requireAuth();
         $ok = GisModel::deletePolygon($m[1]);
         echo json_encode(['success' => $ok]);
         exit;
     }
 
     if (($path === '/gis/pattern' || $path === '/gis/patterns' || $path === '/gis/search-patterns') && $method === 'GET') {
+        $requireAuth();
         echo json_encode(['success' => true, 'data' => GisModel::getSearchPatterns()]);
         exit;
     }
 
     if (($path === '/gis/pattern' || $path === '/gis/patterns' || $path === '/gis/search-patterns') && in_array($method, ['POST', 'PUT'])) {
+        $requireAuth();
         $id = GisModel::saveSearchPattern($input);
         echo json_encode(['success' => true, 'id' => $id, 'data' => $input]);
         exit;
     }
 
     if (preg_match('#^/gis/(?:pattern|search-pattern)(?:s)?/(.+)$#', $path, $m) && in_array($method, ['POST', 'PUT'])) {
+        $requireAuth();
         $input['id'] = $m[1];
         $id = GisModel::saveSearchPattern($input);
         echo json_encode(['success' => true, 'id' => $id, 'data' => $input]);
@@ -879,29 +1024,34 @@ try {
     }
 
     if (preg_match('#^/gis/(?:pattern|search-pattern)(?:s)?/(.+)$#', $path, $m) && $method === 'DELETE') {
+        $requireAuth();
         $ok = GisModel::deleteSearchPattern($m[1]);
         echo json_encode(['success' => $ok]);
         exit;
     }
 
     if (($path === '/gis/route' || $path === '/gis/routes') && $method === 'GET') {
+        $requireAuth();
         echo json_encode(['success' => true, 'data' => GisModel::getRoutes()]);
         exit;
     }
 
     if (($path === '/gis/route' || $path === '/gis/routes') && in_array($method, ['POST', 'PUT'])) {
+        $requireAuth();
         $id = GisModel::saveRoute($input);
         echo json_encode(['success' => true, 'id' => $id]);
         exit;
     }
 
     if (preg_match('#^/gis/route(?:s)?/(.+)$#', $path, $m) && $method === 'DELETE') {
+        $requireAuth();
         $ok = GisModel::deleteRoute($m[1]);
         echo json_encode(['success' => $ok]);
         exit;
     }
 
     if ($path === '/gis/directions' && $method === 'POST') {
+        $requireAuth();
         $startLat = (float)($input['startLat'] ?? 0);
         $startLng = (float)($input['startLng'] ?? 0);
         $destLat = (float)($input['destLat'] ?? 0);
@@ -967,6 +1117,7 @@ try {
 
     // Route calculation helper
     if ($path === '/maps/calculate-route' && $method === 'POST') {
+        $requireAuth();
         $startLat = (float)($input['startLat'] ?? GeoHelper::KANSAR_KENDARI_LAT);
         $startLng = (float)($input['startLng'] ?? GeoHelper::KANSAR_KENDARI_LNG);
         $destLat = (float)($input['destLat'] ?? 0);
@@ -993,8 +1144,9 @@ try {
         exit;
     }
 
-    // Export SQL Dump
+    // Export SQL Dump (Admin Only)
     if ($path === '/export/sql' && $method === 'GET') {
+        $requireAdmin();
         $sql = SettingsModel::generateSQLDump();
         header('Content-Type: application/sql');
         header('Content-Disposition: attachment; filename="db_sar_qr.sql"');
@@ -1002,8 +1154,9 @@ try {
         exit;
     }
 
-    // Backup JSON Export
+    // Backup JSON Export (Admin Only)
     if ($path === '/database/export' || $path === '/backup/export') {
+        $requireAdmin();
         $backup = SettingsModel::exportJsonBackup();
         $date = date('Y-m-d');
         header('Content-Type: application/json');
@@ -1016,6 +1169,10 @@ try {
     http_response_code(404);
     echo json_encode(['success' => false, 'error' => "Endpoint API tidak ditemukan: {$path}"]);
 } catch (Throwable $e) {
+    error_log('QR-SAR API Error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Terjadi kesalahan sistem internal. Permintaan tidak dapat diproses saat ini.'
+    ]);
 }

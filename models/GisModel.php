@@ -16,15 +16,17 @@ class GisModel {
         $db = getDB();
         $id = $data['id'] ?? ('pt-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
 
-        $stmt = $db->prepare("REPLACE INTO GisPoint (id, lat, lng, label, pointType, customIconUrl, description) VALUES (:id, :lat, :lng, :label, :type, :customIcon, :desc)");
+        $stmt = $db->prepare("REPLACE INTO GisPoint (id, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar) VALUES (:id, :lat, :lng, :label, :type, :customIcon, :desc, :category, :alphabetChar)");
         $stmt->execute([
             ':id' => $id,
             ':lat' => (float)$data['lat'],
             ':lng' => (float)$data['lng'],
-            ':label' => $data['label'] ?? 'Titik Koordinat',
-            ':type' => $data['pointType'] ?? ($data['point_type'] ?? 'lkp'),
+            ':label' => isset($data['label']) ? trim((string)$data['label']) : '',
+            ':type' => $data['pointType'] ?? ($data['point_type'] ?? 'pin_umum'),
             ':customIcon' => $data['customIconUrl'] ?? ($data['custom_icon_url'] ?? null),
-            ':desc' => $data['description'] ?? ''
+            ':desc' => $data['description'] ?? '',
+            ':category' => $data['category'] ?? 'Tanpa Kategori',
+            ':alphabetChar' => $data['alphabetChar'] ?? 'A'
         ]);
 
         return $id;
@@ -39,18 +41,20 @@ class GisModel {
     public static function getPolygons(): array {
         $db = getDB();
         $polys = $db->query("SELECT * FROM GisPolygon ORDER BY id DESC")->fetchAll();
+        if (empty($polys)) return [];
+
+        $allPoints = $db->query("SELECT polygonId, lat, lng, label FROM GisPolygonPoint ORDER BY id ASC")->fetchAll();
+        $pointsByPoly = [];
+        foreach ($allPoints as $pt) {
+            $pointsByPoly[$pt['polygonId']][] = [
+                'lat' => (float)$pt['lat'],
+                'lng' => (float)$pt['lng'],
+                'label' => $pt['label'] ?? ''
+            ];
+        }
+
         foreach ($polys as &$p) {
-            $stmtPts = $db->prepare("SELECT lat, lng, label FROM GisPolygonPoint WHERE polygonId = :id ORDER BY id ASC");
-            $stmtPts->execute([':id' => $p['id']]);
-            $rawPts = $stmtPts->fetchAll();
-            $p['points'] = [];
-            foreach ($rawPts as $pt) {
-                $p['points'][] = [
-                    'lat' => (float)$pt['lat'],
-                    'lng' => (float)$pt['lng'],
-                    'label' => $pt['label'] ?? ''
-                ];
-            }
+            $p['points'] = $pointsByPoly[$p['id']] ?? [];
         }
         return $polys;
     }
@@ -109,21 +113,23 @@ class GisModel {
     public static function getRoutes(): array {
         $db = getDB();
         $routes = $db->query("SELECT * FROM GisRoute ORDER BY id DESC")->fetchAll();
+        if (empty($routes)) return [];
+
+        $allPoints = $db->query("SELECT routeId, lat, lng, label FROM GisRoutePoint ORDER BY id ASC")->fetchAll();
+        $pointsByRoute = [];
+        foreach ($allPoints as $pt) {
+            $pointsByRoute[$pt['routeId']][] = [
+                'lat' => (float)$pt['lat'],
+                'lng' => (float)$pt['lng'],
+                'label' => $pt['label'] ?? ''
+            ];
+        }
+
         foreach ($routes as &$r) {
             $r['vesselSpeedKnots'] = (float)($r['vesselSpeedKnots'] ?? 25);
             $r['strokeWeight'] = (float)($r['strokeWeight'] ?? 3.5);
             $r['strokeOpacity'] = (float)($r['strokeOpacity'] ?? 0.9);
-            $stmtPts = $db->prepare("SELECT lat, lng, label FROM GisRoutePoint WHERE routeId = :id ORDER BY id ASC");
-            $stmtPts->execute([':id' => $r['id']]);
-            $rawPts = $stmtPts->fetchAll();
-            $r['points'] = [];
-            foreach ($rawPts as $pt) {
-                $r['points'][] = [
-                    'lat' => (float)$pt['lat'],
-                    'lng' => (float)$pt['lng'],
-                    'label' => $pt['label'] ?? ''
-                ];
-            }
+            $r['points'] = $pointsByRoute[$r['id']] ?? [];
         }
         return $routes;
     }
@@ -193,10 +199,20 @@ class GisModel {
     public static function getSearchPatterns(): array {
         $db = getDB();
         $patterns = $db->query("SELECT * FROM GisSearchPattern ORDER BY id DESC")->fetchAll();
+        if (empty($patterns)) return [];
+
+        $allWp = $db->query("SELECT searchPatternId, lat, lng, label FROM GisSearchPatternWaypoint ORDER BY id ASC")->fetchAll();
+        $wpByPattern = [];
+        foreach ($allWp as $wp) {
+            $wpByPattern[$wp['searchPatternId']][] = [
+                'lat' => (float)$wp['lat'],
+                'lng' => (float)$wp['lng'],
+                'label' => $wp['label'] ?? ''
+            ];
+        }
+
         foreach ($patterns as &$p) {
-            $stmtWp = $db->prepare("SELECT lat, lng, label FROM GisSearchPatternWaypoint WHERE searchPatternId = :id ORDER BY id ASC");
-            $stmtWp->execute([':id' => $p['id']]);
-            $p['waypoints'] = $stmtWp->fetchAll();
+            $p['waypoints'] = $wpByPattern[$p['id']] ?? [];
         }
         return $patterns;
     }

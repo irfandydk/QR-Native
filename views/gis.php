@@ -8,6 +8,11 @@
 
 declare(strict_types=1);
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 $savedPoints = GisModel::getPoints();
 $savedPolygons = GisModel::getPolygons();
 $savedPatterns = GisModel::getSearchPatterns();
@@ -94,10 +99,13 @@ $alutList = MasterModel::getAlut();
     backdrop-filter: blur(4px);
   }
 
-  /* Leaflet custom divIcon styling - zero drift & transparent container */
-  .sar-map-pin, .sar-draft-pin, .sar-vertex-pin, .sar-pat-corner, .sar-print-pin, .gm-temp-search-marker {
-    background: transparent !important;
-    border: none !important;
+  /* Tactical Maritime Offline Grid Background */
+  #gisLeafletMap {
+    background-color: #0b1329 !important;
+    background-image: 
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px) !important;
+    background-size: 40px 40px !important;
   }
 </style>
 
@@ -298,38 +306,60 @@ $alutList = MasterModel::getAlut();
           <!-- Name & Category -->
           <div class="space-y-2">
             <div>
-              <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Nama / Label Titik <span class="text-orange-500">*</span></label>
-              <input type="text" id="pcPointName" placeholder="Contoh: LKP KM Sumber Bahagia / Posko Kendari" class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500">
+              <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                Nama / Label Titik <span class="text-slate-400 font-normal text-[9px]">(Opsional - Kosongkan jika tanpa nama diatas titik)</span>
+              </label>
+              <input type="text" id="pcPointName" placeholder="Contoh: KM Sumber Bahagia (atau kosongkan tanpa nama)" class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500">
             </div>
 
             <div>
               <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Kategori Titik Operasi</label>
-              <select id="pcPointCategory" class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500">
-                <option value="LKP">🚨 LKP (Last Known Position / Tempat Kejadian)</option>
-                <option value="Kantor SAR">🏢 Kantor SAR (Kansar)</option>
-                <option value="POS SAR">⛺ Pos SAR Resmi</option>
+              <select id="pcPointCategory" class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500 font-semibold">
+                <option value="Tanpa Kategori">⚪ Tanpa Kategori</option>
+                <option value="Kantor SAR">🏢 Kantor SAR</option>
+                <option value="POS SAR">📻 POS SAR</option>
                 <option value="Unit Siaga SAR">📡 Unit Siaga SAR</option>
-                <option value="Posko">🏕️ Posko SAR Taktis Lapangan</option>
-                <option value="Entry Point">🟢 Entry Point (Titik Masuk S)</option>
-                <option value="Exit Point">🔴 Exit Point (Titik Keluar E)</option>
-                <option value="None">Titik Umum / Waypoint Lainnya</option>
+                <option value="LKP">🚨 LKP</option>
+                <option value="Posko">🏕️ Posko</option>
+                <option value="Entry Poin">🟢 Entry Poin</option>
+                <option value="Exit Poin">🔴 Exit Poin</option>
               </select>
             </div>
           </div>
 
-          <!-- Icon Preset Selector (12 Preset SAR Icons + Alphabet A-Z) -->
+          <!-- Icon Preset Selector (Diverse presets + Alphabet A-Z + Custom Upload) -->
           <div class="space-y-2">
-            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400">Pilih Desain Logo / Pin Peta:</label>
+            <div class="flex items-center justify-between">
+              <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400">Pilih Desain Logo / Pin Peta:</label>
+              <span class="text-[9px] text-slate-400 italic">Visual saja, terpisah dari kategori</span>
+            </div>
             
             <div class="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-center">
-              <button type="button" id="tabIconPresetSar" class="py-1 rounded-lg bg-orange-500 text-white">Preset SAR</button>
-              <button type="button" id="tabIconAlphabet" class="py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">Huruf (A-Z)</button>
-              <button type="button" id="tabIconCustom" class="py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition">Koleksi</button>
+              <button type="button" id="tabIconPresetSar" class="py-1 rounded-lg bg-orange-500 text-white cursor-pointer transition">Preset Logo</button>
+              <button type="button" id="tabIconAlphabet" class="py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer transition">Huruf (A-Z)</button>
+              <button type="button" id="tabIconCustom" class="py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer transition">Upload / URL</button>
             </div>
 
-            <!-- Panel 1: 12 Preset SAR Icons -->
-            <div id="iconGridSar" class="grid grid-cols-4 gap-1.5 max-h-36 overflow-y-auto gis-scrollbar p-1">
-              <!-- Rendered via JS -->
+            <!-- Panel 1: Preset Logo with Filter Pills & Search -->
+            <div id="iconGridSarPanel" class="space-y-1.5">
+              <!-- Quick Filter Pills -->
+              <div class="flex items-center gap-1 overflow-x-auto pb-1 gis-scrollbar text-[9px] font-bold">
+                <button type="button" data-group="all" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-orange-500 text-white shrink-0 cursor-pointer transition">Semua</button>
+                <button type="button" data-group="kejadian" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition">🚨 Kejadian</button>
+                <button type="button" data-group="tempat" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition">🏢 Tempat</button>
+                <button type="button" data-group="alut" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition">🚢 Armada & Alut</button>
+                <button type="button" data-group="taktis" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition">🎯 Taktis</button>
+              </div>
+
+              <!-- Search input for preset logo -->
+              <div class="relative">
+                <input type="text" id="pcPresetSearch" placeholder="Cari logo (mis: kapal, helikopter, banjir, posko)..." class="w-full pl-6 pr-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-orange-500">
+                <span class="absolute left-2 top-1 text-slate-400 text-[10px]">🔍</span>
+              </div>
+
+              <div id="iconGridSar" class="grid grid-cols-4 gap-1.5 max-h-48 overflow-y-auto gis-scrollbar p-1">
+                <!-- Rendered via JS -->
+              </div>
             </div>
 
             <!-- Panel 2: Alphabet Selector (A-Z) -->
@@ -863,6 +893,15 @@ $alutList = MasterModel::getAlut();
     <!-- MAP CANVAS (LEAFLET INTERACTIVE FULL VIEWPORT) -->
     <div class="flex-1 h-full relative" id="gisMapWrapper" style="height: 100%; flex: 1;">
       <div id="gisLeafletMap" class="w-full h-full z-0" style="width: 100%; height: 100%;"></div>
+
+      <!-- Floating Offline / Blank Spot Status Badge -->
+      <div id="gisOfflineIndicator" class="absolute bottom-4 left-4 z-[400] hidden px-3.5 py-2 rounded-xl bg-amber-500/95 text-slate-950 font-bold text-xs shadow-2xl backdrop-blur-md flex items-center gap-2 border border-amber-600/30 transition-all duration-300">
+        <span class="relative flex h-2.5 w-2.5">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
+        </span>
+        <span>Mode Luar Jaringan (Blank Spot) — Plotting Taktis Tetap Berfungsi di Memori Lokal</span>
+      </div>
 
       <!-- Floating Button: Buka Tools Plotting (when sidebar is closed) -->
       <button type="button" id="btnFloatingOpenSidebar" class="absolute top-4 left-4 z-[400] hidden px-3.5 py-2 rounded-xl bg-white/95 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-900 text-slate-800 dark:text-white text-xs font-bold border border-slate-200 dark:border-slate-700 shadow-2xl flex items-center gap-2 backdrop-blur transition cursor-pointer">

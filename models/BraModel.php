@@ -7,7 +7,7 @@
 declare(strict_types=1);
 
 class BraModel {
-    public static function getAll(?string $kategori = null, ?string $search = null): array {
+    public static function getAll(?string $kategori = null, ?string $search = null, bool $withSections = false): array {
         $db = getDB();
         $sql = "SELECT b.*,
             (SELECT COUNT(*) FROM BraSection s WHERE s.id_bra = b.id_bra) as total_sections
@@ -38,14 +38,58 @@ class BraModel {
         $stmt->execute($params);
         $bras = $stmt->fetchAll();
 
-        // Attach sections for each BRA
-        foreach ($bras as &$bra) {
-            $stmtSec = $db->prepare("SELECT kode, isi FROM BraSection WHERE id_bra = :id ORDER BY id ASC");
-            $stmtSec->execute([':id' => $bra['id_bra']]);
-            $bra['sections'] = $stmtSec->fetchAll();
+        // Efficient single batched query if sections are explicitly needed
+        if ($withSections && !empty($bras)) {
+            $braIds = array_column($bras, 'id_bra');
+            $placeholders = implode(',', array_fill(0, count($braIds), '?'));
+            $stmtSec = $db->prepare("SELECT id_bra, kode, isi FROM BraSection WHERE id_bra IN ({$placeholders}) ORDER BY id ASC");
+            $stmtSec->execute($braIds);
+            $allSecs = $stmtSec->fetchAll();
+
+            $secsByBra = [];
+            foreach ($allSecs as $s) {
+                $secsByBra[$s['id_bra']][] = [
+                    'kode' => $s['kode'],
+                    'isi' => $s['isi']
+                ];
+            }
+
+            foreach ($bras as &$bra) {
+                $bra['sections'] = $secsByBra[$bra['id_bra']] ?? [];
+            }
+        } else {
+            foreach ($bras as &$bra) {
+                $bra['sections'] = [];
+            }
         }
 
         return $bras;
+    }
+
+    public static function getStats(): array {
+        $db = getDB();
+        $row = $db->query("
+            SELECT 
+                COUNT(*) as total,
+                COALESCE(SUM(CASE WHEN kategori = 'MAPEL' THEN 1 ELSE 0 END), 0) as mapel,
+                COALESCE(SUM(CASE WHEN kategori IN ('SAR_UMUM', 'OPERASI_SAR') THEN 1 ELSE 0 END), 0) as sar_umum,
+                COALESCE(SUM(CASE WHEN kategori = 'PERGERAKAN_KAPAL' THEN 1 ELSE 0 END), 0) as kapal
+            FROM BraSar
+        ")->fetch();
+
+        return [
+            'total' => (int)($row['total'] ?? 0),
+            'mapel' => (int)($row['mapel'] ?? 0),
+            'sar_umum' => (int)($row['sar_umum'] ?? 0),
+            'kapal' => (int)($row['kapal'] ?? 0)
+        ];
+    }
+
+    public static function getLatest(int $limit = 1): array {
+        $db = getDB();
+        $limit = max(1, min(100, $limit));
+        $stmt = $db->query("SELECT * FROM BraSar ORDER BY id_bra DESC LIMIT {$limit}");
+        return $stmt->fetchAll();
     }
 
     public static function getById(int $id): ?array {
@@ -70,9 +114,9 @@ class BraModel {
             $kategori = strtoupper($data['kategori'] ?? 'MAPEL');
             $satkerKode = $data['satker_kode'] ?? DEFAULT_SATKER_KODE;
 
-            // Generate sequence and no_bra if not provided
+            // Generate sequence and no_bra with atomic row-level lock if not provided
             if (empty($data['no_bra'])) {
-                $next = BraHelper::getNextNomorBra($kategori, $satkerKode);
+                $next = BraHelper::getNextNomorBra($kategori, $satkerKode, $db, true);
                 $nomorUrut = $next['nomor_urut'];
                 $noBra = $next['no_bra'];
                 $bulanTahun = $next['bulan_tahun'];
@@ -142,9 +186,13 @@ class BraModel {
 
             $idBra = (int)$db->lastInsertId();
 
-            // Set default barcode_data if empty
+            // Set default barcode_data with cryptographic token
             if (empty($data['barcode_data'])) {
-                $verifyUrl = BASE_URL . "/bra.php?view={$idBra}";
+                $verifyUrl = self::generateVerifyUrl([
+                    'id_bra' => $idBra,
+                    'no_bra' => $data['no_bra'] ?? '',
+                    'twu' => $data['twu'] ?? ''
+                ]);
                 $db->prepare("UPDATE BraSar SET barcode_data = :bc WHERE id_bra = :id")->execute([
                     ':bc' => $verifyUrl,
                     ':id' => $idBra
@@ -165,6 +213,7 @@ class BraModel {
             }
 
             $db->commit();
+            AuditHelper::log('BRA_CREATE', "Menerbitkan Naskah BRA {$kategori} No. {$noBra} (ID: {$idBra})", 'BraSar', (string)$idBra);
             return $idBra;
         } catch (Throwable $e) {
             $db->rollBack();
@@ -258,6 +307,7 @@ class BraModel {
             }
 
             $db->commit();
+            AuditHelper::log('BRA_UPDATE', "Memperbarui Naskah BRA No. " . ($data['no_bra'] ?? '') . " (ID: {$id})", 'BraSar', (string)$id);
             return true;
         } catch (Throwable $e) {
             $db->rollBack();
@@ -272,6 +322,7 @@ class BraModel {
             $db->prepare("DELETE FROM BraSection WHERE id_bra = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM BraSar WHERE id_bra = :id")->execute([':id' => $id]);
             $db->commit();
+            AuditHelper::log('BRA_DELETE', "Menghapus Naskah BRA (ID: {$id})", 'BraSar', (string)$id);
             return true;
         } catch (Throwable $e) {
             $db->rollBack();
@@ -281,5 +332,38 @@ class BraModel {
 
     public static function getNextSequenceNumber(string $satkerKode = 'SAR-304', string $kategori = 'MAPEL'): array {
         return BraHelper::getNextNomorBra($kategori, $satkerKode);
+    }
+
+    /**
+     * Menghasilkan tanda tangan digital / token verifikasi kriptografis resmi BRA SAR
+     * Memakai HMAC-SHA256 untuk memastikan keaslian lembar dokumen dan mencegah IDOR / URL tampering
+     */
+    public static function generateVerifyToken(array $bra): string {
+        $id = (string)($bra['id_bra'] ?? '');
+        $noBra = (string)($bra['no_bra'] ?? '');
+        $twu = (string)($bra['twu'] ?? '');
+        $salt = defined('APP_KEY') ? APP_KEY : 'BASARNAS_KENDARI_BRA_SECRET_SALT_2026';
+        $payload = "BASARNAS_BRA:{$id}:{$noBra}:{$twu}";
+        return strtoupper(substr(hash_hmac('sha256', $payload, $salt), 0, 16));
+    }
+
+    /**
+     * Validasi tanda tangan digital / token verifikasi BRA SAR
+     */
+    public static function verifyToken(array $bra, ?string $token): bool {
+        if ($token === null || trim($token) === '') {
+            return false;
+        }
+        $expected = self::generateVerifyToken($bra);
+        return hash_equals($expected, strtoupper(trim($token)));
+    }
+
+    /**
+     * Menghasilkan URL verifikasi publik resmi BRA SAR dengan token tanda tangan
+     */
+    public static function generateVerifyUrl(array $bra): string {
+        $id = (int)($bra['id_bra'] ?? 0);
+        $token = self::generateVerifyToken($bra);
+        return BASE_URL . "/bra.php?view={$id}&token={$token}";
     }
 }

@@ -6,8 +6,95 @@
 
 declare(strict_types=1);
 
-error_reporting(E_ALL & ~E_DEPRECATED);
+// 1. Global .env Loader (Sets getenv, $_ENV, and $_SERVER)
+$envPath = dirname(__DIR__) . '/.env';
+if (file_exists($envPath) && is_readable($envPath)) {
+    $envLines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if ($envLines !== false) {
+        foreach ($envLines as $line) {
+            $trimmed = trim($line);
+            if ($trimmed === '' || str_starts_with($trimmed, '#') || !str_contains($trimmed, '=')) continue;
+            [$key, $val] = explode('=', $trimmed, 2);
+            $key = trim($key);
+            $val = trim($val, " \t\n\r\0\x0B\"'");
+            if (!array_key_exists($key, $_SERVER) && !array_key_exists($key, $_ENV)) {
+                putenv("{$key}={$val}");
+                $_ENV[$key] = $val;
+                $_SERVER[$key] = $val;
+            }
+        }
+    }
+}
 
+// 2. Application Environment & Error Suppression Mode
+$appEnv = getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? 'production');
+define('APP_ENV', $appEnv);
+$appDebug = filter_var(getenv('APP_DEBUG') ?: ($_ENV['APP_DEBUG'] ?? false), FILTER_VALIDATE_BOOLEAN);
+define('APP_DEBUG', $appDebug);
+
+if ($appDebug) {
+    ini_set('display_errors', '1');
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', '0');
+    ini_set('log_errors', '1');
+    error_reporting(E_ALL & ~E_DEPRECATED);
+}
+
+// 2b. Global Centralized Exception & Fatal Error Handler
+if (!function_exists('qr_sar_exception_handler')) {
+    function qr_sar_exception_handler(Throwable $e): void {
+        error_log("[QR-SAR EXCEPTION 500] " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+
+        try {
+            if (class_exists('AuditHelper')) {
+                AuditHelper::log('SYSTEM_ERROR_500', substr($e->getMessage(), 0, 200), 'EXCEPTION', basename($e->getFile()) . ':' . $e->getLine());
+            }
+        } catch (Throwable) {
+            // Ignore audit log failure if database connection itself is broken
+        }
+
+        if (!headers_sent()) {
+            http_response_code(500);
+        }
+
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        $isApi = str_contains($uri, '/api/') || str_starts_with($uri, '/api') || str_contains($accept, 'application/json');
+
+        if ($isApi) {
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+            }
+            echo json_encode([
+                'success' => false,
+                'error' => 'INTERNAL_SERVER_ERROR',
+                'message' => (defined('APP_DEBUG') && APP_DEBUG) ? $e->getMessage() : 'Terjadi kendala pada pangkalan data atau sistem internal QR-SAR.'
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $err500View = dirname(__DIR__) . '/views/errors/500.php';
+        if (file_exists($err500View)) {
+            $exception = $e;
+            include $err500View;
+        } else {
+            echo "<!DOCTYPE html><html><body style='font-family:sans-serif;padding:2rem;background:#0f172a;color:#fff;'><h1>HTTP 500 - Gangguan Sistem Internal</h1><p>" . htmlspecialchars($e->getMessage()) . "</p></body></html>";
+        }
+        exit;
+    }
+    set_exception_handler('qr_sar_exception_handler');
+}
+
+// 3. Baseline HTTP Security Headers
+if (php_sapi_name() !== 'cli' && !headers_sent()) {
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-Content-Type-Options: nosniff');
+    header('X-XSS-Protection: 1; mode=block');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+}
+
+// 4. Session Setup
 if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
@@ -35,15 +122,80 @@ define('APP_VERSION', '2.5.0');
 define('DEFAULT_SATKER_KODE', 'SAR-304');
 define('DEFAULT_SATKER_NAMA', 'Kantor Pencarian dan Pertolongan Kelas A Kendari');
 
-// Base URL detection
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443) ? 'https://' : 'http://';
-$host = $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
-$scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
-if ($scriptDir === '/' || $scriptDir === '.') {
-    $scriptDir = '';
+// Cryptographic Key for HMAC & Signatures (Instance-specific)
+$appKey = getenv('APP_KEY') ?: ($_ENV['APP_KEY'] ?? '');
+if (empty($appKey)) {
+    $appKey = 'BASARNAS_KENDARI_SECURE_HMAC_KEY_V2_' . sha1(__DIR__);
 }
-$baseUrl = rtrim($protocol . $host . ($scriptDir ? '/' . ltrim($scriptDir, '/') : ''), '/');
+define('APP_KEY', (string)$appKey);
+
+// Base URL detection with Host Header sanitization & optional APP_URL override
+$appUrlEnv = getenv('APP_URL') ?: (getenv('BASE_URL') ?: null);
+if ($appUrlEnv) {
+    $baseUrl = rtrim($appUrlEnv, '/');
+} else {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+                (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) ||
+                (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
+                ? 'https://' : 'http://';
+
+    $rawHost = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? '127.0.0.1:8000');
+    // Strictly allow valid hostnames, domains, IPs, and optional port
+    if (preg_match('/^[a-zA-Z0-9.\-]+(:[0-9]{1,5})?$/', $rawHost)) {
+        $host = $rawHost;
+    } else {
+        $host = $_SERVER['SERVER_NAME'] ?? '127.0.0.1:8000';
+    }
+
+    $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
+    $scriptDir = preg_replace('#/api$#', '', (string)$scriptDir);
+    if ($scriptDir === '/' || $scriptDir === '.') {
+        $scriptDir = '';
+    }
+    $baseUrl = rtrim($protocol . $host . ($scriptDir ? '/' . ltrim($scriptDir, '/') : ''), '/');
+}
 define('BASE_URL', $baseUrl);
+
+// 5. Server-Side Session Inactivity Timeout (Idle Timeout: 2 jam / 7200 detik)
+$idleTimeout = 7200;
+if (!empty($_SESSION['user_id'])) {
+    $now = time();
+    $lastActivity = (int)($_SESSION['last_activity'] ?? $now);
+    if ($now - $lastActivity > $idleTimeout) {
+        $_SESSION = [];
+        if (ini_get("session.use_cookies")) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 42000,
+                $params["path"], $params["domain"],
+                $params["secure"], $params["httponly"]
+            );
+        }
+        session_destroy();
+        session_start();
+        $_SESSION['flash'] = [
+            'type' => 'error',
+            'message' => 'Sesi Anda telah kedaluwarsa karena tidak ada aktivitas selama 2 jam demi keamanan sistem.'
+        ];
+        $_SESSION['flash_messages']['error'] = $_SESSION['flash']['message'];
+        
+        $reqUri = $_SERVER['REQUEST_URI'] ?? '';
+        if (php_sapi_name() !== 'cli') {
+            if (str_contains($reqUri, '/api/')) {
+                http_response_code(401);
+                header('Content-Type: application/json; charset=UTF-8');
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'Sesi Anda telah berakhir otomatis karena tidak ada aktivitas selama 2 jam.'
+                ]);
+                exit;
+            }
+            header("Location: " . BASE_URL . "/login.php");
+            exit;
+        }
+    } else {
+        $_SESSION['last_activity'] = $now;
+    }
+}
 
 // Directory Constants
 define('ROOT_DIR', dirname(__DIR__));
@@ -52,6 +204,8 @@ define('MODELS_DIR', ROOT_DIR . '/models');
 define('HELPERS_DIR', ROOT_DIR . '/helpers');
 define('VIEWS_DIR', ROOT_DIR . '/views');
 define('UPLOADS_DIR', ROOT_DIR . '/uploads');
+define('ASSETS_DIR', ROOT_DIR . '/assets');
+define('PUBLIC_DIR', ROOT_DIR . '/public');
 
 // Autoload Models & Helpers
 require_once CONFIG_DIR . '/database.php';

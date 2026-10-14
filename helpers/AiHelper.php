@@ -154,7 +154,7 @@ PROMPT;
         if ($response !== null && !empty($response['text'])) {
             $cleaned = self::cleanHumanizer($response['text']);
             if (!empty($cleaned)) {
-                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-3.8-flash'];
+                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-2.5-flash'];
             }
         }
 
@@ -240,7 +240,7 @@ INSTRUCTION;
         if ($response !== null && !empty($response['text'])) {
             $cleaned = self::cleanHumanizer($response['text']);
             if (!empty($cleaned)) {
-                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-3.8-flash'];
+                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-2.5-flash'];
             }
         }
 
@@ -330,7 +330,7 @@ INSTRUCTION;
         if ($response !== null && !empty($response['text'])) {
             $cleaned = self::cleanHumanizer($response['text']);
             if (!empty($cleaned)) {
-                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-3.8-flash'];
+                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-2.5-flash'];
             }
         }
 
@@ -409,7 +409,7 @@ INSTRUCTION;
         if ($response !== null && !empty($response['text'])) {
             $cleaned = self::cleanHumanizer($response['text']);
             if (!empty($cleaned)) {
-                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-3.8-flash'];
+                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-2.5-flash'];
             }
         }
 
@@ -420,22 +420,29 @@ INSTRUCTION;
      * Call Gemini API with generation configuration (Prioritizing Gemini 3.8 Flash with thinkingBudget 0)
      */
     private static function callGemini(string $apiKey, string $prompt): ?array {
-        $models = ['gemini-3.8-flash', 'gemini-2.5-flash'];
+        $models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
 
         foreach ($models as $modelName) {
             $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelName}:generateContent?key=" . urlencode($apiKey);
+            
+            $generationConfig = [
+                'temperature' => 0.25,
+                'topP' => 0.85,
+                'maxOutputTokens' => 2048,
+            ];
+
+            // thinkingConfig is only supported on Gemini 2.0/2.5 series
+            if (str_starts_with($modelName, 'gemini-2.')) {
+                $generationConfig['thinkingConfig'] = [
+                    'thinkingBudget' => 0
+                ];
+            }
+
             $payload = [
                 'contents' => [
                     ['parts' => [['text' => $prompt]]]
                 ],
-                'generationConfig' => [
-                    'temperature' => 0.25,
-                    'topP' => 0.85,
-                    'maxOutputTokens' => 2048,
-                    'thinkingConfig' => [
-                        'thinkingBudget' => 0
-                    ]
-                ]
+                'generationConfig' => $generationConfig
             ];
 
             $ch = curl_init($url);
@@ -444,10 +451,14 @@ INSTRUCTION;
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
             curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 
             $res = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr = curl_error($ch);
+            curl_close($ch);
 
             if ($httpCode === 200 && $res) {
                 $data = json_decode((string)$res, true);
@@ -459,6 +470,8 @@ INSTRUCTION;
                         'model' => $usedModel
                     ];
                 }
+            } else {
+                error_log(sprintf("[QR-SAR AI] Model %s failed (HTTP %d): %s | %s", $modelName, $httpCode, $curlErr, is_string($res) ? substr($res, 0, 200) : ''));
             }
         }
 

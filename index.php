@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/config/app.php';
 
+AuthHelper::requireLogin();
+
 $pageTitle = 'Dashboard Operasi SAR';
 $currentRoute = 'dashboard';
 $navbarTitle = 'Dashboard Operasi SAR';

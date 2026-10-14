@@ -7,9 +7,15 @@
 
 declare(strict_types=1);
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 $stats = OperasiModel::getStats();
 $operasis = OperasiModel::getAll();
-$braList = BraModel::getAll();
+$braStats = BraModel::getStats();
+$latestBraList = BraModel::getLatest(1);
 
 $currentUser = AuthHelper::getCurrentUser();
 $isAdmin = AuthHelper::isAdmin();
@@ -17,9 +23,9 @@ $isAdmin = AuthHelper::isAdmin();
 // Overall Metrics
 $totalOpen = (int)($stats['operasi_aktif'] ?? 0);
 $totalClosed = (int)($stats['operasi_selesai'] ?? 0);
-$totalBra = count($braList);
+$totalBra = (int)($braStats['total'] ?? 0);
 
-$latestBra = !empty($braList) ? $braList[0] : null;
+$latestBra = !empty($latestBraList) ? $latestBraList[0] : null;
 $latestBraNumber = $latestBra['no_bra'] ?? '-';
 $latestBraSubtext = $latestBra
     ? ($latestBra['kategori'] . ' • ' . ($latestBra['twu'] ?: (!empty($latestBra['created_at']) ? TemplateHelper::formatJamWITA($latestBra['created_at']) . ' WITA' : 'Tercatat')))
@@ -317,23 +323,34 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
   <!-- ============================================================== -->
   <div id="operationsListContainer" class="space-y-3">
     
-    <!-- Empty State Container -->
-    <div id="operationsEmptyState" class="p-12 text-center rounded-2xl border space-y-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 <?= empty($operasis) ? '' : 'hidden' ?>">
-      <div class="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 flex items-center justify-center">
-        <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+    <!-- Tactical Empty State Container -->
+    <div id="operationsEmptyState" class="p-10 sm:p-12 text-center rounded-2xl border space-y-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-xs <?= empty($operasis) ? '' : 'hidden' ?>">
+      <div class="w-14 h-14 mx-auto rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center border border-orange-500/20 radar-sweep-tactical">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
       </div>
-      <div>
-        <h3 id="emptyStateTitle" class="text-sm font-bold text-slate-800 dark:text-slate-300">Tidak ada data operasi ditemukan</h3>
-        <p id="emptyStateSubtitle" class="text-xs mt-1 text-slate-500">
+      <div class="max-w-md mx-auto">
+        <h3 id="emptyStateTitle" class="text-sm font-bold text-slate-900 dark:text-white">Tidak ada data operasi ditemukan</h3>
+        <p id="emptyStateSubtitle" class="text-xs mt-1 text-slate-500 dark:text-slate-400">
           Belum ada operasi SAR yang diinisiasi
         </p>
       </div>
-      <a
-        href="<?= BASE_URL ?>/operasi_form.php"
-        class="inline-block px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 text-white rounded-xl text-xs font-semibold shadow-md hover:opacity-95"
-      >
-        + Inisiasi Laporan Awal Sekarang
-      </a>
+      <div id="emptyStateActions" class="flex flex-wrap items-center justify-center gap-2 pt-1">
+        <button
+          type="button"
+          id="emptyStateResetBtn"
+          onclick="resetAllFilters()"
+          class="hidden px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 transition cursor-pointer"
+        >
+          Reset Filter Pencarian
+        </button>
+        <a
+          href="<?= BASE_URL ?>/operasi_form.php"
+          id="emptyStateInitBtn"
+          class="inline-block px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:opacity-95 text-white rounded-xl text-xs font-semibold shadow-md shadow-orange-500/20 transition cursor-pointer"
+        >
+          + Inisiasi Laporan Awal Sekarang
+        </a>
+      </div>
     </div>
 
     <!-- Operation Cards -->
@@ -638,13 +655,24 @@ function applyDashFilters() {
       emptyState.classList.remove('hidden');
       const title = document.getElementById('emptyStateTitle');
       const subtitle = document.getElementById('emptyStateSubtitle');
+      const resetBtn = document.getElementById('emptyStateResetBtn');
+      const isFiltered = currentSearchQuery || currentMonthFilter !== 'ALL' || currentStatusFilter !== 'ALL';
+
       if (title && subtitle) {
-        if (currentSearchQuery || currentMonthFilter !== 'ALL' || currentStatusFilter !== 'ALL') {
+        if (isFiltered) {
           title.textContent = 'Tidak ada data operasi sesuai filter';
           subtitle.textContent = 'Coba ubah atau reset kata kunci dan filter bulan Anda';
         } else {
           title.textContent = 'Tidak ada data operasi ditemukan';
           subtitle.textContent = 'Belum ada operasi SAR yang diinisiasi';
+        }
+      }
+
+      if (resetBtn) {
+        if (isFiltered) {
+          resetBtn.classList.remove('hidden');
+        } else {
+          resetBtn.classList.add('hidden');
         }
       }
     } else {
