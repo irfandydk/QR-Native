@@ -2,23 +2,66 @@
 /**
  * QR-SAR - GIS & Map Plotting Model
  * KPP Kendari - Basarnas
+ * Multi-Operation SAR Supported with Nullable Operation Scoping
  */
 
 declare(strict_types=1);
 
 class GisModel {
-    public static function getPoints(): array {
+    private static bool $schemaChecked = false;
+
+    /**
+     * Ensure database tables have required columns for multi-operation SAR
+     */
+    public static function ensureSchemaUpdated(): void {
+        if (self::$schemaChecked) return;
+        self::$schemaChecked = true;
+        try {
+            $db = getDB();
+            $cols = $db->query("SHOW COLUMNS FROM GisPoint LIKE 'id_operasi'")->fetchAll();
+            if (empty($cols)) {
+                $db->exec("ALTER TABLE GisPoint ADD COLUMN id_operasi INT NULL DEFAULT NULL");
+                $db->exec("ALTER TABLE GisPoint ADD INDEX idx_point_operasi (id_operasi)");
+                $db->exec("ALTER TABLE GisPolygon ADD COLUMN id_operasi INT NULL DEFAULT NULL");
+                $db->exec("ALTER TABLE GisPolygon ADD INDEX idx_poly_operasi (id_operasi)");
+                $db->exec("ALTER TABLE GisRoute ADD COLUMN id_operasi INT NULL DEFAULT NULL");
+                $db->exec("ALTER TABLE GisRoute ADD INDEX idx_route_operasi (id_operasi)");
+                $db->exec("ALTER TABLE GisSearchPattern ADD COLUMN id_operasi INT NULL DEFAULT NULL");
+                $db->exec("ALTER TABLE GisSearchPattern ADD INDEX idx_pattern_operasi (id_operasi)");
+            }
+            // Ensure customIconUrl is MEDIUMTEXT to prevent truncation on large DataURLs
+            $db->exec("ALTER TABLE GisPoint MODIFY COLUMN customIconUrl MEDIUMTEXT NULL");
+        } catch (Throwable $e) {
+            error_log("[GisModel Schema Check] " . $e->getMessage());
+        }
+    }
+
+    public static function getPoints(?int $idOperasi = null, bool $includeGlobal = true): array {
+        self::ensureSchemaUpdated();
         $db = getDB();
+        if ($idOperasi !== null && $idOperasi > 0 && !$includeGlobal) {
+            $stmt = $db->prepare("SELECT * FROM GisPoint WHERE id_operasi = :id_ops ORDER BY id DESC");
+            $stmt->execute([':id_ops' => $idOperasi]);
+            return $stmt->fetchAll();
+        }
         return $db->query("SELECT * FROM GisPoint ORDER BY id DESC")->fetchAll();
     }
 
     public static function savePoint(array $data): string {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $id = $data['id'] ?? ('pt-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
+        $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
+            ? (int)$data['id_operasi']
+            : (isset($data['idOperasi']) && $data['idOperasi'] !== '' && $data['idOperasi'] !== null ? (int)$data['idOperasi'] : null);
+        if ($idOperasi !== null && $idOperasi <= 0) {
+            $idOperasi = null;
+        }
 
-        $stmt = $db->prepare("REPLACE INTO GisPoint (id, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar) VALUES (:id, :lat, :lng, :label, :type, :customIcon, :desc, :category, :alphabetChar)");
+        $stmt = $db->prepare("REPLACE INTO GisPoint (id, id_operasi, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar) VALUES (:id, :id_ops, :lat, :lng, :label, :type, :customIcon, :desc, :category, :alphabetChar)");
         $stmt->execute([
             ':id' => $id,
+            ':id_ops' => $idOperasi,
             ':lat' => (float)$data['lat'],
             ':lng' => (float)$data['lng'],
             ':label' => isset($data['label']) ? trim((string)$data['label']) : '',
@@ -33,14 +76,23 @@ class GisModel {
     }
 
     public static function deletePoint(string $id): bool {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $stmt = $db->prepare("DELETE FROM GisPoint WHERE id = :id");
         return $stmt->execute([':id' => $id]);
     }
 
-    public static function getPolygons(): array {
+    public static function getPolygons(?int $idOperasi = null, bool $includeGlobal = true): array {
+        self::ensureSchemaUpdated();
         $db = getDB();
-        $polys = $db->query("SELECT * FROM GisPolygon ORDER BY id DESC")->fetchAll();
+        if ($idOperasi !== null && $idOperasi > 0 && !$includeGlobal) {
+            $stmt = $db->prepare("SELECT * FROM GisPolygon WHERE id_operasi = :id_ops ORDER BY id DESC");
+            $stmt->execute([':id_ops' => $idOperasi]);
+            $polys = $stmt->fetchAll();
+        } else {
+            $polys = $db->query("SELECT * FROM GisPolygon ORDER BY id DESC")->fetchAll();
+        }
+
         if (empty($polys)) return [];
 
         $allPoints = $db->query("SELECT polygonId, lat, lng, label FROM GisPolygonPoint ORDER BY id ASC")->fetchAll();
@@ -60,14 +112,22 @@ class GisModel {
     }
 
     public static function savePolygon(array $data): string {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {
             $id = $data['id'] ?? ('poly-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
+            $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
+                ? (int)$data['id_operasi']
+                : (isset($data['idOperasi']) && $data['idOperasi'] !== '' && $data['idOperasi'] !== null ? (int)$data['idOperasi'] : null);
+            if ($idOperasi !== null && $idOperasi <= 0) {
+                $idOperasi = null;
+            }
 
-            $stmt = $db->prepare("REPLACE INTO GisPolygon (id, name, strokeColor, strokeWeight, fillColor, fillOpacity) VALUES (:id, :name, :sc, :sw, :fc, :fo)");
+            $stmt = $db->prepare("REPLACE INTO GisPolygon (id, id_operasi, name, strokeColor, strokeWeight, fillColor, fillOpacity) VALUES (:id, :id_ops, :name, :sc, :sw, :fc, :fo)");
             $stmt->execute([
                 ':id' => $id,
+                ':id_ops' => $idOperasi,
                 ':name' => $data['name'] ?? 'Area Pencarian',
                 ':sc' => $data['strokeColor'] ?? '#ea580c',
                 ':sw' => (float)($data['strokeWeight'] ?? 2.5),
@@ -97,6 +157,7 @@ class GisModel {
     }
 
     public static function deletePolygon(string $id): bool {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {
@@ -110,9 +171,17 @@ class GisModel {
         }
     }
 
-    public static function getRoutes(): array {
+    public static function getRoutes(?int $idOperasi = null, bool $includeGlobal = true): array {
+        self::ensureSchemaUpdated();
         $db = getDB();
-        $routes = $db->query("SELECT * FROM GisRoute ORDER BY id DESC")->fetchAll();
+        if ($idOperasi !== null && $idOperasi > 0 && !$includeGlobal) {
+            $stmt = $db->prepare("SELECT * FROM GisRoute WHERE id_operasi = :id_ops ORDER BY id DESC");
+            $stmt->execute([':id_ops' => $idOperasi]);
+            $routes = $stmt->fetchAll();
+        } else {
+            $routes = $db->query("SELECT * FROM GisRoute ORDER BY id DESC")->fetchAll();
+        }
+
         if (empty($routes)) return [];
 
         $allPoints = $db->query("SELECT routeId, lat, lng, label FROM GisRoutePoint ORDER BY id ASC")->fetchAll();
@@ -135,16 +204,24 @@ class GisModel {
     }
 
     public static function saveRoute(array $data): string {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {
             $id = $data['id'] ?? ('route-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
+            $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
+                ? (int)$data['id_operasi']
+                : (isset($data['idOperasi']) && $data['idOperasi'] !== '' && $data['idOperasi'] !== null ? (int)$data['idOperasi'] : null);
+            if ($idOperasi !== null && $idOperasi <= 0) {
+                $idOperasi = null;
+            }
 
             $stmt = $db->prepare("INSERT INTO GisRoute (
-                id, name, vesselSpeedKnots, strokeColor, strokeWeight, strokeOpacity, createdAt
+                id, id_operasi, name, vesselSpeedKnots, strokeColor, strokeWeight, strokeOpacity, createdAt
             ) VALUES (
-                :id, :name, :speed, :color, :weight, :opacity, :created
+                :id, :id_ops, :name, :speed, :color, :weight, :opacity, :created
             ) ON DUPLICATE KEY UPDATE 
+                id_operasi = VALUES(id_operasi),
                 name = VALUES(name),
                 vesselSpeedKnots = VALUES(vesselSpeedKnots),
                 strokeColor = VALUES(strokeColor),
@@ -153,6 +230,7 @@ class GisModel {
 
             $stmt->execute([
                 ':id' => $id,
+                ':id_ops' => $idOperasi,
                 ':name' => $data['name'] ?? 'Rute Operasi',
                 ':speed' => (float)($data['vesselSpeedKnots'] ?? 25),
                 ':color' => $data['strokeColor'] ?? '#059669',
@@ -183,6 +261,7 @@ class GisModel {
     }
 
     public static function deleteRoute(string $id): bool {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {
@@ -196,9 +275,17 @@ class GisModel {
         }
     }
 
-    public static function getSearchPatterns(): array {
+    public static function getSearchPatterns(?int $idOperasi = null, bool $includeGlobal = true): array {
+        self::ensureSchemaUpdated();
         $db = getDB();
-        $patterns = $db->query("SELECT * FROM GisSearchPattern ORDER BY id DESC")->fetchAll();
+        if ($idOperasi !== null && $idOperasi > 0 && !$includeGlobal) {
+            $stmt = $db->prepare("SELECT * FROM GisSearchPattern WHERE id_operasi = :id_ops ORDER BY id DESC");
+            $stmt->execute([':id_ops' => $idOperasi]);
+            $patterns = $stmt->fetchAll();
+        } else {
+            $patterns = $db->query("SELECT * FROM GisSearchPattern ORDER BY id DESC")->fetchAll();
+        }
+
         if (empty($patterns)) return [];
 
         $allWp = $db->query("SELECT searchPatternId, lat, lng, label FROM GisSearchPatternWaypoint ORDER BY id ASC")->fetchAll();
@@ -218,21 +305,29 @@ class GisModel {
     }
 
     public static function saveSearchPattern(array $data): string {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {
             $id = $data['id'] ?? ('pattern-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
+            $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
+                ? (int)$data['id_operasi']
+                : (isset($data['idOperasi']) && $data['idOperasi'] !== '' && $data['idOperasi'] !== null ? (int)$data['idOperasi'] : null);
+            if ($idOperasi !== null && $idOperasi <= 0) {
+                $idOperasi = null;
+            }
 
             $stmt = $db->prepare("REPLACE INTO GisSearchPattern (
-                id, name, polygonId, polygonName, patternType, trackSpacingNm,
+                id, id_operasi, name, polygonId, polygonName, patternType, trackSpacingNm,
                 legsCount, poskoId, poskoName, color, totalDistanceNm, createdAt
             ) VALUES (
-                :id, :name, :polyId, :polyName, :pt, :spacing,
+                :id, :id_ops, :name, :polyId, :polyName, :pt, :spacing,
                 :legs, :poskoId, :poskoName, :color, :dist, :created
             )");
 
             $stmt->execute([
                 ':id' => $id,
+                ':id_ops' => $idOperasi,
                 ':name' => $data['name'] ?? 'Pola Pencarian SAR',
                 ':polyId' => $data['polygonId'] ?? '',
                 ':polyName' => $data['polygonName'] ?? '',
@@ -268,6 +363,7 @@ class GisModel {
     }
 
     public static function deleteSearchPattern(string $id): bool {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {

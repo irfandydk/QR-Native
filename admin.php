@@ -194,9 +194,8 @@ if ($method === 'POST') {
                         }
                     } else {
                         // B. Validate Raster Images MIME
-                        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                        $mime = finfo_file($finfo, $tmpPath);
-                        finfo_close($finfo);
+                        $finfo = new finfo(FILEINFO_MIME_TYPE);
+                        $mime = $finfo->file($tmpPath);
                         $validMimes = ['image/png', 'image/jpeg', 'image/webp'];
                         if (!in_array($mime, $validMimes, true)) {
                             setFlash('error', 'Format gambar tidak valid atau rusak.');
@@ -250,10 +249,7 @@ if ($method === 'POST') {
                                 $savedOptimized = imagepng($dstImg, $dest, 8);
                             }
 
-                            if (PHP_VERSION_ID < 80500) {
-                                @imagedestroy($dstImg);
-                                @imagedestroy($srcImg);
-                            }
+                            unset($dstImg, $srcImg);
 
                             if ($savedOptimized) {
                                 $uploadedUrl = BASE_URL . '/uploads/' . $filename;

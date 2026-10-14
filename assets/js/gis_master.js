@@ -10,6 +10,20 @@
   // Base URL & State Data from server injection
   const BASE_URL = window.location.origin;
   const initialData = window.SAR_INITIAL_GIS_DATA || {};
+  const csrfToken = initialData.csrfToken || window.CSRF_TOKEN || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+  let filterMode = initialData.filterMode || (initialData.currentOperasiId ? 'operasi' : 'all');
+  let includeBaseInActive = !!initialData.includeBase;
+  let currentOperasiId = initialData.currentOperasiId ? parseInt(initialData.currentOperasiId, 10) : null;
+  let currentOperasi = initialData.currentOperasi || null;
+  const operasiList = Array.isArray(initialData.operasiList) ? initialData.operasiList : [];
+  const activeOperasiIds = new Set(operasiList.map(op => parseInt(op.id_operasi, 10)));
+
+  // 4. Operasi yang telah ditutup tidak masuk dalam pilihan! (Sanitasi sesi/URL)
+  if (currentOperasiId && !activeOperasiIds.has(currentOperasiId)) {
+    currentOperasiId = null;
+    currentOperasi = null;
+    filterMode = 'basemap';
+  }
 
   // Safe HTML Escaping Helper
   const escapeHtml = typeof window.escapeHtml === 'function'
@@ -24,11 +38,256 @@
           .replace(/'/g, '&#039;');
       };
 
+  // Safe XML / KML Escaping Helper
+  function escapeXml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+  }
+
+  function getOperasiBadgeHtml(idOps) {
+    if (!idOps || idOps <= 0) return '';
+    const ops = operasiList.find((o) => parseInt(o.id_operasi, 10) === parseInt(idOps, 10));
+    const title = ops ? ops.nama_operasi : `Ops #${idOps}`;
+    return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30" title="Misi: ${escapeHtml(title)}">🚨 Ops #${idOps}</span>`;
+  }
+
+  // Unified GIS Fetch with Auto CSRF Injection
+  async function gisFetch(url, options = {}) {
+    const opts = { ...options };
+    opts.headers = opts.headers || {};
+
+    const token = csrfToken || window.CSRF_TOKEN || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+    if (token) {
+      if (typeof Headers !== 'undefined' && opts.headers instanceof Headers) {
+        if (!opts.headers.has('X-CSRF-Token')) opts.headers.set('X-CSRF-Token', token);
+      } else if (Array.isArray(opts.headers)) {
+        opts.headers.push(['X-CSRF-Token', token]);
+      } else {
+        opts.headers['X-CSRF-Token'] = token;
+      }
+    }
+
+    if (!(opts.body instanceof FormData)) {
+      if (typeof Headers !== 'undefined' && opts.headers instanceof Headers) {
+        if (!opts.headers.has('Content-Type')) opts.headers.set('Content-Type', 'application/json');
+      } else if (!opts.headers['Content-Type']) {
+        opts.headers['Content-Type'] = 'application/json';
+      }
+    }
+
+    return fetch(url, opts);
+  }
+
   // 1. STATE MANAGEMENT
-  let savedPoints = Array.isArray(initialData.points) ? [...initialData.points] : [];
-  let savedPolygons = Array.isArray(initialData.polygons) ? [...initialData.polygons] : [];
-  let savedPatterns = Array.isArray(initialData.patterns) ? [...initialData.patterns] : [];
-  let savedRoutes = Array.isArray(initialData.routes) ? [...initialData.routes] : [];
+  // Master Raw Collections (containing all items loaded from database)
+  let rawAllPoints = Array.isArray(initialData.points) ? [...initialData.points] : [];
+  let rawAllPolygons = Array.isArray(initialData.polygons) ? [...initialData.polygons] : [];
+  let rawAllPatterns = Array.isArray(initialData.patterns) ? [...initialData.patterns] : [];
+  let rawAllRoutes = Array.isArray(initialData.routes) ? [...initialData.routes] : [];
+
+  // Filtered collections actively displayed on map and sidebars
+  let savedPoints = [];
+  let savedPolygons = [];
+  let savedPatterns = [];
+  let savedRoutes = [];
+
+  function applyActiveFilter() {
+    if (filterMode === 'basemap' || filterMode === 'dasar') {
+      // 1. Base Map : menampilkan komponen tanpa id operasi SAR
+      savedPoints = rawAllPoints.filter(p => !p.id_operasi || parseInt(p.id_operasi, 10) === 0);
+      savedPolygons = rawAllPolygons.filter(p => !p.id_operasi || parseInt(p.id_operasi, 10) === 0);
+      savedPatterns = rawAllPatterns.filter(p => !p.id_operasi || parseInt(p.id_operasi, 10) === 0);
+      savedRoutes = rawAllRoutes.filter(r => !r.id_operasi || parseInt(r.id_operasi, 10) === 0);
+    } else if (filterMode === 'operasi' && currentOperasiId && activeOperasiIds.has(currentOperasiId)) {
+      // 3. Operasi aktif : menampilkan komponen khusus id operasi nya (+ Base Map jika dicentang)
+      savedPoints = rawAllPoints.filter(p => {
+        const opId = p.id_operasi ? parseInt(p.id_operasi, 10) : 0;
+        if (opId === currentOperasiId) return true;
+        if (includeBaseInActive && opId === 0) return true;
+        return false;
+      });
+      savedPolygons = rawAllPolygons.filter(p => {
+        const opId = p.id_operasi ? parseInt(p.id_operasi, 10) : 0;
+        if (opId === currentOperasiId) return true;
+        if (includeBaseInActive && opId === 0) return true;
+        return false;
+      });
+      savedPatterns = rawAllPatterns.filter(p => {
+        const opId = p.id_operasi ? parseInt(p.id_operasi, 10) : 0;
+        if (opId === currentOperasiId) return true;
+        if (includeBaseInActive && opId === 0) return true;
+        return false;
+      });
+      savedRoutes = rawAllRoutes.filter(r => {
+        const opId = r.id_operasi ? parseInt(r.id_operasi, 10) : 0;
+        if (opId === currentOperasiId) return true;
+        if (includeBaseInActive && opId === 0) return true;
+        return false;
+      });
+    } else {
+      // 2. Semua Komponen : Menampilkan seluruh komponen base map dan seluruh id operasi aktif (Operasi tertutup tidak tampil)
+      const isBaseOrActive = (item) => {
+        const opId = item.id_operasi ? parseInt(item.id_operasi, 10) : 0;
+        return opId === 0 || activeOperasiIds.has(opId);
+      };
+      savedPoints = rawAllPoints.filter(isBaseOrActive);
+      savedPolygons = rawAllPolygons.filter(isBaseOrActive);
+      savedPatterns = rawAllPatterns.filter(isBaseOrActive);
+      savedRoutes = rawAllRoutes.filter(isBaseOrActive);
+    }
+
+    updateSidebarBanner();
+  }
+
+  function updateSidebarBanner() {
+    const banner = document.getElementById('gisSidebarOperasiBanner');
+    if (banner) {
+      if (filterMode === 'basemap' || filterMode === 'dasar') {
+        banner.innerHTML = `
+          <div class="px-3 py-2 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+              <div class="truncate">
+                <span class="font-extrabold text-blue-600 dark:text-blue-400">1. Base Map</span>
+                <span class="text-slate-600 dark:text-slate-400 text-[10px] ml-1">(Komponen tanpa ID Operasi SAR)</span>
+              </div>
+            </div>
+            <button type="button" class="btn-switch-mode-all text-[10px] font-bold text-slate-500 hover:text-orange-500 underline shrink-0 ml-2 cursor-pointer">Semua</button>
+          </div>
+        `;
+      } else if (filterMode === 'operasi' && currentOperasi) {
+        banner.innerHTML = `
+          <div class="px-3 py-2 bg-orange-500/10 border-b border-orange-500/20 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0"></span>
+              <div class="truncate">
+                <span class="font-extrabold text-orange-600 dark:text-orange-400">3. Ops #${currentOperasi.id_operasi}</span>
+                <span class="text-slate-600 dark:text-slate-300 ml-1 text-[11px]">${escapeHtml(currentOperasi.nama_operasi)}</span>
+              </div>
+            </div>
+            <button type="button" class="btn-switch-mode-all text-[10px] font-bold text-slate-500 hover:text-red-500 underline shrink-0 ml-2 cursor-pointer" title="Kembali ke semua plotting">Lepas</button>
+          </div>
+        `;
+      } else {
+        banner.innerHTML = `
+          <div class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+              <div class="truncate">
+                <span class="font-extrabold text-slate-700 dark:text-slate-200">2. Semua Komponen</span>
+                <span class="text-slate-500 dark:text-slate-400 text-[10px] ml-1">(Base Map & Operasi Aktif)</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    const pBadge = document.getElementById('pointsBadgeCount');
+    if (pBadge) pBadge.textContent = String(savedPoints.length);
+    const polyBadge = document.getElementById('polygonsBadgeCount');
+    if (polyBadge) polyBadge.textContent = String(savedPolygons.length);
+  }
+
+  function updateRawPoint(payload, isDelete = false) {
+    if (isDelete) {
+      rawAllPoints = rawAllPoints.filter(p => String(p.id) !== String(payload.id));
+    } else {
+      const idx = rawAllPoints.findIndex(p => String(p.id) === String(payload.id));
+      if (idx !== -1) {
+        rawAllPoints[idx] = payload;
+      } else {
+        rawAllPoints.unshift(payload);
+      }
+    }
+    applyActiveFilter();
+  }
+
+  function updateRawPolygon(payload, isDelete = false) {
+    if (isDelete) {
+      rawAllPolygons = rawAllPolygons.filter(p => String(p.id) !== String(payload.id));
+    } else {
+      const idx = rawAllPolygons.findIndex(p => String(p.id) === String(payload.id));
+      if (idx !== -1) {
+        rawAllPolygons[idx] = payload;
+      } else {
+        rawAllPolygons.unshift(payload);
+      }
+    }
+    applyActiveFilter();
+  }
+
+  function updateRawPattern(payload, isDelete = false) {
+    if (isDelete) {
+      rawAllPatterns = rawAllPatterns.filter(p => String(p.id) !== String(payload.id));
+    } else {
+      const idx = rawAllPatterns.findIndex(p => String(p.id) === String(payload.id));
+      if (idx !== -1) {
+        rawAllPatterns[idx] = payload;
+      } else {
+        rawAllPatterns.unshift(payload);
+      }
+    }
+    applyActiveFilter();
+  }
+
+  function updateRawRoute(payload, isDelete = false) {
+    if (isDelete) {
+      rawAllRoutes = rawAllRoutes.filter(r => String(r.id) !== String(payload.id));
+    } else {
+      const idx = rawAllRoutes.findIndex(r => String(r.id) === String(payload.id));
+      if (idx !== -1) {
+        rawAllRoutes[idx] = payload;
+      } else {
+        rawAllRoutes.unshift(payload);
+      }
+    }
+    applyActiveFilter();
+  }
+
+  function reRenderAllLayers() {
+    renderSavedPoints();
+    renderSavedPolygons();
+    renderSavedPatterns();
+    renderSavedRoutes();
+  }
+
+  function updateUrlParams() {
+    try {
+      const url = new URL(window.location.href);
+      if (filterMode === 'basemap' || filterMode === 'dasar') {
+        url.searchParams.set('mode', 'basemap');
+        url.searchParams.delete('id_operasi');
+        url.searchParams.delete('id');
+        url.searchParams.delete('include_base');
+      } else if (filterMode === 'operasi' && currentOperasiId) {
+        url.searchParams.set('id_operasi', String(currentOperasiId));
+        url.searchParams.delete('mode');
+        url.searchParams.delete('id');
+        if (includeBaseInActive) {
+          url.searchParams.set('include_base', '1');
+        } else {
+          url.searchParams.delete('include_base');
+        }
+      } else {
+        url.searchParams.set('mode', 'all');
+        url.searchParams.delete('id_operasi');
+        url.searchParams.delete('id');
+        url.searchParams.delete('include_base');
+      }
+      window.history.replaceState({}, '', url.toString());
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  // Populate active filtered state on boot
+  applyActiveFilter();
 
   let isPointsDraggableUnlocked = false;
   let isSidebarVisible = true;
@@ -56,6 +315,7 @@
   let activePatternType = 'parallel_track';
   let activeGeneratedWaypoints = [];
   let activeGeneratedDistanceNm = 0;
+  let editingPatternId = null;
 
   // Measure Distance & Route Planning state (Jarak Lurus 2 Titik & Jalur Manual)
   let isMeasureModeActive = false;
@@ -306,7 +566,7 @@
     const y = Math.sin(dLon) * Math.cos((lat2 * Math.PI) / 180);
     const x =
       Math.cos((lat1 * Math.PI) / 180) * Math.sin((lat2 * Math.PI) / 180) -
-      Math.sin((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.cos(dLat);
+      Math.sin((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.cos(dLon);
     let brng = (Math.atan2(y, x) * 180) / Math.PI;
     brng = (brng + 360) % 360;
 
@@ -383,13 +643,13 @@
     if (customUrl) {
       innerContent = `
         <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-        <image href="${customUrl}" x="${cx - 10}" y="6" width="20" height="20" preserveAspectRatio="xMidYMid slice" />
+        <image href="${escapeHtml(customUrl)}" x="${cx - 10}" y="6" width="20" height="20" preserveAspectRatio="xMidYMid slice" />
       `;
     } else if (type === 'alphabet') {
       const char = (labelNumber || 'A').toUpperCase();
       innerContent = `
         <circle cx="${cx}" cy="16" r="10" fill="#ffffff" />
-        <text x="${cx}" y="20.5" font-family="Arial, system-ui, sans-serif" font-size="12" font-weight="900" fill="${color}" text-anchor="middle">${char}</text>
+        <text x="${cx}" y="20.5" font-family="Arial, system-ui, sans-serif" font-size="12" font-weight="900" fill="${color}" text-anchor="middle">${escapeHtml(char)}</text>
       `;
     } else if (type === 'lkp' || type === 'target') {
       innerContent = `
@@ -465,7 +725,7 @@
           overflow: hidden;
           text-overflow: ellipsis;
           z-index: 10;
-        ">${label}</div>
+        ">${escapeHtml(label)}</div>
       `
       : '';
 
@@ -1239,22 +1499,59 @@
         const file = e.target.files && e.target.files[0];
         if (!file) return;
 
-        // Instant local preview via DataURL
-        const reader = new FileReader();
-        reader.onload = (re) => {
-          pointCustomIconUrl = re.target.result;
-          if (thumbImg) thumbImg.src = pointCustomIconUrl;
-          if (fileNameEl) fileNameEl.textContent = file.name;
-          if (previewCard) previewCard.classList.remove('hidden');
-          updateDraftMarkerVisual();
-        };
-        reader.readAsDataURL(file);
+        // Compress raster image to max 128x128 on offscreen canvas to prevent database overflow
+        if (file.type === 'image/svg+xml') {
+          const reader = new FileReader();
+          reader.onload = (re) => {
+            pointCustomIconUrl = re.target.result;
+            if (thumbImg) thumbImg.src = pointCustomIconUrl;
+            if (fileNameEl) fileNameEl.textContent = file.name;
+            if (previewCard) previewCard.classList.remove('hidden');
+            updateDraftMarkerVisual();
+          };
+          reader.readAsDataURL(file);
+        } else {
+          const reader = new FileReader();
+          reader.onload = (re) => {
+            const img = new Image();
+            img.onload = () => {
+              const maxDim = 128;
+              let w = img.width;
+              let h = img.height;
+              if (w > maxDim || h > maxDim) {
+                const ratio = Math.min(maxDim / w, maxDim / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+              }
+              const canvas = document.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, w, h);
+              pointCustomIconUrl = canvas.toDataURL('image/png', 0.85);
+              if (thumbImg) thumbImg.src = pointCustomIconUrl;
+              if (fileNameEl) fileNameEl.textContent = file.name;
+              if (previewCard) previewCard.classList.remove('hidden');
+              updateDraftMarkerVisual();
+            };
+            img.onerror = () => {
+              pointCustomIconUrl = re.target.result;
+              if (thumbImg) thumbImg.src = pointCustomIconUrl;
+              if (fileNameEl) fileNameEl.textContent = file.name;
+              if (previewCard) previewCard.classList.remove('hidden');
+              updateDraftMarkerVisual();
+            };
+            img.src = re.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
 
         // Upload to server endpoint /api/gis/upload-icon
         const formData = new FormData();
         formData.append('icon', file);
+        if (csrfToken) formData.append('csrf_token', csrfToken);
         try {
-          const res = await fetch(`${BASE_URL}/api/gis/upload-icon`, {
+          const res = await gisFetch(`${BASE_URL}/api/gis/upload-icon`, {
             method: 'POST',
             body: formData
           });
@@ -1265,7 +1562,7 @@
             updateDraftMarkerVisual();
           }
         } catch (err) {
-          console.warn('Upload to server failed, using local DataURL:', err);
+          console.warn('Upload to server failed, using compressed local DataURL:', err);
         }
       });
     }
@@ -1576,8 +1873,13 @@
     const descInput = document.getElementById('pcPointDesc');
     const desc = descInput ? descInput.value.trim() : '';
 
+    const targetOpId = (filterMode === 'operasi' && currentOperasiId)
+      ? currentOperasiId
+      : (editingPointId ? (rawAllPoints.find(p => p.id === editingPointId)?.id_operasi || null) : null);
+
     const pointPayload = {
       id: editingPointId || `pt-${Date.now()}`,
+      id_operasi: targetOpId,
       label: name,
       category: category,
       pointType: pointIconType,
@@ -1589,30 +1891,17 @@
     };
 
     try {
-      const res = await fetch(`${BASE_URL}/api/gis/points`, {
+      await gisFetch(`${BASE_URL}/api/gis/points`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(pointPayload)
       });
 
-      if (editingPointId) {
-        const idx = savedPoints.findIndex((p) => p.id === editingPointId);
-        if (idx !== -1) savedPoints[idx] = pointPayload;
-      } else {
-        savedPoints.unshift(pointPayload);
-      }
-
+      updateRawPoint(pointPayload, false);
       closePointCreator();
       renderSavedPoints();
     } catch (err) {
       console.error('Error saving point:', err);
-      // Fallback local update
-      if (editingPointId) {
-        const idx = savedPoints.findIndex((p) => p.id === editingPointId);
-        if (idx !== -1) savedPoints[idx] = pointPayload;
-      } else {
-        savedPoints.unshift(pointPayload);
-      }
+      updateRawPoint(pointPayload, false);
       closePointCreator();
       renderSavedPoints();
     }
@@ -1691,12 +1980,29 @@
         const pos = e.target.getLatLng();
         pt.lat = pos.lat;
         pt.lng = pos.lng;
+        if (filterMode === 'operasi' && currentOperasiId && !pt.id_operasi) {
+          pt.id_operasi = currentOperasiId;
+        }
+        updateRawPoint(pt, false);
+
+        // Fix: Update marker popup with freshly calculated coordinates
+        const newDms = decimalToDms(pt.lat, pt.lng);
+        marker.setPopupContent(`
+          <div class="p-3 text-xs space-y-1.5 min-w-[190px]">
+            <div class="font-bold text-orange-400 text-sm">${escapeHtml(labelText)}</div>
+            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-200 border border-slate-700">
+              <span>Kategori:</span>
+              <span class="text-orange-400 font-extrabold">${escapeHtml(cat)}</span>
+            </div>
+            <div class="text-[10px] font-mono text-slate-400 pt-0.5">${escapeHtml(newDms)}</div>
+            ${pt.description ? `<div class="text-[10px] text-slate-300 pt-1 border-t border-slate-700">${escapeHtml(pt.description)}</div>` : ''}
+          </div>
+        `);
 
         // Persist update
         try {
-          await fetch(`${BASE_URL}/api/gis/points/${pt.id}`, {
+          await gisFetch(`${BASE_URL}/api/gis/points/${pt.id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(pt)
           });
         } catch (err) { }
@@ -1751,6 +2057,7 @@
                 <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeTitle}</div>
                 <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
                   ${getCategoryBadgeHtml(category)}
+                  ${getOperasiBadgeHtml(pt.id_operasi)}
                   <span class="text-[9px] text-orange-600 dark:text-orange-400 font-mono">${distFromKansar.nm} NM (${distFromKansar.bearing}° ${distFromKansar.headingName})</span>
                 </div>
                 <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">${escapeHtml(dms)}</div>
@@ -1993,8 +2300,13 @@
       return;
     }
 
+    const targetOpId = (filterMode === 'operasi' && currentOperasiId)
+      ? currentOperasiId
+      : (editingPolygonId ? (rawAllPolygons.find(p => p.id === editingPolygonId)?.id_operasi || null) : null);
+
     const payload = {
       id: editingPolygonId || `poly-${Date.now()}`,
+      id_operasi: targetOpId,
       name: name,
       points: activePolygonPoints,
       strokeColor: polyStrokeColor,
@@ -2004,28 +2316,16 @@
     };
 
     try {
-      await fetch(`${BASE_URL}/api/gis/polygons`, {
+      await gisFetch(`${BASE_URL}/api/gis/polygons`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      if (editingPolygonId) {
-        const idx = savedPolygons.findIndex((p) => p.id === editingPolygonId);
-        if (idx !== -1) savedPolygons[idx] = payload;
-      } else {
-        savedPolygons.unshift(payload);
-      }
-
+      updateRawPolygon(payload, false);
       cancelPolygonDrawing();
       renderSavedPolygons();
     } catch (err) {
-      if (editingPolygonId) {
-        const idx = savedPolygons.findIndex((p) => p.id === editingPolygonId);
-        if (idx !== -1) savedPolygons[idx] = payload;
-      } else {
-        savedPolygons.unshift(payload);
-      }
+      updateRawPolygon(payload, false);
       cancelPolygonDrawing();
       renderSavedPolygons();
     }
@@ -2098,9 +2398,10 @@
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
             <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusPolygon('${safeId}')">
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${safeColor};"></span>
                 <span class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</span>
+                ${getOperasiBadgeHtml(poly.id_operasi)}
               </div>
               <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-1">
                 ${stats.sqNm} NM² (${stats.sqKm} km²) • Keliling: ${stats.perimeterNm} NM
@@ -2161,6 +2462,13 @@
     const btnNewPattern = document.getElementById('btnStartNewPattern');
     if (btnNewPattern) {
       btnNewPattern.addEventListener('click', () => {
+        editingPatternId = null;
+        const formTitle = document.getElementById('patternFormHeaderTitle');
+        if (formTitle) formTitle.textContent = '📐 Parameter Pola Lintasan IAMSAR';
+        const btnSave = document.getElementById('btnSavePatternConfirm');
+        if (btnSave) btnSave.innerHTML = '<span>💾 Simpan Pola SAR</span>';
+        const nameInput = document.getElementById('patternFormName');
+        if (nameInput) nameInput.value = `Pola Lintasan SAR ${getPatternDisplayName(activePatternType)} #${savedPatterns.length + 1}`;
         const card = document.getElementById('patternCreationCard');
         if (card) card.classList.remove('hidden');
         btnNewPattern.classList.add('hidden');
@@ -2175,6 +2483,11 @@
       if (btn) {
         btn.addEventListener('click', () => {
           clearCurrentPatternVisual();
+          editingPatternId = null;
+          const formTitle = document.getElementById('patternFormHeaderTitle');
+          if (formTitle) formTitle.textContent = '📐 Parameter Pola Lintasan IAMSAR';
+          const btnSave = document.getElementById('btnSavePatternConfirm');
+          if (btnSave) btnSave.innerHTML = '<span>💾 Simpan Pola SAR</span>';
           const card = document.getElementById('patternCreationCard');
           if (card) card.classList.add('hidden');
           const btnNew = document.getElementById('btnStartNewPattern');
@@ -2692,8 +3005,16 @@
       btnSave.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span><span>Menyimpan ke Database...</span>';
     }
 
+    const isEditing = !!editingPatternId;
+    const finalId = editingPatternId || `pattern-${Date.now()}`;
+
+    const targetOpId = (filterMode === 'operasi' && currentOperasiId)
+      ? currentOperasiId
+      : (editingPatternId ? (rawAllPatterns.find(p => String(p.id) === String(editingPatternId))?.id_operasi || null) : null);
+
     const payload = {
-      id: `pattern-${Date.now()}`,
+      id: finalId,
+      id_operasi: targetOpId,
       name: patName,
       polygonId: targetPolyId,
       polygonName: polyName,
@@ -2707,30 +3028,30 @@
     };
 
     try {
-      const resp = await fetch(`${BASE_URL}/api/gis/search-patterns`, {
+      const resp = await gisFetch(`${BASE_URL}/api/gis/search-patterns`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       const resJson = await resp.json().catch(() => ({}));
       if (resJson && resJson.id) {
         payload.id = resJson.id;
       }
-      if (!savedPatterns.some(p => p.id === payload.id)) {
-        savedPatterns.unshift(payload);
-      }
+      updateRawPattern(payload, false);
       renderSavedPatterns();
 
       if (btnSave) {
-        btnSave.innerHTML = '<span>✓ Berhasil Disimpan</span>';
+        btnSave.innerHTML = isEditing ? '<span>✓ Berhasil Diperbarui</span>' : '<span>✓ Berhasil Disimpan</span>';
       }
 
       setTimeout(() => {
         clearCurrentPatternVisual();
+        editingPatternId = null;
         const card = document.getElementById('patternCreationCard');
         if (card) card.classList.add('hidden');
         const btnNew = document.getElementById('btnStartNewPattern');
         if (btnNew) btnNew.classList.remove('hidden');
+        const formTitle = document.getElementById('patternFormHeaderTitle');
+        if (formTitle) formTitle.textContent = '📐 Parameter Pola Lintasan IAMSAR';
         if (btnSave) {
           btnSave.disabled = false;
           btnSave.innerHTML = '<span>💾 Simpan Pola SAR</span>';
@@ -2738,17 +3059,23 @@
       }, 600);
     } catch (err) {
       console.error('Error saving search pattern:', err);
-      if (!savedPatterns.some(p => p.id === payload.id)) {
+      const existingIdx = savedPatterns.findIndex(p => String(p.id) === String(payload.id));
+      if (existingIdx >= 0) {
+        savedPatterns[existingIdx] = payload;
+      } else {
         savedPatterns.unshift(payload);
       }
       renderSavedPatterns();
 
       setTimeout(() => {
         clearCurrentPatternVisual();
+        editingPatternId = null;
         const card = document.getElementById('patternCreationCard');
         if (card) card.classList.add('hidden');
         const btnNew = document.getElementById('btnStartNewPattern');
         if (btnNew) btnNew.classList.remove('hidden');
+        const formTitle = document.getElementById('patternFormHeaderTitle');
+        if (formTitle) formTitle.textContent = '📐 Parameter Pola Lintasan IAMSAR';
         if (btnSave) {
           btnSave.disabled = false;
           btnSave.innerHTML = '<span>💾 Simpan Pola SAR</span>';
@@ -2797,17 +3124,23 @@
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
             <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusPattern('${safeId}')">
-              <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</span>
+                ${getOperasiBadgeHtml(pat.id_operasi)}
+              </div>
               <div class="text-[10px] font-mono text-sky-600 dark:text-sky-400 mt-0.5">
                 ${pat.totalDistanceNm ? `${pat.totalDistanceNm.toFixed(1)} NM` : ''} • ${pat.waypoints ? pat.waypoints.length : 0} Waypoints
               </div>
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
-              <button type="button" onclick="window.SAR_GIS.togglePatternVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded">
+              <button type="button" onclick="window.SAR_GIS.togglePatternVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded" title="${isHidden ? 'Tampilkan' : 'Sembunyikan'}">
                 ${isHidden ? '👁️‍🗨️' : '👁️'}
               </button>
-              <button type="button" onclick="window.SAR_GIS.deletePattern('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded">
+              <button type="button" onclick="window.SAR_GIS.editPattern('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded cursor-pointer transition" title="Edit Pola Ini">
+                ✏️
+              </button>
+              <button type="button" onclick="window.SAR_GIS.deletePattern('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded cursor-pointer transition" title="Hapus">
                 🗑️
               </button>
             </div>
@@ -2816,6 +3149,89 @@
       `;
       })
       .join('');
+  }
+
+  function editPattern(id) {
+    const pat = savedPatterns.find((p) => String(p.id) === String(id));
+    if (!pat) return;
+
+    editingPatternId = pat.id;
+    switchActiveTab('tab-pattern');
+
+    // Ensure sidebar is visible
+    const sidebar = document.getElementById('gisSidebarPanel');
+    const floatingBtn = document.getElementById('btnFloatingOpenSidebar');
+    const iconClose = document.getElementById('iconSidebarClose');
+    const iconOpen = document.getElementById('iconSidebarOpen');
+    const label = document.getElementById('labelSidebarToggle');
+    if (sidebar && sidebar.classList.contains('-ml-[390px]')) {
+      isSidebarVisible = true;
+      sidebar.classList.remove('-ml-[390px]');
+      if (floatingBtn) floatingBtn.classList.add('hidden');
+      if (iconClose) iconClose.classList.remove('hidden');
+      if (iconOpen) iconOpen.classList.add('hidden');
+      if (label) label.textContent = 'Sembunyikan Tools';
+      setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+    }
+
+    const card = document.getElementById('patternCreationCard');
+    if (card) card.classList.remove('hidden');
+    const btnNew = document.getElementById('btnStartNewPattern');
+    if (btnNew) btnNew.classList.add('hidden');
+
+    const nameInput = document.getElementById('patternFormName');
+    if (nameInput) nameInput.value = pat.name || '';
+
+    const polySel = document.getElementById('patternTargetPolygon');
+    if (polySel && pat.polygonId) {
+      polySel.value = pat.polygonId;
+    }
+
+    activePatternType = pat.patternType || 'parallel_track';
+    document.querySelectorAll('.pat-type-btn').forEach((b) => {
+      const ptype = b.getAttribute('data-ptype');
+      if (ptype === activePatternType) {
+        b.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-left transition font-bold shadow-xs';
+      } else {
+        b.className = 'pat-type-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-left hover:border-orange-500 transition';
+      }
+    });
+
+    const spacingInput = document.getElementById('patternTrackSpacing');
+    const unitSel = document.getElementById('patternSpacingUnit');
+    if (unitSel) unitSel.value = 'NM';
+    patternSpacingUnit = 'NM';
+    if (spacingInput) spacingInput.value = pat.trackSpacingNm ? parseFloat(pat.trackSpacingNm).toFixed(2) : '1.0';
+
+    const legsInput = document.getElementById('patternLegsCount');
+    if (legsInput) legsInput.value = pat.legsCount || 6;
+
+    const formTitle = document.getElementById('patternFormHeaderTitle');
+    if (formTitle) formTitle.textContent = '✏️ Edit Parameter Pola Lintasan SAR';
+    const btnSave = document.getElementById('btnSavePatternConfirm');
+    if (btnSave) btnSave.innerHTML = '<span>💾 Perbarui Pola SAR</span>';
+
+    if (Array.isArray(pat.waypoints) && pat.waypoints.length >= 2) {
+      activeGeneratedWaypoints = pat.waypoints.map(w => ({ lat: parseFloat(w.lat), lng: parseFloat(w.lng), label: w.label || '' }));
+      activeGeneratedDistanceNm = parseFloat(pat.totalDistanceNm) || 0;
+      renderActivePatternOnMap();
+
+      const elDist = document.getElementById('resPatternDistNm');
+      if (elDist) elDist.textContent = `${activeGeneratedDistanceNm.toFixed(2)} NM (${(activeGeneratedDistanceNm * 1.852).toFixed(2)} km)`;
+      const elTypeInfo = document.getElementById('resPatternTypeInfo');
+      if (elTypeInfo) elTypeInfo.textContent = `${getPatternDisplayName(activePatternType)} (${pat.legsCount || 6} Sapuan)`;
+      const elWp = document.getElementById('resPatternWpCount');
+      if (elWp) elWp.textContent = `${activeGeneratedWaypoints.length} WP`;
+      const resCard = document.getElementById('patternResultsCard');
+      if (resCard) resCard.classList.remove('hidden');
+
+      if (map) {
+        const bounds = L.latLngBounds(activeGeneratedWaypoints.map(p => [p.lat, p.lng]));
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
+      }
+    } else {
+      generateSearchPatternRoute();
+    }
   }
 
   // ==========================================
@@ -3251,8 +3667,13 @@
     const metrics = recalcRouteMetrics(measurePoints);
     const strokeColor = '#10b981';
 
+    const targetOpId = (filterMode === 'operasi' && currentOperasiId)
+      ? currentOperasiId
+      : (currentActiveRouteId ? (rawAllRoutes.find(r => String(r.id) === String(currentActiveRouteId))?.id_operasi || null) : null);
+
     const payload = {
       id: currentActiveRouteId,
+      id_operasi: targetOpId,
       name: routeName,
       points: measurePoints,
       vesselSpeedKnots: vesselSpeedKnots,
@@ -3282,9 +3703,8 @@
     }
 
     try {
-      const resp = await fetch(`${BASE_URL}/api/gis/routes`, {
+      const resp = await gisFetch(`${BASE_URL}/api/gis/routes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       const resJson = await resp.json().catch(() => ({}));
@@ -3293,13 +3713,7 @@
         payload.id = resJson.id;
       }
 
-      // Update in-memory saved routes list
-      const existingIdx = savedRoutes.findIndex(r => String(r.id) === String(payload.id));
-      if (existingIdx >= 0) {
-        savedRoutes[existingIdx] = payload;
-      } else {
-        savedRoutes.unshift(payload);
-      }
+      updateRawRoute(payload, false);
       renderSavedRoutes();
 
       const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -3489,7 +3903,10 @@
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
             <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusRoute('${safeId}')">
-              <div class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</span>
+                ${getOperasiBadgeHtml(rt.id_operasi)}
+              </div>
               <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
                 ${distNm.toFixed(2)} NM (${(distNm * 1.852).toFixed(2)} km) • @ ${escapeHtml(speedDisplay)}
               </div>
@@ -3522,32 +3939,38 @@
   // ==========================================
 
   function generateKmlDocument() {
-    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>Plotting Operasi SAR Kendari</name>\n`;
+    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>${escapeXml(currentOperasi ? currentOperasi.nama_operasi : 'Plotting Operasi SAR Kendari')}</name>\n`;
 
     // Folder 1: Points
     kml += `    <Folder>\n      <name>Titik Operasi SAR</name>\n`;
     savedPoints.forEach((p) => {
-      kml += `      <Placemark>\n        <name>${p.label || 'Titik'}</name>\n        <description>${p.description || ''} [${p.category || 'SAR'}]</description>\n        <Point><coordinates>${p.lng},${p.lat},0</coordinates></Point>\n      </Placemark>\n`;
+      kml += `      <Placemark>\n        <name>${escapeXml(p.label || 'Titik')}</name>\n        <description>${escapeXml(p.description || '')} [${escapeXml(p.category || 'SAR')}]</description>\n        <Point><coordinates>${p.lng},${p.lat},0</coordinates></Point>\n      </Placemark>\n`;
     });
     kml += `    </Folder>\n`;
 
     // Folder 2: Polygons
     kml += `    <Folder>\n      <name>Area Sektor Poligon</name>\n`;
     savedPolygons.forEach((poly) => {
-      const coordsStr = poly.points.map((pt) => `${pt.lng},${pt.lat},0`).join(' ');
-      kml += `      <Placemark>\n        <name>${poly.name || 'Sektor'}</name>\n        <Polygon><outerBoundaryIs><LinearRing><coordinates>${coordsStr} ${poly.points[0].lng},${poly.points[0].lat},0</coordinates></LinearRing></outerBoundaryIs></Polygon>\n      </Placemark>\n`;
+      if (poly.points && poly.points.length >= 3) {
+        const coordsStr = poly.points.map((pt) => `${pt.lng},${pt.lat},0`).join(' ');
+        kml += `      <Placemark>\n        <name>${escapeXml(poly.name || 'Sektor')}</name>\n        <Polygon><outerBoundaryIs><LinearRing><coordinates>${coordsStr} ${poly.points[0].lng},${poly.points[0].lat},0</coordinates></LinearRing></outerBoundaryIs></Polygon>\n      </Placemark>\n`;
+      }
     });
     kml += `    </Folder>\n`;
 
     // Folder 3: Patterns & Routes
     kml += `    <Folder>\n      <name>Rute dan Lintasan SAR</name>\n`;
     savedPatterns.forEach((pat) => {
-      const coordsStr = pat.waypoints.map((pt) => `${pt.lng},${pt.lat},0`).join(' ');
-      kml += `      <Placemark>\n        <name>${pat.name || 'Pola Lintasan'}</name>\n        <LineString><coordinates>${coordsStr}</coordinates></LineString>\n      </Placemark>\n`;
+      if (pat.waypoints && pat.waypoints.length >= 2) {
+        const coordsStr = pat.waypoints.map((pt) => `${pt.lng},${pt.lat},0`).join(' ');
+        kml += `      <Placemark>\n        <name>${escapeXml(pat.name || 'Pola Lintasan')}</name>\n        <LineString><coordinates>${coordsStr}</coordinates></LineString>\n      </Placemark>\n`;
+      }
     });
     savedRoutes.forEach((rt) => {
-      const coordsStr = rt.points.map((pt) => `${pt.lng},${pt.lat},0`).join(' ');
-      kml += `      <Placemark>\n        <name>${rt.name || 'Rute Jarak'}</name>\n        <LineString><coordinates>${coordsStr}</coordinates></LineString>\n      </Placemark>\n`;
+      if (rt.points && rt.points.length >= 2) {
+        const coordsStr = rt.points.map((pt) => `${pt.lng},${pt.lat},0`).join(' ');
+        kml += `      <Placemark>\n        <name>${escapeXml(rt.name || 'Rute Jarak')}</name>\n        <LineString><coordinates>${coordsStr}</coordinates></LineString>\n      </Placemark>\n`;
+      }
     });
     kml += `    </Folder>\n  </Document>\n</kml>`;
 
@@ -3588,19 +4011,60 @@
     savedPoints.forEach((p) => {
       features.push({
         type: 'Feature',
-        properties: { name: p.label || '', category: p.category || 'Tanpa Kategori', type: p.pointType },
+        properties: { name: p.label || '', category: p.category || 'Tanpa Kategori', type: p.pointType, id_operasi: p.id_operasi || null },
         geometry: { type: 'Point', coordinates: [p.lng, p.lat] }
       });
     });
 
     savedPolygons.forEach((poly) => {
-      const ring = poly.points.map((pt) => [pt.lng, pt.lat]);
-      ring.push([poly.points[0].lng, poly.points[0].lat]);
-      features.push({
-        type: 'Feature',
-        properties: { name: poly.name },
-        geometry: { type: 'Polygon', coordinates: [ring] }
-      });
+      if (poly.points && poly.points.length >= 3) {
+        const ring = poly.points.map((pt) => [pt.lng, pt.lat]);
+        ring.push([poly.points[0].lng, poly.points[0].lat]);
+        features.push({
+          type: 'Feature',
+          properties: { name: poly.name, id_operasi: poly.id_operasi || null },
+          geometry: { type: 'Polygon', coordinates: [ring] }
+        });
+      }
+    });
+
+    savedPatterns.forEach((pat) => {
+      if (pat.waypoints && pat.waypoints.length >= 2) {
+        features.push({
+          type: 'Feature',
+          properties: {
+            name: pat.name || 'Pola SAR',
+            type: pat.patternType,
+            trackSpacingNm: pat.trackSpacingNm,
+            totalDistanceNm: pat.totalDistanceNm,
+            legsCount: pat.legsCount,
+            id_operasi: pat.id_operasi || null
+          },
+          geometry: {
+            type: 'LineString',
+            coordinates: pat.waypoints.map((wp) => [wp.lng, wp.lat])
+          }
+        });
+      }
+    });
+
+    savedRoutes.forEach((rt) => {
+      if (rt.points && rt.points.length >= 2) {
+        features.push({
+          type: 'Feature',
+          properties: {
+            name: rt.name || 'Rute Jarak & Navigasi',
+            vesselSpeedKnots: rt.vesselSpeedKnots,
+            distanceNm: rt.distanceNm,
+            etaText: rt.etaText,
+            id_operasi: rt.id_operasi || null
+          },
+          geometry: {
+            type: 'LineString',
+            coordinates: rt.points.map((pt) => [pt.lng, pt.lat])
+          }
+        });
+      }
     });
 
     const geoJson = { type: 'FeatureCollection', features };
@@ -3623,6 +4087,41 @@
     const btnCancel = document.getElementById('btnCancelPrintModal');
     const btnPrint = document.getElementById('btnExecutePrintIframe');
     const modal = document.getElementById('printMapModal');
+
+    // Realtime metadata input synchronization to printable sheet preview
+    const inputDocNum = document.getElementById('printDocNumber');
+    const inputTitle = document.getElementById('printOpsTitle');
+    const inputSmc = document.getElementById('printSmcName');
+    const inputScale = document.getElementById('printScale');
+
+    const prevDocNum = document.getElementById('printDocNumberPreview');
+    const prevTitle = document.getElementById('printPreviewTitle');
+    const prevSmc = document.getElementById('printPreviewSmc');
+    const prevScale = document.getElementById('printPreviewScale');
+    const sigSmc = document.getElementById('printSignatureSmc');
+
+    if (inputDocNum && prevDocNum) {
+      inputDocNum.addEventListener('input', (e) => {
+        prevDocNum.textContent = e.target.value.trim() || '-';
+      });
+    }
+    if (inputTitle && prevTitle) {
+      inputTitle.addEventListener('input', (e) => {
+        prevTitle.textContent = e.target.value.trim() || '-';
+      });
+    }
+    if (inputSmc) {
+      inputSmc.addEventListener('input', (e) => {
+        const val = e.target.value.trim() || '-';
+        if (prevSmc) prevSmc.textContent = val;
+        if (sigSmc) sigSmc.textContent = val;
+      });
+    }
+    if (inputScale && prevScale) {
+      inputScale.addEventListener('input', (e) => {
+        prevScale.textContent = e.target.value.trim() || '-';
+      });
+    }
 
     if (btnOpen) {
       btnOpen.addEventListener('click', openPrintMapModal);
@@ -3649,15 +4148,35 @@
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
-    // Populate Print Tables
+    // 1. Sync header metadata inputs to preview
+    const inputDocNum = document.getElementById('printDocNumber');
+    const inputTitle = document.getElementById('printOpsTitle');
+    const inputSmc = document.getElementById('printSmcName');
+    const inputScale = document.getElementById('printScale');
+
+    const prevDocNum = document.getElementById('printDocNumberPreview');
+    const prevTitle = document.getElementById('printPreviewTitle');
+    const prevSmc = document.getElementById('printPreviewSmc');
+    const prevScale = document.getElementById('printPreviewScale');
+    const sigSmc = document.getElementById('printSignatureSmc');
+
+    if (inputDocNum && prevDocNum) prevDocNum.textContent = inputDocNum.value || '-';
+    if (inputTitle && prevTitle) prevTitle.textContent = inputTitle.value || '-';
+    if (inputSmc) {
+      if (prevSmc) prevSmc.textContent = inputSmc.value || '-';
+      if (sigSmc) sigSmc.textContent = inputSmc.value || '-';
+    }
+    if (inputScale && prevScale) prevScale.textContent = inputScale.value || '-';
+
+    // 2. Populate Points Table
     const tbodyPts = document.getElementById('printTbodyPoints');
     if (tbodyPts) {
       tbodyPts.innerHTML = savedPoints
         .map(
           (p) => `
         <tr>
-          <td class="py-1 font-bold text-slate-800">${p.label || '(Tanpa Nama)'}</td>
-          <td class="py-1 text-slate-600">${p.category || 'Tanpa Kategori'}</td>
+          <td class="py-1 font-bold text-slate-800">${escapeHtml(p.label || '(Tanpa Nama)')}</td>
+          <td class="py-1 text-slate-600">${escapeHtml(p.category || 'Tanpa Kategori')}</td>
           <td class="py-1 text-slate-700">${decimalToDms(p.lat, p.lng)}</td>
         </tr>
       `
@@ -3665,6 +4184,7 @@
         .join('');
     }
 
+    // 3. Populate Polygons Table
     const tbodyPolys = document.getElementById('printTbodyPolygons');
     if (tbodyPolys) {
       tbodyPolys.innerHTML = savedPolygons
@@ -3672,7 +4192,7 @@
           const stats = calculatePolygonSphericalArea(poly.points);
           return `
           <tr>
-            <td class="py-1 font-bold text-slate-800">${poly.name}</td>
+            <td class="py-1 font-bold text-slate-800">${escapeHtml(poly.name)}</td>
             <td class="py-1 text-slate-700">${stats.sqNm} NM²</td>
             <td class="py-1 text-slate-700">${stats.perimeterNm} NM</td>
           </tr>
@@ -3681,7 +4201,77 @@
         .join('');
     }
 
-    // Render Mini-Map Snapshot Target inside modal
+    // 4. Populate Routes & Measurements Table
+    const tbodyRoutes = document.getElementById('printTbodyRoutes');
+    if (tbodyRoutes) {
+      const allPrintRoutes = [...savedRoutes];
+      if (measurePoints && measurePoints.length >= 2) {
+        const mMetrics = recalcRouteMetrics(measurePoints);
+        allPrintRoutes.unshift({
+          name: document.getElementById('measureRouteNameInput')?.value || 'Jarak Lurus Aktif (Pengukuran)',
+          distanceNm: mMetrics.totalNm,
+          bearing: mMetrics.lastBearing,
+          heading: mMetrics.lastHeading,
+          vesselSpeedKnots: vesselSpeedKnots,
+          etaText: formatDurationIndonesian(mMetrics.etaMins)
+        });
+      }
+
+      if (allPrintRoutes.length === 0) {
+        tbodyRoutes.innerHTML = `<tr><td colspan="4" class="py-1 text-center text-slate-400 italic">Tidak ada rute / jarak aktif.</td></tr>`;
+      } else {
+        tbodyRoutes.innerHTML = allPrintRoutes
+          .map((rt) => {
+            const dist = typeof rt.distanceNm === 'number' ? rt.distanceNm.toFixed(2) : (parseFloat(rt.distanceNm) || 0).toFixed(2);
+            const brg = rt.bearing !== undefined ? `${rt.bearing}° (${rt.heading || 'Nav'})` : '-';
+            const spd = rt.vesselSpeedKnots ? `${rt.vesselSpeedKnots} Kts` : '-';
+            return `
+              <tr>
+                <td class="py-1 font-bold text-slate-800">${escapeHtml(rt.name || 'Rute Navigasi')}</td>
+                <td class="py-1 text-slate-700">${dist} NM</td>
+                <td class="py-1 text-slate-700">${brg} / ${spd}</td>
+                <td class="py-1 text-slate-700 font-bold text-emerald-700">${rt.etaText || '-'}</td>
+              </tr>
+            `;
+          })
+          .join('');
+      }
+    }
+
+    // 5. Populate Search Patterns Table
+    const tbodyPatterns = document.getElementById('printTbodyPatterns');
+    if (tbodyPatterns) {
+      const allPrintPatterns = [...savedPatterns];
+      if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2 && !savedPatterns.some(p => p.id === editingPatternId)) {
+        allPrintPatterns.unshift({
+          name: document.getElementById('patternFormName')?.value || 'Pola SAR Aktif (Rancangan)',
+          patternType: activePatternType,
+          trackSpacingNm: patternSpacingUnit === 'KM' ? ((parseFloat(document.getElementById('patternTrackSpacing')?.value) || 1) / 1.852) : (parseFloat(document.getElementById('patternTrackSpacing')?.value) || 1),
+          totalDistanceNm: activeGeneratedDistanceNm
+        });
+      }
+
+      if (allPrintPatterns.length === 0) {
+        tbodyPatterns.innerHTML = `<tr><td colspan="4" class="py-1 text-center text-slate-400 italic">Tidak ada pola lintasan SAR tersimpan.</td></tr>`;
+      } else {
+        tbodyPatterns.innerHTML = allPrintPatterns
+          .map((pat) => {
+            const dist = typeof pat.totalDistanceNm === 'number' ? pat.totalDistanceNm.toFixed(2) : (parseFloat(pat.totalDistanceNm) || 0).toFixed(2);
+            const spacing = typeof pat.trackSpacingNm === 'number' ? pat.trackSpacingNm.toFixed(2) : (parseFloat(pat.trackSpacingNm) || 0).toFixed(2);
+            return `
+              <tr>
+                <td class="py-1 font-bold text-slate-800">${escapeHtml(pat.name || 'Pola SAR')}</td>
+                <td class="py-1 text-slate-700">${getPatternDisplayName(pat.patternType)}</td>
+                <td class="py-1 text-slate-700">${spacing} NM</td>
+                <td class="py-1 text-slate-700 font-bold text-sky-700">${dist} NM</td>
+              </tr>
+            `;
+          })
+          .join('');
+      }
+    }
+
+    // 6. Render Mini-Map Snapshot Target inside modal
     setTimeout(() => {
       const container = document.getElementById('printMapSnapshotTarget');
       if (!container) return;
@@ -3698,24 +4288,58 @@
         attributionControl: false
       });
 
-      L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19 }
-      ).addTo(printPreviewMap);
+      // Synchronize tile layer with active basemap
+      if (activeBasemap === 'hybrid' || activeBasemap === 'google_hybrid') {
+        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+          maxNativeZoom: 20,
+          maxZoom: 22,
+          subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        }).addTo(printPreviewMap);
+      } else if (activeBasemap === 'satellite') {
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          maxNativeZoom: 18,
+          maxZoom: 22
+        }).addTo(printPreviewMap);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
+          subdomains: 'abcd',
+          maxNativeZoom: 19,
+          maxZoom: 22
+        }).addTo(printPreviewMap);
+      } else if (activeBasemap === 'roadmap') {
+        L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+          maxNativeZoom: 20,
+          maxZoom: 22,
+          subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        }).addTo(printPreviewMap);
+      } else if (activeBasemap === 'terrain') {
+        L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+          maxNativeZoom: 17,
+          maxZoom: 22
+        }).addTo(printPreviewMap);
+      } else {
+        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+          maxNativeZoom: 20,
+          maxZoom: 22,
+          subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        }).addTo(printPreviewMap);
+      }
 
-      // Clone polygons and points onto print map
+      // Clone Polygons
       savedPolygons.forEach((poly) => {
+        if (hiddenPolygonIds.has(poly.id)) return;
         if (poly.points && poly.points.length >= 3) {
           L.polygon(poly.points.map((p) => [p.lat, p.lng]), {
             color: poly.strokeColor || '#ea580c',
             weight: 2,
             fillColor: poly.fillColor || '#ea580c',
-            fillOpacity: 0.25
+            fillOpacity: poly.fillOpacity || 0.25
           }).addTo(printPreviewMap);
         }
       });
 
+      // Clone Points
       savedPoints.forEach((pt) => {
+        if (hiddenPointIds.has(pt.id)) return;
         L.marker([pt.lat, pt.lng], {
           icon: L.divIcon({
             html: createMarkerHtml(pt, false),
@@ -3726,6 +4350,97 @@
           })
         }).addTo(printPreviewMap);
       });
+
+      // Clone Saved Search Patterns
+      savedPatterns.forEach((pat) => {
+        if (hiddenPatternIds.has(pat.id)) return;
+        if (!pat.waypoints || pat.waypoints.length < 2) return;
+        L.polyline(pat.waypoints.map((p) => [p.lat, p.lng]), {
+          color: pat.color || '#0284c7',
+          weight: 3,
+          dashArray: '6, 6'
+        }).addTo(printPreviewMap);
+      });
+
+      // Clone Active Generated Pattern (if currently on map)
+      if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
+        L.polyline(activeGeneratedWaypoints.map((p) => [p.lat, p.lng]), {
+          color: '#0284c7',
+          weight: 3,
+          dashArray: '6, 6'
+        }).addTo(printPreviewMap);
+      }
+
+      // Clone Saved Routes
+      savedRoutes.forEach((route) => {
+        if (hiddenRouteIds.has(route.id)) return;
+        if (!route.points || route.points.length < 2) return;
+        L.polyline(route.points.map((p) => [p.lat, p.lng]), {
+          color: route.strokeColor || '#10b981',
+          weight: 3.5,
+          opacity: 0.9
+        }).addTo(printPreviewMap);
+
+        route.points.forEach((p, idx) => {
+          const isStart = idx === 0;
+          const isEnd = idx === route.points.length - 1;
+          if (isStart || isEnd) {
+            const bgColor = isStart ? '#16a34a' : '#dc2626';
+            const text = isStart ? 'A' : (route.points.length === 2 ? 'B' : `${idx + 1}`);
+            L.marker([p.lat, p.lng], {
+              icon: L.divIcon({
+                className: 'custom-measure-waypoint',
+                html: `<div style="width:20px;height:20px;border-radius:50%;background:${bgColor};border:2px solid #fff;color:#fff;font-weight:900;font-size:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.5);">${text}</div>`,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+              })
+            }).addTo(printPreviewMap);
+          }
+        });
+      });
+
+      // Clone Active Straight-line / Measurement Ruler
+      if (measurePoints && measurePoints.length >= 2) {
+        L.polyline(measurePoints.map((p) => [p.lat, p.lng]), {
+          color: '#10b981',
+          weight: 3.5
+        }).addTo(printPreviewMap);
+
+        measurePoints.forEach((p, idx) => {
+          const isStart = idx === 0;
+          const isEnd = idx === measurePoints.length - 1;
+          const bgColor = isStart ? '#16a34a' : (isEnd ? '#dc2626' : '#0ea5e9');
+          const text = isStart ? 'A' : (measurePoints.length === 2 ? 'B' : `${idx + 1}`);
+          L.marker([p.lat, p.lng], {
+            icon: L.divIcon({
+              className: 'custom-measure-waypoint',
+              html: `<div style="width:20px;height:20px;border-radius:50%;background:${bgColor};border:2px solid #fff;color:#fff;font-weight:900;font-size:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.5);">${text}</div>`,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+            })
+          }).addTo(printPreviewMap);
+        });
+
+        // Add distance tooltip at midpoint
+        const metrics = recalcRouteMetrics(measurePoints);
+        if (metrics && metrics.totalNm > 0) {
+          const midPoint = [
+            (measurePoints[0].lat + measurePoints[measurePoints.length - 1].lat) / 2,
+            (measurePoints[0].lng + measurePoints[measurePoints.length - 1].lng) / 2
+          ];
+          L.tooltip({ permanent: true, direction: 'center', className: 'distance-label-tooltip' })
+            .setContent(`📏 ${metrics.totalNm.toFixed(2)} NM (${metrics.lastBearing}° ${metrics.lastHeading})`)
+            .setLatLng(midPoint)
+            .addTo(printPreviewMap);
+        }
+      }
+
+      // Ensure leaflet container dimensions adapt correctly
+      setTimeout(() => {
+        if (printPreviewMap) {
+          printPreviewMap.invalidateSize();
+        }
+      }, 250);
     }, 200);
   }
 
@@ -3756,11 +4471,64 @@
           <title>LEMBAR OPERASIONAL SAR KENDARI</title>
           <link rel="stylesheet" href="/assets/css/leaflet.min.css"/>
           <style>
-            @page { size: A4 portrait; margin: 10mm; }
-            body { font-family: system-ui, -apple-system, sans-serif; color: #000; background: #fff; margin: 0; padding: 0; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #cbd5e1; padding: 4px 6px; font-size: 10px; }
-            th { background: #f1f5f9; text-align: left; }
+            @page { size: A4 portrait; margin: 8mm; }
+            body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #0f172a; background: #fff; margin: 0; padding: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+            th, td { border: 1px solid #cbd5e1; padding: 4px 6px; font-size: 9.5px; }
+            th { background: #f1f5f9; text-align: left; font-weight: bold; color: #334155; }
+            .grid { display: grid; }
+            .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .gap-2 { gap: 8px; }
+            .gap-3 { gap: 12px; }
+            .border { border: 1px solid #cbd5e1; }
+            .border-b { border-bottom: 1px solid #cbd5e1; }
+            .border-b-2 { border-bottom: 2px solid #0f172a; }
+            .border-2 { border: 2px solid #0f172a; }
+            .border-slate-800 { border-color: #1e293b; }
+            .rounded { border-radius: 4px; }
+            .rounded-lg { border-radius: 8px; }
+            .p-2 { padding: 8px; }
+            .p-6 { padding: 18px; }
+            .pb-0\\.5 { padding-bottom: 2px; }
+            .pb-3 { padding-bottom: 12px; }
+            .pt-6 { padding-top: 18px; }
+            .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+            .font-bold { font-weight: bold; }
+            .font-black { font-weight: 900; }
+            .text-center { text-align: center; }
+            .text-right { text-align: right; }
+            .flex { display: flex; }
+            .items-center { align-items: center; }
+            .justify-between { justify-content: space-between; }
+            .h-14 { height: 56px; }
+            .h-16 { height: 60px; }
+            .w-auto { width: auto; }
+            .w-full { width: 100%; }
+            .uppercase { text-transform: uppercase; }
+            .underline { text-decoration: underline; }
+            .text-orange-600 { color: #ea580c; }
+            .text-emerald-700 { color: #047857; }
+            .text-sky-700 { color: #0369a1; }
+            .bg-slate-50 { background-color: #f8fafc; }
+            .bg-slate-900 { background-color: #0f172a; }
+            .text-white { color: #ffffff; }
+            .text-slate-400 { color: #94a3b8; }
+            .text-slate-500 { color: #64748b; }
+            .text-slate-600 { color: #475569; }
+            .text-slate-700 { color: #334155; }
+            .text-slate-800 { color: #1e293b; }
+            .text-slate-900 { color: #0f172a; }
+            .text-slate-950 { color: #020617; }
+            .text-xs { font-size: 11px; }
+            .text-sm { font-size: 13px; }
+            .text-\\[9px\\] { font-size: 9px; }
+            .text-\\[10px\\] { font-size: 10px; }
+            .text-\\[11px\\] { font-size: 11px; }
+            .space-y-4 > * + * { margin-top: 14px; }
+            .distance-label-tooltip { background: rgba(255, 255, 255, 0.95); border: 1.5px solid #10b981; color: #0f172a; font-weight: 800; font-size: 9px; padding: 2px 6px; border-radius: 4px; }
+            .sar-print-pin svg, .custom-measure-waypoint div { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            * { print-color-adjust: exact; -webkit-print-color-adjust: exact; box-sizing: border-box; }
           </style>
         </head>
         <body>
@@ -3773,8 +4541,8 @@
     setTimeout(() => {
       frame.contentWindow?.focus();
       frame.contentWindow?.print();
-      setTimeout(() => document.body.removeChild(frame), 1000);
-    }, 500);
+      setTimeout(() => document.body.removeChild(frame), 1500);
+    }, 600);
   }
 
   // ==========================================
@@ -3974,11 +4742,11 @@
       const ok = await confirmAction('Hapus Titik SAR', 'Apakah Anda yakin ingin menghapus titik SAR ini?', 'Ya, Hapus Titik', true);
       if (!ok) return;
       try {
-        await fetch(`${BASE_URL}/api/gis/points/${id}`, { method: 'DELETE' });
-        savedPoints = savedPoints.filter((p) => p.id !== id);
+        await gisFetch(`${BASE_URL}/api/gis/points/${id}`, { method: 'DELETE' });
+        updateRawPoint({ id }, true);
         renderSavedPoints();
       } catch (err) {
-        savedPoints = savedPoints.filter((p) => p.id !== id);
+        updateRawPoint({ id }, true);
         renderSavedPoints();
       }
     },
@@ -4011,11 +4779,11 @@
       const ok = await confirmAction('Hapus Poligon Sektor', 'Apakah Anda yakin ingin menghapus polygon area pencarian ini?', 'Ya, Hapus Poligon', true);
       if (!ok) return;
       try {
-        await fetch(`${BASE_URL}/api/gis/polygons/${id}`, { method: 'DELETE' });
-        savedPolygons = savedPolygons.filter((p) => p.id !== id);
+        await gisFetch(`${BASE_URL}/api/gis/polygons/${id}`, { method: 'DELETE' });
+        updateRawPolygon({ id }, true);
         renderSavedPolygons();
       } catch (err) {
-        savedPolygons = savedPolygons.filter((p) => p.id !== id);
+        updateRawPolygon({ id }, true);
         renderSavedPolygons();
       }
     },
@@ -4054,6 +4822,10 @@
       }
     },
 
+    editPattern: (id) => {
+      editPattern(id);
+    },
+
     togglePatternVisibility: (id) => {
       if (hiddenPatternIds.has(id)) {
         hiddenPatternIds.delete(id);
@@ -4067,11 +4839,11 @@
       const ok = await confirmAction('Hapus Lintasan SAR', 'Apakah Anda yakin ingin menghapus pola lintasan pencarian IAMSAR ini?', 'Ya, Hapus Pola', true);
       if (!ok) return;
       try {
-        await fetch(`${BASE_URL}/api/gis/search-patterns/${id}`, { method: 'DELETE' });
-        savedPatterns = savedPatterns.filter((p) => p.id !== id);
+        await gisFetch(`${BASE_URL}/api/gis/search-patterns/${id}`, { method: 'DELETE' });
+        updateRawPattern({ id }, true);
         renderSavedPatterns();
       } catch (err) {
-        savedPatterns = savedPatterns.filter((p) => p.id !== id);
+        updateRawPattern({ id }, true);
         renderSavedPatterns();
       }
     },
@@ -4101,11 +4873,11 @@
       const ok = await confirmAction('Hapus Rute Jarak', 'Apakah Anda yakin ingin menghapus rute jarak dan kalkulasi waktu tempuh ini?', 'Ya, Hapus Rute', true);
       if (!ok) return;
       try {
-        await fetch(`${BASE_URL}/api/gis/routes/${id}`, { method: 'DELETE' });
-        savedRoutes = savedRoutes.filter((r) => r.id !== id);
+        await gisFetch(`${BASE_URL}/api/gis/routes/${id}`, { method: 'DELETE' });
+        updateRawRoute({ id }, true);
         renderSavedRoutes();
       } catch (err) {
-        savedRoutes = savedRoutes.filter((r) => r.id !== id);
+        updateRawRoute({ id }, true);
         renderSavedRoutes();
       }
     },
@@ -4114,6 +4886,150 @@
     saveRoute: () => performSaveRoute({ isManualClick: true }),
     clearRoute: () => clearMeasureVisual()
   };
+
+  function initOperasiSelector() {
+    const sel = document.getElementById('selectGisOperasi');
+    const checkIncludeBase = document.getElementById('checkIncludeBase');
+    const wrapperIncludeBase = document.getElementById('wrapperIncludeBase');
+    const btnReset = document.getElementById('btnResetGisOperasi');
+
+    function updateSelectorUI() {
+      if (wrapperIncludeBase) {
+        if (filterMode === 'operasi') {
+          wrapperIncludeBase.classList.remove('hidden');
+          wrapperIncludeBase.classList.add('flex');
+        } else {
+          wrapperIncludeBase.classList.remove('flex');
+          wrapperIncludeBase.classList.add('hidden');
+        }
+      }
+      if (checkIncludeBase) {
+        checkIncludeBase.checked = includeBaseInActive;
+      }
+      if (btnReset) {
+        if (filterMode === 'operasi' || filterMode === 'basemap' || filterMode === 'dasar') {
+          btnReset.classList.remove('hidden');
+        } else {
+          btnReset.classList.add('hidden');
+        }
+      }
+      if (sel) {
+        if (filterMode === 'basemap' || filterMode === 'dasar') {
+          sel.value = 'basemap';
+        } else if (filterMode === 'all') {
+          sel.value = 'all';
+        } else if (filterMode === 'operasi' && currentOperasiId) {
+          sel.value = String(currentOperasiId);
+        }
+      }
+    }
+
+    if (sel) {
+      sel.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val === 'basemap' || val === 'dasar') {
+          filterMode = 'basemap';
+          currentOperasiId = null;
+          currentOperasi = null;
+          includeBaseInActive = false;
+        } else if (val === 'all' || !val) {
+          filterMode = 'all';
+          currentOperasiId = null;
+          currentOperasi = null;
+          includeBaseInActive = false;
+        } else {
+          const selectedId = parseInt(val, 10);
+          const foundOps = operasiList.find(op => parseInt(op.id_operasi, 10) === selectedId);
+          // 4. Operasi yang telah ditutup tidak masuk dalam pilihan! (Hanya operasi aktif)
+          if (foundOps && activeOperasiIds.has(selectedId)) {
+            filterMode = 'operasi';
+            currentOperasiId = selectedId;
+            currentOperasi = foundOps;
+          } else {
+            filterMode = 'basemap';
+            currentOperasiId = null;
+            currentOperasi = null;
+            includeBaseInActive = false;
+          }
+        }
+
+        // Sinkronisasi judul lembar operasional pada modal cetak jika tersedia
+        const inputTitle = document.getElementById('printOpsTitle');
+        if (inputTitle) {
+          if (currentOperasi) {
+            inputTitle.value = currentOperasi.nama_operasi.toUpperCase();
+          } else if (filterMode === 'basemap' || filterMode === 'dasar') {
+            inputTitle.value = 'BASE MAP TAKTIS WILAYAH KERJA KPP KENDARI';
+          } else {
+            inputTitle.value = 'PLOTING TAKTIS OPERASI SAR WILAYAH KERJA KPP KENDARI';
+          }
+        }
+
+        updateUrlParams();
+        updateSelectorUI();
+        applyActiveFilter();
+        reRenderAllLayers();
+
+        // Focus map if new operation has LKP coordinates
+        if (currentOperasi && currentOperasi.koordinat && map) {
+          const opCoords = parseCoordinatesString(currentOperasi.koordinat);
+          if (opCoords && opCoords.lat && opCoords.lng) {
+            map.setView([opCoords.lat, opCoords.lng], 11);
+          }
+        }
+      });
+    }
+
+    if (checkIncludeBase) {
+      checkIncludeBase.addEventListener('change', (e) => {
+        includeBaseInActive = !!e.target.checked;
+        updateUrlParams();
+        applyActiveFilter();
+        reRenderAllLayers();
+      });
+    }
+
+    if (btnReset) {
+      btnReset.addEventListener('click', () => {
+        filterMode = 'all';
+        currentOperasiId = null;
+        currentOperasi = null;
+        includeBaseInActive = false;
+        updateUrlParams();
+        updateSelectorUI();
+        applyActiveFilter();
+        reRenderAllLayers();
+      });
+    }
+
+    // Attach click listener for any banner switch button
+    document.addEventListener('click', (e) => {
+      const btnAll = e.target.closest('.btn-switch-mode-all');
+      if (btnAll) {
+        e.preventDefault();
+        filterMode = 'all';
+        currentOperasiId = null;
+        currentOperasi = null;
+        includeBaseInActive = false;
+        updateUrlParams();
+        updateSelectorUI();
+        applyActiveFilter();
+        reRenderAllLayers();
+      }
+    });
+
+    updateSelectorUI();
+
+    // If an operation is selected and has LKP coordinates, auto focus if layer has no items
+    if (currentOperasi && currentOperasi.koordinat && map) {
+      if ((!savedPoints || savedPoints.length === 0) && (!savedPolygons || savedPolygons.length === 0)) {
+        const opCoords = parseCoordinatesString(currentOperasi.koordinat);
+        if (opCoords && opCoords.lat && opCoords.lng) {
+          map.setView([opCoords.lat, opCoords.lng], 11);
+        }
+      }
+    }
+  }
 
   // ==========================================
   // 14. BOOTSTRAP APPLICATION
@@ -4132,6 +5048,7 @@
     initBasemapSwitcher();
     initExportDropdown();
     initFullscreenToggle();
+    initOperasiSelector();
   }
 
   if (document.readyState === 'loading') {

@@ -62,6 +62,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
+    $waktuLap = $_POST['waktu_laporan'] ?? date('Y-m-d H:i:s');
+    $tglLap = date('Y-m-d', strtotime($waktuLap));
+    if (empty($_POST['hari_ke'])) {
+        $_POST['hari_ke'] = TemplateHelper::hitungHariKe($baseDateOps, $tglLap);
+    }
+
     try {
         if ($editMode) {
             LaporanModel::update($idLaporan, $_POST);
@@ -84,22 +91,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $masterTim = MasterModel::getTim();
 $masterAlut = MasterModel::getAlut();
 
-// Default values & data state
+// Default values & data state based on actual calendar date (restarts if reopened)
+$baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
+
 if ($editMode) {
-    $hariKe = $laporan['hari_ke'] ?? 'H.1';
-    $jenisLaporan = $laporan['jenis_laporan'] ?? 'PERKEMBANGAN';
     $waktuLaporan = !empty($laporan['waktu_laporan']) ? date('Y-m-d\TH:i', strtotime($laporan['waktu_laporan'])) : date('Y-m-d\TH:i');
+    $tglLap = date('Y-m-d', strtotime($waktuLaporan));
+    $hariKe = $laporan['hari_ke'] ?: TemplateHelper::hitungHariKe($baseDateOps, $tglLap);
+    $jenisLaporan = $laporan['jenis_laporan'] ?? 'PERKEMBANGAN';
     $waktuDebrief = !empty($laporan['waktu_debrief']) ? date('Y-m-d\TH:i', strtotime($laporan['waktu_debrief'])) : date('Y-m-d\TH:i');
     $cuaca = $laporan['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
     $isiLaporan = $laporan['isi_laporan'] ?? '';
     $initialUnsurData = !empty($laporan['detail_unsur']) ? $laporan['detail_unsur'] : ($operasi['detail_unsur'] ?? []);
     $initialAlutData = !empty($laporan['detail_alut']) ? $laporan['detail_alut'] : ($operasi['detail_alut'] ?? []);
 } else {
-    $existingLapCount = count($operasi['laporan_harian'] ?? []);
-    $targetDayNum = max(1, $existingLapCount + 1);
-    $hariKe = "H.{$targetDayNum}";
-    $jenisLaporan = 'PERKEMBANGAN';
     $waktuLaporan = date('Y-m-d\TH:i');
+    $tglLap = date('Y-m-d', strtotime($waktuLaporan));
+    $hariKe = TemplateHelper::hitungHariKe($baseDateOps, $tglLap);
+    $jenisLaporan = 'PERKEMBANGAN';
     $waktuDebrief = date('Y-m-d\TH:i');
     $cuaca = $operasi['cuaca'] ?: 'Cerah Berawan';
     $isiLaporan = "Pada pelaksanaan operasi SAR hari ini, tim gabungan telah melaksanakan pencarian sesuai rencana operasi (RENOPS). Hingga saat laporan ini disusun, hasil pencarian masih nihil / korban belum ditemukan. Operasi SAR dihentikan sementara dan akan dilanjutkan esok hari.";

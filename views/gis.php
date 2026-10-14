@@ -13,12 +13,73 @@ if (!defined('APP_NAME')) {
     exit('Akses langsung ditolak.');
 }
 
+$selectedOperasiId = null;
+$modeParam = $_GET['mode'] ?? null;
+$includeBase = isset($_GET['include_base']) && $_GET['include_base'] === '1';
+
+// 4. Operasi yang telah ditutup tidak masuk dalam pilihan! (Hanya status OPEN)
+$rawActiveOps = OperasiModel::getListSimple('OPEN');
+$activeOperasiList = [];
+$activeOperasiMap = [];
+$activeOperasiIds = [];
+foreach ($rawActiveOps as $ops) {
+    if (strtoupper($ops['status'] ?? '') === 'OPEN' && empty($ops['waktu_selesai'])) {
+        $opId = (int)$ops['id_operasi'];
+        $activeOperasiList[] = $ops;
+        $activeOperasiMap[$opId] = $ops;
+        $activeOperasiIds[] = $opId;
+    }
+}
+
+if (isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '') {
+    $reqId = (int)$_GET['id_operasi'];
+    if (isset($activeOperasiMap[$reqId])) {
+        $selectedOperasiId = $reqId;
+        $filterMode = 'operasi';
+    } else {
+        $selectedOperasiId = null;
+        $filterMode = 'basemap';
+    }
+} elseif (isset($_GET['id']) && $_GET['id'] !== '') {
+    $reqId = (int)$_GET['id'];
+    if (isset($activeOperasiMap[$reqId])) {
+        $selectedOperasiId = $reqId;
+        $filterMode = 'operasi';
+    } else {
+        $selectedOperasiId = null;
+        $filterMode = 'basemap';
+    }
+} elseif ($modeParam === 'basemap' || $modeParam === 'dasar') {
+    $filterMode = 'basemap';
+} elseif ($modeParam === 'all') {
+    $filterMode = 'all';
+} else {
+    $filterMode = 'all';
+}
+
+$currentOperasi = $selectedOperasiId ? ($activeOperasiMap[$selectedOperasiId] ?? null) : null;
+
 $savedPoints = GisModel::getPoints();
 $savedPolygons = GisModel::getPolygons();
 $savedPatterns = GisModel::getSearchPatterns();
 $savedRoutes = GisModel::getRoutes();
 $sarUnits = MasterModel::getSarUnits();
 $alutList = MasterModel::getAlut();
+
+// Calculate initial counts matching active filter mode
+// 1. Base Map: Only items without id_operasi
+// 2. Semua Komponen: Base map items + items belonging to active (OPEN) operations
+// 3. Operasi Aktif: Only items belonging to that selected active operation (+ base map if includeBase is true)
+if ($filterMode === 'basemap' || $filterMode === 'dasar') {
+    $initialPointsCount = count(array_filter($savedPoints, fn($p) => empty($p['id_operasi'])));
+    $initialPolygonsCount = count(array_filter($savedPolygons, fn($p) => empty($p['id_operasi'])));
+} elseif ($filterMode === 'operasi' && $selectedOperasiId) {
+    $initialPointsCount = count(array_filter($savedPoints, fn($p) => ((int)($p['id_operasi'] ?? 0)) === $selectedOperasiId || ($includeBase && empty($p['id_operasi']))));
+    $initialPolygonsCount = count(array_filter($savedPolygons, fn($p) => ((int)($p['id_operasi'] ?? 0)) === $selectedOperasiId || ($includeBase && empty($p['id_operasi']))));
+} else {
+    $initialPointsCount = count(array_filter($savedPoints, fn($p) => empty($p['id_operasi']) || in_array((int)$p['id_operasi'], $activeOperasiIds, true)));
+    $initialPolygonsCount = count(array_filter($savedPolygons, fn($p) => empty($p['id_operasi']) || in_array((int)$p['id_operasi'], $activeOperasiIds, true)));
+}
 ?>
 
 <!-- JSZip for KMZ export (Local Offline) -->
@@ -143,6 +204,47 @@ $alutList = MasterModel::getAlut();
           </div>
         </div>
       </div>
+
+      <!-- SAR Mission Operasi Selector Dropdown (3 Pilihan Plotting Teroptimasi) -->
+      <div class="hidden md:flex items-center gap-1.5 pl-3 border-l border-slate-200 dark:border-slate-700">
+        <label for="selectGisOperasi" class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1 shrink-0">
+          <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span class="hidden lg:inline">Misi Ops:</span>
+        </label>
+        <select 
+          id="selectGisOperasi" 
+          class="text-xs py-1 px-2 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition max-w-[230px] truncate"
+          title="Pilih mode tampilan komponen plotting taktis"
+        >
+          <option value="basemap" <?= ($filterMode === 'basemap' || $filterMode === 'dasar') ? 'selected' : '' ?>>
+            🗺️ 1. Base Map
+          </option>
+          <option value="all" <?= $filterMode === 'all' ? 'selected' : '' ?>>
+            🌐 2. Semua Komponen
+          </option>
+          <optgroup label="🚨 3. Operasi Aktif (Komponen Khusus ID Operasi)">
+            <?php if (empty($activeOperasiList)): ?>
+              <option value="" disabled>(Tidak ada operasi SAR aktif)</option>
+            <?php else: ?>
+              <?php foreach ($activeOperasiList as $ops): ?>
+                <option value="<?= (int)$ops['id_operasi'] ?>" <?= ($filterMode === 'operasi' && $selectedOperasiId === (int)$ops['id_operasi']) ? 'selected' : '' ?>>
+                  Ops #<?= $ops['id_operasi'] ?> - <?= e(mb_strimwidth($ops['nama_operasi'], 0, 26, '...')) ?>
+                </option>
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </optgroup>
+        </select>
+        
+        <!-- Toggle: Tampilkan Base Map juga pada Operasi Aktif -->
+        <label id="wrapperIncludeBase" class="items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-400 select-none cursor-pointer <?= $filterMode === 'operasi' ? 'flex' : 'hidden' ?>" title="Muat juga komponen Base Map pada peta operasi SAR aktif ini">
+          <input type="checkbox" id="checkIncludeBase" class="rounded border-slate-300 dark:border-slate-600 text-orange-500 focus:ring-orange-500 cursor-pointer" <?= $includeBase ? 'checked' : '' ?>>
+          <span class="text-[10px] font-bold text-orange-600 dark:text-orange-400">+ Base Map</span>
+        </label>
+
+        <button type="button" id="btnResetGisOperasi" class="p-1 text-slate-400 hover:text-red-500 transition <?= ($filterMode === 'operasi' || $filterMode === 'basemap' || $filterMode === 'dasar') ? '' : 'hidden' ?>" title="Reset ke Semua Komponen">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- Center Section: LocationSearchBar (Verified Sultra Presets & Coordinates Parser) -->
@@ -247,16 +349,53 @@ $alutList = MasterModel::getAlut();
     <!-- LEFT TOOLS PLOTTING PANEL (COLLAPSIBLE) -->
     <div id="gisSidebarPanel" class="w-[390px] max-w-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col z-10 transition-all duration-300 shadow-xl relative select-none shrink-0">
       
+      <!-- Dynamic Operasi / Mode Banner -->
+      <div id="gisSidebarOperasiBanner">
+        <?php if ($filterMode === 'basemap' || $filterMode === 'dasar'): ?>
+          <div class="px-3 py-2 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+              <div class="truncate">
+                <span class="font-extrabold text-blue-600 dark:text-blue-400">1. Base Map</span>
+                <span class="text-slate-600 dark:text-slate-400 text-[10px] ml-1">(Komponen tanpa ID Operasi SAR)</span>
+              </div>
+            </div>
+            <button type="button" class="btn-switch-mode-all text-[10px] font-bold text-slate-500 hover:text-orange-500 underline shrink-0 ml-2 cursor-pointer">Semua</button>
+          </div>
+        <?php elseif ($filterMode === 'operasi' && $currentOperasi): ?>
+          <div class="px-3 py-2 bg-orange-500/10 border-b border-orange-500/20 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0"></span>
+              <div class="truncate">
+                <span class="font-extrabold text-orange-600 dark:text-orange-400">3. Ops #<?= $currentOperasi['id_operasi'] ?></span>
+                <span class="text-slate-600 dark:text-slate-300 ml-1"><?= e($currentOperasi['nama_operasi']) ?></span>
+              </div>
+            </div>
+            <button type="button" class="btn-switch-mode-all text-[10px] font-bold text-slate-500 hover:text-red-500 underline shrink-0 ml-2 cursor-pointer" title="Kembali ke semua plotting">Lepas</button>
+          </div>
+        <?php else: ?>
+          <div class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+              <div class="truncate">
+                <span class="font-extrabold text-slate-700 dark:text-slate-200">2. Semua Komponen</span>
+                <span class="text-slate-500 dark:text-slate-400 text-[10px] ml-1">(Base Map & Operasi Aktif)</span>
+              </div>
+            </div>
+          </div>
+        <?php endif; ?>
+      </div>
+
       <!-- 4 Tabs Header -->
       <div class="grid grid-cols-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/70 text-[11px] font-bold text-center">
         <button type="button" data-tab="tab-points" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-orange-500 text-orange-600 dark:text-orange-400 flex flex-col items-center justify-center gap-1 transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-          <span>Titik (<span id="pointsBadgeCount"><?= count($savedPoints) ?></span>)</span>
+          <span>Titik (<span id="pointsBadgeCount"><?= $initialPointsCount ?></span>)</span>
         </button>
 
         <button type="button" data-tab="tab-polygon" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-1 transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="2" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="22"/></svg>
-          <span>Polygon (<span id="polygonsBadgeCount"><?= count($savedPolygons) ?></span>)</span>
+          <span>Polygon (<span id="polygonsBadgeCount"><?= $initialPolygonsCount ?></span>)</span>
         </button>
 
         <button type="button" data-tab="tab-pattern" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-1 transition">
@@ -595,7 +734,7 @@ $alutList = MasterModel::getAlut();
         <div id="patternCreationCard" class="hidden p-3.5 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl space-y-3 animate-in fade-in">
           <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
             <span class="text-xs font-black uppercase text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
-              <span>📐 Parameter Pola Lintasan IAMSAR</span>
+              <span id="patternFormHeaderTitle">📐 Parameter Pola Lintasan IAMSAR</span>
             </span>
             <button type="button" id="btnCancelPatternFormTop" class="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition" title="Tutup Form">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -1008,11 +1147,11 @@ $alutList = MasterModel::getAlut();
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
         <div>
           <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Nomor Dokumen:</label>
-          <input type="text" id="printDocNumber" value="SAR-KDI/<?= date('Y/m') ?>/OPS-<?= rand(100, 999) ?>" class="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs font-mono font-bold">
+          <input type="text" id="printDocNumber" value="<?= e($selectedOperasiId ? 'SAR-KDI/' . date('Y/m') . '/OPS-' . $selectedOperasiId : 'SAR-KDI/' . date('Y/m') . '/OPS-PLT') ?>" class="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs font-mono font-bold">
         </div>
         <div>
           <label class="block text-[10px] font-bold text-slate-500 mb-0.5">Judul Operasi:</label>
-          <input type="text" id="printOpsTitle" value="OPERASI SAR KECELAKAAN KAPAL / KM SUMBER BAHAGIA" class="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs font-bold">
+          <input type="text" id="printOpsTitle" value="<?= e($currentOperasi ? strtoupper($currentOperasi['nama_operasi']) : 'PLOTING TAKTIS OPERASI SAR WILAYAH KERJA KPP KENDARI') ?>" class="w-full px-2 py-1 bg-white border border-slate-300 rounded text-xs font-bold">
         </div>
         <div>
           <label class="block text-[10px] font-bold text-slate-500 mb-0.5">SAR Mission Coordinator (SMC):</label>
@@ -1093,6 +1232,42 @@ $alutList = MasterModel::getAlut();
               </tbody>
             </table>
           </div>
+
+          <!-- Routes & Measurements Table -->
+          <div class="border border-slate-300 rounded p-2">
+            <div class="font-bold text-slate-900 mb-1 border-b border-slate-200 pb-0.5 uppercase">Rute Navigasi & Jarak Lurus Terukur</div>
+            <table class="w-full divide-y divide-slate-200" id="printTableRoutes">
+              <thead>
+                <tr class="text-left font-bold text-slate-600">
+                  <th class="py-1">Rute / Jalur</th>
+                  <th class="py-1">Jarak (NM)</th>
+                  <th class="py-1">Haluan / Speed</th>
+                  <th class="py-1">ETA</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono" id="printTbodyRoutes">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Search Patterns Table -->
+          <div class="border border-slate-300 rounded p-2">
+            <div class="font-bold text-slate-900 mb-1 border-b border-slate-200 pb-0.5 uppercase">Pola Lintasan Pencarian (IAMSAR)</div>
+            <table class="w-full divide-y divide-slate-200" id="printTablePatterns">
+              <thead>
+                <tr class="text-left font-bold text-slate-600">
+                  <th class="py-1">Pola SAR</th>
+                  <th class="py-1">Metode</th>
+                  <th class="py-1">Spacing (S)</th>
+                  <th class="py-1">Total Jarak</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono" id="printTbodyPatterns">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Signatures Section -->
@@ -1135,13 +1310,19 @@ $alutList = MasterModel::getAlut();
 <!-- ========================================== -->
 <script>
 window.SAR_INITIAL_GIS_DATA = {
+  filterMode: <?= json_encode($filterMode) ?>,
+  includeBase: <?= json_encode($includeBase) ?>,
+  currentOperasiId: <?= json_encode($selectedOperasiId) ?>,
+  currentOperasi: <?= json_encode($currentOperasi, JSON_UNESCAPED_UNICODE) ?>,
+  csrfToken: <?= json_encode(csrfToken()) ?>,
   points: <?= json_encode($savedPoints, JSON_UNESCAPED_UNICODE) ?>,
   polygons: <?= json_encode($savedPolygons, JSON_UNESCAPED_UNICODE) ?>,
   patterns: <?= json_encode($savedPatterns, JSON_UNESCAPED_UNICODE) ?>,
   routes: <?= json_encode($savedRoutes, JSON_UNESCAPED_UNICODE) ?>,
   sarUnits: <?= json_encode($sarUnits, JSON_UNESCAPED_UNICODE) ?>,
+  operasiList: <?= json_encode($activeOperasiList, JSON_UNESCAPED_UNICODE) ?>,
   kansarKendari: { lat: -4.037664, lng: 122.486662, label: 'Kantor SAR Kendari' }
 };
 </script>
 
-<script src="<?= BASE_URL ?>/assets/js/gis_master.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= BASE_URL ?>/assets/js/gis_master.js?v=<?= APP_VERSION ?>.<?= file_exists(ROOT_DIR . '/assets/js/gis_master.js') ? filemtime(ROOT_DIR . '/assets/js/gis_master.js') : time() ?>"></script>

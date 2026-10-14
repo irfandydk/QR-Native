@@ -76,9 +76,32 @@ class TemplateHelper {
         return "TW {$mm}{$dd} {$hh}{$min} H";
     }
 
-    public static function hitungHariKe(?string $waktuBerangkat, ?string $targetDate = null): string {
-        if (!$waktuBerangkat) return 'H.1';
-        $t1 = strtotime(date('Y-m-d', strtotime($waktuBerangkat)));
+    public static function getWaktuMulaiAktual(?array $operasi): string {
+        if (!$operasi) return date('Y-m-d H:i:s');
+        if (!empty($operasi['waktu_reopen'])) {
+            return $operasi['waktu_reopen'];
+        }
+        if (!empty($operasi['waktu_berangkat'])) {
+            return $operasi['waktu_berangkat'];
+        }
+        if (!empty($operasi['waktu_lapor'])) {
+            return $operasi['waktu_lapor'];
+        }
+        if (!empty($operasi['waktu_kejadian'])) {
+            return $operasi['waktu_kejadian'];
+        }
+        return date('Y-m-d H:i:s');
+    }
+
+    public static function hitungHariKe(string|array|null $waktuOrOperasi, ?string $targetDate = null): string {
+        if (is_array($waktuOrOperasi)) {
+            $waktu = self::getWaktuMulaiAktual($waktuOrOperasi);
+        } else {
+            $waktu = $waktuOrOperasi;
+        }
+
+        if (!$waktu) return 'H.1';
+        $t1 = strtotime(date('Y-m-d', strtotime($waktu)));
         $t2 = strtotime(date('Y-m-d', $targetDate ? strtotime($targetDate) : time()));
 
         if ($t1 === false || $t2 === false) return 'H.1';

@@ -16,7 +16,7 @@ if (empty($operasi)) {
 
 $id = (int)$operasi['id_operasi'];
 $isOpen = ($operasi['status'] ?? '') === 'OPEN';
-$waktuMulaiOps = !empty($operasi['waktu_berangkat']) ? $operasi['waktu_berangkat'] : (!empty($operasi['waktu_lapor']) ? $operasi['waktu_lapor'] : (!empty($operasi['waktu_kejadian']) ? $operasi['waktu_kejadian'] : date('Y-m-d H:i:s')));
+$waktuMulaiOps = TemplateHelper::getWaktuMulaiAktual($operasi);
 $tglMulaiOps = date('Y-m-d', strtotime($waktuMulaiOps));
 $hariKe = TemplateHelper::hitungHariKe($waktuMulaiOps);
 $statsKorban = $operasi['stats_korban'] ?? ['total' => 0, 's' => 0, 'md' => 0, 'dp' => 0];
@@ -26,6 +26,9 @@ $tglBerangkat = TemplateHelper::formatTanggalIndo($operasi['waktu_berangkat'] ?:
 $jamBerangkat = TemplateHelper::formatJamWITA($operasi['waktu_berangkat'] ?: $waktuMulaiOps);
 $tglSelesai = !empty($operasi['waktu_selesai']) ? TemplateHelper::formatTanggalIndo($operasi['waktu_selesai']) : null;
 $jamSelesai = !empty($operasi['waktu_selesai']) ? TemplateHelper::formatJamWITA($operasi['waktu_selesai']) : null;
+$isReopened = !empty($operasi['waktu_reopen']);
+$tglReopen = $isReopened ? TemplateHelper::formatTanggalIndo($operasi['waktu_reopen']) : null;
+$jamReopen = $isReopened ? TemplateHelper::formatJamWITA($operasi['waktu_reopen']) : null;
 
 $activeTab = $_GET['tab'] ?? 'hierarchy';
 if ($activeTab === 'ringkasan') {
@@ -92,8 +95,14 @@ $countBra = count($operasi['bra_sar'] ?? []);
                 <?php if ($isOpen): ?>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-mono tracking-wider bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    OPERASI BERJALAN
+                    OPERASI BERJALAN (<?= $hariKe ?>)
                 </span>
+                <?php if ($isReopened): ?>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-mono tracking-wider bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/25" title="Operasi SAR dibuka kembali / diperpanjang pada <?= $tglReopen ?> <?= $jamReopen ?> WITA. Perhitungan hari dimulai dari tanggal pembukaan.">
+                    <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                    DIPERPANJANG
+                </span>
+                <?php endif; ?>
                 <?php else: ?>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-mono tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                     <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
@@ -1039,7 +1048,7 @@ $countBra = count($operasi['bra_sar'] ?? []);
                     LKP: <span class="font-bold text-slate-700 dark:text-slate-300"><?= e($operasi['koordinat']) ?></span> &bull; Jarak Kansar: <strong class="text-orange-600"><?= e($operasi['jarak']) ?></strong>
                 </div>
             </div>
-            <a href="<?= BASE_URL ?>/gis.php" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition">
+            <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$operasi['id_operasi'] ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition">
                 <span>Buka GIS Penuh</span>
                 <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
             </a>
@@ -1350,25 +1359,42 @@ async function deleteLaporan(id) {
 async function confirmAndRollbackOperasi(idOperasi) {
     if (!idOperasi) return;
 
+    const nowDefault = new Date().toISOString().slice(0, 16);
+
     if (typeof Swal !== 'undefined') {
         const res = await Swal.fire({
-            title: 'Buka Kembali Operasi SAR?',
-            html: `<div class="text-left text-xs text-slate-600 dark:text-slate-300 space-y-2">
-                <p>Status operasi SAR akan dikembalikan dari <strong>CLOSED</strong> menjadi <strong>OPEN</strong>.</p>
-                <p class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300">
-                    Penguncian akan dibuka: Penambahan dan penyuntingan RENOPS, SITREP, serta naskah telegram resmi dapat dilakukan kembali.
-                </p>
+            title: 'Buka Kembali / Perpanjang Operasi SAR?',
+            html: `<div class="text-left text-xs text-slate-600 dark:text-slate-300 space-y-3">
+                <p>Status operasi SAR akan dikembalikan dari <strong>CLOSED</strong> menjadi <strong>OPEN</strong> (Aktif kembali).</p>
+                <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 space-y-1">
+                    <p class="font-bold flex items-center gap-1.5">
+                        <span>Perhitungan Hari Operasi Dimulai Lagi:</span>
+                    </p>
+                    <p class="text-[11px] leading-relaxed">
+                        Sesuai ketentuan operasional SAR, perhitungan hari (H.1, H.2, dst.) untuk RENOPS dan SITREP akan dihitung mulai dari tanggal operasi dibuka kembali.
+                    </p>
+                </div>
+                <div class="space-y-1.5 pt-1">
+                    <label class="block font-bold text-slate-700 dark:text-slate-300 text-[11px]">Tanggal & Waktu Dibuka Kembali (WITA):</label>
+                    <input type="datetime-local" id="swal_waktu_reopen" value="${nowDefault}" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500">
+                </div>
             </div>`,
-            icon: 'warning',
+            icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#f97316',
             cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Buka Kembali Operasi',
+            confirmButtonText: 'Ya, Buka & Mulai Hari Baru',
             cancelButtonText: 'Batal',
-            reverseButtons: true
+            reverseButtons: true,
+            preConfirm: () => {
+                const val = document.getElementById('swal_waktu_reopen')?.value;
+                return val || nowDefault;
+            }
         });
 
         if (!res.isConfirmed) return;
+
+        const waktuReopenInput = res.value;
 
         Swal.fire({
             title: 'Membuka Kembali Operasi...',
@@ -1382,14 +1408,15 @@ async function confirmAndRollbackOperasi(idOperasi) {
         try {
             const resp = await fetch(`<?= BASE_URL ?>/api/operasi/${idOperasi}/rollback-penutupan`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ waktu_reopen: waktuReopenInput })
             });
             const data = await resp.json();
             if (data.success) {
                 await Swal.fire({
                     icon: 'success',
                     title: 'Operasi SAR Berhasil Dibuka!',
-                    text: data.message || 'Status operasi kini kembali OPEN. Seluruh fitur penambahan dan penyuntingan telah aktif kembali.',
+                    text: data.message || 'Status operasi kini kembali OPEN. Perhitungan hari operasional dimulai lagi sejak tanggal pembukaan.',
                     confirmButtonColor: '#f97316',
                     confirmButtonText: 'Lanjutkan'
                 });
@@ -1405,6 +1432,8 @@ async function confirmAndRollbackOperasi(idOperasi) {
         } catch (err) {
             console.error('Rollback fetch error, submitting form fallback:', err);
             const form = document.getElementById('form-fallback-rollback');
+            const hiddenWaktu = document.getElementById('fallback_waktu_reopen');
+            if (hiddenWaktu) hiddenWaktu.value = waktuReopenInput;
             if (form) {
                 form.submit();
             } else {
@@ -1417,7 +1446,7 @@ async function confirmAndRollbackOperasi(idOperasi) {
             }
         }
     } else {
-        if (confirm('Buka kembali operasi SAR ini menjadi status OPEN? Seluruh dokumen akan dapat ditambahkan kembali.')) {
+        if (confirm('Buka kembali operasi SAR ini menjadi status OPEN? Perhitungan hari operasional akan dimulai lagi.')) {
             const form = document.getElementById('form-fallback-rollback');
             if (form) form.submit();
         }
@@ -1433,4 +1462,5 @@ function printBerkas(type) {
 <form id="form-fallback-rollback" method="POST" action="<?= BASE_URL ?>/operasi.php?action=rollback" style="display: none;">
     <?= csrfInput() ?>
     <input type="hidden" name="id_operasi" value="<?= $id ?>">
+    <input type="hidden" name="waktu_reopen" id="fallback_waktu_reopen" value="">
 </form>

@@ -356,7 +356,9 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
     <!-- Operation Cards -->
     <?php foreach ($operasis as $op): 
       $isOpen = ($op['status'] ?? 'OPEN') === 'OPEN';
-      $hariKe = TemplateHelper::hitungHariKe($op['waktu_berangkat'] ?: $op['waktu_lapor']);
+      $waktuMulai = TemplateHelper::getWaktuMulaiAktual($op);
+      $hariKe = TemplateHelper::hitungHariKe($waktuMulai);
+      $isReopened = !empty($op['waktu_reopen']);
       $tglBerangkat = TemplateHelper::formatTanggalIndo($op['waktu_berangkat'] ?: $op['waktu_kejadian']);
       $jamBerangkat = TemplateHelper::formatJamWITA($op['waktu_berangkat'] ?: $op['waktu_kejadian']);
       
@@ -390,9 +392,16 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
               <span><?= e($op['status']) ?></span>
             </span>
 
+            <?php if ($isOpen && $isReopened): ?>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30" title="Operasi SAR dibuka kembali pada <?= TemplateHelper::formatTanggalIndo($op['waktu_reopen']) ?>">
+              <svg class="w-3 h-3 text-amber-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+              <span>DIPERPANJANG (<?= $hariKe ?>)</span>
+            </span>
+            <?php else: ?>
             <span class="px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
               <?= $isOpen ? $hariKe : 'SELESAI' ?>
             </span>
+            <?php endif; ?>
 
             <span class="text-[11px] text-slate-500 dark:text-slate-400">
               ID: #<?= $op['id_operasi'] ?>

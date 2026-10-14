@@ -188,9 +188,8 @@ class Router {
 
         $mimeType = $mimes[$ext] ?? null;
         if (!$mimeType) {
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $mimeType = finfo_file($finfo, $realPath) ?: 'application/octet-stream';
-            finfo_close($finfo);
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mimeType = $finfo->file($realPath) ?: 'application/octet-stream';
         }
 
         $lastModified = filemtime($realPath) ?: time();

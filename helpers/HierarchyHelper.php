@@ -187,7 +187,7 @@ class HierarchyHelper {
         }
 
         // Cap target day number at 7 (Standard Basarnas SAR limit)
-        $baseDateStr = !empty($ops['waktu_berangkat']) ? $ops['waktu_berangkat'] : (!empty($ops['waktu_lapor']) ? $ops['waktu_lapor'] : (!empty($ops['waktu_kejadian']) ? $ops['waktu_kejadian'] : date('Y-m-d')));
+        $baseDateStr = TemplateHelper::getWaktuMulaiAktual($ops);
         $baseYmd = date('Y-m-d', strtotime($baseDateStr));
         $todayYmd = date('Y-m-d');
 
@@ -197,16 +197,9 @@ class HierarchyHelper {
         $diffDaysToday = ($t1 !== false && $t2 !== false) ? (int)floor(($t2 - $t1) / 86400) : 0;
         $dayByDate = max(1, $diffDaysToday + 1);
 
-        // Jika renops dibuat pada hari ini (atau belum ada renops), gunakan hari berdasarkan selisih tanggal
-        if (empty($renopsList)) {
-            $targetDayNumber = $dayByDate;
-            $targetDateStr = $todayYmd >= $baseYmd ? $todayYmd : $baseYmd;
-        } else {
-            // Jika sudah ada renops sebelumnya, target minimal adalah hari berikutnya atau hari kalender saat ini
-            $targetDayNumber = max($targetDayNumber, $dayByDate);
-            $targetTimestamp = $t1 + (($targetDayNumber - 1) * 86400);
-            $targetDateStr = date('Y-m-d', $targetTimestamp);
-        }
+        // Penghitungan hari aktual berdasarkan tanggal kalender (bukan hitung jumlah renops)
+        $targetDayNumber = $dayByDate;
+        $targetDateStr = $todayYmd;
 
         $isMaxDay = ($targetDayNumber >= 7);
         $hariKe = "H.{$targetDayNumber}";
@@ -268,52 +261,53 @@ class HierarchyHelper {
             }
         }
 
-        $targetDayNumber = 1;
+        $baseDateStr = TemplateHelper::getWaktuMulaiAktual($ops);
+        $baseYmd = date('Y-m-d', strtotime($baseDateStr));
+        $todayYmd = date('Y-m-d');
+        $t1 = strtotime($baseYmd);
+        $t2 = strtotime($todayYmd);
+        $diffDaysToday = ($t1 !== false && $t2 !== false) ? (int)floor(($t2 - $t1) / 86400) : 0;
+        $dayByDate = max(1, $diffDaysToday + 1);
+
+        $targetDayNumber = $dayByDate;
         $predecessorLabel = 'Laporan Awal';
         $inheritedUnsur = $ops['detail_unsur'] ?? [];
         $inheritedAlut = $ops['detail_alut'] ?? [];
         $inheritedCuaca = $ops['cuaca'] ?: 'Cerah Berawan, Angin Barat 5-15 Kts, Gelombang 0.5 - 1.25 M';
 
-        if ($maxRenopsDay > $maxLapbangDay && $latestRenops) {
-            // E.g. Renops H.2 was created this morning, now in the afternoon creating Lapbang H.2!
-            // Inherits directly from Renops H.2 snapshot
-            $targetDayNumber = $maxRenopsDay;
-            $predecessorLabel = "Renops H.{$maxRenopsDay}";
-            if (!empty($latestRenops['detail_unsur']) && is_array($latestRenops['detail_unsur'])) {
-                $inheritedUnsur = $latestRenops['detail_unsur'];
+        $matchingRenops = null;
+        foreach ($renopsList as $r) {
+            if (self::extractDayNumber($r['hari_ke'] ?? '1') === $targetDayNumber) {
+                $matchingRenops = $r;
+                break;
             }
-            if (!empty($latestRenops['detail_alut']) && is_array($latestRenops['detail_alut'])) {
-                $inheritedAlut = $latestRenops['detail_alut'];
+        }
+
+        if ($matchingRenops) {
+            // Inherits directly from Renops of today / same target day
+            $predecessorLabel = "Renops H.{$targetDayNumber}";
+            if (!empty($matchingRenops['detail_unsur']) && is_array($matchingRenops['detail_unsur'])) {
+                $inheritedUnsur = $matchingRenops['detail_unsur'];
             }
-            if (!empty($latestRenops['cuaca'])) {
-                $inheritedCuaca = $latestRenops['cuaca'];
+            if (!empty($matchingRenops['detail_alut']) && is_array($matchingRenops['detail_alut'])) {
+                $inheritedAlut = $matchingRenops['detail_alut'];
             }
-        } elseif ($maxLapbangDay >= 1 && $latestLapbang) {
-            // Lapbang H.1 exists without Renops H.2 -> Next Lapbang is H.2
-            $targetDayNumber = $maxLapbangDay + 1;
-            $predecessorLabel = "Lapbang H.{$maxLapbangDay}";
+            if (!empty($matchingRenops['cuaca'])) {
+                $inheritedCuaca = $matchingRenops['cuaca'];
+            }
+        } elseif ($latestLapbang) {
+            $predecessorLabel = "Lapbang H." . self::extractDayNumber($latestLapbang['hari_ke'] ?? '1');
             if (!empty($latestLapbang['detail_unsur']) && is_array($latestLapbang['detail_unsur'])) {
                 $inheritedUnsur = $latestLapbang['detail_unsur'];
             }
             if (!empty($latestLapbang['detail_alut']) && is_array($latestLapbang['detail_alut'])) {
                 $inheritedAlut = $latestLapbang['detail_alut'];
             }
-        } elseif ($maxRenopsDay === 1 && $latestRenops) {
-            // Renops H.1 exists, now creating Lapbang H.1
-            $targetDayNumber = 1;
-            $predecessorLabel = 'Renops H.1';
-            if (!empty($latestRenops['detail_unsur']) && is_array($latestRenops['detail_unsur'])) {
-                $inheritedUnsur = $latestRenops['detail_unsur'];
-            }
-            if (!empty($latestRenops['detail_alut']) && is_array($latestRenops['detail_alut'])) {
-                $inheritedAlut = $latestRenops['detail_alut'];
-            }
-            if (!empty($latestRenops['cuaca'])) {
-                $inheritedCuaca = $latestRenops['cuaca'];
+            if (!empty($latestLapbang['cuaca'])) {
+                $inheritedCuaca = $latestLapbang['cuaca'];
             }
         } else {
             // First report on Day 1: inherits directly from Laporan Awal
-            $targetDayNumber = 1;
             $predecessorLabel = 'Laporan Awal (File Aktif)';
             $inheritedUnsur = $ops['detail_unsur'] ?? [];
             $inheritedAlut = $ops['detail_alut'] ?? [];

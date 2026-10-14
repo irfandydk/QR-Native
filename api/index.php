@@ -549,8 +549,13 @@ try {
     if (preg_match('#^/operasi/(\d+)/rollback-penutupan$#', $path, $m) && $method === 'POST') {
         $requireAuth();
         $id = (int)$m[1];
-        $ok = OperasiModel::rollbackPenutupan($id);
-        echo json_encode(['success' => $ok, 'message' => 'Status Operasi SAR berhasil dikembalikan ke OPEN.']);
+        $waktuReopen = $input['waktu_reopen'] ?? $input['waktu'] ?? date('Y-m-d H:i:s');
+        $ok = OperasiModel::rollbackPenutupan($id, $waktuReopen);
+        echo json_encode([
+            'success' => $ok, 
+            'message' => 'Status Operasi SAR berhasil dibuka kembali (OPEN) dan perhitungan hari operasional dimulai lagi.',
+            'waktu_reopen' => $waktuReopen
+        ]);
         exit;
     }
 
@@ -875,13 +880,14 @@ try {
     // GIS endpoints
     if ($path === '/gis/data' && $method === 'GET') {
         $requireAuth();
+        $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
         echo json_encode([
             'success' => true,
             'sar_units' => MasterModel::getSarUnits(),
-            'points' => GisModel::getPoints(),
-            'polygons' => GisModel::getPolygons(),
-            'routes' => GisModel::getRoutes(),
-            'search_patterns' => GisModel::getSearchPatterns(),
+            'points' => GisModel::getPoints($idOperasi),
+            'polygons' => GisModel::getPolygons($idOperasi),
+            'routes' => GisModel::getRoutes($idOperasi),
+            'search_patterns' => GisModel::getSearchPatterns($idOperasi),
             'operasi' => OperasiModel::getAll('OPEN')
         ]);
         exit;
@@ -889,7 +895,8 @@ try {
 
     if (($path === '/gis/point' || $path === '/gis/points') && $method === 'GET') {
         $requireAuth();
-        echo json_encode(['success' => true, 'data' => GisModel::getPoints()]);
+        $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
+        echo json_encode(['success' => true, 'data' => GisModel::getPoints($idOperasi)]);
         exit;
     }
 
@@ -945,9 +952,8 @@ try {
                 }
             } else {
                 // 3. Validasi MIME Type Riil untuk Gambar Raster
-                $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                $mime = finfo_file($finfo, $file['tmp_name']);
-                finfo_close($finfo);
+                $finfo = new finfo(FILEINFO_MIME_TYPE);
+                $mime = $finfo->file($file['tmp_name']);
                 $validMimes = ['image/png', 'image/jpeg', 'image/webp'];
                 if (!in_array($mime, $validMimes, true)) {
                     http_response_code(400);
@@ -976,7 +982,8 @@ try {
 
     if (($path === '/gis/polygon' || $path === '/gis/polygons') && $method === 'GET') {
         $requireAuth();
-        echo json_encode(['success' => true, 'data' => GisModel::getPolygons()]);
+        $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
+        echo json_encode(['success' => true, 'data' => GisModel::getPolygons($idOperasi)]);
         exit;
     }
 
@@ -1004,7 +1011,8 @@ try {
 
     if (($path === '/gis/pattern' || $path === '/gis/patterns' || $path === '/gis/search-patterns') && $method === 'GET') {
         $requireAuth();
-        echo json_encode(['success' => true, 'data' => GisModel::getSearchPatterns()]);
+        $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
+        echo json_encode(['success' => true, 'data' => GisModel::getSearchPatterns($idOperasi)]);
         exit;
     }
 
@@ -1032,7 +1040,8 @@ try {
 
     if (($path === '/gis/route' || $path === '/gis/routes') && $method === 'GET') {
         $requireAuth();
-        echo json_encode(['success' => true, 'data' => GisModel::getRoutes()]);
+        $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
+        echo json_encode(['success' => true, 'data' => GisModel::getRoutes($idOperasi)]);
         exit;
     }
 

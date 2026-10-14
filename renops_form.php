@@ -78,6 +78,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $_POST['srus'] = $srus;
 
+    $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
+    $tglInput = $_POST['tanggal_laporan'] ?? date('Y-m-d');
+    if (empty($_POST['hari_ke'])) {
+        $_POST['hari_ke'] = TemplateHelper::hitungHariKe($baseDateOps, $tglInput);
+    }
+
     try {
         if ($editMode) {
             RenopsModel::update($idRenops, $_POST);
@@ -100,10 +106,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $masterTim = MasterModel::getTim();
 $masterAlut = MasterModel::getAlut();
 
-// Determine default day calculation
+// Determine default day calculation based on actual operation calendar date (restarts if reopened)
+$baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
+
 if ($editMode) {
-    $hariKe = $renops['hari_ke'] ?? 'H.1';
     $tanggalLaporan = $renops['tanggal_laporan'] ?? date('Y-m-d');
+    $hariKe = $renops['hari_ke'] ?: TemplateHelper::hitungHariKe($baseDateOps, $tanggalLaporan);
     $waktuBriefing = !empty($renops['waktu_briefing']) ? date('Y-m-d\TH:i', strtotime($renops['waktu_briefing'])) : date('Y-m-d\T07:00');
     $waktuMulaiOps = !empty($renops['waktu_mulai_ops']) ? date('Y-m-d\TH:i', strtotime($renops['waktu_mulai_ops'])) : date('Y-m-d\T07:30');
     $cuaca = $renops['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
@@ -111,10 +119,8 @@ if ($editMode) {
     $initialAlutData = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi['detail_alut'] ?? []);
     $initialSrus = $renops['srus'] ?? [];
 } else {
-    $existingRenopsCount = count($operasi['renops'] ?? []);
-    $targetDayNum = $existingRenopsCount + 1;
-    $hariKe = "H.{$targetDayNum}";
     $tanggalLaporan = date('Y-m-d');
+    $hariKe = TemplateHelper::hitungHariKe($baseDateOps, $tanggalLaporan);
     $waktuBriefing = date('Y-m-d\T07:00');
     $waktuMulaiOps = date('Y-m-d\T07:30');
     $cuaca = $operasi['cuaca'] ?: 'Cerah Berawan';

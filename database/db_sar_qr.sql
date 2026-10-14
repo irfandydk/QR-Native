@@ -279,17 +279,19 @@ DROP TABLE IF EXISTS `GisPoint`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `GisPoint` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `id_operasi` int DEFAULT NULL,
   `lat` double NOT NULL,
   `lng` double NOT NULL,
   `label` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `pointType` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customIconUrl` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customIconUrl` mediumtext COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `description` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `category` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT 'Tanpa Kategori',
   `alphabetChar` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT 'A',
   PRIMARY KEY (`id`),
   KEY `idx_point_type` (`pointType`),
-  KEY `idx_point_cat` (`category`)
+  KEY `idx_point_cat` (`category`),
+  KEY `idx_point_operasi` (`id_operasi`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -299,7 +301,7 @@ CREATE TABLE `GisPoint` (
 
 LOCK TABLES `GisPoint` WRITE;
 /*!40000 ALTER TABLE `GisPoint` DISABLE KEYS */;
-INSERT INTO `GisPoint` VALUES ('pt-kansar',-4.0378881054100555,122.48664130561696,'Kantor SAR Kendari','custom_upload','Pusat Komando KPP Kendari, Jl. Bandara Haluoleo');
+INSERT INTO `GisPoint` VALUES ('pt-kansar',NULL,-4.0378881054100555,122.48664130561696,'Kantor SAR Kendari','custom_upload',NULL,'Pusat Komando KPP Kendari, Jl. Bandara Haluoleo','Kantor SAR','A');
 /*!40000 ALTER TABLE `GisPoint` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -312,12 +314,14 @@ DROP TABLE IF EXISTS `GisPolygon`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `GisPolygon` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `id_operasi` int DEFAULT NULL,
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `strokeColor` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `strokeWeight` double NOT NULL,
   `fillColor` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `fillOpacity` double NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_poly_operasi` (`id_operasi`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -369,13 +373,15 @@ DROP TABLE IF EXISTS `GisRoute`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `GisRoute` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `id_operasi` int DEFAULT NULL,
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `vesselSpeedKnots` double NOT NULL,
   `strokeColor` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `strokeWeight` double NOT NULL,
   `strokeOpacity` double NOT NULL,
   `createdAt` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_route_operasi` (`id_operasi`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -385,7 +391,7 @@ CREATE TABLE `GisRoute` (
 
 LOCK TABLES `GisRoute` WRITE;
 /*!40000 ALTER TABLE `GisRoute` DISABLE KEYS */;
-INSERT INTO `GisRoute` VALUES ('route_sample_1','Rute Kansar ke LKP Sumber Bahagia',25,'#059669',3.5,0.9,'Default Rute Siaga');
+INSERT INTO `GisRoute` VALUES ('route_sample_1',NULL,'Rute Kansar ke LKP Sumber Bahagia',25,'#059669',3.5,0.9,'Default Rute Siaga');
 /*!40000 ALTER TABLE `GisRoute` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -427,6 +433,7 @@ DROP TABLE IF EXISTS `GisSearchPattern`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `GisSearchPattern` (
   `id` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `id_operasi` int DEFAULT NULL,
   `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `polygonId` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `polygonName` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -438,7 +445,8 @@ CREATE TABLE `GisSearchPattern` (
   `color` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `totalDistanceNm` double NOT NULL,
   `createdAt` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_pattern_operasi` (`id_operasi`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -448,7 +456,7 @@ CREATE TABLE `GisSearchPattern` (
 
 LOCK TABLES `GisSearchPattern` WRITE;
 /*!40000 ALTER TABLE `GisSearchPattern` DISABLE KEYS */;
-INSERT INTO `GisSearchPattern` VALUES ('pattern-sample-alpha','Pola Parallel Track - Search Area Kendari','poly-default-alpha','Search Area Sektor Kendari - Saponda','parallel_track',2,5,'pt-kansar','Kantor SAR Kendari','#0284c7',58.4,'2026-09-22 08:00 WITA');
+INSERT INTO `GisSearchPattern` VALUES ('pattern-sample-alpha',NULL,'Pola Parallel Track - Search Area Kendari','poly-default-alpha','Search Area Sektor Kendari - Saponda','parallel_track',2,5,'pt-kansar','Kantor SAR Kendari','#0284c7',58.4,'2026-09-22 08:00 WITA');
 /*!40000 ALTER TABLE `GisSearchPattern` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -630,6 +638,7 @@ CREATE TABLE `Operasi` (
   `angin` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `waktu_selesai` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `waktu_reopen` datetime DEFAULT NULL,
   `full_text_wa` text COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id_operasi`),

@@ -73,10 +73,11 @@ if ($method === 'POST') {
             exit;
         }
 
+        $waktuReopen = $_POST['waktu_reopen'] ?? date('Y-m-d H:i:s');
         try {
-            $ok = OperasiModel::rollbackPenutupan($id);
+            $ok = OperasiModel::rollbackPenutupan($id, $waktuReopen);
             if ($ok) {
-                setFlash('success', 'Operasi SAR berhasil dibuka kembali (Status: OPEN). Seluruh dokumen dan data operasional kini dapat diperbarui kembali.');
+                setFlash('success', 'Operasi SAR berhasil dibuka kembali (Status: OPEN). Perhitungan hari operasional dimulai lagi sejak tanggal pembukaan.');
             } else {
                 setFlash('error', 'Gagal membuka kembali operasi SAR: Sistem basis data gagal memperbarui status.');
             }

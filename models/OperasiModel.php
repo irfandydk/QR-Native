@@ -48,11 +48,17 @@ class OperasiModel {
 
     public static function getListSimple(?string $status = null): array {
         $db = getDB();
-        $sql = "SELECT id_operasi, nama_operasi, status, lokasi_kejadian, koordinat, waktu_kejadian, created_at FROM Operasi";
+        $sql = "SELECT id_operasi, nama_operasi, status, lokasi_kejadian, koordinat, waktu_kejadian, waktu_berangkat, waktu_lapor, waktu_selesai, waktu_reopen, created_at FROM Operasi";
         $params = [];
         if ($status && in_array(strtoupper($status), ['OPEN', 'CLOSED'], true)) {
-            $sql .= " WHERE status = :status";
-            $params[':status'] = strtoupper($status);
+            $target = strtoupper($status);
+            if ($target === 'OPEN') {
+                $sql .= " WHERE status = 'OPEN' 
+                          AND (waktu_selesai IS NULL OR waktu_selesai = '')";
+            } else {
+                $sql .= " WHERE status = 'CLOSED' 
+                          OR (waktu_selesai IS NOT NULL AND waktu_selesai != '')";
+            }
         }
         $sql .= " ORDER BY id_operasi DESC";
         $stmt = $db->prepare($sql);
@@ -497,12 +503,13 @@ class OperasiModel {
         return $res;
     }
 
-    public static function rollbackPenutupan(int $id): bool {
+    public static function rollbackPenutupan(int $id, ?string $waktuReopen = null): bool {
         $db = getDB();
-        $stmt = $db->prepare("UPDATE Operasi SET status = 'OPEN', waktu_selesai = NULL WHERE id_operasi = :id");
-        $res = $stmt->execute([':id' => $id]);
+        $waktu = $waktuReopen ?: date('Y-m-d H:i:s');
+        $stmt = $db->prepare("UPDATE Operasi SET status = 'OPEN', waktu_selesai = NULL, waktu_reopen = :waktu WHERE id_operasi = :id");
+        $res = $stmt->execute([':waktu' => $waktu, ':id' => $id]);
         if ($res && class_exists('AuditHelper')) {
-            AuditHelper::log('REOPEN_OPERASI', "Operasi SAR dibuka kembali (RE-OPEN): ID {$id}", 'OPERASI', "OPS-{$id}");
+            AuditHelper::log('REOPEN_OPERASI', "Operasi SAR dibuka kembali (RE-OPEN): ID {$id} pada {$waktu}", 'OPERASI', "OPS-{$id}");
         }
         return $res;
     }
