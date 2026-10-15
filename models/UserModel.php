@@ -63,7 +63,7 @@ class UserModel {
 
             // 1. Admin Account
             $adminUser = !empty($settings['admin_username']) ? trim($settings['admin_username']) : 'admin';
-            $adminPass = (string)($settings['admin_password'] ?? 'Kendari304');
+            $adminPass = (string)($settings['admin_password'] ?? (defined('DEFAULT_RESET_PASSWORD') ? DEFAULT_RESET_PASSWORD : ''));
             $adminHash = (str_starts_with($adminPass, '$2y$') || str_starts_with($adminPass, '$argon2'))
                 ? $adminPass
                 : password_hash($adminPass, PASSWORD_DEFAULT);
@@ -89,7 +89,7 @@ class UserModel {
 
             // 2. User Account
             $userUser = !empty($settings['user_username']) ? trim($settings['user_username']) : 'user';
-            $userPass = (string)($settings['user_password'] ?? 'Kendari304');
+            $userPass = (string)($settings['user_password'] ?? (defined('DEFAULT_RESET_PASSWORD') ? DEFAULT_RESET_PASSWORD : ''));
             $userHash = (str_starts_with($userPass, '$2y$') || str_starts_with($userPass, '$argon2'))
                 ? $userPass
                 : password_hash($userPass, PASSWORD_DEFAULT);

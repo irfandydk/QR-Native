@@ -139,6 +139,149 @@ class TemplateHelper {
         return "H.{$dayNumber}";
     }
 
+    /**
+     * Hitung Response Time SAR (dari informasi diterima/lapor hingga tim berangkat)
+     */
+    public static function hitungResponseTime(?string $waktuLapor, ?string $waktuBerangkat): array {
+        if (empty($waktuLapor) || empty($waktuBerangkat)) {
+            return [
+                'minutes' => null,
+                'formatted' => 'Belum Lengkap',
+                'is_quick' => false,
+                'badge_color' => 'slate',
+                'badge_text' => '⏱️ Respons Time',
+                'label' => 'Waktu lapor/berangkat belum tercatat'
+            ];
+        }
+
+        $t1 = strtotime($waktuLapor);
+        $t2 = strtotime($waktuBerangkat);
+        if ($t1 === false || $t2 === false) {
+            return [
+                'minutes' => null,
+                'formatted' => 'Format Salah',
+                'is_quick' => false,
+                'badge_color' => 'slate',
+                'badge_text' => '⏱️ Respons Time',
+                'label' => 'Format waktu tidak valid'
+            ];
+        }
+
+        $diffSeconds = $t2 - $t1;
+        if ($diffSeconds < 0) {
+            $diffSeconds = abs($diffSeconds);
+        }
+
+        $diffMinutes = (int)round($diffSeconds / 60);
+
+        if ($diffMinutes < 60) {
+            $formatted = "{$diffMinutes} Menit";
+        } else {
+            $hours = (int)floor($diffMinutes / 60);
+            $remMin = $diffMinutes % 60;
+            $formatted = $remMin > 0 ? "{$hours} Jam {$remMin} Menit" : "{$hours} Jam";
+        }
+
+        $badgeColor = $diffMinutes <= 15 ? 'emerald' : ($diffMinutes <= 30 ? 'teal' : 'amber');
+        $badgeText = $diffMinutes <= 15 ? '⚡ Quick Response' : ($diffMinutes <= 30 ? '⚡ Sesuai Standar' : '⏱️ Respons Time');
+
+        return [
+            'minutes' => $diffMinutes,
+            'formatted' => $formatted,
+            'is_quick' => $diffMinutes <= 30,
+            'badge_color' => $badgeColor,
+            'badge_text' => $badgeText,
+            'label' => $formatted
+        ];
+    }
+
+    /**
+     * Hitung Hari Pelaksanaan Operasi SAR
+     * - Jika sudah ditutup: "1 s/d 7 Hari" atau "1 s/d 7 Hari + X Hari Tambahan (Total Y Hari)" jika diperpanjang
+     * - Jika masih open: "Hari ke-X (Sedang Berjalan)" atau "7 Hari + X Hari Tambahan (Sedang Berjalan)"
+     */
+    public static function hitungPelaksanaanOperasi(array $op, ?string $nowDate = null): array {
+        $status = strtoupper((string)($op['status'] ?? 'OPEN'));
+        $isOpen = ($status === 'OPEN');
+        $isReopened = !empty($op['waktu_reopen']);
+        
+        $waktuBerangkat = !empty($op['waktu_berangkat']) 
+            ? $op['waktu_berangkat'] 
+            : (!empty($op['waktu_kejadian']) ? $op['waktu_kejadian'] : (!empty($op['waktu_lapor']) ? $op['waktu_lapor'] : ($op['created_at'] ?? 'now')));
+        
+        $tMulai = strtotime(date('Y-m-d', strtotime($waktuBerangkat)));
+        if ($tMulai === false) $tMulai = time();
+        $tNow = $nowDate ? strtotime($nowDate) : time();
+
+        if ($isOpen) {
+            if ($isReopened) {
+                $tReopen = strtotime(date('Y-m-d', strtotime((string)$op['waktu_reopen'])));
+                $xHari = max(1, (int)floor(($tNow - $tReopen) / 86400) + 1);
+                $totalHari = 7 + $xHari;
+                return [
+                    'status' => 'OPEN_REOPEN',
+                    'teks' => "7 Hari + {$xHari} Hari Tambahan",
+                    'subteks' => "Perpanjangan H.{$xHari} (Total {$totalHari} Hari)",
+                    'badge' => "7 + {$xHari} Hari",
+                    'h_display' => "H-{$xHari}",
+                    'h_full' => "H-{$totalHari} (Ext)",
+                    'is_extended' => true,
+                    'total_hari' => $totalHari,
+                    'x_hari' => $xHari
+                ];
+            } else {
+                $hariKeNum = max(1, (int)floor(($tNow - $tMulai) / 86400) + 1);
+                return [
+                    'status' => 'OPEN',
+                    'teks' => "1 s/d Hari ke-{$hariKeNum}",
+                    'subteks' => "Sedang Berjalan (Hari ke-{$hariKeNum})",
+                    'badge' => "H-{$hariKeNum}",
+                    'h_display' => "H-{$hariKeNum}",
+                    'h_full' => "H-{$hariKeNum}",
+                    'is_extended' => false,
+                    'total_hari' => $hariKeNum,
+                    'x_hari' => 0
+                ];
+            }
+        } else {
+            // Status CLOSED
+            $waktuSelesai = !empty($op['waktu_selesai']) ? $op['waktu_selesai'] : ($op['updated_at'] ?? date('Y-m-d H:i:s'));
+            $tSelesai = strtotime(date('Y-m-d', strtotime($waktuSelesai)));
+            if ($tSelesai === false) $tSelesai = $tMulai;
+
+            if ($isReopened) {
+                $tReopen = strtotime(date('Y-m-d', strtotime((string)$op['waktu_reopen'])));
+                $xHari = max(1, (int)floor(($tSelesai - $tReopen) / 86400) + 1);
+                $totalHari = 7 + $xHari;
+                return [
+                    'status' => 'CLOSED_REOPEN',
+                    'teks' => "1 s/d 7 Hari + {$xHari} Hari Tambahan",
+                    'subteks' => "Perpanjangan Selesai (Total {$totalHari} Hari)",
+                    'badge' => "7 + {$xHari} Hari Selesai",
+                    'h_display' => "H-{$totalHari}",
+                    'h_full' => "H-{$totalHari} (Ext Selesai)",
+                    'is_extended' => true,
+                    'total_hari' => $totalHari,
+                    'x_hari' => $xHari
+                ];
+            } else {
+                $durasiHari = max(1, (int)floor(($tSelesai - $tMulai) / 86400) + 1);
+                return [
+                    'status' => 'CLOSED',
+                    'teks' => "1 s/d {$durasiHari} Hari",
+                    'subteks' => "Operasi Selesai ({$durasiHari} Hari)",
+                    'badge' => "1 s/d {$durasiHari} Hari",
+                    'h_display' => "H-{$durasiHari}",
+                    'h_full' => "H-{$durasiHari} (Selesai)",
+                    'is_extended' => false,
+                    'total_hari' => $durasiHari,
+                    'x_hari' => 0
+                ];
+            }
+        }
+    }
+
+
     public static function hitungStatistikKorban(array $korbanList): array {
         $stats = ['total' => count($korbanList), 's' => 0, 'md' => 0, 'dp' => 0, 'h' => 0];
         foreach ($korbanList as $k) {

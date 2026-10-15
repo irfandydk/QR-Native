@@ -211,9 +211,9 @@ class AuthHelper {
         $settings = $stmt->fetch() ?: [];
 
         $adminUser = $settings['admin_username'] ?? 'admin';
-        $adminPass = (string)($settings['admin_password'] ?? 'Kendari304');
+        $adminPass = (string)($settings['admin_password'] ?? '');
         $userUser = $settings['user_username'] ?? 'user';
-        $userPass = (string)($settings['user_password'] ?? 'Kendari304');
+        $userPass = (string)($settings['user_password'] ?? '');
 
         $cleanUser = trim($username);
         $cleanPass = trim($password);

@@ -1073,21 +1073,21 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             <!-- Map Type Switcher Controls & Action Link -->
             <div class="flex flex-wrap items-center gap-2">
                 <div class="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
-                    <button type="button" id="btn-layer-satellite" onclick="switchDetailMapLayer('satellite')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-orange-600 text-white shadow-xs font-bold text-[11px] flex items-center gap-1" title="Tampilan Citra Satelit Resolusi Tinggi">
+                    <button type="button" id="btn-layer-hybrid" onclick="switchDetailMapLayer('hybrid')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-orange-600 text-white shadow-xs font-bold text-[11px] flex items-center gap-1" title="Tampilan Peta Hybrid (Satelit Resolusi Tinggi + Label Jalan & Wilayah)">
                         <span>🛰️</span>
+                        <span>Hybrid</span>
+                    </button>
+                    <button type="button" id="btn-layer-satellite" onclick="switchDetailMapLayer('satellite')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Citra Satelit Murni Resolusi Tinggi">
+                        <span>🌍</span>
                         <span>Satelit</span>
                     </button>
-                    <button type="button" id="btn-layer-osm" onclick="switchDetailMapLayer('osm')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Peta Jalan OpenStreetMap">
+                    <button type="button" id="btn-layer-roadmap" onclick="switchDetailMapLayer('roadmap')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Peta Jalan Vektor (Roadmap)">
                         <span>🗺️</span>
-                        <span>Jalanan</span>
+                        <span>Roadmap</span>
                     </button>
-                    <button type="button" id="btn-layer-topo" onclick="switchDetailMapLayer('topo')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Kontur & Elevasi Topografi">
+                    <button type="button" id="btn-layer-terrain" onclick="switchDetailMapLayer('terrain')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Topografi, Elevasi & Kontur Relief (Terrain)">
                         <span>🏔️</span>
-                        <span>Topografi</span>
-                    </button>
-                    <button type="button" id="btn-layer-dark" onclick="switchDetailMapLayer('dark')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Dark Taktis (Operasi Malam)">
-                        <span>🌙</span>
-                        <span>Dark Taktis</span>
+                        <span>Terrain</span>
                     </button>
                 </div>
 
@@ -1328,7 +1328,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
 
 <script>
 // Server Operations Master State
-const OPS_DATA = <?= json_encode([
+const OPS_DATA = <?= jsonSafe([
     'id_operasi' => (int)$operasi['id_operasi'],
     'nama_operasi' => $operasi['nama_operasi'],
     'status' => $operasi['status'],
@@ -1350,7 +1350,7 @@ const OPS_DATA = <?= json_encode([
 ]) ?>;
 
 let detailOpsMap = null;
-let detailOpsGisBundle = <?= json_encode($gisBundle, JSON_UNESCAPED_UNICODE) ?> || {};
+let detailOpsGisBundle = <?= jsonSafe($gisBundle) ?> || {};
 let activeHistoryFilter = 'all';
 
 function formatDetailDms(lat, lng) {
@@ -1374,10 +1374,10 @@ function switchDetailMapLayer(layerKey) {
     detailOpsMap.switchBaseLayer(layerKey);
 
     const layerBtns = {
+        'hybrid': document.getElementById('btn-layer-hybrid'),
         'satellite': document.getElementById('btn-layer-satellite'),
-        'osm': document.getElementById('btn-layer-osm'),
-        'topo': document.getElementById('btn-layer-topo'),
-        'dark': document.getElementById('btn-layer-dark')
+        'roadmap': document.getElementById('btn-layer-roadmap'),
+        'terrain': document.getElementById('btn-layer-terrain')
     };
 
     Object.entries(layerBtns).forEach(([key, btn]) => {
@@ -1522,7 +1522,7 @@ function renderDetailGisHistoryList() {
                     color: p.strokeColor || '#2563eb',
                     meta: `${p.areaNm2 ? Number(p.areaNm2).toFixed(2) + ' Nm²' : '- Nm²'} &bull; ${(p.points || []).length} Sudut Batas`,
                     desc: p.keterangan || '',
-                    copyFn: `copyDetailPolygonCoords(${p.id})`
+                    copyFn: `copyDetailPolygonCoords('${p.id}')`
                 });
             }
         });
@@ -1553,7 +1553,7 @@ function renderDetailGisHistoryList() {
                     color: p.color || '#ea580c',
                     meta: `${typeStr} &bull; S: ${p.trackSpacingNm || '-'} Nm &bull; Jarak: ${p.totalDistanceNm ? Number(p.totalDistanceNm).toFixed(1) : '-'} Nm &bull; ${p.legsCount || (p.waypoints || []).length} Leg`,
                     desc: p.notes || '',
-                    copyFn: `copyDetailPatternCoords(${p.id})`
+                    copyFn: `copyDetailPatternCoords('${p.id}')`
                 });
             }
         });
@@ -1575,7 +1575,7 @@ function renderDetailGisHistoryList() {
                     color: r.strokeColor || '#059669',
                     meta: `${r.totalDistanceNm ? Number(r.totalDistanceNm).toFixed(1) : '-'} Nm &bull; ${r.vesselSpeedKnots || 25} Knots &bull; ${(r.points || []).length} Waypoint`,
                     desc: r.notes || '',
-                    copyFn: `copyDetailRouteCoords(${r.id})`
+                    copyFn: `copyDetailRouteCoords('${r.id}')`
                 });
             }
         });
@@ -1597,7 +1597,7 @@ function renderDetailGisHistoryList() {
                     color: '#8b5cf6',
                     meta: `${formatDetailDms(pt.lat, pt.lng)}`,
                     desc: pt.description || '',
-                    copyFn: `copyDetailPointCoords(${pt.id})`
+                    copyFn: `copyDetailPointCoords('${pt.id}')`
                 });
             }
         });
@@ -1701,37 +1701,25 @@ function initDetailMap() {
         return;
     }
 
-    const lat = <?= json_encode($lkpLat) ?>;
-    const lng = <?= json_encode($lkpLng) ?>;
-    const hasLkp = <?= json_encode($hasLkpCoords) ?>;
-    const lkpTitle = <?= json_encode($operasi['nama_operasi']) ?>;
+    const lat = <?= jsonSafe($lkpLat) ?>;
+    const lng = <?= jsonSafe($lkpLng) ?>;
+    const hasLkp = <?= jsonSafe($hasLkpCoords) ?>;
+    const lkpTitle = <?= jsonSafe($operasi['nama_operasi']) ?>;
 
     detailOpsMap = new TacticalGisMap('map-detail-ops', {
         center: [lat, lng],
-        zoom: hasLkp ? 11 : 9
+        zoom: hasLkp ? 11 : 9,
+        defaultLayer: 'hybrid'
     });
 
     if (hasLkp) {
         detailOpsMap.addLkpMarker(lat, lng, lkpTitle);
-        const kansarCoords = [-4.037694, 122.486694];
-        L.polyline([kansarCoords, [lat, lng]], {
-            color: '#F97316',
-            weight: 3,
-            dashArray: '6, 6'
-        }).addTo(detailOpsMap.layers.operations);
     }
 
-    // Load initial bundled components
+    // Load initial bundled components (Search Areas, Pola SAR, Jalur, Titik Taktis)
     detailOpsMap.loadOperationBundle(detailOpsGisBundle);
     renderDetailGisHistoryList();
     updateDetailGisStats();
-
-    fetch('<?= BASE_URL ?>/api/sar-units')
-        .then(r => r.json())
-        .then(d => {
-            if (d.success && d.data) detailOpsMap.loadSarUnits(d.data);
-        })
-        .catch(err => console.log('SAR Units error:', err));
 
     // Live sync bundle in case plotting had recent updates
     fetch('<?= BASE_URL ?>/api/gis/bundle?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base_map=1')

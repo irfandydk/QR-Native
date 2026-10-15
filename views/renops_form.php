@@ -494,9 +494,9 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
 
 <script>
 // Data state
-let currentUnsurList = <?= json_encode($initialUnsurData) ?>;
-let currentAlutList = <?= json_encode($initialAlutData) ?>;
-let currentSrus = <?= json_encode($initialSrus) ?>;
+let currentUnsurList = <?= jsonSafe($initialUnsurData) ?>;
+let currentAlutList = <?= jsonSafe($initialAlutData) ?>;
+let currentSrus = <?= jsonSafe($initialSrus) ?>;
 
 // Escape HTML utility
 function escapeHtml(str) {
@@ -621,6 +621,7 @@ function renderSruList() {
       </div>
 
       <!-- Hidden inputs for automated values -->
+      <input type="hidden" name="srus[${idx}][id_sru]" value="${s.id_sru || ''}">
       <input type="hidden" name="srus[${idx}][luas_area]" value="${escapeHtml(s.luas_area || '')}">
       <input type="hidden" name="srus[${idx}][pola_pencarian]" value="${escapeHtml(s.pola_pencarian || 'Parallel Track Search')}">
       <input type="hidden" name="srus[${idx}][total_sapuan]" value="${escapeHtml(s.total_sapuan || '')}">
@@ -929,7 +930,7 @@ function previewRenopsWa() {
   const cuaca = document.getElementById('renops_cuaca')?.value || 'Cerah Berawan';
 
   const tglStr = window.formatTanggalIndo ? window.formatTanggalIndo(tgl) : tgl;
-  const namaOps = <?= json_encode($operasi['nama_operasi']) ?>;
+  const namaOps = <?= jsonSafe($operasi['nama_operasi']) ?>;
 
   function formatTw(dtStr) {
     if (!dtStr) return 'TW 0000 0000 H';
@@ -1069,7 +1070,7 @@ function closeModal(id) {
 }
 
 // ── GIS Plotting Import into RENOPS ──
-let SAR_GIS_BUNDLE = <?= json_encode($gisBundle, JSON_UNESCAPED_UNICODE) ?>;
+let SAR_GIS_BUNDLE = <?= jsonSafe($gisBundle) ?>;
 let targetedSruIdxForImport = null;
 let activeGisImportTab = 'polygons';
 let isRefreshingGis = false;
@@ -1868,7 +1869,7 @@ document.addEventListener('input', (e) => {
 });
 
 // Real-time Day Recalculation Based on Input Date
-const OPERASI_START_DATE = <?= json_encode(date('Y-m-d', strtotime(TemplateHelper::getWaktuMulaiAktual($operasi)))) ?>;
+const OPERASI_START_DATE = <?= jsonSafe(date('Y-m-d', strtotime(TemplateHelper::getWaktuMulaiAktual($operasi)))) ?>;
 
 function recalculateRenopsHariKe() {
   const tglInput = document.getElementById('renops_tanggal_laporan')?.value;

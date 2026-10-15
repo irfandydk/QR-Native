@@ -161,9 +161,13 @@ class RenopsModel {
             OperasiModel::syncUnsurAlut((int)$data['id_operasi'], $unsur, $alut);
 
             $db->commit();
+            self::syncAutoIncrement();
+            OperasiModel::syncChildAutoIncrements();
             return $idRenops;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -214,28 +218,77 @@ class RenopsModel {
             ]);
 
             if (isset($data['srus'])) {
-                $db->prepare("DELETE FROM RenopsSRU WHERE id_renops = :id")->execute([':id' => $id]);
-                $stmtSru = $db->prepare("INSERT INTO RenopsSRU (id_renops, nama_sru, koordinat_area, luas_area, pola_pencarian, total_sapuan) VALUES (:rid, :nama, :koor, :luas, :pola, :sapuan)");
+                $stmtExisting = $db->prepare("SELECT id_sru, nama_sru FROM RenopsSRU WHERE id_renops = :id ORDER BY id_sru ASC");
+                $stmtExisting->execute([':id' => $id]);
+                $existingRows = $stmtExisting->fetchAll();
+                $existingIds = array_column($existingRows, 'id_sru');
+
+                $stmtUpdate = $db->prepare("UPDATE RenopsSRU SET nama_sru = :nama, koordinat_area = :koor, luas_area = :luas, pola_pencarian = :pola, total_sapuan = :sapuan WHERE id_sru = :sid AND id_renops = :rid");
+                $stmtInsert = $db->prepare("INSERT INTO RenopsSRU (id_renops, nama_sru, koordinat_area, luas_area, pola_pencarian, total_sapuan) VALUES (:rid, :nama, :koor, :luas, :pola, :sapuan)");
+
+                $keptIds = [];
+                $pool = $existingRows;
+
                 foreach ($srus as $s) {
                     if (empty($s['nama_sru'])) continue;
-                    $stmtSru->execute([
-                        ':rid' => $id,
-                        ':nama' => $s['nama_sru'],
-                        ':koor' => $s['koordinat_area'] ?? '',
-                        ':luas' => $s['luas_area'] ?? '',
-                        ':pola' => $s['pola_pencarian'] ?? 'Parallel Track Search',
-                        ':sapuan' => $s['total_sapuan'] ?? ''
-                    ]);
+                    $sId = !empty($s['id_sru']) ? (int)$s['id_sru'] : null;
+                    $nama = trim((string)$s['nama_sru']);
+                    $koor = $s['koordinat_area'] ?? '';
+                    $luas = $s['luas_area'] ?? '';
+                    $pola = $s['pola_pencarian'] ?? 'Parallel Track Search';
+                    $sapuan = $s['total_sapuan'] ?? '';
+
+                    if ($sId && in_array($sId, $existingIds, true) && !in_array($sId, $keptIds, true)) {
+                        $stmtUpdate->execute([':sid' => $sId, ':rid' => $id, ':nama' => $nama, ':koor' => $koor, ':luas' => $luas, ':pola' => $pola, ':sapuan' => $sapuan]);
+                        $keptIds[] = $sId;
+                        foreach ($pool as $pIdx => $pItem) {
+                            if ((int)$pItem['id_sru'] === $sId) {
+                                unset($pool[$pIdx]);
+                                break;
+                            }
+                        }
+                    } elseif (!empty($pool)) {
+                        $matchKey = null;
+                        foreach ($pool as $pIdx => $pItem) {
+                            if (strcasecmp($pItem['nama_sru'], $nama) === 0) {
+                                $matchKey = $pIdx;
+                                break;
+                            }
+                        }
+                        if ($matchKey === null) {
+                            $matchKey = array_key_first($pool);
+                        }
+                        $reusedId = (int)$pool[$matchKey]['id_sru'];
+                        unset($pool[$matchKey]);
+
+                        $stmtUpdate->execute([':sid' => $reusedId, ':rid' => $id, ':nama' => $nama, ':koor' => $koor, ':luas' => $luas, ':pola' => $pola, ':sapuan' => $sapuan]);
+                        $keptIds[] = $reusedId;
+                    } else {
+                        $stmtInsert->execute([':rid' => $id, ':nama' => $nama, ':koor' => $koor, ':luas' => $luas, ':pola' => $pola, ':sapuan' => $sapuan]);
+                    }
+                }
+
+                $toDelete = array_diff($existingIds, $keptIds);
+                if (!empty($toDelete)) {
+                    $delPlaceholders = implode(',', array_fill(0, count($toDelete), '?'));
+                    $stmtDel = $db->prepare("DELETE FROM RenopsSRU WHERE id_sru IN ({$delPlaceholders}) AND id_renops = ?");
+                    $stmtDel->execute([...$toDelete, $id]);
                 }
             }
 
             // Sync operational state
             OperasiModel::syncUnsurAlut((int)$renops['id_operasi'], $unsur, $alut);
 
-            $db->commit();
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
+            OperasiModel::syncChildAutoIncrements();
             return true;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -246,11 +299,42 @@ class RenopsModel {
         try {
             $db->prepare("DELETE FROM RenopsSRU WHERE id_renops = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM Renops WHERE id_renops = :id")->execute([':id' => $id]);
-            $db->commit();
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
+            OperasiModel::syncChildAutoIncrements();
             return true;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             return false;
+        }
+    }
+
+    /**
+     * Synchronize and reset Renops & RenopsSRU AUTO_INCREMENT to strictly MAX(id) + 1.
+     */
+    public static function syncAutoIncrement(): void {
+        $db = getDB();
+        if ($db->inTransaction()) {
+            return;
+        }
+        try {
+            $stmtRen = $db->query("SELECT COALESCE(MAX(id_renops), 0) FROM Renops");
+            $maxRenops = (int)$stmtRen->fetchColumn();
+            $stmtRen->closeCursor();
+            $nextRenops = max(1, $maxRenops + 1);
+            $db->exec("ALTER TABLE Renops AUTO_INCREMENT = {$nextRenops}");
+
+            $stmtSru = $db->query("SELECT COALESCE(MAX(id_sru), 0) FROM RenopsSRU");
+            $maxSru = (int)$stmtSru->fetchColumn();
+            $stmtSru->closeCursor();
+            $nextSru = max(1, $maxSru + 1);
+            $db->exec("ALTER TABLE RenopsSRU AUTO_INCREMENT = {$nextSru}");
+        } catch (Throwable) {
+            // Silently continue
         }
     }
 }

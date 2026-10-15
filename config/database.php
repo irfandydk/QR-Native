@@ -40,6 +40,10 @@ class Database {
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
             ];
+            $bufferedAttr = defined('\Pdo\Mysql::ATTR_USE_BUFFERED_QUERY')
+                ? \Pdo\Mysql::ATTR_USE_BUFFERED_QUERY
+                : (defined('PDO::MYSQL_ATTR_USE_BUFFERED_QUERY') ? PDO::MYSQL_ATTR_USE_BUFFERED_QUERY : 1000);
+            $options[$bufferedAttr] = true;
 
             try {
                 self::$instance = new PDO($dsn, $username, $password, $options);

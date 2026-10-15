@@ -25,8 +25,8 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
     <meta name="csrf-token" content="<?= e(csrfToken()) ?>">
     <!-- Immediate Anti-Flicker & Layout State Script -->
     <script>
-        window.BASE_URL = <?= json_encode(BASE_URL) ?>;
-        window.CSRF_TOKEN = <?= json_encode(csrfToken()) ?>;
+        window.BASE_URL = <?= jsonSafe(BASE_URL) ?>;
+        window.CSRF_TOKEN = <?= jsonSafe(csrfToken()) ?>;
 
         // Global Fetch Interceptor to automatically attach CSRF Token to state-changing requests
         (function() {
@@ -64,7 +64,7 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
         })();
 
         (function() {
-            var sysDefault = <?= json_encode($defaultSystemTheme) ?>;
+            var sysDefault = <?= jsonSafe($defaultSystemTheme) ?>;
             var savedTheme = localStorage.getItem('qr_sar_theme') || sysDefault || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
             if (savedTheme === 'dark') {

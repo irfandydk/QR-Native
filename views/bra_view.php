@@ -397,9 +397,9 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
 <script src="<?= BASE_URL ?>/assets/js/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
 <script>
 (function() {
-  const verifyUrl = <?= json_encode($verifyUrl) ?>;
-  const noBra = <?= json_encode($bra['no_bra'] ?? 'BRA-SAR') ?>;
-  const logoDataUri = <?= json_encode($logoDataUri) ?>;
+  const verifyUrl = <?= jsonSafe($verifyUrl) ?>;
+  const noBra = <?= jsonSafe($bra['no_bra'] ?? 'BRA-SAR') ?>;
+  const logoDataUri = <?= jsonSafe($logoDataUri) ?>;
 
   function renderDocQr(retries = 0) {
     const canvas = document.getElementById('braQrCanvas');

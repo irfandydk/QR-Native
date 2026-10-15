@@ -988,6 +988,9 @@ $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
                   <div class="flex items-center gap-2">
                     <span class="sec-code-badge"><?= htmlspecialchars($sec['kode']) ?></span>
                     <input type="hidden" name="sections[<?= $index ?>][kode]" value="<?= htmlspecialchars($sec['kode']) ?>" class="sec-code-input">
+                    <?php if (!empty($sec['id'])): ?>
+                      <input type="hidden" name="sections[<?= $index ?>][id]" value="<?= (int)$sec['id'] ?>">
+                    <?php endif; ?>
                     <span class="sec-hint-title sec-hint-label">
                       <?= $index === 0 ? '(Kronologi / Informasi Awal / Dasar Pelayaran)' : ($index === 1 ? '(Unsur SAR Terlibat, Alut & Palsar / Rencana Pelayaran)' : ($index === 2 ? '(Penutup / Laporan Perkembangan Menyusul)' : '(Bagian Tambahan)')) ?>
                     </span>
@@ -1611,7 +1614,13 @@ function initBraForm() {
     const twbVal = document.getElementById('twbInput').value.trim();
     if (pvTwb) pvTwb.textContent = twbVal.startsWith('TWB') ? twbVal : `TWB ${twbVal || '<?= $twbPlaceholder ?>'}`;
 
-    if (pvNoBra) pvNoBra.textContent = document.getElementById('noBraInput').value.trim() || '<?= $noBraPlaceholder ?>';
+    const noBraVal = document.getElementById('noBraInput').value.trim();
+    if (pvNoBra) pvNoBra.textContent = noBraVal || '<?= $noBraPlaceholder ?>';
+    const matchUrut = noBraVal.match(/^(\d+)/);
+    const hiddenUrutEl = document.getElementById('hiddenNomorUrut');
+    if (matchUrut && hiddenUrutEl) {
+      hiddenUrutEl.value = matchUrut[1];
+    }
 
     const menbraVal = document.getElementById('menbraInput').value.trim();
     if (pvMenbra) pvMenbra.textContent = menbraVal;
@@ -1948,7 +1957,7 @@ function initBraForm() {
 
   // QR Code Rendering for Live Preview & Modal Preview
   const verifyUrl = '<?= BASE_URL ?>/bra.php?view=<?= $id ?: 9999 ?>';
-  const logoDataUri = <?= json_encode($logoDataUri) ?>;
+  const logoDataUri = <?= jsonSafe($logoDataUri) ?>;
 
   function renderBraQrCode(targetCanvas, retries = 0) {
     if (!targetCanvas) return;

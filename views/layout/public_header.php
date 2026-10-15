@@ -71,7 +71,7 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - Verifikasi Resmi Basarnas" : "V
     <script src="<?= BASE_URL ?>/assets/js/sweetalert2.all.min.js?v=<?= APP_VERSION ?>"></script>
 
     <script>
-        window.BASE_URL = <?= json_encode(BASE_URL) ?>;
+        window.BASE_URL = <?= jsonSafe(BASE_URL) ?>;
         function showToast(message, type = 'info') {
             if (typeof Swal !== 'undefined') {
                 Swal.fire({

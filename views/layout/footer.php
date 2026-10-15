@@ -32,7 +32,7 @@ $flash = getFlash();
 <?php if ($flash): ?>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    showToast(<?= json_encode($flash['message']) ?>, <?= json_encode($flash['type']) ?>);
+    showToast(<?= jsonSafe($flash['message']) ?>, <?= jsonSafe($flash['type']) ?>);
 });
 </script>
 <?php endif; ?>

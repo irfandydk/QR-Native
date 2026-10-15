@@ -564,8 +564,8 @@ $initialAlutData = $initialAlutData ?? [];
 
 <script>
 // Data state
-let currentUnsurList = <?= json_encode($initialUnsurData) ?>;
-let currentAlutList = <?= json_encode($initialAlutData) ?>;
+let currentUnsurList = <?= jsonSafe($initialUnsurData) ?>;
+let currentAlutList = <?= jsonSafe($initialAlutData) ?>;
 
 // Escape HTML utility
 function escapeHtml(str) {
@@ -624,7 +624,7 @@ function applyH7ClosureTemplate() {
   }
   const isiEl = document.getElementById('sitrep_isi_laporan');
   if (isiEl) {
-    const namaOps = <?= json_encode($operasi['nama_operasi']) ?>;
+    const namaOps = <?= jsonSafe($operasi['nama_operasi']) ?>;
     isiEl.value = `1. Tim SAR Gabungan telah melaksanakan upaya pencarian dan pertolongan maksimal hingga hari ke-7 (H.7) sesuai Rencana Operasi (RENOPS H.7).\n2. Hingga pukul 17.00 WITA, hasil penyisiran lapangan di seluruh sektor pencarian masih NIHIL dan tidak ditemukan tanda-tanda keberadaan korban.\n3. Berdasarkan hasil evaluasi menyeluruh, debriefing bersama seluruh Potensi SAR yang terlibat, serta musyawarah bersama pihak keluarga korban, dengan merujuk pada ketentuan Pasal 34 Undang-Undang No. 29 Tahun 2014 tentang Pencarian dan Pertolongan, maka Operasi SAR ${namaOps} secara resmi diusulkan untuk DITUTUP.\n4. Seluruh unsur Potensi SAR yang terlibat dikembalikan ke kesatuan dan instansi masing-masing dengan ucapan terima kasih dan apresiasi setinggi-tingginya.\n5. Operasi SAR dapat dibuka kembali sewaktu-waktu apabila di kemudian hari ditemukan petunjuk atau tanda-tanda baru mengenai keberadaan korban.`;
     isiEl.focus();
   }
@@ -641,7 +641,7 @@ function applyH7ExtensionTemplate() {
   }
   const isiEl = document.getElementById('sitrep_isi_laporan');
   if (isiEl) {
-    const namaOps = <?= json_encode($operasi['nama_operasi']) ?>;
+    const namaOps = <?= jsonSafe($operasi['nama_operasi']) ?>;
     isiEl.value = `1. Pada pelaksanaan operasi SAR hari ke-7 (H.7), Tim SAR Gabungan memperoleh petunjuk dan laporan informasi mengenai kemungkinan posisi korban di lapangan.\n2. Berdasarkan hasil analisa SMC dan kesepakatan bersama Potensi SAR serta pihak keluarga korban, diputuskan bahwa Operasi SAR ${namaOps} diusulkan untuk DIPERPANJANG selama 3 (tiga) hari ke depan sesuai wewenang Kepala Kantor SAR guna mengoptimalkan pencarian.\n3. Rencana operasi lanjutan (RENOPS H.8) akan difokuskan pada perluasan area pencarian sesuai datum dan perkembangan terkini.`;
     isiEl.focus();
   }
@@ -694,8 +694,8 @@ async function quickAiRefineSitrep(btn) {
         rawDraft: rawText,
         hari_ke: document.getElementById('sitrep_hari_ke')?.value || 'H.1',
         hariKe: document.getElementById('sitrep_hari_ke')?.value || 'H.1',
-        nama_operasi: <?= json_encode($operasi['nama_operasi']) ?>,
-        namaOperasi: <?= json_encode($operasi['nama_operasi']) ?>
+        nama_operasi: <?= jsonSafe($operasi['nama_operasi']) ?>,
+        namaOperasi: <?= jsonSafe($operasi['nama_operasi']) ?>
       })
     });
     const json = await res.json();
@@ -763,8 +763,8 @@ async function generateAiSitrep() {
         rawDraft: draftInput,
         hari_ke: document.getElementById('sitrep_hari_ke')?.value || 'H.1',
         hariKe: document.getElementById('sitrep_hari_ke')?.value || 'H.1',
-        nama_operasi: <?= json_encode($operasi['nama_operasi']) ?>,
-        namaOperasi: <?= json_encode($operasi['nama_operasi']) ?>
+        nama_operasi: <?= jsonSafe($operasi['nama_operasi']) ?>,
+        namaOperasi: <?= jsonSafe($operasi['nama_operasi']) ?>
       })
     });
     const json = await res.json();
@@ -1065,8 +1065,8 @@ function previewSitrepWa() {
   const isi = document.getElementById('sitrep_isi_laporan')?.value || '-';
 
   const tglStr = window.formatTanggalIndo ? window.formatTanggalIndo(waktuLap) : waktuLap;
-  const namaOps = <?= json_encode($operasi['nama_operasi']) ?>;
-  const korbanList = <?= json_encode($operasi['korban'] ?? []) ?>;
+  const namaOps = <?= jsonSafe($operasi['nama_operasi']) ?>;
+  const korbanList = <?= jsonSafe($operasi['korban'] ?? []) ?>;
 
   const unsurText = currentUnsurList.map(u => `• ${u.nama_unsur} : ${u.jumlah_personil || 1} Orang`).join('\n') || '• Tim Rescue Kansar Kendari : 7 Orang';
   const alutText = currentAlutList.map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n') || '• 1 Unit Rescue Car\n• 1 Unit Rubber Boat';
@@ -1242,7 +1242,7 @@ document.getElementById('form-sitrep')?.addEventListener('submit', () => {
 });
 
 // Real-time Day Recalculation Based on Input Date
-const OPERASI_START_DATE = <?= json_encode(date('Y-m-d', strtotime(TemplateHelper::getWaktuMulaiAktual($operasi)))) ?>;
+const OPERASI_START_DATE = <?= jsonSafe(date('Y-m-d', strtotime(TemplateHelper::getWaktuMulaiAktual($operasi)))) ?>;
 
 function recalculateSitrepHariKe() {
   const dtInput = document.getElementById('sitrep_waktu_laporan')?.value;

@@ -493,12 +493,12 @@ $satkerNama = $appSettings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN K
       updateLoginThemeUI(cur);
       <?php if ($error): ?>
         if (typeof showToast === 'function') {
-          showToast(<?= json_encode($error) ?>, 'error');
+          showToast(<?= jsonSafe($error) ?>, 'error');
         }
       <?php endif; ?>
       <?php if ($success): ?>
         if (typeof showToast === 'function') {
-          showToast(<?= json_encode($success) ?>, 'success');
+          showToast(<?= jsonSafe($success) ?>, 'success');
         }
       <?php endif; ?>
     });

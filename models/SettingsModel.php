@@ -196,29 +196,32 @@ class SettingsModel {
 
     public static function updateAdminProfile(array $data): bool {
         $db = getDB();
-        $adminUser = !empty($data['username']) ? trim($data['username']) : 'admin';
-        $stmt = $db->prepare("UPDATE AppSettings SET
-            admin_username = :username,
-            admin_nama = :nama,
-            admin_nip = :nip,
-            admin_pangkat = :pangkat,
-            admin_jabatan = :jabatan,
-            admin_email = :email,
-            admin_no_hp = :no_hp
-            WHERE id = 1");
+        $inTx = $db->inTransaction();
+        if (!$inTx) $db->beginTransaction();
 
-        $res = $stmt->execute([
-            ':username' => $adminUser,
-            ':nama' => $data['nama'] ?? '',
-            ':nip' => $data['nip'] ?? '',
-            ':pangkat' => $data['pangkat'] ?? '',
-            ':jabatan' => $data['jabatan'] ?? '',
-            ':email' => $data['email'] ?? '',
-            ':no_hp' => $data['no_hp'] ?? ''
-        ]);
+        try {
+            $adminUser = !empty($data['username']) ? trim($data['username']) : 'admin';
+            $stmt = $db->prepare("UPDATE AppSettings SET
+                admin_username = :username,
+                admin_nama = :nama,
+                admin_nip = :nip,
+                admin_pangkat = :pangkat,
+                admin_jabatan = :jabatan,
+                admin_email = :email,
+                admin_no_hp = :no_hp
+                WHERE id = 1");
 
-        if ($res) {
-            try {
+            $res = $stmt->execute([
+                ':username' => $adminUser,
+                ':nama' => $data['nama'] ?? '',
+                ':nip' => $data['nip'] ?? '',
+                ':pangkat' => $data['pangkat'] ?? '',
+                ':jabatan' => $data['jabatan'] ?? '',
+                ':email' => $data['email'] ?? '',
+                ':no_hp' => $data['no_hp'] ?? ''
+            ]);
+
+            if ($res) {
                 UserModel::ensureTableExists();
                 $db->prepare("UPDATE `Users` SET 
                     username = :username, 
@@ -239,48 +242,56 @@ class SettingsModel {
                     ':no_hp' => $data['no_hp'] ?? '',
                     ':now' => date('Y-m-d H:i:s')
                 ]);
-            } catch (Throwable $e) {}
 
-            AuditHelper::log('PROFILE_UPDATE', "Memperbarui profil administrator (" . ($data['nama'] ?? $adminUser) . ")", 'Users', 'USR-ADMIN');
+                AuditHelper::log('PROFILE_UPDATE', "Memperbarui profil administrator (" . ($data['nama'] ?? $adminUser) . ")", 'Users', 'USR-ADMIN');
+            }
+
+            if (!$inTx) $db->commit();
+            return $res;
+        } catch (Throwable $e) {
+            if (!$inTx && $db->inTransaction()) $db->rollBack();
+            error_log("[SettingsModel updateAdminProfile] " . $e->getMessage());
+            return false;
         }
-
-        return $res;
     }
 
     public static function updateUserProfile(array $data): bool {
         $db = getDB();
-        $userUser = !empty($data['username']) ? trim($data['username']) : 'user';
-        $sql = "UPDATE AppSettings SET
-            user_username = :username,
-            user_nama = :nama,
-            user_nip = :nip,
-            user_pangkat = :pangkat,
-            user_jabatan = :jabatan,
-            user_email = :email,
-            user_no_hp = :no_hp";
+        $inTx = $db->inTransaction();
+        if (!$inTx) $db->beginTransaction();
 
-        $params = [
-            ':username' => $userUser,
-            ':nama' => $data['nama'] ?? '',
-            ':nip' => $data['nip'] ?? '',
-            ':pangkat' => $data['pangkat'] ?? '',
-            ':jabatan' => $data['jabatan'] ?? '',
-            ':email' => $data['email'] ?? '',
-            ':no_hp' => $data['no_hp'] ?? ''
-        ];
+        try {
+            $userUser = !empty($data['username']) ? trim($data['username']) : 'user';
+            $sql = "UPDATE AppSettings SET
+                user_username = :username,
+                user_nama = :nama,
+                user_nip = :nip,
+                user_pangkat = :pangkat,
+                user_jabatan = :jabatan,
+                user_email = :email,
+                user_no_hp = :no_hp";
 
-        $hasPass = !empty($data['password']);
-        if ($hasPass) {
-            $sql .= ", user_password = :password";
-            $params[':password'] = password_hash(trim($data['password']), PASSWORD_DEFAULT);
-        }
+            $params = [
+                ':username' => $userUser,
+                ':nama' => $data['nama'] ?? '',
+                ':nip' => $data['nip'] ?? '',
+                ':pangkat' => $data['pangkat'] ?? '',
+                ':jabatan' => $data['jabatan'] ?? '',
+                ':email' => $data['email'] ?? '',
+                ':no_hp' => $data['no_hp'] ?? ''
+            ];
 
-        $sql .= " WHERE id = 1";
-        $stmt = $db->prepare($sql);
-        $res = $stmt->execute($params);
+            $hasPass = !empty($data['password']);
+            if ($hasPass) {
+                $sql .= ", user_password = :password";
+                $params[':password'] = password_hash(trim($data['password']), PASSWORD_DEFAULT);
+            }
 
-        if ($res) {
-            try {
+            $sql .= " WHERE id = 1";
+            $stmt = $db->prepare($sql);
+            $res = $stmt->execute($params);
+
+            if ($res) {
                 UserModel::ensureTableExists();
                 $uSql = "UPDATE `Users` SET 
                     username = :username, 
@@ -306,31 +317,39 @@ class SettingsModel {
                 $uSql .= ", updated_at = :now WHERE id = 'USR-USER' OR username = 'user'";
                 $uParams[':now'] = date('Y-m-d H:i:s');
                 $db->prepare($uSql)->execute($uParams);
-            } catch (Throwable $e) {}
 
-            AuditHelper::log('PROFILE_UPDATE', "Memperbarui profil petugas siaga (" . ($data['nama'] ?? $userUser) . ")", 'Users', 'USR-USER');
+                AuditHelper::log('PROFILE_UPDATE', "Memperbarui profil petugas siaga (" . ($data['nama'] ?? $userUser) . ")", 'Users', 'USR-USER');
+            }
+
+            if (!$inTx) $db->commit();
+            return $res;
+        } catch (Throwable $e) {
+            if (!$inTx && $db->inTransaction()) $db->rollBack();
+            error_log("[SettingsModel updateUserProfile] " . $e->getMessage());
+            return false;
         }
-
-        return $res;
     }
 
     public static function resetUserToDefault(): bool {
         $db = getDB();
-        $defaultHash = password_hash('Kendari304', PASSWORD_DEFAULT);
-        $stmt = $db->prepare("UPDATE AppSettings SET
-            user_username = 'user',
-            user_password = :p,
-            user_nama = 'Petugas Siaga SAR',
-            user_nip = '199501012020121001',
-            user_pangkat = 'PENGATUR (II/c)',
-            user_jabatan = 'Operator Komunikasi & Petugas Siaga SAR',
-            user_email = 'operator.kendari@basarnas.go.id',
-            user_no_hp = '0811-4091-115'
-            WHERE id = 1");
-        $res = $stmt->execute([':p' => $defaultHash]);
+        $inTx = $db->inTransaction();
+        if (!$inTx) $db->beginTransaction();
 
-        if ($res) {
-            try {
+        try {
+            $defaultHash = password_hash(DEFAULT_RESET_PASSWORD, PASSWORD_DEFAULT);
+            $stmt = $db->prepare("UPDATE AppSettings SET
+                user_username = 'user',
+                user_password = :p,
+                user_nama = 'Petugas Siaga SAR',
+                user_nip = '199501012020121001',
+                user_pangkat = 'PENGATUR (II/c)',
+                user_jabatan = 'Operator Komunikasi & Petugas Siaga SAR',
+                user_email = 'operator.kendari@basarnas.go.id',
+                user_no_hp = '0811-4091-115'
+                WHERE id = 1");
+            $res = $stmt->execute([':p' => $defaultHash]);
+
+            if ($res) {
                 UserModel::ensureTableExists();
                 $db->prepare("UPDATE `Users` SET 
                     username = 'user', 
@@ -346,12 +365,17 @@ class SettingsModel {
                     ':p' => $defaultHash, 
                     ':now' => date('Y-m-d H:i:s')
                 ]);
-            } catch (Throwable $e) {}
 
-            AuditHelper::log('USER_RESET', "Mereset akun Petugas Siaga SAR ke pengaturan awal sistem", 'Users', 'USR-USER');
+                AuditHelper::log('USER_RESET', "Mereset akun Petugas Siaga SAR ke pengaturan awal sistem", 'Users', 'USR-USER');
+            }
+
+            if (!$inTx) $db->commit();
+            return $res;
+        } catch (Throwable $e) {
+            if (!$inTx && $db->inTransaction()) $db->rollBack();
+            error_log("[SettingsModel resetUserToDefault] " . $e->getMessage());
+            return false;
         }
-
-        return $res;
     }
 
     public static function changePassword(string $role, string $oldPass, string $newPass): array {
@@ -359,9 +383,9 @@ class SettingsModel {
         $settings = self::getSettings();
 
         $roleUpper = strtoupper($role);
-        $currPass = $roleUpper === 'ADMIN' ? ($settings['admin_password'] ?? 'Kendari304') : ($settings['user_password'] ?? 'Kendari304');
+        $currPass = $roleUpper === 'ADMIN' ? ($settings['admin_password'] ?? '') : ($settings['user_password'] ?? '');
 
-        if (!AuthHelper::verifyPassword($oldPass, (string)$currPass)) {
+        if ($currPass === '' || !AuthHelper::verifyPassword($oldPass, (string)$currPass)) {
             return ['success' => false, 'error' => 'Kata sandi lama tidak cocok.'];
         }
 
@@ -369,18 +393,21 @@ class SettingsModel {
             return ['success' => false, 'error' => 'Kata sandi baru minimal 8 karakter demi standar keamanan akun.'];
         }
 
-        $newHash = password_hash($newPass, PASSWORD_DEFAULT);
+        $inTx = $db->inTransaction();
+        if (!$inTx) $db->beginTransaction();
 
-        if ($roleUpper === 'ADMIN') {
-            $stmt = $db->prepare("UPDATE AppSettings SET admin_password = :p WHERE id = 1");
-        } else {
-            $stmt = $db->prepare("UPDATE AppSettings SET user_password = :p WHERE id = 1");
-        }
+        try {
+            $newHash = password_hash($newPass, PASSWORD_DEFAULT);
 
-        $res = $stmt->execute([':p' => $newHash]);
+            if ($roleUpper === 'ADMIN') {
+                $stmt = $db->prepare("UPDATE AppSettings SET admin_password = :p WHERE id = 1");
+            } else {
+                $stmt = $db->prepare("UPDATE AppSettings SET user_password = :p WHERE id = 1");
+            }
 
-        if ($res) {
-            try {
+            $res = $stmt->execute([':p' => $newHash]);
+
+            if ($res) {
                 UserModel::ensureTableExists();
                 $usrId = ($roleUpper === 'ADMIN') ? 'USR-ADMIN' : 'USR-USER';
                 $db->prepare("UPDATE `Users` SET password_hash = :p, updated_at = :now WHERE id = :id OR role = :role")->execute([
@@ -389,33 +416,46 @@ class SettingsModel {
                     ':id' => $usrId,
                     ':role' => $roleUpper
                 ]);
-            } catch (Throwable $e) {}
 
-            AuditHelper::log('PASSWORD_CHANGE', "Mengubah kata sandi untuk otoritas {$roleUpper}", 'Users', $roleUpper);
+                AuditHelper::log('PASSWORD_CHANGE', "Mengubah kata sandi untuk otoritas {$roleUpper}", 'Users', $roleUpper);
+            }
+
+            if (!$inTx) $db->commit();
+            return ['success' => true, 'message' => 'Kata sandi berhasil diperbarui dengan aman.'];
+        } catch (Throwable $e) {
+            if (!$inTx && $db->inTransaction()) $db->rollBack();
+            error_log("[SettingsModel changePassword] " . $e->getMessage());
+            return ['success' => false, 'error' => 'Gagal memperbarui kata sandi: ' . $e->getMessage()];
         }
-
-        return ['success' => true, 'message' => 'Kata sandi berhasil diperbarui dengan aman.'];
     }
 
     public static function resetToDefaultPassword(): bool {
         $db = getDB();
-        $defaultHash = password_hash('Kendari304', PASSWORD_DEFAULT);
-        $stmt = $db->prepare("UPDATE AppSettings SET admin_password = :pa, user_password = :pu WHERE id = 1");
-        $res = $stmt->execute([':pa' => $defaultHash, ':pu' => $defaultHash]);
+        $inTx = $db->inTransaction();
+        if (!$inTx) $db->beginTransaction();
 
-        if ($res) {
-            try {
+        try {
+            $defaultHash = password_hash(DEFAULT_RESET_PASSWORD, PASSWORD_DEFAULT);
+            $stmt = $db->prepare("UPDATE AppSettings SET admin_password = :pa, user_password = :pu WHERE id = 1");
+            $res = $stmt->execute([':pa' => $defaultHash, ':pu' => $defaultHash]);
+
+            if ($res) {
                 UserModel::ensureTableExists();
                 $db->prepare("UPDATE `Users` SET password_hash = :p, updated_at = :now")->execute([
                     ':p' => $defaultHash,
                     ':now' => date('Y-m-d H:i:s')
                 ]);
-            } catch (Throwable $e) {}
 
-            AuditHelper::log('PASSWORD_RESET', "Mereset semua kata sandi pengguna ke bawaan sistem (Kendari304)", 'Users', 'ALL');
+                AuditHelper::log('PASSWORD_RESET', "Mereset semua kata sandi pengguna ke bawaan sistem", 'Users', 'ALL');
+            }
+
+            if (!$inTx) $db->commit();
+            return $res;
+        } catch (Throwable $e) {
+            if (!$inTx && $db->inTransaction()) $db->rollBack();
+            error_log("[SettingsModel resetToDefaultPassword] " . $e->getMessage());
+            return false;
         }
-
-        return $res;
     }
 
     public static function exportJsonBackup(): array {

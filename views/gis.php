@@ -15,7 +15,6 @@ if (!defined('APP_NAME')) {
 
 $selectedOperasiId = null;
 $modeParam = $_GET['mode'] ?? null;
-$includeBase = isset($_GET['include_base']) && $_GET['include_base'] === '1';
 
 // 4. Operasi yang telah ditutup tidak masuk dalam pilihan! (Hanya status OPEN)
 $rawActiveOps = OperasiModel::getListSimple('OPEN');
@@ -56,6 +55,11 @@ if (isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '') {
 } else {
     $filterMode = 'all';
 }
+
+// 5. Pilihan Misi Operasi SAR: Jika memilih operasi tertentu, default includeBase = true (menampilkan komponen base map)
+$includeBase = isset($_GET['include_base'])
+    ? ($_GET['include_base'] === '1' || $_GET['include_base'] === 'true')
+    : ($filterMode === 'operasi');
 
 $currentOperasi = $selectedOperasiId ? ($activeOperasiMap[$selectedOperasiId] ?? null) : null;
 
@@ -493,7 +497,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             <div class="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-center">
               <button type="button" id="tabIconPresetSar" class="py-1 rounded-lg bg-orange-500 text-white cursor-pointer transition">Preset Logo</button>
               <button type="button" id="tabIconAlphabet" class="py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer transition">Huruf (A-Z)</button>
-              <button type="button" id="tabIconCustom" class="py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer transition">Upload / URL</button>
+              <button type="button" id="tabIconCustom" class="py-1 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer transition">Logo Kustom</button>
             </div>
 
             <!-- Panel 1: Preset Logo with Filter Pills & Search -->
@@ -524,38 +528,45 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             </div>
 
             <!-- Panel 3: Custom / Upload -->
-            <div id="iconGridCustom" class="hidden p-2 text-center text-xs text-slate-600 dark:text-slate-400 space-y-2.5">
-              <p class="text-[10px] font-medium text-slate-700 dark:text-slate-300">Upload ikon/logo kustom (PNG, JPG, SVG, WebP) atau gunakan URL:</p>
+            <div id="iconGridCustom" class="hidden p-2 text-left text-xs text-slate-600 dark:text-slate-400 space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold text-slate-700 dark:text-slate-300">Upload Logo Baru (Tersimpan Permanen):</span>
+                <span class="text-[9px] text-slate-400 font-mono">PNG/JPG/SVG/WebP</span>
+              </div>
               
               <!-- File Upload Input (Hidden) & Dropzone Button -->
               <input type="file" id="pcCustomIconFile" accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif" class="hidden">
               <button type="button" id="btnTriggerUploadIcon" class="w-full py-2 px-3 rounded-xl border border-dashed border-orange-500/60 hover:border-orange-500 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                <span>Pilih File Ikon / Logo</span>
+                <span>+ Upload File Logo / Ikon Baru</span>
               </button>
 
               <!-- Uploaded Preview Card -->
-              <div id="pcCustomIconPreviewCard" class="hidden p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 text-left">
-                <div class="flex items-center gap-2 min-w-0">
-                  <img id="pcCustomIconThumb" src="" alt="Custom Icon" class="w-8 h-8 rounded-lg object-contain bg-white dark:bg-white/10 p-0.5 border border-slate-200 dark:border-slate-700 shrink-0">
+              <div id="pcCustomIconPreviewCard" class="hidden p-2 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-500/40 flex items-center justify-between gap-2 text-left">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <img id="pcCustomIconThumb" src="" alt="Custom Icon" class="w-8 h-8 rounded-lg object-contain bg-white dark:bg-slate-900 p-0.5 border border-orange-400/40 shrink-0">
                   <div class="min-w-0 flex-1">
                     <div id="pcCustomIconFileName" class="text-xs font-bold text-slate-900 dark:text-white truncate">icon.png</div>
-                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                      <span>✓ Ikon Siap Digunakan</span>
+                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                      <span>✓ Logo Terpilih Aktif</span>
                     </div>
                   </div>
                 </div>
-                <button type="button" id="btnRemoveCustomIcon" class="p-1 text-slate-400 hover:text-red-500 rounded transition cursor-pointer" title="Hapus ikon kustom">
-                  ✕
+                <button type="button" id="btnRemoveCustomIcon" class="px-2.5 py-1 text-[11px] font-bold text-red-600 hover:text-red-700 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition cursor-pointer flex items-center gap-1 shrink-0" title="Lepas logo kustom dari titik ini (titik kembali ke pin standar)">
+                  <span>✕ Lepas dari Titik</span>
                 </button>
               </div>
 
-              <div class="relative flex items-center justify-center">
-                <span class="text-[9px] text-slate-500 uppercase tracking-wider bg-white dark:bg-slate-900 px-2 z-10">atau via URL</span>
-                <div class="absolute inset-x-0 h-px bg-slate-200 dark:bg-slate-800"></div>
+              <!-- Daftar Logo Kustom Tersimpan -->
+              <div class="pt-1 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                <div class="flex items-center justify-between text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                  <span>Pustaka Logo Kustom (Klik untuk pilih):</span>
+                  <span id="customIconCountBadge" class="text-[9px] text-orange-600 dark:text-orange-400 font-mono">0 Logo</span>
+                </div>
+                <div id="customIconGalleryContainer" class="grid grid-cols-4 gap-1.5 max-h-40 overflow-y-auto gis-scrollbar p-1 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+                  <div class="col-span-4 p-3 text-center text-[10px] text-slate-400">Memuat daftar logo...</div>
+                </div>
               </div>
-
-              <input type="text" id="pcCustomIconUrl" placeholder="https://... atau /assets/icons/..." class="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-orange-500 transition">
             </div>
           </div>
 
@@ -596,14 +607,8 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
 
             <!-- Readout Decimal -->
             <div class="text-[10px] font-mono text-slate-500 dark:text-slate-400 text-right pt-1">
-              Desimal: <span id="pcReadoutDecimal" class="text-orange-600 dark:text-orange-400 font-bold">-4.037694, 122.486694</span>
+              Desimal: <span id="pcReadoutDecimal" class="text-orange-600 dark:text-orange-400 font-bold">-</span>
             </div>
-          </div>
-
-          <!-- Description / Notes -->
-          <div>
-            <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">Catatan Tambahan</label>
-            <input type="text" id="pcPointDesc" placeholder="Kondisi cuaca, kontak pelapor, kedalaman..." class="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-orange-500">
           </div>
 
           <!-- Action Buttons -->
@@ -886,20 +891,18 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             </div>
           </div>
 
-          <!-- Generate Pattern Button -->
-          <button type="button" id="btnGenerateSearchPattern" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
-            <span>✨ Generate Lintasan IAMSAR</span>
-          </button>
-
           <!-- Pattern Status / Alert Box -->
           <div id="patternStatusMsg" class="hidden text-[11px] p-2.5 rounded-xl transition"></div>
 
           <!-- Pattern Results Box -->
           <div id="patternResultsCard" class="hidden p-3 bg-slate-50 dark:bg-slate-900/90 rounded-2xl border border-sky-500/30 space-y-2 text-xs">
             <div class="flex items-center justify-between font-bold">
-              <span class="text-slate-600 dark:text-slate-400">Total Panjang Lintasan:</span>
+              <span class="text-slate-600 dark:text-slate-400">Total Panjang Lintasan (L):</span>
               <span id="resPatternDistNm" class="text-sm font-black text-sky-600 dark:text-sky-400 font-mono">0.00 NM</span>
+            </div>
+            <div class="flex items-center justify-between text-slate-600 dark:text-slate-400 font-semibold">
+              <span title="IAMSAR Vol II Formula: Luas Sapuan = Track Spacing (S) × Total Lintasan (L)">Luas Total Sapuan (A = S × L):</span>
+              <span id="resPatternAreaSwept" class="font-bold text-emerald-600 dark:text-emerald-400 font-mono">0.00 NM²</span>
             </div>
             <div class="flex items-center justify-between text-slate-600 dark:text-slate-400">
               <span>Metode & Sapuan:</span>
@@ -1129,14 +1132,14 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             </div>
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2 flex-wrap">
-                <h3 id="searchBannerTitle" class="text-sm font-black truncate text-slate-900 dark:text-white">Nama Lokasi</h3>
+                <h3 id="searchBannerTitle" class="text-sm font-black truncate text-slate-900 dark:text-white">-</h3>
                 <span id="searchBannerBadge" class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 shrink-0">MAPS</span>
               </div>
-              <p id="searchBannerAddress" class="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5 font-medium">Alamat lengkap wilayah</p>
+              <p id="searchBannerAddress" class="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5 font-medium">-</p>
               <div class="flex items-center gap-3 mt-1.5 text-[11px] font-mono text-slate-600 dark:text-slate-300">
-                <span id="searchBannerCoords" class="text-orange-600 dark:text-orange-400 font-bold">04° 03' 27" S, 121° 35' 21" E</span>
+                <span id="searchBannerCoords" class="text-orange-600 dark:text-orange-400 font-bold">-</span>
                 <span class="text-slate-300 dark:text-slate-700">|</span>
-                <span id="searchBannerDecimal" class="text-slate-500 dark:text-slate-400">-4.05758, 121.58921</span>
+                <span id="searchBannerDecimal" class="text-slate-500 dark:text-slate-400">-</span>
               </div>
             </div>
           </div>
@@ -1381,17 +1384,17 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
 <!-- ========================================== -->
 <script>
 window.SAR_INITIAL_GIS_DATA = {
-  filterMode: <?= json_encode($filterMode) ?>,
-  includeBase: <?= json_encode($includeBase) ?>,
-  currentOperasiId: <?= json_encode($selectedOperasiId) ?>,
-  currentOperasi: <?= json_encode($currentOperasi, JSON_UNESCAPED_UNICODE) ?>,
-  csrfToken: <?= json_encode(csrfToken()) ?>,
-  points: <?= json_encode($savedPoints, JSON_UNESCAPED_UNICODE) ?>,
-  polygons: <?= json_encode($savedPolygons, JSON_UNESCAPED_UNICODE) ?>,
-  patterns: <?= json_encode($savedPatterns, JSON_UNESCAPED_UNICODE) ?>,
-  routes: <?= json_encode($savedRoutes, JSON_UNESCAPED_UNICODE) ?>,
-  sarUnits: <?= json_encode($sarUnits, JSON_UNESCAPED_UNICODE) ?>,
-  operasiList: <?= json_encode($activeOperasiList, JSON_UNESCAPED_UNICODE) ?>,
+  filterMode: <?= jsonSafe($filterMode) ?>,
+  includeBase: <?= jsonSafe($includeBase) ?>,
+  currentOperasiId: <?= jsonSafe($selectedOperasiId) ?>,
+  currentOperasi: <?= jsonSafe($currentOperasi) ?>,
+  csrfToken: <?= jsonSafe(csrfToken()) ?>,
+  points: <?= jsonSafe($savedPoints) ?>,
+  polygons: <?= jsonSafe($savedPolygons) ?>,
+  patterns: <?= jsonSafe($savedPatterns) ?>,
+  routes: <?= jsonSafe($savedRoutes) ?>,
+  sarUnits: <?= jsonSafe($sarUnits) ?>,
+  operasiList: <?= jsonSafe($activeOperasiList) ?>,
   kansarKendari: { lat: -4.037664, lng: 122.486662, label: 'Kantor SAR Kendari' }
 };
 </script>

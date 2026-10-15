@@ -272,6 +272,17 @@ function e(mixed $value): string {
 }
 
 /**
+ * Safe JSON encoder for inline HTML <script> tags
+ * Automatically escapes HTML tags, quotes, and ampersands to prevent XSS breakout.
+ */
+function jsonSafe(mixed $value, int $flags = 0): string {
+    return json_encode($value, $flags | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+}
+
+// Default initial password fallback for administrative reset routines
+defined('DEFAULT_RESET_PASSWORD') || define('DEFAULT_RESET_PASSWORD', getenv('DEFAULT_RESET_PASSWORD') ?: 'Kendari304');
+
+/**
  * Global App Logo Helper (Resolves from AppSettings.logo_url)
  * Normalized to current domain/origin to prevent CORS & broken links
  */

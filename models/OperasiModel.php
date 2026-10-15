@@ -187,6 +187,12 @@ class OperasiModel {
         $db->beginTransaction();
 
         try {
+            // Strict Sequential ID Calculation:
+            // Calculate the next ID strictly as MAX(id_operasi) + 1 with pessimistic row lock to prevent irregular jumping
+            $stmtMax = $db->query("SELECT COALESCE(MAX(id_operasi), 0) + 1 AS next_id FROM Operasi FOR UPDATE");
+            $nextId = (int)$stmtMax->fetchColumn();
+            if ($nextId < 1) $nextId = 1;
+
             // Build full_text_wa
             $korbanData = $data['korban'] ?? [];
             $unsurData = $data['detail_unsur'] ?? [];
@@ -195,12 +201,14 @@ class OperasiModel {
             $fullTextWa = TemplateHelper::generateLaporanAwalWA($data, $korbanData, $unsurData, $alutData);
 
             $stmt = $db->prepare("INSERT INTO Operasi (
+                id_operasi,
                 nama_operasi, nama_pelapor, hubungan_pelapor, no_telp_pelapor,
                 waktu_kejadian, waktu_lapor, waktu_berangkat, tim_berangkat, eta_tiba,
                 lokasi_kejadian, koordinat, jarak, radial, eta_lokasi, kronologi, jumlah_pob,
                 unsur_terlibat, alut_palsar, faktor_penghambat, cuaca, gelombang, angin,
                 status, full_text_wa, created_at
             ) VALUES (
+                :id_operasi,
                 :nama_operasi, :nama_pelapor, :hubungan_pelapor, :no_telp_pelapor,
                 :waktu_kejadian, :waktu_lapor, :waktu_berangkat, :tim_berangkat, :eta_tiba,
                 :lokasi_kejadian, :koordinat, :jarak, :radial, :eta_lokasi, :kronologi, :jumlah_pob,
@@ -210,6 +218,7 @@ class OperasiModel {
 
             $now = date('Y-m-d H:i:s');
             $stmt->execute([
+                ':id_operasi' => $nextId,
                 ':nama_operasi' => $data['nama_operasi'],
                 ':nama_pelapor' => $data['nama_pelapor'] ?? '',
                 ':hubungan_pelapor' => $data['hubungan_pelapor'] ?? '',
@@ -236,7 +245,7 @@ class OperasiModel {
                 ':created_at' => $now
             ]);
 
-            $idOperasi = (int)$db->lastInsertId();
+            $idOperasi = $nextId;
 
             // Insert Korban
             if (!empty($korbanData)) {
@@ -297,13 +306,18 @@ class OperasiModel {
 
             $db->commit();
 
+            self::syncAutoIncrement();
+            self::syncChildAutoIncrements();
+
             if (class_exists('AuditHelper')) {
                 AuditHelper::log('CREATE_OPERASI', "Operasi SAR dibuka: {$data['nama_operasi']}", 'OPERASI', "OPS-{$idOperasi}");
             }
 
             return $idOperasi;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -376,57 +390,84 @@ class OperasiModel {
                 ':full_text_wa' => $fullTextWa
             ]);
 
-            // Replace korban if provided
+            // Differential update for Korban
             if (isset($data['korban'])) {
-                $db->prepare("DELETE FROM Korban WHERE id_operasi = :id")->execute([':id' => $id]);
-                $stmtK = $db->prepare("INSERT INTO Korban (id_operasi, nama_korban, umur, jk, alamat, status_korban) VALUES (:id_ops, :nama, :umur, :jk, :alamat, :status)");
+                $stmtExistingK = $db->prepare("SELECT id_korban FROM Korban WHERE id_operasi = :id ORDER BY id_korban ASC");
+                $stmtExistingK->execute([':id' => $id]);
+                $existingKRows = $stmtExistingK->fetchAll();
+                $existingKIds = array_column($existingKRows, 'id_korban');
+
+                $stmtUpdateK = $db->prepare("UPDATE Korban SET nama_korban = :nama, umur = :umur, jk = :jk, alamat = :alamat, status_korban = :status WHERE id_korban = :kid AND id_operasi = :id_ops");
+                $stmtInsertK = $db->prepare("INSERT INTO Korban (id_operasi, nama_korban, umur, jk, alamat, status_korban) VALUES (:id_ops, :nama, :umur, :jk, :alamat, :status)");
+
+                $keptKIds = [];
+                $kPool = $existingKIds;
+
                 foreach ($data['korban'] as $k) {
                     if (empty($k['nama_korban'])) continue;
-                    $stmtK->execute([
-                        ':id_ops' => $id,
-                        ':nama' => $k['nama_korban'],
-                        ':umur' => $k['umur'] ?? '',
-                        ':jk' => $k['jk'] ?? 'Laki-laki',
-                        ':alamat' => $k['alamat'] ?? '',
-                        ':status' => $k['status_korban'] ?? 'DP'
-                    ]);
+                    $kId = !empty($k['id_korban']) ? (int)$k['id_korban'] : null;
+
+                    if ($kId && in_array($kId, $existingKIds, true) && !in_array($kId, $keptKIds, true)) {
+                        $stmtUpdateK->execute([
+                            ':kid' => $kId,
+                            ':id_ops' => $id,
+                            ':nama' => $k['nama_korban'],
+                            ':umur' => $k['umur'] ?? '',
+                            ':jk' => $k['jk'] ?? 'Laki-laki',
+                            ':alamat' => $k['alamat'] ?? '',
+                            ':status' => $k['status_korban'] ?? 'DP'
+                        ]);
+                        $keptKIds[] = $kId;
+                        $kPool = array_values(array_diff($kPool, [$kId]));
+                    } elseif (!empty($kPool)) {
+                        $reusedKId = array_shift($kPool);
+                        $stmtUpdateK->execute([
+                            ':kid' => $reusedKId,
+                            ':id_ops' => $id,
+                            ':nama' => $k['nama_korban'],
+                            ':umur' => $k['umur'] ?? '',
+                            ':jk' => $k['jk'] ?? 'Laki-laki',
+                            ':alamat' => $k['alamat'] ?? '',
+                            ':status' => $k['status_korban'] ?? 'DP'
+                        ]);
+                        $keptKIds[] = $reusedKId;
+                    } else {
+                        $stmtInsertK->execute([
+                            ':id_ops' => $id,
+                            ':nama' => $k['nama_korban'],
+                            ':umur' => $k['umur'] ?? '',
+                            ':jk' => $k['jk'] ?? 'Laki-laki',
+                            ':alamat' => $k['alamat'] ?? '',
+                            ':status' => $k['status_korban'] ?? 'DP'
+                        ]);
+                    }
+                }
+
+                $toDeleteK = array_diff($existingKIds, $keptKIds);
+                if (!empty($toDeleteK)) {
+                    $delPlaceholders = implode(',', array_fill(0, count($toDeleteK), '?'));
+                    $stmtDelK = $db->prepare("DELETE FROM Korban WHERE id_korban IN ({$delPlaceholders}) AND id_operasi = ?");
+                    $stmtDelK->execute([...$toDeleteK, $id]);
                 }
             }
 
-            // Replace unsur if provided
+            // Differential update for DetailUnsur
             if (isset($data['detail_unsur'])) {
-                $db->prepare("DELETE FROM DetailUnsur WHERE id_operasi = :id")->execute([':id' => $id]);
-                $stmtU = $db->prepare("INSERT INTO DetailUnsur (id_operasi, nama_unsur, jumlah_personil) VALUES (:id_ops, :nama, :jml)");
-                foreach ($data['detail_unsur'] as $u) {
-                    if (empty($u['nama_unsur'])) continue;
-                    $stmtU->execute([
-                        ':id_ops' => $id,
-                        ':nama' => $u['nama_unsur'],
-                        ':jml' => (int)($u['jumlah_personil'] ?? 1)
-                    ]);
-                }
+                self::applyDifferentialUnsur($db, $id, $data['detail_unsur']);
             }
 
-            // Replace alut if provided
+            // Differential update for DetailAlut
             if (isset($data['detail_alut'])) {
-                $db->prepare("DELETE FROM DetailAlut WHERE id_operasi = :id")->execute([':id' => $id]);
-                $stmtA = $db->prepare("INSERT INTO DetailAlut (id_operasi, id_alut, nama_alut, satuan, jumlah_alut) VALUES (:id_ops, :id_alut, :nama, :sat, :jml)");
-                foreach ($data['detail_alut'] as $a) {
-                    if (empty($a['nama_alut'])) continue;
-                    $stmtA->execute([
-                        ':id_ops' => $id,
-                        ':id_alut' => (int)($a['id_alut'] ?? 0),
-                        ':nama' => $a['nama_alut'],
-                        ':sat' => $a['satuan'] ?? 'Unit',
-                        ':jml' => (int)($a['jumlah_alut'] ?? 1)
-                    ]);
-                }
+                self::applyDifferentialAlut($db, $id, $data['detail_alut']);
             }
 
             $db->commit();
+            self::syncChildAutoIncrements();
             return true;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -475,11 +516,26 @@ class OperasiModel {
             // 6. Delete Korban
             $db->prepare("DELETE FROM Korban WHERE id_operasi = :id")->execute([':id' => $id]);
 
-            // 7. Finally delete the Operasi record
+            // 7. Clean up GIS components linked to this operation
+            // Child points/waypoints must be deleted first due to RESTRICT FKs
+            $db->prepare("DELETE FROM GisPolygonPoint WHERE polygonId IN (SELECT id FROM GisPolygon WHERE id_operasi = :id)")->execute([':id' => $id]);
+            $db->prepare("DELETE FROM GisRoutePoint WHERE routeId IN (SELECT id FROM GisRoute WHERE id_operasi = :id)")->execute([':id' => $id]);
+            $db->prepare("DELETE FROM GisSearchPatternWaypoint WHERE searchPatternId IN (SELECT id FROM GisSearchPattern WHERE id_operasi = :id)")->execute([':id' => $id]);
+
+            $db->prepare("DELETE FROM GisPoint WHERE id_operasi = :id")->execute([':id' => $id]);
+            $db->prepare("DELETE FROM GisPolygon WHERE id_operasi = :id")->execute([':id' => $id]);
+            $db->prepare("DELETE FROM GisRoute WHERE id_operasi = :id")->execute([':id' => $id]);
+            $db->prepare("DELETE FROM GisSearchPattern WHERE id_operasi = :id")->execute([':id' => $id]);
+
+            // 8. Finally delete the Operasi record
             $stmtDelOps = $db->prepare("DELETE FROM Operasi WHERE id_operasi = :id");
             $result = $stmtDelOps->execute([':id' => $id]);
 
-            if (!$inTx) $db->commit();
+            if (!$inTx) {
+                $db->commit();
+                self::syncAutoIncrement();
+                self::syncChildAutoIncrements();
+            }
 
             if ($result && class_exists('AuditHelper')) {
                 AuditHelper::log('DELETE_OPERASI', "Operasi SAR dihapus permanen: {$namaOps} [Status: {$statusOps}] beserta seluruh data turunan.", 'OPERASI', "OPS-{$id}");
@@ -487,7 +543,9 @@ class OperasiModel {
 
             return $result;
         } catch (Throwable $e) {
-            if (!$inTx && $db->inTransaction()) $db->rollBack();
+            if (!$inTx && $db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -514,44 +572,196 @@ class OperasiModel {
         return $res;
     }
 
+    public static function applyDifferentialUnsur(PDO $db, int $idOperasi, array $unsurData): void {
+        $stmtExisting = $db->prepare("SELECT id_detail_unsur, nama_unsur FROM DetailUnsur WHERE id_operasi = :id ORDER BY id_detail_unsur ASC");
+        $stmtExisting->execute([':id' => $idOperasi]);
+        $existingRows = $stmtExisting->fetchAll();
+        $existingIds = array_column($existingRows, 'id_detail_unsur');
+
+        $stmtUpdate = $db->prepare("UPDATE DetailUnsur SET nama_unsur = :nama, jumlah_personil = :jml WHERE id_detail_unsur = :uid AND id_operasi = :id_ops");
+        $stmtInsert = $db->prepare("INSERT INTO DetailUnsur (id_operasi, nama_unsur, jumlah_personil) VALUES (:id_ops, :nama, :jml)");
+
+        $keptIds = [];
+        $pool = $existingRows;
+
+        foreach ($unsurData as $u) {
+            if (empty($u['nama_unsur'])) continue;
+            $uId = !empty($u['id_detail_unsur']) ? (int)$u['id_detail_unsur'] : null;
+            $nama = trim((string)$u['nama_unsur']);
+            $jml = (int)($u['jumlah_personil'] ?? 1);
+
+            if ($uId && in_array($uId, $existingIds, true) && !in_array($uId, $keptIds, true)) {
+                $stmtUpdate->execute([':uid' => $uId, ':id_ops' => $idOperasi, ':nama' => $nama, ':jml' => $jml]);
+                $keptIds[] = $uId;
+                foreach ($pool as $pIdx => $pItem) {
+                    if ((int)$pItem['id_detail_unsur'] === $uId) {
+                        unset($pool[$pIdx]);
+                        break;
+                    }
+                }
+            } elseif (!empty($pool)) {
+                $matchKey = null;
+                foreach ($pool as $pIdx => $pItem) {
+                    if (strcasecmp($pItem['nama_unsur'], $nama) === 0) {
+                        $matchKey = $pIdx;
+                        break;
+                    }
+                }
+                if ($matchKey === null) {
+                    $matchKey = array_key_first($pool);
+                }
+                $reusedId = (int)$pool[$matchKey]['id_detail_unsur'];
+                unset($pool[$matchKey]);
+
+                $stmtUpdate->execute([':uid' => $reusedId, ':id_ops' => $idOperasi, ':nama' => $nama, ':jml' => $jml]);
+                $keptIds[] = $reusedId;
+            } else {
+                $stmtInsert->execute([':id_ops' => $idOperasi, ':nama' => $nama, ':jml' => $jml]);
+            }
+        }
+
+        $toDelete = array_diff($existingIds, $keptIds);
+        if (!empty($toDelete)) {
+            $delPlaceholders = implode(',', array_fill(0, count($toDelete), '?'));
+            $stmtDel = $db->prepare("DELETE FROM DetailUnsur WHERE id_detail_unsur IN ({$delPlaceholders}) AND id_operasi = ?");
+            $stmtDel->execute([...$toDelete, $idOperasi]);
+        }
+    }
+
+    public static function applyDifferentialAlut(PDO $db, int $idOperasi, array $alutData): void {
+        $stmtExisting = $db->prepare("SELECT id_detail_alut, nama_alut FROM DetailAlut WHERE id_operasi = :id ORDER BY id_detail_alut ASC");
+        $stmtExisting->execute([':id' => $idOperasi]);
+        $existingRows = $stmtExisting->fetchAll();
+        $existingIds = array_column($existingRows, 'id_detail_alut');
+
+        $stmtUpdate = $db->prepare("UPDATE DetailAlut SET id_alut = :id_alut, nama_alut = :nama, satuan = :sat, jumlah_alut = :jml WHERE id_detail_alut = :aid AND id_operasi = :id_ops");
+        $stmtInsert = $db->prepare("INSERT INTO DetailAlut (id_operasi, id_alut, nama_alut, satuan, jumlah_alut) VALUES (:id_ops, :id_alut, :nama, :sat, :jml)");
+
+        $keptIds = [];
+        $pool = $existingRows;
+
+        foreach ($alutData as $a) {
+            if (empty($a['nama_alut'])) continue;
+            $aId = !empty($a['id_detail_alut']) ? (int)$a['id_detail_alut'] : null;
+            $nama = trim((string)$a['nama_alut']);
+            $idAlut = (int)($a['id_alut'] ?? 0);
+            $satuan = $a['satuan'] ?? 'Unit';
+            $jml = (int)($a['jumlah_alut'] ?? 1);
+
+            if ($aId && in_array($aId, $existingIds, true) && !in_array($aId, $keptIds, true)) {
+                $stmtUpdate->execute([':aid' => $aId, ':id_ops' => $idOperasi, ':id_alut' => $idAlut, ':nama' => $nama, ':sat' => $satuan, ':jml' => $jml]);
+                $keptIds[] = $aId;
+                foreach ($pool as $pIdx => $pItem) {
+                    if ((int)$pItem['id_detail_alut'] === $aId) {
+                        unset($pool[$pIdx]);
+                        break;
+                    }
+                }
+            } elseif (!empty($pool)) {
+                $matchKey = null;
+                foreach ($pool as $pIdx => $pItem) {
+                    if (strcasecmp($pItem['nama_alut'], $nama) === 0) {
+                        $matchKey = $pIdx;
+                        break;
+                    }
+                }
+                if ($matchKey === null) {
+                    $matchKey = array_key_first($pool);
+                }
+                $reusedId = (int)$pool[$matchKey]['id_detail_alut'];
+                unset($pool[$matchKey]);
+
+                $stmtUpdate->execute([':aid' => $reusedId, ':id_ops' => $idOperasi, ':id_alut' => $idAlut, ':nama' => $nama, ':sat' => $satuan, ':jml' => $jml]);
+                $keptIds[] = $reusedId;
+            } else {
+                $stmtInsert->execute([':id_ops' => $idOperasi, ':id_alut' => $idAlut, ':nama' => $nama, ':sat' => $satuan, ':jml' => $jml]);
+            }
+        }
+
+        $toDelete = array_diff($existingIds, $keptIds);
+        if (!empty($toDelete)) {
+            $delPlaceholders = implode(',', array_fill(0, count($toDelete), '?'));
+            $stmtDel = $db->prepare("DELETE FROM DetailAlut WHERE id_detail_alut IN ({$delPlaceholders}) AND id_operasi = ?");
+            $stmtDel->execute([...$toDelete, $idOperasi]);
+        }
+    }
+
     public static function syncUnsurAlut(int $idOperasi, array $unsurData, array $alutData): void {
         $db = getDB();
         $inTx = $db->inTransaction();
         if (!$inTx) $db->beginTransaction();
 
         try {
-            $db->prepare("DELETE FROM DetailUnsur WHERE id_operasi = :id")->execute([':id' => $idOperasi]);
             if (!empty($unsurData)) {
-                $stmtU = $db->prepare("INSERT INTO DetailUnsur (id_operasi, nama_unsur, jumlah_personil) VALUES (:id_ops, :nama, :jml)");
-                foreach ($unsurData as $u) {
-                    if (empty($u['nama_unsur'])) continue;
-                    $stmtU->execute([
-                        ':id_ops' => $idOperasi,
-                        ':nama' => $u['nama_unsur'],
-                        ':jml' => (int)($u['jumlah_personil'] ?? 1)
-                    ]);
-                }
+                self::applyDifferentialUnsur($db, $idOperasi, $unsurData);
             }
-
-            $db->prepare("DELETE FROM DetailAlut WHERE id_operasi = :id")->execute([':id' => $idOperasi]);
             if (!empty($alutData)) {
-                $stmtA = $db->prepare("INSERT INTO DetailAlut (id_operasi, id_alut, nama_alut, satuan, jumlah_alut) VALUES (:id_ops, :id_alut, :nama, :sat, :jml)");
-                foreach ($alutData as $a) {
-                    if (empty($a['nama_alut'])) continue;
-                    $stmtA->execute([
-                        ':id_ops' => $idOperasi,
-                        ':id_alut' => (int)($a['id_alut'] ?? 0),
-                        ':nama' => $a['nama_alut'],
-                        ':sat' => $a['satuan'] ?? 'Unit',
-                        ':jml' => (int)($a['jumlah_alut'] ?? 1)
-                    ]);
-                }
+                self::applyDifferentialAlut($db, $idOperasi, $alutData);
             }
 
-            if (!$inTx) $db->commit();
+            if (!$inTx) {
+                $db->commit();
+                self::syncChildAutoIncrements();
+            }
         } catch (Throwable $e) {
-            if (!$inTx && $db->inTransaction()) $db->rollBack();
+            if (!$inTx && $db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
+
+    /**
+     * Synchronize and reset Operasi table AUTO_INCREMENT to strictly MAX(id_operasi) + 1.
+     * Prevents any irregular jumping or stale high-water marks in MySQL InnoDB.
+     */
+    public static function syncAutoIncrement(): void {
+        try {
+            $db = getDB();
+            if ($db->inTransaction()) {
+                return; // DDL causes implicit commit; never run inside an active transaction
+            }
+            $stmtMax = $db->query("SELECT COALESCE(MAX(id_operasi), 0) + 1 FROM Operasi");
+            $nextAuto = max(1, (int)$stmtMax->fetchColumn());
+            $stmtMax->closeCursor();
+            $db->exec("ALTER TABLE Operasi AUTO_INCREMENT = {$nextAuto}");
+        } catch (Throwable $e) {
+            // Silently ignore if insufficient DB DDL privileges
+        }
+    }
+
+    /**
+     * Synchronize and reset all child table AUTO_INCREMENT values to MAX(id) + 1.
+     * Keeps primary keys compact and prevents auto-increment high-water mark drift.
+     */
+    public static function syncChildAutoIncrements(): void {
+        $db = getDB();
+        if ($db->inTransaction()) {
+            return; // DDL causes implicit commit; never run inside an active transaction
+        }
+        $childTables = [
+            'DetailAlut' => 'id_detail_alut',
+            'DetailUnsur' => 'id_detail_unsur',
+            'DetailTimBerangkat' => 'id_detail_tim',
+            'Korban' => 'id_korban',
+            'RenopsSRU' => 'id_sru',
+            'BraSection' => 'id',
+            'GisPolygonPoint' => 'id',
+            'GisRoutePoint' => 'id',
+            'GisSearchPatternWaypoint' => 'id',
+            'LoginThrottle' => 'id'
+        ];
+        foreach ($childTables as $table => $col) {
+            try {
+                $stmt = $db->query("SELECT COALESCE(MAX({$col}), 0) FROM {$table}");
+                $max = (int)$stmt->fetchColumn();
+                $stmt->closeCursor();
+                $next = max(1, $max + 1);
+                $db->exec("ALTER TABLE {$table} AUTO_INCREMENT = {$next}");
+            } catch (Throwable) {
+                // Silently continue
+            }
+        }
+    }
 }
+

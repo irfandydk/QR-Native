@@ -569,6 +569,7 @@ if (!empty($operasi['radial'])) {
             <tr class="korban-row">
               <td class="row-num py-3 px-2 text-center font-mono font-bold text-slate-400"><?= $idx + 1 ?></td>
               <td class="py-3 px-3">
+                <input type="hidden" name="korban[<?= $idx ?>][id_korban]" value="<?= (int)($k['id_korban'] ?? 0) ?>" />
                 <input type="text" name="korban[<?= $idx ?>][nama_korban]" required placeholder="Nama korban..." value="<?= e($k['nama_korban']) ?>" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-orange-500" />
               </td>
               <td class="py-3 px-3">
@@ -1334,6 +1335,7 @@ function addKorbanRow() {
   tr.innerHTML = `
     <td class="row-num py-3 px-2 text-center font-mono font-bold text-slate-400">${num}</td>
     <td class="py-3 px-3">
+      <input type="hidden" name="korban[${count}][id_korban]" value="" />
       <input type="text" name="korban[${count}][nama_korban]" required placeholder="Nama korban..." class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-orange-500" />
     </td>
     <td class="py-3 px-3">

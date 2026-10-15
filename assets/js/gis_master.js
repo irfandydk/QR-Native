@@ -317,6 +317,20 @@
   let pointCustomIconUrl = '';
   let pointDraftCoords = { lat: -4.015, lng: 122.585 };
 
+  function normalizeIconUrl(url) {
+    if (!url) return '';
+    const u = String(url).trim();
+    if (!u) return '';
+    if (u.startsWith('/uploads/')) {
+      return BASE_URL + u;
+    }
+    const idx = u.indexOf('/uploads/icons/');
+    if (idx !== -1) {
+      return BASE_URL + u.substring(idx);
+    }
+    return u;
+  }
+
   // Polygon Drawing state
   let isDrawingPolygon = false;
   let editingPolygonId = null;
@@ -596,7 +610,51 @@
     };
   }
 
-  function calculatePolygonSphericalArea(coords) {
+  function calculatePolygonSphericalArea(coordsOrPoly, shapeType, radiusNm, boxWidthNm, boxHeightNm) {
+    let coords = coordsOrPoly;
+    if (coordsOrPoly && typeof coordsOrPoly === 'object' && !Array.isArray(coordsOrPoly)) {
+      if (coordsOrPoly.points) {
+        coords = coordsOrPoly.points;
+      }
+      shapeType = shapeType || coordsOrPoly.shapeType;
+      radiusNm = radiusNm || coordsOrPoly.radiusNm;
+      boxWidthNm = boxWidthNm || coordsOrPoly.boxWidthNm;
+      boxHeightNm = boxHeightNm || coordsOrPoly.boxHeightNm;
+    }
+
+    // 1. Circle Area: A = pi * r^2
+    if (shapeType === 'circle' && radiusNm && Number(radiusNm) > 0) {
+      const r = Number(radiusNm);
+      const sqNm = Math.PI * Math.pow(r, 2);
+      const sqKm = sqNm * 3.429904;
+      const perimeterNm = 2 * Math.PI * r;
+      const perimeterKm = perimeterNm * 1.852;
+      return {
+        sqKm: Math.round(sqKm * 100) / 100,
+        sqNm: Math.round(sqNm * 100) / 100,
+        hectares: Math.round(sqKm * 1000) / 10,
+        perimeterKm: Math.round(perimeterKm * 100) / 100,
+        perimeterNm: Math.round(perimeterNm * 100) / 100
+      };
+    }
+
+    // 2. Box / Rectangle Area: A = width * height
+    if (shapeType === 'box' && boxWidthNm && boxHeightNm && Number(boxWidthNm) > 0 && Number(boxHeightNm) > 0) {
+      const w = Number(boxWidthNm);
+      const h = Number(boxHeightNm);
+      const sqNm = w * h;
+      const sqKm = sqNm * 3.429904;
+      const perimeterNm = 2 * (w + h);
+      const perimeterKm = perimeterNm * 1.852;
+      return {
+        sqKm: Math.round(sqKm * 100) / 100,
+        sqNm: Math.round(sqNm * 100) / 100,
+        hectares: Math.round(sqKm * 1000) / 10,
+        perimeterKm: Math.round(perimeterKm * 100) / 100,
+        perimeterNm: Math.round(perimeterNm * 100) / 100
+      };
+    }
+
     if (!coords || coords.length < 3) {
       return { sqKm: 0, sqNm: 0, hectares: 0, perimeterKm: 0, perimeterNm: 0 };
     }
@@ -635,7 +693,11 @@
     for (let i = 0; i < coords.length; i++) {
       const p1 = coords[i];
       const p2 = coords[(i + 1) % coords.length];
-      perimeterKm += calculateDistanceHaversine(p1.lat, p1.lng, p2.lat, p2.lng).km;
+      const lat1 = p1.lat !== undefined ? p1.lat : (Array.isArray(p1) ? p1[0] : 0);
+      const lng1 = p1.lng !== undefined ? p1.lng : (Array.isArray(p1) ? p1[1] : 0);
+      const lat2 = p2.lat !== undefined ? p2.lat : (Array.isArray(p2) ? p2[0] : 0);
+      const lng2 = p2.lng !== undefined ? p2.lng : (Array.isArray(p2) ? p2[1] : 0);
+      perimeterKm += calculateDistanceHaversine(lat1, lng1, lat2, lng2).km;
     }
     const perimeterNm = perimeterKm * 0.539957;
 
@@ -668,10 +730,12 @@
 
     let innerContent = '';
 
-    if (customUrl) {
+    const normalizedUrl = normalizeIconUrl(customUrl);
+    if (normalizedUrl) {
+      const safeUrl = escapeHtml(normalizedUrl);
       innerContent = `
         <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-        <image href="${escapeHtml(customUrl)}" x="${cx - 10}" y="6" width="20" height="20" preserveAspectRatio="xMidYMid slice" />
+        <image href="${safeUrl}" xlink:href="${safeUrl}" x="${cx - 10}" y="6" width="20" height="20" preserveAspectRatio="xMidYMid slice" />
       `;
     } else if (type === 'alphabet') {
       const char = (labelNumber || 'A').toUpperCase();
@@ -706,7 +770,7 @@
         : '';
 
     return `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="display:block;">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="display:block;">
         <defs>
           <filter id="shadow_${Math.random().toString(36).substring(2, 6)}" x="-20%" y="-20%" width="140%" height="140%">
             <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.45" />
@@ -1020,20 +1084,26 @@
         });
       }
 
-      // Check verified presets with multi-word matching from database
+      // Check saved database points from current session
       const terms = rawQ.toLowerCase().split(/\s+/).filter(Boolean);
-      const verifiedPresets = getVerifiedMaritimePresets();
-      verifiedPresets.forEach((item) => {
-        const fullHaystack = `${item.name} ${item.address} ${item.type || ''} ${item.dms || ''}`.toLowerCase();
-        const matchesAll = terms.every(t => fullHaystack.includes(t));
-        if (matchesAll) {
-          instantResults.push({
-            ...item,
-            badge: item.badge || 'SAR SULTRA',
-            icon: item.type === 'Pangkalan / Kantor SAR' ? 'shield' : 'map-pin'
-          });
-        }
-      });
+      if (Array.isArray(rawAllPoints) && terms.length > 0) {
+        rawAllPoints.forEach((pt) => {
+          const fullHaystack = `${pt.label || ''} ${pt.description || ''} ${pt.category || ''}`.toLowerCase();
+          const matchesAll = terms.every(t => fullHaystack.includes(t));
+          if (matchesAll && pt.lat && pt.lng) {
+            instantResults.push({
+              name: pt.label || 'Titik Taktis',
+              address: pt.description || `${pt.category || 'Titik Taktis'} (${pt.id_operasi ? 'Operasi SAR' : 'Base Map'})`,
+              lat: parseFloat(pt.lat),
+              lng: parseFloat(pt.lng),
+              badge: pt.id_operasi ? 'OPERASI SAR' : 'BASE MAP',
+              type: pt.category || 'Titik Taktis',
+              dms: decimalToDms(parseFloat(pt.lat), parseFloat(pt.lng)),
+              icon: 'map-pin'
+            });
+          }
+        });
+      }
 
       currentSearchResults = instantResults;
       if (instantResults.length > 0) {
@@ -1377,6 +1447,17 @@
       gridSar.querySelectorAll('.preset-icon-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           pointIconType = btn.getAttribute('data-icon');
+          pointCustomIconUrl = '';
+          const previewCard = document.getElementById('pcCustomIconPreviewCard');
+          if (previewCard) previewCard.classList.add('hidden');
+          const galleryContainer = document.getElementById('customIconGalleryContainer');
+          if (galleryContainer) {
+            galleryContainer.querySelectorAll('.custom-icon-item').forEach((it) => {
+              it.className = 'custom-icon-item group relative p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-orange-500 transition cursor-pointer flex flex-col items-center justify-center text-center';
+              const check = it.querySelector('.custom-check-badge');
+              if (check) check.remove();
+            });
+          }
           gridSar.querySelectorAll('.preset-icon-btn').forEach((b) => b.classList.remove('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/10'));
           btn.classList.add('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/10');
           updateDraftMarkerVisual();
@@ -1425,6 +1506,17 @@
         btn.addEventListener('click', () => {
           pointIconType = 'alphabet';
           pointAlphabetChar = btn.getAttribute('data-char');
+          pointCustomIconUrl = '';
+          const previewCard = document.getElementById('pcCustomIconPreviewCard');
+          if (previewCard) previewCard.classList.add('hidden');
+          const galleryContainer = document.getElementById('customIconGalleryContainer');
+          if (galleryContainer) {
+            galleryContainer.querySelectorAll('.custom-icon-item').forEach((it) => {
+              it.className = 'custom-icon-item group relative p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-orange-500 transition cursor-pointer flex flex-col items-center justify-center text-center';
+              const check = it.querySelector('.custom-check-badge');
+              if (check) check.remove();
+            });
+          }
           gridAlphabet.querySelectorAll('.alpha-icon-btn').forEach((b) => b.classList.remove('border-orange-500', 'bg-orange-500/20'));
           btn.classList.add('border-orange-500', 'bg-orange-500/20');
           updateDraftMarkerVisual();
@@ -1488,11 +1580,23 @@
     const btnAdd = document.getElementById('btnShowPointCreator');
     if (btnAdd) {
       btnAdd.addEventListener('click', () => {
-        const center = map.getCenter();
+        let lat = -4.015;
+        let lng = 122.585;
+        try {
+          if (map && typeof map.getCenter === 'function') {
+            const center = map.getCenter();
+            if (center && !isNaN(center.lat) && !isNaN(center.lng)) {
+              lat = center.lat;
+              lng = center.lng;
+            }
+          }
+        } catch (e) {
+          // Use default coordinates
+        }
         openPointCreator({
           label: '',
-          lat: center.lat,
-          lng: center.lng,
+          lat: lat,
+          lng: lng,
           category: 'Tanpa Kategori',
           pointType: 'pin_umum'
         });
@@ -1512,14 +1616,23 @@
       btnSaveConfirm.addEventListener('click', handleSavePoint);
     }
 
-    // Custom Icon Upload & File Management Handlers
+    // Custom Icon Upload & Gallery Management Handlers (Permanent Upload & Custom Gallery)
     const fileInput = document.getElementById('pcCustomIconFile');
     const triggerUploadBtn = document.getElementById('btnTriggerUploadIcon');
     const removeIconBtn = document.getElementById('btnRemoveCustomIcon');
-    const urlInput = document.getElementById('pcCustomIconUrl');
     const previewCard = document.getElementById('pcCustomIconPreviewCard');
     const thumbImg = document.getElementById('pcCustomIconThumb');
     const fileNameEl = document.getElementById('pcCustomIconFileName');
+    const galleryContainer = document.getElementById('customIconGalleryContainer');
+    const countBadge = document.getElementById('customIconCountBadge');
+
+    // Click listener on Tab "Logo Kustom"
+    const tabCustomBtn = document.getElementById('tabIconCustom');
+    if (tabCustomBtn) {
+      tabCustomBtn.addEventListener('click', () => {
+        loadCustomIconsGallery(pointCustomIconUrl);
+      });
+    }
 
     if (triggerUploadBtn && fileInput) {
       triggerUploadBtn.addEventListener('click', () => {
@@ -1527,62 +1640,22 @@
       });
     }
 
+    // Direct Permanent Upload via /api/gis/upload-icon
     if (fileInput) {
       fileInput.addEventListener('change', async (e) => {
         const file = e.target.files && e.target.files[0];
         if (!file) return;
 
-        // Compress raster image to max 128x128 on offscreen canvas to prevent database overflow
-        if (file.type === 'image/svg+xml') {
-          const reader = new FileReader();
-          reader.onload = (re) => {
-            pointCustomIconUrl = re.target.result;
-            if (thumbImg) thumbImg.src = pointCustomIconUrl;
-            if (fileNameEl) fileNameEl.textContent = file.name;
-            if (previewCard) previewCard.classList.remove('hidden');
-            updateDraftMarkerVisual();
-          };
-          reader.readAsDataURL(file);
-        } else {
-          const reader = new FileReader();
-          reader.onload = (re) => {
-            const img = new Image();
-            img.onload = () => {
-              const maxDim = 128;
-              let w = img.width;
-              let h = img.height;
-              if (w > maxDim || h > maxDim) {
-                const ratio = Math.min(maxDim / w, maxDim / h);
-                w = Math.round(w * ratio);
-                h = Math.round(h * ratio);
-              }
-              const canvas = document.createElement('canvas');
-              canvas.width = w;
-              canvas.height = h;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0, w, h);
-              pointCustomIconUrl = canvas.toDataURL('image/png', 0.85);
-              if (thumbImg) thumbImg.src = pointCustomIconUrl;
-              if (fileNameEl) fileNameEl.textContent = file.name;
-              if (previewCard) previewCard.classList.remove('hidden');
-              updateDraftMarkerVisual();
-            };
-            img.onerror = () => {
-              pointCustomIconUrl = re.target.result;
-              if (thumbImg) thumbImg.src = pointCustomIconUrl;
-              if (fileNameEl) fileNameEl.textContent = file.name;
-              if (previewCard) previewCard.classList.remove('hidden');
-              updateDraftMarkerVisual();
-            };
-            img.src = re.target.result;
-          };
-          reader.readAsDataURL(file);
+        // Button state
+        if (triggerUploadBtn) {
+          triggerUploadBtn.disabled = true;
+          triggerUploadBtn.innerHTML = '<span class="inline-block animate-spin mr-1">⏳</span><span>Mengupload logo permanen...</span>';
         }
 
-        // Upload to server endpoint /api/gis/upload-icon
         const formData = new FormData();
         formData.append('icon', file);
         if (csrfToken) formData.append('csrf_token', csrfToken);
+
         try {
           const res = await gisFetch(`${BASE_URL}/api/gis/upload-icon`, {
             method: 'POST',
@@ -1590,12 +1663,31 @@
           });
           const json = await res.json();
           if (json.success && json.url) {
-            pointCustomIconUrl = json.url;
-            if (urlInput) urlInput.value = json.url;
+            pointCustomIconUrl = normalizeIconUrl(json.url);
+            pointIconType = 'custom_upload';
+
+            if (thumbImg) thumbImg.src = pointCustomIconUrl;
+            if (fileNameEl) fileNameEl.textContent = json.filename || file.name;
+            if (previewCard) previewCard.classList.remove('hidden');
+
+            // Refresh gallery and auto-select newly uploaded custom icon
+            await loadCustomIconsGallery(pointCustomIconUrl);
             updateDraftMarkerVisual();
+          } else {
+            alert(json.error || 'Gagal mengupload logo.');
           }
         } catch (err) {
-          console.warn('Upload to server failed, using compressed local DataURL:', err);
+          console.error('Upload icon failed:', err);
+          alert('Terjadi kesalahan saat mengupload logo.');
+        } finally {
+          if (triggerUploadBtn) {
+            triggerUploadBtn.disabled = false;
+            triggerUploadBtn.innerHTML = `
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>+ Upload File Logo / Ikon Baru</span>
+            `;
+          }
+          fileInput.value = '';
         }
       });
     }
@@ -1603,23 +1695,15 @@
     if (removeIconBtn) {
       removeIconBtn.addEventListener('click', () => {
         pointCustomIconUrl = '';
+        pointIconType = 'pin_umum';
         if (fileInput) fileInput.value = '';
-        if (urlInput) urlInput.value = '';
         if (previewCard) previewCard.classList.add('hidden');
-        updateDraftMarkerVisual();
-      });
-    }
-
-    if (urlInput) {
-      urlInput.addEventListener('input', (e) => {
-        const val = e.target.value.trim();
-        pointCustomIconUrl = val;
-        if (val) {
-          if (thumbImg) thumbImg.src = val;
-          if (fileNameEl) fileNameEl.textContent = val.split('/').pop() || 'Custom Icon';
-          if (previewCard) previewCard.classList.remove('hidden');
-        } else {
-          if (previewCard) previewCard.classList.add('hidden');
+        if (galleryContainer) {
+          galleryContainer.querySelectorAll('.custom-icon-item').forEach((it) => {
+            it.className = 'custom-icon-item group relative p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-orange-500 transition cursor-pointer flex flex-col items-center justify-center text-center';
+            const check = it.querySelector('.custom-check-badge, .absolute.top-1.right-1');
+            if (check) check.remove();
+          });
         }
         updateDraftMarkerVisual();
       });
@@ -1673,11 +1757,150 @@
     });
   }
 
+  // Load permanently saved custom icons from /api/gis/custom-icons (Module Scope)
+  async function loadCustomIconsGallery(selectedUrl = null) {
+    const galleryContainer = document.getElementById('customIconGalleryContainer');
+    const countBadge = document.getElementById('customIconCountBadge');
+    const thumbImg = document.getElementById('pcCustomIconThumb');
+    const fileNameEl = document.getElementById('pcCustomIconFileName');
+    const previewCard = document.getElementById('pcCustomIconPreviewCard');
+    if (!galleryContainer) return;
+    try {
+      const res = await gisFetch(`${BASE_URL}/api/gis/custom-icons`);
+      const json = await res.json();
+      const icons = (json && (json.icons || json.data)) || [];
+      if (Array.isArray(icons)) {
+        if (countBadge) {
+          countBadge.textContent = `${icons.length} Logo`;
+        }
+        if (icons.length === 0) {
+          galleryContainer.innerHTML = '<div class="col-span-4 p-3 text-center text-[10px] text-slate-400">Belum ada logo kustom tersimpan. Klik "+ Upload File Logo" di atas untuk menambahkan logo baru.</div>';
+          return;
+        }
+        const activeUrl = normalizeIconUrl(selectedUrl || pointCustomIconUrl || '');
+        galleryContainer.innerHTML = icons.map((ic) => {
+          const itemUrl = normalizeIconUrl(ic.url);
+          const isMatch = activeUrl && (
+            itemUrl === activeUrl ||
+            itemUrl.endsWith(activeUrl) ||
+            activeUrl.endsWith(itemUrl) ||
+            (activeUrl.split('/').pop() && activeUrl.split('/').pop() === itemUrl.split('/').pop())
+          );
+          const safeUrl = escapeHtml(itemUrl);
+          const rawName = ic.name || ic.filename || itemUrl.split('/').pop() || 'Logo Kustom';
+          const safeName = escapeHtml(rawName);
+          const safeFilename = escapeHtml(ic.filename || itemUrl.split('/').pop() || '');
+          return `
+            <div class="custom-icon-item group relative p-1.5 rounded-xl border ${isMatch ? 'border-orange-500 bg-orange-500/10 ring-2 ring-orange-500/30' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'} hover:border-orange-500 transition cursor-pointer flex flex-col items-center justify-center text-center"
+                 data-icon-url="${safeUrl}" data-icon-name="${safeName}" data-icon-filename="${safeFilename}" title="${safeName}">
+              <img src="${safeUrl}" alt="${safeName}" class="w-8 h-8 object-contain rounded p-0.5 bg-white/80 dark:bg-slate-950/80">
+              <span class="text-[9px] font-medium text-slate-600 dark:text-slate-400 truncate w-full mt-1">${safeName}</span>
+              ${isMatch ? '<span class="custom-check-badge absolute top-1 right-1 w-3.5 h-3.5 bg-orange-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold shadow-xs">✓</span>' : ''}
+              <button type="button" class="delete-custom-icon-btn absolute -top-1 -right-1 w-4 h-4 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-[9px] font-bold opacity-0 group-hover:opacity-100 transition shadow-xs z-10" data-filename="${safeFilename}" title="Hapus logo dari daftar">✕</button>
+            </div>
+          `;
+        }).join('');
+
+        // Bind click to each gallery item
+        galleryContainer.querySelectorAll('.custom-icon-item').forEach((item) => {
+          item.addEventListener('click', (e) => {
+            if (e.target.closest('.delete-custom-icon-btn')) return;
+            const url = item.getAttribute('data-icon-url');
+            const name = item.getAttribute('data-icon-name');
+            pointCustomIconUrl = normalizeIconUrl(url);
+            pointIconType = 'custom_upload';
+
+            if (thumbImg) thumbImg.src = pointCustomIconUrl;
+            if (fileNameEl) fileNameEl.textContent = name;
+            if (previewCard) previewCard.classList.remove('hidden');
+
+            // Highlight active selected item in gallery
+            galleryContainer.querySelectorAll('.custom-icon-item').forEach((it) => {
+              it.className = 'custom-icon-item group relative p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-orange-500 transition cursor-pointer flex flex-col items-center justify-center text-center';
+              const check = it.querySelector('.custom-check-badge');
+              if (check) check.remove();
+            });
+            item.className = 'custom-icon-item group relative p-1.5 rounded-xl border border-orange-500 bg-orange-500/10 ring-2 ring-orange-500/30 hover:border-orange-500 transition cursor-pointer flex flex-col items-center justify-center text-center';
+            if (!item.querySelector('.custom-check-badge')) {
+              const checkEl = document.createElement('span');
+              checkEl.className = 'custom-check-badge absolute top-1 right-1 w-3.5 h-3.5 bg-orange-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold shadow-xs';
+              checkEl.textContent = '✓';
+              item.appendChild(checkEl);
+            }
+
+            updateDraftMarkerVisual();
+          });
+        });
+
+        // Bind delete button for each icon
+        galleryContainer.querySelectorAll('.delete-custom-icon-btn').forEach((delBtn) => {
+          delBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const fn = delBtn.getAttribute('data-filename');
+            if (!fn) return;
+            if (!confirm(`Hapus berkas logo "${fn}" dari daftar logo kustom?`)) return;
+            try {
+              const resDel = await gisFetch(`${BASE_URL}/api/gis/custom-icons`, {
+                method: 'DELETE',
+                body: JSON.stringify({ filename: fn })
+              });
+              const jsonDel = await resDel.json();
+              if (jsonDel.success) {
+                if (pointCustomIconUrl && pointCustomIconUrl.includes(fn)) {
+                  pointCustomIconUrl = '';
+                  pointIconType = 'pin_umum';
+                  if (previewCard) previewCard.classList.add('hidden');
+                  updateDraftMarkerVisual();
+                }
+                if (Array.isArray(rawAllPoints)) {
+                  rawAllPoints.forEach((p) => {
+                    if (p.customIconUrl && p.customIconUrl.includes(fn)) {
+                      p.customIconUrl = '';
+                      p.pointType = 'pin_umum';
+                    }
+                  });
+                  applyActiveFilter();
+                  renderSavedPoints();
+                  notifyGisStorageUpdate();
+                }
+                loadCustomIconsGallery(pointCustomIconUrl);
+              } else {
+                alert(jsonDel.message || 'Gagal menghapus logo kustom.');
+              }
+            } catch (err) {
+              console.error('Delete custom icon failed:', err);
+            }
+          });
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to load custom icons gallery:', err);
+    }
+  }
+
   function openPointCreator(data = {}) {
     isCreatingPoint = true;
     editingPointId = data.id || null;
 
-    document.getElementById('pcPointName').value = data.label || '';
+    // Ensure tab is switched to tab-points and sidebar is opened
+    switchActiveTab('tab-points');
+    const sidebar = document.getElementById('gisSidebarPanel');
+    if (sidebar && sidebar.classList.contains('-ml-[390px]')) {
+      isSidebarVisible = true;
+      sidebar.classList.remove('-ml-[390px]');
+      const floatingBtn = document.getElementById('btnFloatingOpenSidebar');
+      if (floatingBtn) floatingBtn.classList.add('hidden');
+      const iconClose = document.getElementById('iconSidebarClose');
+      if (iconClose) iconClose.classList.remove('hidden');
+      const iconOpen = document.getElementById('iconSidebarOpen');
+      if (iconOpen) iconOpen.classList.add('hidden');
+      const label = document.getElementById('labelSidebarToggle');
+      if (label) label.textContent = 'Sembunyikan Tools';
+      setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+    }
+
+    const nameInput = document.getElementById('pcPointName');
+    if (nameInput) nameInput.value = data.label || '';
 
     // Normalize category strictly to the 8 valid options
     const VALID_CATEGORIES = [
@@ -1705,11 +1928,15 @@
     const catSelect = document.getElementById('pcPointCategory');
     if (catSelect) catSelect.value = cat;
 
-    document.getElementById('pcPointDesc').value = data.description || '';
+    const descInput = document.getElementById('pcPointDesc');
+    if (descInput) descInput.value = data.description || '';
 
     pointIconType = data.pointType || 'pin_umum';
     pointAlphabetChar = data.alphabetChar || 'A';
-    pointCustomIconUrl = data.customIconUrl || '';
+    pointCustomIconUrl = normalizeIconUrl(data.customIconUrl || '');
+    if (pointCustomIconUrl) {
+      pointIconType = 'custom_upload';
+    }
 
     // Reset search and filter pills in preset selector
     const searchInput = document.getElementById('pcPresetSearch');
@@ -1749,18 +1976,20 @@
     }
 
     const fileInput = document.getElementById('pcCustomIconFile');
-    const urlInput = document.getElementById('pcCustomIconUrl');
     const previewCard = document.getElementById('pcCustomIconPreviewCard');
     const thumbImg = document.getElementById('pcCustomIconThumb');
     const fileNameEl = document.getElementById('pcCustomIconFileName');
     if (fileInput) fileInput.value = '';
-    if (urlInput) urlInput.value = pointCustomIconUrl;
     if (pointCustomIconUrl && previewCard) {
       previewCard.classList.remove('hidden');
       if (thumbImg) thumbImg.src = pointCustomIconUrl;
       if (fileNameEl) fileNameEl.textContent = pointCustomIconUrl.split('/').pop() || 'Custom Icon';
     } else if (previewCard) {
       previewCard.classList.add('hidden');
+    }
+
+    if (typeof loadCustomIconsGallery === 'function') {
+      loadCustomIconsGallery(pointCustomIconUrl);
     }
 
     pointDraftCoords = {
@@ -1775,10 +2004,15 @@
       titleEl.innerHTML = editingPointId ? '<span>✏️ Edit Titik SAR</span>' : '<span>📍 Plot Titik Taktis Baru</span>';
     }
 
-    document.getElementById('pointCreatorCard').classList.remove('hidden');
+    const card = document.getElementById('pointCreatorCard');
+    if (card) {
+      card.classList.remove('hidden');
+    }
 
     // Pan map to draft position
-    map.panTo([pointDraftCoords.lat, pointDraftCoords.lng]);
+    if (map) {
+      map.panTo([pointDraftCoords.lat, pointDraftCoords.lng]);
+    }
   }
 
   function closePointCreator() {
@@ -1790,6 +2024,9 @@
     const fileInput = document.getElementById('pcCustomIconFile');
     if (previewCard) previewCard.classList.add('hidden');
     if (fileInput) fileInput.value = '';
+
+    pointCustomIconUrl = '';
+    pointIconType = 'pin_umum';
 
     if (draftPointMarker) {
       map.removeLayer(draftPointMarker);
@@ -1873,12 +2110,13 @@
 
     const nameInput = document.getElementById('pcPointName');
     const name = nameInput ? nameInput.value.trim() : '';
+    const normCustom = normalizeIconUrl(pointCustomIconUrl);
     const html = createMarkerHtml(
       {
         label: name,
-        pointType: pointIconType,
+        pointType: normCustom ? 'custom_upload' : pointIconType,
         alphabetChar: pointAlphabetChar,
-        customIconUrl: pointCustomIconUrl
+        customIconUrl: normCustom
       },
       true
     );
@@ -1910,14 +2148,17 @@
       ? currentOperasiId
       : (editingPointId ? (rawAllPoints.find(p => p.id === editingPointId)?.id_operasi || null) : null);
 
+    const normCustom = normalizeIconUrl(pointCustomIconUrl);
+    const finalPointType = normCustom ? 'custom_upload' : pointIconType;
+
     const pointPayload = {
       id: editingPointId || `pt-${Date.now()}`,
       id_operasi: targetOpId,
       label: name,
       category: category,
-      pointType: pointIconType,
+      pointType: finalPointType,
       alphabetChar: pointAlphabetChar,
-      customIconUrl: pointCustomIconUrl,
+      customIconUrl: normCustom,
       description: desc,
       lat: pointDraftCoords.lat,
       lng: pointDraftCoords.lng
@@ -2070,8 +2311,9 @@
           ? pt.label
           : (category !== 'Tanpa Kategori' ? `[${category}] (Tanpa Nama)` : '(Titik Tanpa Nama)');
 
-        const iconDisplay = pt.customIconUrl
-          ? `<img src="${pt.customIconUrl}" class="w-full h-full object-contain rounded-lg p-0.5">`
+        const normIcon = normalizeIconUrl(pt.customIconUrl);
+        const iconDisplay = normIcon
+          ? `<img src="${escapeHtml(normIcon)}" class="w-full h-full object-contain rounded-lg p-0.5">`
           : pt.pointType === 'alphabet'
             ? `<span class="font-black text-sm">${pt.alphabetChar || 'A'}</span>`
             : `<span class="text-base">${preset.emoji}</span>`;
@@ -3350,6 +3592,19 @@
     if (elWp) {
       elWp.textContent = `${activeGeneratedWaypoints.length} WP`;
     }
+
+    // Luas Total Sapuan (IAMSAR Vol II Chapter 5: A = S * L)
+    const spacingInput = document.getElementById('patternTrackSpacing');
+    const unitSel = document.getElementById('patternSpacingUnit');
+    const rawSpacing = parseFloat(spacingInput ? spacingInput.value : '1.0') || 1.0;
+    const spacingNm = (unitSel && unitSel.value === 'KM') ? (rawSpacing / 1.852) : rawSpacing;
+    const areaSweptNm2 = totalNm * spacingNm;
+    const areaSweptKm2 = areaSweptNm2 * 3.429904;
+    const elAreaSwept = document.getElementById('resPatternAreaSwept');
+    if (elAreaSwept) {
+      elAreaSwept.textContent = `${areaSweptNm2.toFixed(2)} NM² (${areaSweptKm2.toFixed(2)} km²)`;
+    }
+
     return totalNm;
   }
 
@@ -5548,6 +5803,8 @@
             filterMode = 'operasi';
             currentOperasiId = selectedId;
             currentOperasi = foundOps;
+            // 5. Pilihan misi operasi SAR: secara default sudah include dapat menampilkan komponen pada Base Map!
+            includeBaseInActive = true;
           } else {
             filterMode = 'basemap';
             currentOperasiId = null;

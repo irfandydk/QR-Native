@@ -246,42 +246,32 @@ try {
             exit;
         }
 
-        // 2. Query MySQL SarUnit & GisPoint for official SAR locations (Optimized indexed search)
+        // 2. Query MySQL GisPoint for saved SAR plotting points
         try {
             $db = getDB();
             $likeParam = '%' . $q . '%';
 
-            $stmtSar = $db->prepare("
-                SELECT nama_unit as name, COALESCE(NULLIF(alamat, ''), wilayah, 'Pos Operasional Basarnas') as address, latitude as lat, longitude as lng, jenis_unit as type
-                FROM SarUnit
-                WHERE (nama_unit LIKE :q1 OR alamat LIKE :q2 OR wilayah LIKE :q3)
-                LIMIT 8
-            ");
-            $stmtSar->execute([':q1' => $likeParam, ':q2' => $likeParam, ':q3' => $likeParam]);
-            $sarRows = $stmtSar->fetchAll();
-
             $stmtGis = $db->prepare("
                 SELECT COALESCE(NULLIF(label, ''), NULLIF(category, 'Tanpa Kategori'), 'Titik Plotting SAR') as name, COALESCE(NULLIF(description, ''), 'Titik Plotting SAR') as address, lat, lng, pointType as type
                 FROM GisPoint
-                WHERE (label LIKE :q4 OR description LIKE :q5 OR category LIKE :q6)
+                WHERE (label LIKE :q1 OR description LIKE :q2 OR category LIKE :q3)
                 LIMIT 8
             ");
-            $stmtGis->execute([':q4' => $likeParam, ':q5' => $likeParam, ':q6' => $likeParam]);
+            $stmtGis->execute([':q1' => $likeParam, ':q2' => $likeParam, ':q3' => $likeParam]);
             $gisRows = $stmtGis->fetchAll();
 
-            $localRows = array_merge($sarRows, $gisRows);
-            foreach ($localRows as $row) {
+            foreach ($gisRows as $row) {
                 if (!empty($row['lat']) && !empty($row['lng'])) {
                     $lat = (float)$row['lat'];
                     $lng = (float)$row['lng'];
                     $results[] = [
                         'name' => $row['name'],
-                        'address' => $row['address'] ?: 'Pangkalan / Pos Operasional Basarnas Sultra',
+                        'address' => $row['address'] ?: 'Titik Plotting SAR Database',
                         'lat' => $lat,
                         'lng' => $lng,
-                        'type' => 'Pangkalan / Pos Basarnas',
-                        'badge' => 'SAR SULTRA',
-                        'icon' => 'shield',
+                        'type' => 'Titik Plotting SAR',
+                        'badge' => 'PLOT SAR',
+                        'icon' => 'map-pin',
                         'dms' => $toDms($lat, $lng)
                     ];
                 }
@@ -1001,6 +991,62 @@ try {
         }
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Gagal mengunggah file ikon.']);
+        exit;
+    }
+
+    if ($path === '/gis/custom-icons' && $method === 'GET') {
+        $requireAuth();
+        $targetDir = ROOT_DIR . '/uploads/icons';
+        $icons = [];
+        $appRootUrl = preg_replace('#/api/?$#i', '', BASE_URL);
+
+        if (is_dir($targetDir)) {
+            $files = scandir($targetDir);
+            foreach ($files as $f) {
+                if ($f === '.' || $f === '..' || $f === 'index.php') continue;
+                $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                if (!in_array($ext, ['png', 'jpg', 'jpeg', 'svg', 'webp'], true)) continue;
+                $filePath = $targetDir . '/' . $f;
+                $icons[] = [
+                    'name' => $f,
+                    'filename' => $f,
+                    'url' => $appRootUrl . '/uploads/icons/' . $f,
+                    'time' => filemtime($filePath) ?: 0
+                ];
+            }
+        }
+
+        usort($icons, fn($a, $b) => ($b['time'] ?? 0) <=> ($a['time'] ?? 0));
+        echo json_encode([
+            'success' => true,
+            'icons' => $icons,
+            'data' => $icons
+        ]);
+        exit;
+    }
+
+    if ($path === '/gis/custom-icons' && $method === 'DELETE') {
+        $requireAuth();
+        $filename = trim((string)($input['filename'] ?? ''));
+        if (empty($filename) || !preg_match('/^[a-zA-Z0-9_\-\.]+$/', $filename)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Nama berkas ikon tidak valid.']);
+            exit;
+        }
+        $targetDir = ROOT_DIR . '/uploads/icons';
+        $filePath = $targetDir . '/' . $filename;
+        if (file_exists($filePath)) {
+            @unlink($filePath);
+        }
+
+        // Cleanly detach this deleted icon from all GisPoint rows so it is unlinked from map points
+        try {
+            $db = getDB();
+            $stmt = $db->prepare("UPDATE GisPoint SET customIconUrl = NULL, pointType = 'pin_umum' WHERE customIconUrl LIKE :pattern");
+            $stmt->execute([':pattern' => '%' . $filename . '%']);
+        } catch (Throwable) {}
+
+        echo json_encode(['success' => true, 'message' => 'Logo kustom berhasil dihapus dari galeri dan dilepas dari titik peta.']);
         exit;
     }
 

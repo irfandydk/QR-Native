@@ -26,12 +26,32 @@ class BraHelper {
         return date('my', $timestamp); // e.g. "0926"
     }
 
+    public static function parseNoBra(string $noBra, string $defaultSatker = 'SAR-304'): array {
+        $clean = trim($noBra);
+        $nomorUrut = 1;
+        $satker = $defaultSatker ?: 'SAR-304';
+        $bulanTahun = self::getBulanTahunSuffix();
+
+        if (preg_match('#^(\d+)(?:/([^/]+)/(\d+))?#', $clean, $m)) {
+            $nomorUrut = (int)$m[1];
+            if (!empty($m[2])) $satker = trim($m[2]);
+            if (!empty($m[3])) $bulanTahun = trim($m[3]);
+        }
+
+        return [
+            'nomor_urut' => $nomorUrut,
+            'satker_kode' => $satker,
+            'bulan_tahun' => $bulanTahun,
+            'no_bra' => $clean
+        ];
+    }
+
     public static function getNextNomorBra(string $kategori = 'MAPEL', string $satkerKode = 'SAR-304', ?PDO $db = null, bool $forUpdate = false): array {
         $db = $db ?: getDB();
-        $query = "SELECT MAX(nomor_urut) as max_urut FROM BraSar" . ($forUpdate ? " FOR UPDATE" : "");
+        $query = "SELECT COALESCE(MAX(nomor_urut), 0) as max_urut FROM BraSar" . ($forUpdate ? " FOR UPDATE" : "");
         $stmt = $db->query($query);
         $row = $stmt->fetch();
-        $nextUrut = ($row && $row['max_urut']) ? (int)$row['max_urut'] + 1 : 1;
+        $nextUrut = ($row && isset($row['max_urut'])) ? (int)$row['max_urut'] + 1 : 1;
 
         $suffix = self::getBulanTahunSuffix();
         $cleanSatker = $satkerKode ?: 'SAR-304';

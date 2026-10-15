@@ -121,9 +121,11 @@ class BraModel {
                 $noBra = $next['no_bra'];
                 $bulanTahun = $next['bulan_tahun'];
             } else {
-                $noBra = $data['no_bra'];
-                $nomorUrut = (int)($data['nomor_urut'] ?? 1);
-                $bulanTahun = $data['bulan_tahun'] ?? BraHelper::getBulanTahunSuffix();
+                $parsed = BraHelper::parseNoBra($data['no_bra'], $satkerKode);
+                $nomorUrut = $parsed['nomor_urut'];
+                $satkerKode = $parsed['satker_kode'];
+                $bulanTahun = $parsed['bulan_tahun'];
+                $noBra = $parsed['no_bra'];
             }
 
             $sections = $data['sections'] ?? [];
@@ -190,7 +192,7 @@ class BraModel {
             if (empty($data['barcode_data'])) {
                 $verifyUrl = self::generateVerifyUrl([
                     'id_bra' => $idBra,
-                    'no_bra' => $data['no_bra'] ?? '',
+                    'no_bra' => $noBra,
                     'twu' => $data['twu'] ?? ''
                 ]);
                 $db->prepare("UPDATE BraSar SET barcode_data = :bc WHERE id_bra = :id")->execute([
@@ -212,11 +214,16 @@ class BraModel {
                 }
             }
 
-            $db->commit();
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
             AuditHelper::log('BRA_CREATE', "Menerbitkan Naskah BRA {$kategori} No. {$noBra} (ID: {$idBra})", 'BraSar', (string)$idBra);
             return $idBra;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -231,9 +238,18 @@ class BraModel {
 
             $idOps = !empty($data['id_operasi']) ? (int)$data['id_operasi'] : null;
 
+            $parsed = BraHelper::parseNoBra($data['no_bra'] ?? '', $data['satker_kode'] ?? DEFAULT_SATKER_KODE);
+            $nomorUrut = $parsed['nomor_urut'];
+            $satkerKode = $parsed['satker_kode'];
+            $bulanTahun = $parsed['bulan_tahun'];
+            $noBra = $parsed['no_bra'];
+
             $stmt = $db->prepare("UPDATE BraSar SET
                 kategori = :kategori,
                 no_bra = :no_bra,
+                nomor_urut = :nomor_urut,
+                satker_kode = :satker_kode,
+                bulan_tahun = :bulan_tahun,
                 id_operasi = :id_operasi,
                 nama_operasi = :nama_operasi,
                 panggilan = :panggilan,
@@ -264,7 +280,10 @@ class BraModel {
             $stmt->execute([
                 ':id' => $id,
                 ':kategori' => strtoupper($data['kategori'] ?? 'MAPEL'),
-                ':no_bra' => $data['no_bra'],
+                ':no_bra' => $noBra,
+                ':nomor_urut' => $nomorUrut,
+                ':satker_kode' => $satkerKode,
+                ':bulan_tahun' => $bulanTahun,
                 ':id_operasi' => $idOps,
                 ':nama_operasi' => $data['nama_operasi'] ?? ($data['perihal'] ?? ''),
                 ':panggilan' => $data['panggilan'] ?? '',
@@ -292,25 +311,84 @@ class BraModel {
                 ':paraf' => $data['paraf'] ?? ''
             ]);
 
-            // Replace sections
+            // Sync updated barcode_data verify token
+            $verifyUrl = self::generateVerifyUrl([
+                'id_bra' => $id,
+                'no_bra' => $noBra,
+                'twu' => $data['twu'] ?? ''
+            ]);
+            $db->prepare("UPDATE BraSar SET barcode_data = :bc WHERE id_bra = :id")->execute([
+                ':bc' => $verifyUrl,
+                ':id' => $id
+            ]);
+
+            // Differential update for sections to prevent ID escalation in BraSection
             if (isset($data['sections'])) {
-                $db->prepare("DELETE FROM BraSection WHERE id_bra = :id")->execute([':id' => $id]);
-                $stmtSec = $db->prepare("INSERT INTO BraSection (id_bra, kode, isi) VALUES (:id_bra, :kode, :isi)");
+                $stmtExisting = $db->prepare("SELECT id, kode, isi FROM BraSection WHERE id_bra = :id ORDER BY id ASC");
+                $stmtExisting->execute([':id' => $id]);
+                $existingRows = $stmtExisting->fetchAll();
+                $existingIds = array_column($existingRows, 'id');
+
+                $stmtUpdate = $db->prepare("UPDATE BraSection SET kode = :kode, isi = :isi WHERE id = :sec_id AND id_bra = :id_bra");
+                $stmtInsert = $db->prepare("INSERT INTO BraSection (id_bra, kode, isi) VALUES (:id_bra, :kode, :isi)");
+
+                $keptIds = [];
+                $pool = $existingRows;
+
                 foreach ($sections as $sec) {
                     if (empty($sec['isi'])) continue;
-                    $stmtSec->execute([
-                        ':id_bra' => $id,
-                        ':kode' => strtoupper($sec['kode'] ?? 'AAA'),
-                        ':isi' => $sec['isi']
-                    ]);
+                    $kode = strtoupper($sec['kode'] ?? 'AAA');
+                    $isi = $sec['isi'];
+                    $secId = !empty($sec['id']) ? (int)$sec['id'] : null;
+
+                    if ($secId && in_array($secId, $existingIds, true) && !in_array($secId, $keptIds, true)) {
+                        $stmtUpdate->execute([':sec_id' => $secId, ':id_bra' => $id, ':kode' => $kode, ':isi' => $isi]);
+                        $keptIds[] = $secId;
+                        foreach ($pool as $pIdx => $pItem) {
+                            if ((int)$pItem['id'] === $secId) {
+                                unset($pool[$pIdx]);
+                                break;
+                            }
+                        }
+                    } elseif (!empty($pool)) {
+                        $matchKey = null;
+                        foreach ($pool as $pIdx => $pItem) {
+                            if ($pItem['kode'] === $kode) {
+                                $matchKey = $pIdx;
+                                break;
+                            }
+                        }
+                        if ($matchKey === null) {
+                            $matchKey = array_key_first($pool);
+                        }
+                        $reusedId = (int)$pool[$matchKey]['id'];
+                        unset($pool[$matchKey]);
+
+                        $stmtUpdate->execute([':sec_id' => $reusedId, ':id_bra' => $id, ':kode' => $kode, ':isi' => $isi]);
+                        $keptIds[] = $reusedId;
+                    } else {
+                        $stmtInsert->execute([':id_bra' => $id, ':kode' => $kode, ':isi' => $isi]);
+                    }
+                }
+
+                $toDelete = array_diff($existingIds, $keptIds);
+                if (!empty($toDelete)) {
+                    $delPlaceholders = implode(',', array_fill(0, count($toDelete), '?'));
+                    $stmtDel = $db->prepare("DELETE FROM BraSection WHERE id IN ({$delPlaceholders}) AND id_bra = ?");
+                    $stmtDel->execute([...$toDelete, $id]);
                 }
             }
 
-            $db->commit();
-            AuditHelper::log('BRA_UPDATE', "Memperbarui Naskah BRA No. " . ($data['no_bra'] ?? '') . " (ID: {$id})", 'BraSar', (string)$id);
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
+            AuditHelper::log('BRA_UPDATE', "Memperbarui Naskah BRA No. {$noBra} (ID: {$id})", 'BraSar', (string)$id);
             return true;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -321,12 +399,42 @@ class BraModel {
         try {
             $db->prepare("DELETE FROM BraSection WHERE id_bra = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM BraSar WHERE id_bra = :id")->execute([':id' => $id]);
-            $db->commit();
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
             AuditHelper::log('BRA_DELETE', "Menghapus Naskah BRA (ID: {$id})", 'BraSar', (string)$id);
             return true;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             return false;
+        }
+    }
+
+    /**
+     * Synchronize and reset BraSar & BraSection AUTO_INCREMENT to strictly MAX(id) + 1.
+     */
+    public static function syncAutoIncrement(): void {
+        $db = getDB();
+        if ($db->inTransaction()) {
+            return;
+        }
+        try {
+            $stmtBra = $db->query("SELECT COALESCE(MAX(id_bra), 0) FROM BraSar");
+            $maxBra = (int)$stmtBra->fetchColumn();
+            $stmtBra->closeCursor();
+            $nextBra = max(1, $maxBra + 1);
+            $db->exec("ALTER TABLE BraSar AUTO_INCREMENT = {$nextBra}");
+
+            $stmtSec = $db->query("SELECT COALESCE(MAX(id), 0) FROM BraSection");
+            $maxSec = (int)$stmtSec->fetchColumn();
+            $stmtSec->closeCursor();
+            $nextSec = max(1, $maxSec + 1);
+            $db->exec("ALTER TABLE BraSection AUTO_INCREMENT = {$nextSec}");
+        } catch (Throwable) {
+            // Silently continue if DDL is restricted
         }
     }
 

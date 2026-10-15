@@ -11,9 +11,14 @@ class GisModel {
     private static bool $schemaChecked = false;
 
     /**
-     * Ensure database tables have required columns for multi-operation SAR
+     * Schema migration check for multi-operation SAR.
+     * In production runtime, DDL checks are disabled by default for zero table locking overhead.
+     * Pass $force = true or run database/migrate.php to perform schema migrations explicitly.
      */
-    public static function ensureSchemaUpdated(): void {
+    public static function ensureSchemaUpdated(bool $force = false): void {
+        if (!$force) {
+            return;
+        }
         if (self::$schemaChecked) return;
         self::$schemaChecked = true;
         try {
@@ -81,6 +86,38 @@ class GisModel {
         return round($areaNm2, 2);
     }
 
+    /**
+     * Calculate Haversine distance and bearing between two coordinates.
+     * Returns ['km' => float, 'nm' => float, 'bearing' => int, 'headingName' => string]
+     */
+    public static function calculateDistanceHaversine(float $lat1, float $lon1, float $lat2, float $lon2): array {
+        $earthRadiusKm = 6371.0;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+             sin($dLon / 2) * sin($dLon / 2);
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        $km = $earthRadiusKm * $c;
+        $nm = $km * 0.539957;
+
+        $y = sin($dLon) * cos(deg2rad($lat2));
+        $x = cos(deg2rad($lat1)) * sin(deg2rad($lat2)) -
+             sin(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos($dLon);
+        $brng = fmod(rad2deg(atan2($y, $x)) + 360, 360);
+
+        $headings = ['Utara', 'Timur Laut', 'Timur', 'Tenggara', 'Selatan', 'Barat Daya', 'Barat', 'Barat Laut'];
+        $headingIdx = (int)round($brng / 45) % 8;
+
+        return [
+            'km' => round($km, 2),
+            'nm' => round($nm, 2),
+            'bearing' => (int)round($brng),
+            'headingName' => $headings[$headingIdx]
+        ];
+    }
+
     public static function getPoints(?int $idOperasi = null, bool $includeGlobal = true): array {
         self::ensureSchemaUpdated();
         $db = getDB();
@@ -111,6 +148,13 @@ class GisModel {
             $idOperasi = null;
         }
 
+        $customIcon = $data['customIconUrl'] ?? ($data['custom_icon_url'] ?? null);
+        if ($customIcon !== null) {
+            $customIcon = trim((string)$customIcon);
+            if ($customIcon === '') $customIcon = null;
+        }
+        $type = !empty($customIcon) ? 'custom_upload' : ($data['pointType'] ?? ($data['point_type'] ?? 'pin_umum'));
+
         $stmt = $db->prepare("REPLACE INTO GisPoint (id, id_operasi, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar) VALUES (:id, :id_ops, :lat, :lng, :label, :type, :customIcon, :desc, :category, :alphabetChar)");
         $stmt->execute([
             ':id' => $id,
@@ -118,8 +162,8 @@ class GisModel {
             ':lat' => (float)$data['lat'],
             ':lng' => (float)$data['lng'],
             ':label' => isset($data['label']) ? trim((string)$data['label']) : '',
-            ':type' => $data['pointType'] ?? ($data['point_type'] ?? 'pin_umum'),
-            ':customIcon' => $data['customIconUrl'] ?? ($data['custom_icon_url'] ?? null),
+            ':type' => $type,
+            ':customIcon' => $customIcon,
             ':desc' => $data['description'] ?? '',
             ':category' => $data['category'] ?? 'Tanpa Kategori',
             ':alphabetChar' => $data['alphabetChar'] ?? 'A'
@@ -226,23 +270,48 @@ class GisModel {
                 ':area' => $areaNm2
             ]);
 
-            $db->prepare("DELETE FROM GisPolygonPoint WHERE polygonId = :id")->execute([':id' => $id]);
+            $stmtExisting = $db->prepare("SELECT id FROM GisPolygonPoint WHERE polygonId = :id ORDER BY id ASC");
+            $stmtExisting->execute([':id' => $id]);
+            $existingPts = $stmtExisting->fetchAll(PDO::FETCH_COLUMN);
+
+            $stmtUpdatePt = $db->prepare("UPDATE GisPolygonPoint SET lat = :lat, lng = :lng, label = :label WHERE id = :pid AND polygonId = :id");
+            $stmtInsertPt = $db->prepare("INSERT INTO GisPolygonPoint (polygonId, lat, lng, label) VALUES (:id, :lat, :lng, :label)");
+
+            $keptPtIds = [];
+            $ptPool = $existingPts;
+
             if (!empty($data['points']) && is_array($data['points'])) {
-                $stmtPt = $db->prepare("INSERT INTO GisPolygonPoint (polygonId, lat, lng, label) VALUES (:id, :lat, :lng, :label)");
                 foreach ($data['points'] as $pt) {
-                    $stmtPt->execute([
-                        ':id' => $id,
-                        ':lat' => (float)$pt['lat'],
-                        ':lng' => (float)$pt['lng'],
-                        ':label' => $pt['label'] ?? ''
-                    ]);
+                    $lat = (float)$pt['lat'];
+                    $lng = (float)$pt['lng'];
+                    $label = $pt['label'] ?? '';
+
+                    if (!empty($ptPool)) {
+                        $reusedId = (int)array_shift($ptPool);
+                        $stmtUpdatePt->execute([':pid' => $reusedId, ':id' => $id, ':lat' => $lat, ':lng' => $lng, ':label' => $label]);
+                        $keptPtIds[] = $reusedId;
+                    } else {
+                        $stmtInsertPt->execute([':id' => $id, ':lat' => $lat, ':lng' => $lng, ':label' => $label]);
+                    }
                 }
             }
 
-            $db->commit();
+            $toDeletePts = array_diff($existingPts, $keptPtIds);
+            if (!empty($toDeletePts)) {
+                $delPlaceholders = implode(',', array_fill(0, count($toDeletePts), '?'));
+                $stmtDel = $db->prepare("DELETE FROM GisPolygonPoint WHERE id IN ({$delPlaceholders}) AND polygonId = ?");
+                $stmtDel->execute([...$toDeletePts, $id]);
+            }
+
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
             return $id;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -254,10 +323,15 @@ class GisModel {
         try {
             $db->prepare("DELETE FROM GisPolygonPoint WHERE polygonId = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM GisPolygon WHERE id = :id")->execute([':id' => $id]);
-            $db->commit();
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
             return true;
         } catch (Throwable) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             return false;
         }
     }
@@ -338,23 +412,48 @@ class GisModel {
                 ':created' => $data['createdAt'] ?? (date('Y-m-d H:i') . ' WITA')
             ]);
 
-            $db->prepare("DELETE FROM GisRoutePoint WHERE routeId = :id")->execute([':id' => $id]);
+            $stmtExisting = $db->prepare("SELECT id FROM GisRoutePoint WHERE routeId = :id ORDER BY id ASC");
+            $stmtExisting->execute([':id' => $id]);
+            $existingPts = $stmtExisting->fetchAll(PDO::FETCH_COLUMN);
+
+            $stmtUpdatePt = $db->prepare("UPDATE GisRoutePoint SET lat = :lat, lng = :lng, label = :label WHERE id = :pid AND routeId = :id");
+            $stmtInsertPt = $db->prepare("INSERT INTO GisRoutePoint (routeId, lat, lng, label) VALUES (:id, :lat, :lng, :label)");
+
+            $keptPtIds = [];
+            $ptPool = $existingPts;
+
             if (!empty($data['points']) && is_array($data['points'])) {
-                $stmtPt = $db->prepare("INSERT INTO GisRoutePoint (routeId, lat, lng, label) VALUES (:id, :lat, :lng, :label)");
                 foreach ($data['points'] as $pt) {
-                    $stmtPt->execute([
-                        ':id' => $id,
-                        ':lat' => (float)$pt['lat'],
-                        ':lng' => (float)$pt['lng'],
-                        ':label' => $pt['label'] ?? ''
-                    ]);
+                    $lat = (float)$pt['lat'];
+                    $lng = (float)$pt['lng'];
+                    $label = $pt['label'] ?? '';
+
+                    if (!empty($ptPool)) {
+                        $reusedId = (int)array_shift($ptPool);
+                        $stmtUpdatePt->execute([':pid' => $reusedId, ':id' => $id, ':lat' => $lat, ':lng' => $lng, ':label' => $label]);
+                        $keptPtIds[] = $reusedId;
+                    } else {
+                        $stmtInsertPt->execute([':id' => $id, ':lat' => $lat, ':lng' => $lng, ':label' => $label]);
+                    }
                 }
             }
 
-            $db->commit();
+            $toDeletePts = array_diff($existingPts, $keptPtIds);
+            if (!empty($toDeletePts)) {
+                $delPlaceholders = implode(',', array_fill(0, count($toDeletePts), '?'));
+                $stmtDel = $db->prepare("DELETE FROM GisRoutePoint WHERE id IN ({$delPlaceholders}) AND routeId = ?");
+                $stmtDel->execute([...$toDeletePts, $id]);
+            }
+
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
             return $id;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -366,10 +465,15 @@ class GisModel {
         try {
             $db->prepare("DELETE FROM GisRoutePoint WHERE routeId = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM GisRoute WHERE id = :id")->execute([':id' => $id]);
-            $db->commit();
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
             return true;
         } catch (Throwable) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             return false;
         }
     }
@@ -450,23 +554,48 @@ class GisModel {
                 ':created' => $data['createdAt'] ?? (date('Y-m-d H:i') . ' WITA')
             ]);
 
-            $db->prepare("DELETE FROM GisSearchPatternWaypoint WHERE searchPatternId = :id")->execute([':id' => $id]);
+            $stmtExisting = $db->prepare("SELECT id FROM GisSearchPatternWaypoint WHERE searchPatternId = :id ORDER BY id ASC");
+            $stmtExisting->execute([':id' => $id]);
+            $existingWps = $stmtExisting->fetchAll(PDO::FETCH_COLUMN);
+
+            $stmtUpdateWp = $db->prepare("UPDATE GisSearchPatternWaypoint SET lat = :lat, lng = :lng, label = :label WHERE id = :wid AND searchPatternId = :id");
+            $stmtInsertWp = $db->prepare("INSERT INTO GisSearchPatternWaypoint (searchPatternId, lat, lng, label) VALUES (:id, :lat, :lng, :label)");
+
+            $keptWpIds = [];
+            $wpPool = $existingWps;
+
             if (!empty($data['waypoints']) && is_array($data['waypoints'])) {
-                $stmtWp = $db->prepare("INSERT INTO GisSearchPatternWaypoint (searchPatternId, lat, lng, label) VALUES (:id, :lat, :lng, :label)");
                 foreach ($data['waypoints'] as $wp) {
-                    $stmtWp->execute([
-                        ':id' => $id,
-                        ':lat' => (float)$wp['lat'],
-                        ':lng' => (float)$wp['lng'],
-                        ':label' => $wp['label'] ?? ''
-                    ]);
+                    $lat = (float)$wp['lat'];
+                    $lng = (float)$wp['lng'];
+                    $label = $wp['label'] ?? '';
+
+                    if (!empty($wpPool)) {
+                        $reusedId = (int)array_shift($wpPool);
+                        $stmtUpdateWp->execute([':wid' => $reusedId, ':id' => $id, ':lat' => $lat, ':lng' => $lng, ':label' => $label]);
+                        $keptWpIds[] = $reusedId;
+                    } else {
+                        $stmtInsertWp->execute([':id' => $id, ':lat' => $lat, ':lng' => $lng, ':label' => $label]);
+                    }
                 }
             }
 
-            $db->commit();
+            $toDeleteWps = array_diff($existingWps, $keptWpIds);
+            if (!empty($toDeleteWps)) {
+                $delPlaceholders = implode(',', array_fill(0, count($toDeleteWps), '?'));
+                $stmtDel = $db->prepare("DELETE FROM GisSearchPatternWaypoint WHERE id IN ({$delPlaceholders}) AND searchPatternId = ?");
+                $stmtDel->execute([...$toDeleteWps, $id]);
+            }
+
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
             return $id;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -478,11 +607,47 @@ class GisModel {
         try {
             $db->prepare("DELETE FROM GisSearchPatternWaypoint WHERE searchPatternId = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM GisSearchPattern WHERE id = :id")->execute([':id' => $id]);
-            $db->commit();
+            if ($db->inTransaction()) {
+                $db->commit();
+            }
+            self::syncAutoIncrement();
             return true;
         } catch (Throwable) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             return false;
+        }
+    }
+
+    /**
+     * Synchronize and reset GIS point/waypoint table AUTO_INCREMENT values to strictly MAX(id) + 1.
+     */
+    public static function syncAutoIncrement(): void {
+        $db = getDB();
+        if ($db->inTransaction()) {
+            return;
+        }
+        try {
+            $stmtPolyPt = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisPolygonPoint");
+            $maxPolyPt = (int)$stmtPolyPt->fetchColumn();
+            $stmtPolyPt->closeCursor();
+            $nextPolyPt = max(1, $maxPolyPt + 1);
+            $db->exec("ALTER TABLE GisPolygonPoint AUTO_INCREMENT = {$nextPolyPt}");
+
+            $stmtRoutePt = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisRoutePoint");
+            $maxRoutePt = (int)$stmtRoutePt->fetchColumn();
+            $stmtRoutePt->closeCursor();
+            $nextRoutePt = max(1, $maxRoutePt + 1);
+            $db->exec("ALTER TABLE GisRoutePoint AUTO_INCREMENT = {$nextRoutePt}");
+
+            $stmtWp = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisSearchPatternWaypoint");
+            $maxWp = (int)$stmtWp->fetchColumn();
+            $stmtWp->closeCursor();
+            $nextWp = max(1, $maxWp + 1);
+            $db->exec("ALTER TABLE GisSearchPatternWaypoint AUTO_INCREMENT = {$nextWp}");
+        } catch (Throwable) {
+            // Silently continue
         }
     }
 
