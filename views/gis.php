@@ -168,6 +168,23 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px) !important;
     background-size: 40px 40px !important;
   }
+
+  /* Draggable Waypoints for SAR Patterns */
+  .sar-pat-draggable-marker,
+  .sar-pat-corner {
+    cursor: grab !important;
+    transition: transform 0.12s ease;
+  }
+  .sar-pat-draggable-marker:hover,
+  .sar-pat-corner:hover {
+    transform: scale(1.18);
+  }
+  .sar-pat-draggable-marker:active,
+  .sar-pat-corner:active,
+  .leaflet-marker-dragging {
+    cursor: grabbing !important;
+    transform: scale(1.25);
+  }
 </style>
 
 <div id="gisRootContainer" class="w-full h-full flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 select-none" style="height: 100%; flex: 1;">
@@ -771,8 +788,8 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
                 <div class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Kotak spiral dari datum LKP</div>
               </button>
               <button type="button" data-ptype="sector_search" class="pat-type-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-left hover:border-orange-500 transition">
-                <div class="text-xs font-black">Sector Search (VS)</div>
-                <div class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Pola radial bintang 3 sektor</div>
+                <div class="text-xs font-black">Pola Pencarian E-SAR</div>
+                <div class="text-[10px] font-normal text-slate-500 dark:text-slate-400">Sapuan sejajar personil (Darat/Gunung Hutan)</div>
               </button>
             </div>
           </div>
@@ -792,7 +809,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
               </div>
               <div>
                 <div class="flex items-center justify-between mb-1">
-                  <label class="block text-[10px] font-bold text-slate-600 dark:text-slate-400">Jumlah Sweep:</label>
+                  <label id="patternLegsLabel" class="block text-[10px] font-bold text-slate-600 dark:text-slate-400">Jumlah Sweep:</label>
                   <span id="patternAutoBadge" class="text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20">AUTO</span>
                 </div>
                 <input type="number" id="patternLegsCount" value="6" min="2" max="50" class="w-full px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono font-bold focus:border-orange-500 transition">
@@ -810,7 +827,61 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
                 <span id="patternMarginInfo" class="text-emerald-600 dark:text-emerald-400 font-bold">0.50 NM (S/2)</span>
               </div>
               <div class="text-[9px] font-sans text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-1 leading-relaxed">
-                💡 <span class="text-slate-600 dark:text-slate-300">Garis sweep diberi jarak aman (margin) dari batas poligon agar tidak rapat/menempel di dinding area.</span>
+                💡 <span class="text-slate-600 dark:text-slate-300">Garis pola otomatis disesuaikan (fitted) dengan batas poligon non-simetris agar tetap berada di dalam area pencarian.</span>
+              </div>
+            </div>
+
+            <!-- Kustomisasi Warna, Transparansi & Gaya Garis Pola SAR -->
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 space-y-2.5">
+              <div class="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                <span>🎨 Kustomisasi Garis Pola SAR</span>
+                <span id="patternOpacityValDisplay" class="font-mono text-sky-600 dark:text-sky-400 font-bold">90%</span>
+              </div>
+
+              <!-- Color Palette & Custom Picker -->
+              <div class="space-y-1.5">
+                <label class="block text-[10px] font-bold text-slate-500 dark:text-slate-400">Warna Garis Lintasan:</label>
+                <div class="flex items-center gap-2">
+                  <input type="color" id="patternLineColor" value="#0284c7" class="w-8 h-8 rounded-lg cursor-pointer border border-slate-300 dark:border-slate-700 bg-transparent p-0.5" title="Pilih warna bebas">
+                  <div class="flex items-center gap-1.5 flex-1 flex-wrap">
+                    <button type="button" class="w-6 h-6 rounded-md bg-[#0284c7] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#0284c7" title="Biru Taktis"></button>
+                    <button type="button" class="w-6 h-6 rounded-md bg-[#f97316] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#f97316" title="Oranye Basarnas"></button>
+                    <button type="button" class="w-6 h-6 rounded-md bg-[#ef4444] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#ef4444" title="Merah"></button>
+                    <button type="button" class="w-6 h-6 rounded-md bg-[#eab308] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#eab308" title="Kuning"></button>
+                    <button type="button" class="w-6 h-6 rounded-md bg-[#10b981] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#10b981" title="Hijau"></button>
+                    <button type="button" class="w-6 h-6 rounded-md bg-[#a855f7] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#a855f7" title="Ungu"></button>
+                    <button type="button" class="w-6 h-6 rounded-md bg-[#ffffff] border border-slate-400 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#ffffff" title="Putih"></button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Opacity Slider -->
+              <div class="space-y-1">
+                <div class="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                  <span class="font-bold">Transparansi / Opasitas Garis:</span>
+                  <span class="text-[9px] text-slate-400">10% - 100%</span>
+                </div>
+                <input type="range" id="patternLineOpacity" min="0.1" max="1" step="0.05" value="0.9" class="w-full accent-sky-600 dark:accent-sky-500 cursor-pointer">
+              </div>
+
+              <!-- Line Style & Weight -->
+              <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200 dark:border-slate-800 text-[10px]">
+                <div>
+                  <label class="block font-bold text-slate-500 dark:text-slate-400 mb-1">Ketebalan:</label>
+                  <select id="patternLineWeight" class="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 font-bold focus:border-orange-500">
+                    <option value="2">2 px (Tipis)</option>
+                    <option value="3" selected>3 px (Standar)</option>
+                    <option value="4">4 px (Tebal)</option>
+                    <option value="5">5 px (Ekstra Tebal)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-500 dark:text-slate-400 mb-1">Gaya Garis:</label>
+                  <select id="patternLineStyle" class="w-full px-2 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 font-bold focus:border-orange-500">
+                    <option value="dashed" selected>Putus-putus (Dash)</option>
+                    <option value="solid">Garis Utuh (Solid)</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>

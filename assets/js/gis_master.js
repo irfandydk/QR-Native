@@ -194,6 +194,17 @@
     if (polyBadge) polyBadge.textContent = String(savedPolygons.length);
   }
 
+  function notifyGisStorageUpdate() {
+    try {
+      localStorage.setItem('qr_sar_gis_last_update', JSON.stringify({
+        ts: Date.now(),
+        operasiId: currentOperasiId
+      }));
+    } catch (e) {
+      // Ignore storage errors
+    }
+  }
+
   function updateRawPoint(payload, isDelete = false) {
     if (isDelete) {
       rawAllPoints = rawAllPoints.filter(p => String(p.id) !== String(payload.id));
@@ -206,6 +217,7 @@
       }
     }
     applyActiveFilter();
+    notifyGisStorageUpdate();
   }
 
   function updateRawPolygon(payload, isDelete = false) {
@@ -220,6 +232,7 @@
       }
     }
     applyActiveFilter();
+    notifyGisStorageUpdate();
   }
 
   function updateRawPattern(payload, isDelete = false) {
@@ -234,6 +247,7 @@
       }
     }
     applyActiveFilter();
+    notifyGisStorageUpdate();
   }
 
   function updateRawRoute(payload, isDelete = false) {
@@ -248,6 +262,7 @@
       }
     }
     applyActiveFilter();
+    notifyGisStorageUpdate();
   }
 
   function reRenderAllLayers() {
@@ -586,21 +601,34 @@
       return { sqKm: 0, sqNm: 0, hectares: 0, perimeterKm: 0, perimeterNm: 0 };
     }
 
-    const R = 6378137; // Earth radius in meters
-    let totalArea = 0;
+    // Geodesic / nautical area in NM² matching SAR/Basarnas standard and GisModel.php
+    let sumLat = 0;
+    coords.forEach(p => {
+      const lat = p.lat !== undefined ? p.lat : (Array.isArray(p) ? p[0] : 0);
+      sumLat += Number(lat || 0);
+    });
+    const meanLatRad = (sumLat / coords.length) * (Math.PI / 180);
+    const cosMeanLat = Math.cos(meanLatRad);
 
-    for (let i = 0; i < coords.length; i++) {
-      const p1 = coords[i];
-      const p2 = coords[(i + 1) % coords.length];
-      const lat1Rad = (p1.lat * Math.PI) / 180;
-      const lat2Rad = (p2.lat * Math.PI) / 180;
-      const dLngRad = ((p2.lng - p1.lng) * Math.PI) / 180;
-      totalArea += dLngRad * (2 + Math.sin(lat1Rad) + Math.sin(lat2Rad));
+    let areaSum = 0;
+    const n = coords.length;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const pt1 = coords[i];
+      const pt2 = coords[j];
+      const lng1 = pt1.lng !== undefined ? pt1.lng : (Array.isArray(pt1) ? pt1[1] : 0);
+      const lat1 = pt1.lat !== undefined ? pt1.lat : (Array.isArray(pt1) ? pt1[0] : 0);
+      const lng2 = pt2.lng !== undefined ? pt2.lng : (Array.isArray(pt2) ? pt2[1] : 0);
+      const lat2 = pt2.lat !== undefined ? pt2.lat : (Array.isArray(pt2) ? pt2[0] : 0);
+
+      const x1 = Number(lng1 || 0) * 60.0 * cosMeanLat;
+      const y1 = Number(lat1 || 0) * 60.0;
+      const x2 = Number(lng2 || 0) * 60.0 * cosMeanLat;
+      const y2 = Number(lat2 || 0) * 60.0;
+      areaSum += (x1 * y2) - (x2 * y1);
     }
-    totalArea = Math.abs((totalArea * (R * R)) / 4.0);
-
-    const sqKm = totalArea / 1000000;
-    const sqNm = sqKm * 0.291553;
+    const sqNm = Math.abs(areaSum) / 2.0;
+    const sqKm = sqNm * 3.429904; // 1 NM = 1.852 km => 1 NM² = 3.429904 km²
     const hectares = sqKm * 100;
 
     let perimeterKm = 0;
@@ -749,18 +777,23 @@
     `;
   }
 
-  function createPatternCornerHtml(type, color = '#0284c7') {
+  function createPatternCornerHtml(type, color = '#0284c7', customLetter = '') {
     const isStart = type === 'start';
     const isEnd = type === 'end';
     const fillColor = isStart ? '#16a34a' : isEnd ? '#dc2626' : color;
-    const letter = isStart ? 'S' : isEnd ? 'E' : '';
-    const size = 24;
+    const letter = customLetter ? customLetter : (isStart ? 'S' : isEnd ? 'E' : '');
+    const isLong = letter.length >= 2;
+    const size = isLong ? 26 : 24;
+    const center = size / 2;
+    const radius = isLong ? 11 : 10;
+    const fontSize = isLong ? 9 : 11;
+    const textY = isLong ? (center + 3.5) : 16;
 
     return `
-      <div style="display: block; width: ${size}px; height: ${size}px; user-select: none;">
+      <div style="display: block; width: ${size}px; height: ${size}px; user-select: none; cursor: grab;" class="sar-pat-corner">
         <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-          <circle cx="12" cy="12" r="10" fill="${fillColor}" stroke="#ffffff" stroke-width="2" />
-          ${letter ? `<text x="12" y="16" font-family="Arial, sans-serif" font-size="11" font-weight="900" fill="#ffffff" text-anchor="middle">${letter}</text>` : `<circle cx="12" cy="12" r="4" fill="#ffffff" />`}
+          <circle cx="${center}" cy="${center}" r="${radius}" fill="${fillColor}" stroke="#ffffff" stroke-width="2" />
+          ${letter ? `<text x="${center}" y="${textY}" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="900" fill="#ffffff" text-anchor="middle">${letter}</text>` : `<circle cx="${center}" cy="${center}" r="4" fill="#ffffff" />`}
         </svg>
       </div>
     `;
@@ -2304,11 +2337,13 @@
       ? currentOperasiId
       : (editingPolygonId ? (rawAllPolygons.find(p => p.id === editingPolygonId)?.id_operasi || null) : null);
 
+    const areaStats = calculatePolygonSphericalArea(activePolygonPoints);
     const payload = {
       id: editingPolygonId || `poly-${Date.now()}`,
       id_operasi: targetOpId,
       name: name,
       points: activePolygonPoints,
+      areaNm2: areaStats.sqNm,
       strokeColor: polyStrokeColor,
       strokeWeight: polyStrokeWeight,
       fillColor: polyFillColor,
@@ -2369,6 +2404,25 @@
           </div>
         </div>
       `);
+
+      // Forward click to map drawing/measure handler when in drawing or measuring mode
+      overlay.on('click', (e) => {
+        if (isMeasureModeActive || isDrawingPolygon || isCreatingPoint) {
+          overlay.closePopup();
+          setTimeout(() => overlay.closePopup(), 10);
+          onMapClick(e);
+          if (e.originalEvent) {
+            L.DomEvent.stopPropagation(e.originalEvent);
+          }
+          return;
+        }
+      });
+
+      overlay.on('popupopen', () => {
+        if (isMeasureModeActive || isDrawingPolygon || isCreatingPoint) {
+          overlay.closePopup();
+        }
+      });
 
       polygonOverlaysMap.set(poly.id, overlay);
     });
@@ -2496,7 +2550,7 @@
       }
     });
 
-    // Pattern type buttons (Theme Adaptive)
+    // Pattern type buttons (Theme Adaptive & Real-Time Replacement)
     document.querySelectorAll('.pat-type-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         activePatternType = btn.getAttribute('data-ptype');
@@ -2506,7 +2560,19 @@
         btn.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-left transition font-bold shadow-xs';
         const statusMsg = document.getElementById('patternStatusMsg');
         if (statusMsg) statusMsg.classList.add('hidden');
+
+        // Dynamic label: Personel E-SAR vs Sweep
+        const legsLabel = document.getElementById('patternLegsLabel');
+        if (legsLabel) {
+          legsLabel.textContent = (activePatternType === 'sector_search' || activePatternType === 'e_sar')
+            ? 'Jumlah Personel E-SAR:'
+            : 'Jumlah Sweep:';
+        }
+
         updatePatternAutoCalculation();
+
+        // REAL-TIME REPLACEMENT: Instantly regenerate new pattern so previous pattern is cleanly replaced!
+        generateSearchPatternRoute();
       });
     });
 
@@ -2535,6 +2601,10 @@
             map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
           }
         }
+        // Real-time update if already generated
+        if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
+          generateSearchPatternRoute();
+        }
       });
     }
 
@@ -2554,11 +2624,28 @@
         }
         patternSpacingUnit = newUnit;
         updatePatternAutoCalculation();
+        if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
+          generateSearchPatternRoute();
+        }
       });
     }
 
     if (spacingInput) {
-      spacingInput.addEventListener('input', updatePatternAutoCalculation);
+      spacingInput.addEventListener('input', () => {
+        updatePatternAutoCalculation();
+        if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
+          generateSearchPatternRoute();
+        }
+      });
+    }
+
+    const legsInput = document.getElementById('patternLegsCount');
+    if (legsInput) {
+      legsInput.addEventListener('input', () => {
+        if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
+          generateSearchPatternRoute();
+        }
+      });
     }
 
     // Generate Button
@@ -2585,8 +2672,80 @@
       btnSave.addEventListener('click', handleSaveSearchPattern);
     }
 
+    // Customization: Color picker, Preset Buttons, Opacity Slider, Line Weight & Style
+    const patColorInput = document.getElementById('patternLineColor');
+    if (patColorInput) {
+      patColorInput.addEventListener('input', () => {
+        updateActivePatternStyle();
+      });
+    }
+
+    document.querySelectorAll('.pat-color-preset').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const col = btn.getAttribute('data-color');
+        if (col && patColorInput) {
+          patColorInput.value = col;
+          updateActivePatternStyle();
+        }
+      });
+    });
+
+    const patOpacityInput = document.getElementById('patternLineOpacity');
+    const patOpacityValDisplay = document.getElementById('patternOpacityValDisplay');
+    if (patOpacityInput) {
+      patOpacityInput.addEventListener('input', (e) => {
+        const pct = Math.round(parseFloat(e.target.value) * 100);
+        if (patOpacityValDisplay) patOpacityValDisplay.textContent = `${pct}%`;
+        updateActivePatternStyle();
+      });
+    }
+
+    const patWeightInput = document.getElementById('patternLineWeight');
+    if (patWeightInput) {
+      patWeightInput.addEventListener('change', () => {
+        updateActivePatternStyle();
+      });
+    }
+
+    const patStyleInput = document.getElementById('patternLineStyle');
+    if (patStyleInput) {
+      patStyleInput.addEventListener('change', () => {
+        updateActivePatternStyle();
+      });
+    }
+
     // Only update preview metadata without generating pattern visual
     updatePatternAutoCalculation();
+  }
+
+  function updateActivePatternStyle() {
+    if (!activePatternPolyline || !map) return;
+    const colorInput = document.getElementById('patternLineColor');
+    const opacityInput = document.getElementById('patternLineOpacity');
+    const weightInput = document.getElementById('patternLineWeight');
+    const styleInput = document.getElementById('patternLineStyle');
+
+    const color = colorInput ? colorInput.value : '#0284c7';
+    const opacity = opacityInput ? (parseFloat(opacityInput.value) || 0.9) : 0.85;
+    const weight = weightInput ? (parseInt(weightInput.value, 10) || 3) : 3;
+    const style = styleInput ? styleInput.value : 'dashed';
+    const dashArray = style === 'dashed' ? '6, 6' : '';
+
+    activePatternPolyline.setStyle({
+      color: color,
+      opacity: opacity,
+      weight: weight,
+      dashArray: dashArray
+    });
+
+    activePatternMarkers.forEach((m) => {
+      if (m.setStyle) {
+        m.setStyle({
+          fillColor: color,
+          fillOpacity: Math.min(1.0, opacity + 0.1)
+        });
+      }
+    });
   }
 
   function updatePatternAutoCalculation() {
@@ -2723,11 +2882,7 @@
     activeGeneratedWaypoints = coords;
 
     // Calculate total distance along waypoints
-    let totalNm = 0;
-    for (let i = 0; i < coords.length - 1; i++) {
-      totalNm += calculateDistanceHaversine(coords[i].lat, coords[i].lng, coords[i + 1].lat, coords[i + 1].lng).nm;
-    }
-    activeGeneratedDistanceNm = totalNm;
+    const totalNm = recalculateActivePatternDistance();
 
     // Show Results Card
     const elDist = document.getElementById('resPatternDistNm');
@@ -2736,7 +2891,9 @@
     }
     const elTypeInfo = document.getElementById('resPatternTypeInfo');
     if (elTypeInfo) {
-      elTypeInfo.textContent = `${getPatternDisplayName(activePatternType)} (${legs} Sapuan)`;
+      elTypeInfo.textContent = (activePatternType === 'sector_search' || activePatternType === 'e_sar')
+        ? `Pola Pencarian E-SAR (${legs} Personel Darat)`
+        : `${getPatternDisplayName(activePatternType)} (${legs} Sapuan)`;
     }
     const elWp = document.getElementById('resPatternWpCount');
     if (elWp) {
@@ -2757,6 +2914,179 @@
     renderActivePatternOnMap();
   }
 
+  // ==========================================
+  // SAR PATTERN GEOMETRY & BOUNDARY ENGINE
+  // ==========================================
+
+  function isPointInPolygon(lat, lng, poly) {
+    let inside = false;
+    const n = poly.length;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const xi = poly[i].lng, yi = poly[i].lat;
+      const xj = poly[j].lng, yj = poly[j].lat;
+      const intersect = ((yi > lat) !== (yj > lat)) &&
+        (lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  function getPolygonCentroid(poly) {
+    let area = 0;
+    let cx = 0;
+    let cy = 0;
+    const n = poly.length;
+
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const xi = poly[i].lng;
+      const yi = poly[i].lat;
+      const xj = poly[j].lng;
+      const yj = poly[j].lat;
+      const factor = (xi * yj - xj * yi);
+      area += factor;
+      cx += (xi + xj) * factor;
+      cy += (yi + yj) * factor;
+    }
+    area = area / 2;
+
+    if (Math.abs(area) > 1e-9) {
+      cx = cx / (6 * area);
+      cy = cy / (6 * area);
+      if (isPointInPolygon(cy, cx, poly)) {
+        return { lat: cy, lng: cx };
+      }
+    }
+
+    let sumLat = 0, sumLng = 0;
+    poly.forEach(p => { sumLat += p.lat; sumLng += p.lng; });
+    const avgPt = { lat: sumLat / n, lng: sumLng / n };
+    if (isPointInPolygon(avgPt.lat, avgPt.lng, poly)) {
+      return avgPt;
+    }
+    return { lat: poly[0].lat, lng: poly[0].lng };
+  }
+
+  function getHorizontalIntersections(lat, poly) {
+    const n = poly.length;
+    const intersections = [];
+
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const p1 = poly[i];
+      const p2 = poly[j];
+
+      const minY = Math.min(p1.lat, p2.lat);
+      const maxY = Math.max(p1.lat, p2.lat);
+
+      if (lat >= minY && lat <= maxY && maxY !== minY) {
+        const t = (lat - p1.lat) / (p2.lat - p1.lat);
+        if (t >= 0 && t <= 1) {
+          const lngInter = p1.lng + t * (p2.lng - p1.lng);
+          intersections.push(lngInter);
+        }
+      }
+    }
+
+    intersections.sort((a, b) => a - b);
+    const unique = [];
+    for (let i = 0; i < intersections.length; i++) {
+      if (i === 0 || Math.abs(intersections[i] - intersections[i - 1]) > 1e-6) {
+        unique.push(intersections[i]);
+      }
+    }
+    return unique;
+  }
+
+  function getVerticalIntersections(lng, poly) {
+    const n = poly.length;
+    const intersections = [];
+
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const p1 = poly[i];
+      const p2 = poly[j];
+
+      const minX = Math.min(p1.lng, p2.lng);
+      const maxX = Math.max(p1.lng, p2.lng);
+
+      if (lng >= minX && lng <= maxX && maxX !== minX) {
+        const t = (lng - p1.lng) / (p2.lng - p1.lng);
+        if (t >= 0 && t <= 1) {
+          const latInter = p1.lat + t * (p2.lat - p1.lat);
+          intersections.push(latInter);
+        }
+      }
+    }
+
+    intersections.sort((a, b) => a - b);
+    const unique = [];
+    for (let i = 0; i < intersections.length; i++) {
+      if (i === 0 || Math.abs(intersections[i] - intersections[i - 1]) > 1e-6) {
+        unique.push(intersections[i]);
+      }
+    }
+    return unique;
+  }
+
+  function lineSegmentIntersection(p1, p2, p3, p4) {
+    const dX1 = p2.lng - p1.lng;
+    const dY1 = p2.lat - p1.lat;
+    const dX2 = p4.lng - p3.lng;
+    const dY2 = p4.lat - p3.lat;
+
+    const denom = dX1 * dY2 - dY1 * dX2;
+    if (Math.abs(denom) < 1e-12) return null;
+
+    const t = ((p3.lng - p1.lng) * dY2 - (p3.lat - p1.lat) * dX2) / denom;
+    const u = ((p3.lng - p1.lng) * dY1 - (p3.lat - p1.lat) * dX1) / denom;
+
+    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+      return {
+        lat: p1.lat + t * dY1,
+        lng: p1.lng + t * dX1,
+        t: t
+      };
+    }
+    return null;
+  }
+
+  function clipSegmentToPolygon(fromPt, toPt, poly, safeMarginDeg = 0.0005) {
+    const n = poly.length;
+    let closestInter = null;
+    let minT = 1.0;
+
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const inter = lineSegmentIntersection(fromPt, toPt, poly[i], poly[j]);
+      if (inter && inter.t < minT && inter.t > 1e-5) {
+        minT = inter.t;
+        closestInter = inter;
+      }
+    }
+
+    if (closestInter) {
+      const dist = Math.hypot(toPt.lat - fromPt.lat, toPt.lng - fromPt.lng) || 1e-5;
+      const pullT = Math.max(0.01, minT - (safeMarginDeg / dist));
+      const safeT = Math.max(0.05, Math.min(minT * 0.96, pullT));
+      return {
+        lat: fromPt.lat + safeT * (toPt.lat - fromPt.lat),
+        lng: fromPt.lng + safeT * (toPt.lng - fromPt.lng),
+        clipped: true
+      };
+    }
+
+    if (isPointInPolygon(toPt.lat, toPt.lng, poly)) {
+      return { lat: toPt.lat, lng: toPt.lng, clipped: false };
+    }
+
+    return {
+      lat: fromPt.lat + 0.9 * (toPt.lat - fromPt.lat),
+      lng: fromPt.lng + 0.9 * (toPt.lng - fromPt.lng),
+      clipped: true
+    };
+  }
+
   function generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount) {
     const cleanPoints = (polygonPoints || []).map((p) => ({
       lat: parseFloat(p.lat),
@@ -2774,96 +3104,173 @@
       if (p.lng > maxLng) maxLng = p.lng;
     });
 
-    const midLat = (minLat + maxLat) / 2;
-    const midLng = (minLng + maxLng) / 2;
+    const centroid = getPolygonCentroid(cleanPoints);
+    const midLat = centroid.lat;
+    const midLng = centroid.lng;
     const lngKmPerDeg = Math.max(0.1, 111.32 * Math.cos((midLat * Math.PI) / 180));
-    const spacingKm = spacingNm * 1.852;
+    const spacingKm = Math.max(0.1, spacingNm * 1.852);
 
     const marginLat = (spacingKm / 2) / 110.574;
     const marginLng = (spacingKm / 2) / lngKmPerDeg;
 
     const spanLat = Math.max(0.001, maxLat - minLat);
     const spanLng = Math.max(0.001, maxLng - minLng);
-    const safeMarginLat = Math.min(marginLat, spanLat * 0.15);
-    const safeMarginLng = Math.min(marginLng, spanLng * 0.15);
-    const effMinLat = minLat + safeMarginLat;
-    const effMaxLat = maxLat - safeMarginLat;
-    const effMinLng = minLng + safeMarginLng;
-    const effMaxLng = maxLng - safeMarginLng;
+    const safeMarginLat = Math.min(marginLat, spanLat * 0.12);
+    const safeMarginLng = Math.min(marginLng, spanLng * 0.12);
 
     const points = [];
     const effectiveLegs = Math.max(2, legsCount || 2);
 
     if (type === 'parallel_track') {
-      const stepY = (effMaxLat - effMinLat) / (effectiveLegs - 1);
+      const effMinLat = minLat + safeMarginLat;
+      const effMaxLat = maxLat - safeMarginLat;
+      const stepY = (effMaxLat - effMinLat) / Math.max(1, effectiveLegs - 1);
+
       for (let i = 0; i < effectiveLegs; i++) {
         const curLat = effMaxLat - i * stepY;
-        const sweepEast = i % 2 === 0;
-        points.push({
-          lat: curLat,
-          lng: sweepEast ? effMinLng : effMaxLng,
-          label: i === 0 ? 'Entry (S)' : `Lintasan ${i + 1}A`
-        });
-        points.push({
-          lat: curLat,
-          lng: sweepEast ? effMaxLng : effMinLng,
-          label: i === effectiveLegs - 1 ? 'Exit (E)' : `Lintasan ${i + 1}B`
-        });
+        const inters = getHorizontalIntersections(curLat, cleanPoints);
+        if (inters.length >= 2) {
+          const left = inters[0];
+          const right = inters[inters.length - 1];
+          const legSpan = right - left;
+          const legMargin = Math.min(safeMarginLng, legSpan * 0.08);
+          const west = left + legMargin;
+          const east = right - legMargin;
+          const sweepEast = i % 2 === 0;
+
+          points.push({
+            lat: curLat,
+            lng: sweepEast ? west : east,
+            label: i === 0 ? 'Entry (S)' : `Lintasan ${i + 1}A`
+          });
+          points.push({
+            lat: curLat,
+            lng: sweepEast ? east : west,
+            label: i === effectiveLegs - 1 ? 'Exit (E)' : `Lintasan ${i + 1}B`
+          });
+        }
       }
     } else if (type === 'creeping_line') {
-      const stepX = (effMaxLng - effMinLng) / (effectiveLegs - 1);
+      const effMinLng = minLng + safeMarginLng;
+      const effMaxLng = maxLng - safeMarginLng;
+      const stepX = (effMaxLng - effMinLng) / Math.max(1, effectiveLegs - 1);
+
       for (let i = 0; i < effectiveLegs; i++) {
         const curLng = effMinLng + i * stepX;
-        const sweepSouth = i % 2 === 0;
-        points.push({
-          lat: sweepSouth ? effMaxLat : effMinLat,
-          lng: curLng,
-          label: i === 0 ? 'Entry (S)' : `Sapu ${i + 1}A`
-        });
-        points.push({
-          lat: sweepSouth ? effMinLat : effMaxLat,
-          lng: curLng,
-          label: i === effectiveLegs - 1 ? 'Exit (E)' : `Sapu ${i + 1}B`
-        });
-      }
-    } else if (type === 'sector_search') {
-      const maxRadiusKm = Math.min((effMaxLat - effMinLat) * 110.574, (effMaxLng - effMinLng) * lngKmPerDeg) / 2;
-      const radiusKm = Math.max(spacingKm, Math.min(spacingKm * 2, maxRadiusKm > 0 ? maxRadiusKm : spacingKm * 2));
-      points.push({ lat: midLat, lng: midLng, label: 'Datum Centroid' });
-      for (let i = 0; i < 3; i++) {
-        const a1 = (i * 120 * Math.PI) / 180;
-        const a2 = ((i * 120 + 120) * Math.PI) / 180;
-        const p1Lat = midLat + (radiusKm * Math.cos(a1)) / 110.574;
-        const p1Lng = midLng + (radiusKm * Math.sin(a1)) / lngKmPerDeg;
-        const p2Lat = midLat + (radiusKm * Math.cos(a2)) / 110.574;
-        const p2Lng = midLng + (radiusKm * Math.sin(a2)) / lngKmPerDeg;
-        points.push({ lat: p1Lat, lng: p1Lng, label: `Sektor ${i + 1} Luar` });
-        points.push({ lat: p2Lat, lng: p2Lng, label: `Sektor ${i + 1} Sudut` });
-        points.push({ lat: midLat, lng: midLng, label: 'Kembali ke Datum' });
-      }
-    } else {
-      // Expanding Square (SS)
-      points.push({ lat: midLat, lng: midLng, label: 'Datum LKP (S)' });
-      let curX = 0, curY = 0, step = 1, dir = 0;
-      for (let leg = 1; leg <= effectiveLegs * 2; leg++) {
-        const legKm = step * spacingKm;
-        if (dir === 0) curX += legKm;
-        else if (dir === 1) curY -= legKm;
-        else if (dir === 2) curX -= legKm;
-        else if (dir === 3) curY += legKm;
+        const inters = getVerticalIntersections(curLng, cleanPoints);
+        if (inters.length >= 2) {
+          const bottom = inters[0];
+          const top = inters[inters.length - 1];
+          const legSpan = top - bottom;
+          const legMargin = Math.min(safeMarginLat, legSpan * 0.08);
+          const south = bottom + legMargin;
+          const north = top - legMargin;
+          const sweepSouth = i % 2 === 0;
 
+          points.push({
+            lat: sweepSouth ? north : south,
+            lng: curLng,
+            label: i === 0 ? 'Entry (S)' : `Sapu ${i + 1}A`
+          });
+          points.push({
+            lat: sweepSouth ? south : north,
+            lng: curLng,
+            label: i === effectiveLegs - 1 ? 'Exit (E)' : `Sapu ${i + 1}B`
+          });
+        }
+      }
+    } else if (type === 'expanding_square') {
+      // Expanding Square (SS) - Starts from polygon centroid and expands strictly bounded
+      const startPt = { lat: centroid.lat, lng: centroid.lng };
+      points.push({ lat: startPt.lat, lng: startPt.lng, label: 'Datum Centroid (S)' });
+
+      let curPt = { lat: startPt.lat, lng: startPt.lng };
+      let curX = 0, curY = 0, step = 1, dir = 0;
+      const totalLegs = effectiveLegs * 2;
+      const safeBufferDeg = Math.min(spanLat, spanLng) * 0.03;
+
+      for (let leg = 1; leg <= totalLegs; leg++) {
+        const legKm = step * spacingKm;
+        if (dir === 0) curX += legKm;       // East
+        else if (dir === 1) curY -= legKm;  // South
+        else if (dir === 2) curX -= legKm;  // West
+        else if (dir === 3) curY += legKm;  // North
+
+        const rawTarget = {
+          lat: startPt.lat + curY / 110.574,
+          lng: startPt.lng + curX / lngKmPerDeg
+        };
+
+        const clipped = clipSegmentToPolygon(curPt, rawTarget, cleanPoints, safeBufferDeg);
         points.push({
-          lat: midLat + curY / 110.574,
-          lng: midLng + curX / lngKmPerDeg,
-          label: `WP-${leg}`
+          lat: clipped.lat,
+          lng: clipped.lng,
+          label: leg === totalLegs ? 'Exit (E)' : `WP-${leg}`
         });
+        curPt = { lat: clipped.lat, lng: clipped.lng };
 
         if (leg % 2 === 0) step += 1;
         dir = (dir + 1) % 4;
       }
+    } else {
+      // 4. Pola Pencarian E-SAR (Explorer SAR - Darat / Gunung Hutan)
+      // Pola sapuan sejajar serentak beberapa personel regu (skirmish / sweep line)
+      const personnelCount = Math.max(2, effectiveLegs || 5);
+      const spanLatKm = (maxLat - minLat) * 110.574;
+      const spanLngKm = (maxLng - minLng) * lngKmPerDeg;
+
+      if (spanLatKm >= spanLngKm) {
+        // Area memanjang vertikal (Utara-Selatan): Seluruh personel berbaris sejajar Barat-Timur di baseline awal dan menyapu maju serentak ke arah Selatan
+        const effMinLng = minLng + safeMarginLng;
+        const effMaxLng = maxLng - safeMarginLng;
+        const stepX = (effMaxLng - effMinLng) / Math.max(1, personnelCount - 1);
+
+        for (let i = 0; i < personnelCount; i++) {
+          const curLng = effMinLng + i * stepX;
+          const inters = getVerticalIntersections(curLng, cleanPoints);
+          if (inters.length >= 2) {
+            const bottom = inters[0] + safeMarginLat;
+            const top = inters[inters.length - 1] - safeMarginLat;
+            const pNum = i + 1;
+
+            // Seluruh personel bergerak serentak dari baseline awal (top) ke batas maju (bottom)
+            points.push({ lat: top, lng: curLng, label: `P${pNum} Start (Baseline)` });
+            points.push({ lat: bottom, lng: curLng, label: `P${pNum} Batas Maju` });
+          }
+        }
+      } else {
+        // Area memanjang horizontal (Barat-Timur): Seluruh personel berbaris sejajar Utara-Selatan di baseline awal dan menyapu maju serentak ke arah Timur
+        const effMinLat = minLat + safeMarginLat;
+        const effMaxLat = maxLat - safeMarginLat;
+        const stepY = (effMaxLat - effMinLat) / Math.max(1, personnelCount - 1);
+
+        for (let i = 0; i < personnelCount; i++) {
+          const curLat = effMaxLat - i * stepY;
+          const inters = getHorizontalIntersections(curLat, cleanPoints);
+          if (inters.length >= 2) {
+            const west = inters[0] + safeMarginLng;
+            const east = inters[inters.length - 1] - safeMarginLng;
+            const pNum = i + 1;
+
+            // Seluruh personel bergerak serentak dari baseline awal (west) ke batas maju (east)
+            points.push({ lat: curLat, lng: west, label: `P${pNum} Start (Baseline)` });
+            points.push({ lat: curLat, lng: east, label: `P${pNum} Batas Maju` });
+          }
+        }
+      }
     }
 
-    return points;
+    // Final safety check: guarantee all waypoints are strictly inside polygon boundaries
+    return points.map((p) => {
+      if (!isPointInPolygon(p.lat, p.lng, cleanPoints)) {
+        return {
+          lat: p.lat * 0.88 + centroid.lat * 0.12,
+          lng: p.lng * 0.88 + centroid.lng * 0.12,
+          label: p.label
+        };
+      }
+      return p;
+    });
   }
 
   function generateDatumPattern(type, center, spacingNm, legsCount) {
@@ -2891,6 +3298,61 @@
     return generateFittedPatternInsidePolygon(type, fakePolygon, spacingNm, legsCount);
   }
 
+  function getPatternPolylineCoords(type, waypoints) {
+    if (!waypoints || waypoints.length < 2) return [];
+    if (type === 'sector_search' || type === 'e_sar') {
+      const segments = [];
+      const baseline = [];
+      for (let i = 0; i < waypoints.length - 1; i += 2) {
+        const pStart = waypoints[i];
+        const pFin = waypoints[i + 1];
+        if (pStart && pFin) {
+          segments.push([
+            [parseFloat(pStart.lat), parseFloat(pStart.lng)],
+            [parseFloat(pFin.lat), parseFloat(pFin.lng)]
+          ]);
+          baseline.push([parseFloat(pStart.lat), parseFloat(pStart.lng)]);
+        }
+      }
+      if (baseline.length >= 2) {
+        segments.push(baseline);
+      }
+      return segments;
+    }
+    return waypoints.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]);
+  }
+
+  function recalculateActivePatternDistance() {
+    if (!activeGeneratedWaypoints || activeGeneratedWaypoints.length < 2) return 0;
+    let totalNm = 0;
+    if (activePatternType === 'sector_search' || activePatternType === 'e_sar') {
+      for (let i = 0; i < activeGeneratedWaypoints.length - 1; i += 2) {
+        const p1 = activeGeneratedWaypoints[i];
+        const p2 = activeGeneratedWaypoints[i + 1];
+        if (p1 && p2) {
+          totalNm += calculateDistanceHaversine(parseFloat(p1.lat), parseFloat(p1.lng), parseFloat(p2.lat), parseFloat(p2.lng)).nm;
+        }
+      }
+    } else {
+      for (let i = 0; i < activeGeneratedWaypoints.length - 1; i++) {
+        const p1 = activeGeneratedWaypoints[i];
+        const p2 = activeGeneratedWaypoints[i + 1];
+        totalNm += calculateDistanceHaversine(parseFloat(p1.lat), parseFloat(p1.lng), parseFloat(p2.lat), parseFloat(p2.lng)).nm;
+      }
+    }
+    activeGeneratedDistanceNm = totalNm;
+
+    const elDist = document.getElementById('resPatternDistNm');
+    if (elDist) {
+      elDist.textContent = `${totalNm.toFixed(2)} NM (${(totalNm * 1.852).toFixed(2)} km)`;
+    }
+    const elWp = document.getElementById('resPatternWpCount');
+    if (elWp) {
+      elWp.textContent = `${activeGeneratedWaypoints.length} WP`;
+    }
+    return totalNm;
+  }
+
   function removeActivePatternLayers() {
     if (activePatternPolyline && map) {
       map.removeLayer(activePatternPolyline);
@@ -2907,42 +3369,110 @@
 
     if (!activeGeneratedWaypoints || activeGeneratedWaypoints.length < 2) return;
 
-    const latlngs = activeGeneratedWaypoints.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]);
-    activePatternPolyline = L.polyline(latlngs, {
-      color: '#0284c7',
-      weight: 3.5,
-      dashArray: '6, 6'
+    const colorInput = document.getElementById('patternLineColor');
+    const opacityInput = document.getElementById('patternLineOpacity');
+    const weightInput = document.getElementById('patternLineWeight');
+    const styleInput = document.getElementById('patternLineStyle');
+
+    const lineColor = colorInput ? colorInput.value : '#0284c7';
+    const lineOpacity = opacityInput ? (parseFloat(opacityInput.value) || 0.9) : 0.85;
+    const lineWeight = weightInput ? (parseInt(weightInput.value, 10) || 3) : 3.5;
+    const lineStyle = styleInput ? styleInput.value : 'dashed';
+    const dashArr = lineStyle === 'dashed' ? '6, 6' : '';
+
+    const polyCoords = getPatternPolylineCoords(activePatternType, activeGeneratedWaypoints);
+    activePatternPolyline = L.polyline(polyCoords, {
+      color: lineColor,
+      weight: lineWeight,
+      opacity: lineOpacity,
+      dashArray: dashArr
     }).addTo(map);
 
-    // Markers: 'S' (Start), 'E' (Exit), and intermediate waypoint dots
+    const isEsar = (activePatternType === 'sector_search' || activePatternType === 'e_sar');
+
+    // Create DRAGGABLE markers for ALL waypoints
     activeGeneratedWaypoints.forEach((wp, idx) => {
-      const isStart = idx === 0;
-      const isEnd = idx === activeGeneratedWaypoints.length - 1;
       const lat = parseFloat(wp.lat);
       const lng = parseFloat(wp.lng);
-      if (isStart || isEnd) {
-        const marker = L.marker([lat, lng], { zIndexOffset: 1500 }).addTo(map);
-        marker.setIcon(
-          L.divIcon({
-            html: createPatternCornerHtml(isStart ? 'start' : 'end'),
-            className: 'sar-pat-corner',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-          })
-        );
-        marker.bindTooltip(wp.label || (isStart ? 'Start (S)' : 'Exit (E)'), { direction: 'top', offset: [0, -12] });
-        activePatternMarkers.push(marker);
+      if (isNaN(lat) || isNaN(lng)) return;
+
+      let iconHtml = '';
+      let iconClass = 'sar-pat-draggable-marker';
+      let iconSize = [24, 24];
+      let iconAnchor = [12, 12];
+      let zIndex = 1500;
+      let defaultLabel = `WP-${idx + 1}`;
+
+      if (isEsar) {
+        const pIndex = Math.floor(idx / 2) + 1;
+        const isStartOfPerson = (idx % 2 === 0);
+        const pLabel = `P${pIndex}`;
+        defaultLabel = isStartOfPerson ? `Personel ${pIndex} (Start Baseline)` : `Personel ${pIndex} (Batas Maju)`;
+        iconHtml = createPatternCornerHtml(isStartOfPerson ? 'start' : 'end', lineColor, pLabel);
+        zIndex = isStartOfPerson ? 1600 : 1550;
+        iconSize = [26, 26];
+        iconAnchor = [13, 13];
       } else {
-        const dot = L.circleMarker([lat, lng], {
-          radius: 4,
-          color: '#ffffff',
-          fillColor: '#0284c7',
-          fillOpacity: 0.9,
-          weight: 1.5
-        }).addTo(map);
-        dot.bindTooltip(wp.label || `WP-${idx + 1}`, { direction: 'top', offset: [0, -6] });
-        activePatternMarkers.push(dot);
+        const isStart = idx === 0;
+        const isEnd = idx === activeGeneratedWaypoints.length - 1;
+        if (isStart || isEnd) {
+          iconHtml = createPatternCornerHtml(isStart ? 'start' : 'end', lineColor);
+          zIndex = 1800;
+          iconSize = [24, 24];
+          iconAnchor = [12, 12];
+          defaultLabel = isStart ? 'Start (S)' : 'Exit (E)';
+        } else {
+          // Intermediate draggable waypoint handle
+          iconHtml = `
+            <div style="width: 14px; height: 14px; background: ${lineColor}; border: 2.5px solid #ffffff; border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.45); cursor: grab;"></div>
+          `;
+          zIndex = 1500;
+          iconSize = [14, 14];
+          iconAnchor = [7, 7];
+        }
       }
+
+      const marker = L.marker([lat, lng], {
+        draggable: true,
+        zIndexOffset: zIndex
+      }).addTo(map);
+
+      marker.setIcon(
+        L.divIcon({
+          html: iconHtml,
+          className: iconClass,
+          iconSize: iconSize,
+          iconAnchor: iconAnchor
+        })
+      );
+
+      const labelText = wp.label || defaultLabel;
+      marker.bindTooltip(
+        `<div class="text-left font-sans text-xs"><b>${escapeHtml(labelText)}</b><br><span class="text-[10px] text-amber-500 dark:text-amber-300">✋ Geser / drag untuk sesuaikan titik</span></div>`,
+        { direction: 'top', offset: [0, -iconAnchor[1]] }
+      );
+
+      // Wire up drag events for real-time dynamic polyline update
+      marker.on('drag', (e) => {
+        const curLatLng = e.latlng;
+        activeGeneratedWaypoints[idx].lat = curLatLng.lat;
+        activeGeneratedWaypoints[idx].lng = curLatLng.lng;
+
+        if (activePatternPolyline) {
+          const updatedCoords = getPatternPolylineCoords(activePatternType, activeGeneratedWaypoints);
+          activePatternPolyline.setLatLngs(updatedCoords);
+        }
+      });
+
+      marker.on('dragend', (e) => {
+        const curLatLng = e.latlng;
+        recalculateActivePatternDistance();
+        marker.setTooltipContent(
+          `<div class="text-left font-sans text-xs"><b>${escapeHtml(labelText)}</b><br><span class="text-[10px] font-mono text-slate-400 dark:text-slate-300">${curLatLng.lat.toFixed(5)}, ${curLatLng.lng.toFixed(5)}</span><br><span class="text-[10px] text-amber-500 dark:text-amber-300">✋ Geser / drag untuk sesuaikan titik</span></div>`
+        );
+      });
+
+      activePatternMarkers.push(marker);
     });
 
     if (activePatternPolyline && map) {
@@ -2951,6 +3481,8 @@
   }
 
   function clearCurrentPatternVisual() {
+    const wasEditing = !!editingPatternId;
+    editingPatternId = null;
     removeActivePatternLayers();
     activeGeneratedWaypoints = [];
     activeGeneratedDistanceNm = 0;
@@ -2961,13 +3493,16 @@
       statusMsg.innerHTML = '';
       statusMsg.classList.add('hidden');
     }
+    if (wasEditing) {
+      renderSavedPatterns();
+    }
   }
 
   function getPatternDisplayName(type) {
     if (type === 'parallel_track') return 'Parallel Track (PS)';
     if (type === 'creeping_line') return 'Creeping Line (CS)';
     if (type === 'expanding_square') return 'Expanding Square (SS)';
-    if (type === 'sector_search') return 'Sector Search (VS)';
+    if (type === 'sector_search' || type === 'e_sar') return 'Pola Pencarian E-SAR';
     return 'Lintasan IAMSAR';
   }
 
@@ -3012,6 +3547,17 @@
       ? currentOperasiId
       : (editingPatternId ? (rawAllPatterns.find(p => String(p.id) === String(editingPatternId))?.id_operasi || null) : null);
 
+    const colorInput = document.getElementById('patternLineColor');
+    const opacityInput = document.getElementById('patternLineOpacity');
+    const weightInput = document.getElementById('patternLineWeight');
+    const styleInput = document.getElementById('patternLineStyle');
+
+    const lineColor = colorInput ? colorInput.value : '#0284c7';
+    const lineOpacity = opacityInput ? (parseFloat(opacityInput.value) || 0.9) : 0.85;
+    const lineWeight = weightInput ? (parseInt(weightInput.value, 10) || 3) : 3;
+    const lineStyle = styleInput ? styleInput.value : 'dashed';
+    const dashArr = lineStyle === 'dashed' ? '6, 6' : '';
+
     const payload = {
       id: finalId,
       id_operasi: targetOpId,
@@ -3021,7 +3567,10 @@
       patternType: activePatternType,
       trackSpacingNm: patternSpacingUnit === 'KM' ? (spacingVal / 1.852) : spacingVal,
       legsCount: legsVal,
-      color: '#0284c7',
+      color: lineColor,
+      opacity: lineOpacity,
+      strokeWeight: lineWeight,
+      dashArray: dashArr,
       waypoints: activeGeneratedWaypoints,
       totalDistanceNm: activeGeneratedDistanceNm,
       createdAt: `${window.formatTanggalIndo(new Date())} ${window.formatJamWita(new Date())} WITA`
@@ -3090,14 +3639,24 @@
 
     savedPatterns.forEach((pat) => {
       if (hiddenPatternIds.has(pat.id)) return;
+      if (editingPatternId && String(pat.id) === String(editingPatternId)) return;
       if (!pat.waypoints || pat.waypoints.length < 2) return;
 
-      const latlngs = pat.waypoints.map((p) => [p.lat, p.lng]);
+      const latlngs = getPatternPolylineCoords(pat.patternType, pat.waypoints);
       const pl = L.polyline(latlngs, {
         color: pat.color || '#0284c7',
-        weight: 3,
-        dashArray: '5, 5'
+        weight: pat.strokeWeight ? Number(pat.strokeWeight) : 3,
+        opacity: pat.opacity !== undefined && pat.opacity !== null ? Number(pat.opacity) : 0.85,
+        dashArray: (pat.dashArray && pat.dashArray !== 'none') ? pat.dashArray : (pat.dashArray === '' ? '' : '5, 5')
       }).addTo(map);
+
+      // Pass click to onMapClick when in drawing or measure mode
+      pl.on('click', (e) => {
+        if (isMeasureModeActive || isDrawingPolygon || isCreatingPoint) {
+          onMapClick(e);
+          if (e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+        }
+      });
 
       patternPolylinesMap.set(pat.id, pl);
     });
@@ -3119,17 +3678,20 @@
         const isHidden = hiddenPatternIds.has(pat.id);
         const safeId = escapeHtml(pat.id);
         const safeName = escapeHtml(pat.name);
+        const patColor = pat.color || '#0284c7';
+        const patOpacity = pat.opacity !== undefined && pat.opacity !== null ? pat.opacity : 0.85;
 
         return `
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
             <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusPattern('${safeId}')">
               <div class="flex items-center gap-2 flex-wrap">
+                <span class="w-2.5 h-2.5 rounded-full inline-block border border-white/30 shrink-0 shadow-xs" style="background-color: ${patColor}; opacity: ${patOpacity}"></span>
                 <span class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</span>
                 ${getOperasiBadgeHtml(pat.id_operasi)}
               </div>
               <div class="text-[10px] font-mono text-sky-600 dark:text-sky-400 mt-0.5">
-                ${pat.totalDistanceNm ? `${pat.totalDistanceNm.toFixed(1)} NM` : ''} • ${pat.waypoints ? pat.waypoints.length : 0} Waypoints
+                ${pat.totalDistanceNm ? `${pat.totalDistanceNm.toFixed(1)} NM` : ''} • ${pat.waypoints ? pat.waypoints.length : 0} Waypoints • <span class="capitalize text-slate-500 dark:text-slate-400 font-sans">${getPatternDisplayName(pat.patternType)}</span>
               </div>
             </div>
 
@@ -3156,6 +3718,13 @@
     if (!pat) return;
 
     editingPatternId = pat.id;
+
+    // Immediately remove saved static polyline from map to prevent 2 overlapping patterns!
+    if (patternPolylinesMap.has(pat.id)) {
+      map.removeLayer(patternPolylinesMap.get(pat.id));
+      patternPolylinesMap.delete(pat.id);
+    }
+
     switchActiveTab('tab-pattern');
 
     // Ensure sidebar is visible
@@ -3197,6 +3766,13 @@
       }
     });
 
+    const legsLabel = document.getElementById('patternLegsLabel');
+    if (legsLabel) {
+      legsLabel.textContent = (activePatternType === 'sector_search' || activePatternType === 'e_sar')
+        ? 'Jumlah Personel E-SAR:'
+        : 'Jumlah Sweep:';
+    }
+
     const spacingInput = document.getElementById('patternTrackSpacing');
     const unitSel = document.getElementById('patternSpacingUnit');
     if (unitSel) unitSel.value = 'NM';
@@ -3206,6 +3782,29 @@
     const legsInput = document.getElementById('patternLegsCount');
     if (legsInput) legsInput.value = pat.legsCount || 6;
 
+    // Load styling into form inputs
+    const colorInput = document.getElementById('patternLineColor');
+    if (colorInput && pat.color) {
+      colorInput.value = pat.color;
+    }
+    const opacityInput = document.getElementById('patternLineOpacity');
+    const opacityValDisplay = document.getElementById('patternOpacityValDisplay');
+    if (opacityInput && pat.opacity !== undefined && pat.opacity !== null) {
+      const opNum = parseFloat(pat.opacity);
+      opacityInput.value = opNum > 1 ? (opNum / 100).toFixed(2) : opNum.toFixed(2);
+      if (opacityValDisplay) {
+        opacityValDisplay.textContent = `${Math.round(parseFloat(opacityInput.value) * 100)}%`;
+      }
+    }
+    const weightInput = document.getElementById('patternLineWeight');
+    if (weightInput && pat.strokeWeight) {
+      weightInput.value = String(pat.strokeWeight);
+    }
+    const styleInput = document.getElementById('patternLineStyle');
+    if (styleInput) {
+      styleInput.value = (pat.dashArray && pat.dashArray !== 'none' && pat.dashArray !== '') ? 'dashed' : (pat.dashArray === '' ? 'solid' : 'dashed');
+    }
+
     const formTitle = document.getElementById('patternFormHeaderTitle');
     if (formTitle) formTitle.textContent = '✏️ Edit Parameter Pola Lintasan SAR';
     const btnSave = document.getElementById('btnSavePatternConfirm');
@@ -3213,13 +3812,17 @@
 
     if (Array.isArray(pat.waypoints) && pat.waypoints.length >= 2) {
       activeGeneratedWaypoints = pat.waypoints.map(w => ({ lat: parseFloat(w.lat), lng: parseFloat(w.lng), label: w.label || '' }));
-      activeGeneratedDistanceNm = parseFloat(pat.totalDistanceNm) || 0;
+      recalculateActivePatternDistance();
       renderActivePatternOnMap();
 
       const elDist = document.getElementById('resPatternDistNm');
       if (elDist) elDist.textContent = `${activeGeneratedDistanceNm.toFixed(2)} NM (${(activeGeneratedDistanceNm * 1.852).toFixed(2)} km)`;
       const elTypeInfo = document.getElementById('resPatternTypeInfo');
-      if (elTypeInfo) elTypeInfo.textContent = `${getPatternDisplayName(activePatternType)} (${pat.legsCount || 6} Sapuan)`;
+      if (elTypeInfo) {
+        elTypeInfo.textContent = (activePatternType === 'sector_search' || activePatternType === 'e_sar')
+          ? `Pola Pencarian E-SAR (${pat.legsCount || 5} Personel Darat)`
+          : `${getPatternDisplayName(activePatternType)} (${pat.legsCount || 6} Sapuan)`;
+      }
       const elWp = document.getElementById('resPatternWpCount');
       if (elWp) elWp.textContent = `${activeGeneratedWaypoints.length} WP`;
       const resCard = document.getElementById('patternResultsCard');

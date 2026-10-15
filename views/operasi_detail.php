@@ -55,6 +55,13 @@ $countRenops = count($operasi['renops'] ?? []);
 $countSitrep = count($operasi['laporan_harian'] ?? []);
 $countKorban = count($operasi['korban'] ?? []);
 $countBra = count($operasi['bra_sar'] ?? []);
+
+$gisBundle = $gisBundle ?? GisModel::getOperationBundle($id, true);
+$cntPolys = count($gisBundle['polygons'] ?? []);
+$cntPatterns = count($gisBundle['searchPatterns'] ?? []);
+$cntRoutes = count($gisBundle['routes'] ?? []);
+$cntPoints = count($gisBundle['points'] ?? []);
+$totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
 ?>
 
 <!-- ======================================================== -->
@@ -148,9 +155,9 @@ $countBra = count($operasi['bra_sar'] ?? []);
 
         <!-- Action Toolbar -->
         <div class="flex flex-wrap items-center gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800">
-            <a href="<?= BASE_URL ?>/gis.php?id=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-xs transition" title="Buka Peta Taktis GIS">
+            <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= $id ?>&include_base=1" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-xs transition" title="Buka Peta Taktis GIS Operasi Ini">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-                <span>Peta GIS</span>
+                <span>Peta Plotting GIS</span>
             </a>
 
             <button type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-view-wa-awal')" title="Lihat naskah laporan awal format WhatsApp">
@@ -210,6 +217,11 @@ $countBra = count($operasi['bra_sar'] ?? []);
     <button class="tab-btn <?= $activeTab === 'gis' ? 'active' : '' ?>" onclick="switchTab('gis')">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
         <span>Peta Taktis (GIS)</span>
+        <?php if ($totalComponents > 0): ?>
+            <span id="gis-tab-count" class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30"><?= $totalComponents ?></span>
+        <?php else: ?>
+            <span id="gis-tab-count" class="hidden ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">0</span>
+        <?php endif; ?>
     </button>
     <button class="tab-btn <?= $activeTab === 'cetak' ? 'active' : '' ?>" onclick="switchTab('cetak')">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
@@ -354,7 +366,7 @@ $countBra = count($operasi['bra_sar'] ?? []);
         $totalSnapPers = array_sum(array_map(fn($u) => (int)($u['jumlah_personil'] ?? 0), $snapUnsur));
         $totalSnapAlut = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 0), $snapAlut));
         $renWa = $ren['full_text_wa'] ?? '';
-        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false) {
+        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false || strpos($renWa, 'Data Korban:') !== false) {
             $renWa = TemplateHelper::generateRenopsWA($operasi, $ren, $ren['srus'] ?? [], $operasi['korban'] ?? [], $snapUnsur, $snapAlut);
         }
     ?>
@@ -429,7 +441,7 @@ $countBra = count($operasi['bra_sar'] ?? []);
                                 <th style="width: 25%;">Nama SRU</th>
                                 <th style="width: 45%;">Koordinat Sektor & Tugas</th>
                                 <th style="width: 15%;">Luas Area</th>
-                                <th style="width: 15%;">Pola Pencarian</th>
+                                <th style="width: 15%;">Pola & Total Sapuan</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -440,7 +452,12 @@ $countBra = count($operasi['bra_sar'] ?? []);
                                 <td class="font-bold text-orange-600 dark:text-orange-400"><?= e($s['nama_sru']) ?></td>
                                 <td class="font-mono text-xs whitespace-pre-wrap"><?= e($s['koordinat_area']) ?></td>
                                 <td class="font-semibold text-xs"><?= e($s['luas_area']) ?></td>
-                                <td><span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"><?= e($s['pola_pencarian']) ?></span></td>
+                                <td>
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 block text-center"><?= e($s['pola_pencarian']) ?></span>
+                                    <?php if (!empty($s['total_sapuan'])): ?>
+                                    <div class="text-[10px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 mt-1 text-center" title="Total Sapuan / Lintasan"><?= e($s['total_sapuan']) ?></div>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                             <?php endforeach; endif; ?>
                         </tbody>
@@ -1038,22 +1055,121 @@ $countBra = count($operasi['bra_sar'] ?? []);
 <!-- ======================================================== -->
 <div id="tab-content-gis" class="tab-pane space-y-4" style="display: <?= $activeTab === 'gis' ? 'block' : 'none' ?>;">
     <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
-        <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <!-- Card Header with Map Layer Switchers -->
+        <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-950/50">
             <div>
                 <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
                     <span>Peta Taktis Operasi SAR (Tactical GIS)</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-mono">
+                        OPS #<?= (int)$operasi['id_operasi'] ?> + BASE MAP
+                    </span>
                 </h3>
                 <div class="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
                     LKP: <span class="font-bold text-slate-700 dark:text-slate-300"><?= e($operasi['koordinat']) ?></span> &bull; Jarak Kansar: <strong class="text-orange-600"><?= e($operasi['jarak']) ?></strong>
                 </div>
             </div>
-            <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$operasi['id_operasi'] ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition">
-                <span>Buka GIS Penuh</span>
-                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
-            </a>
+
+            <!-- Map Type Switcher Controls & Action Link -->
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                    <button type="button" id="btn-layer-satellite" onclick="switchDetailMapLayer('satellite')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-orange-600 text-white shadow-xs font-bold text-[11px] flex items-center gap-1" title="Tampilan Citra Satelit Resolusi Tinggi">
+                        <span>🛰️</span>
+                        <span>Satelit</span>
+                    </button>
+                    <button type="button" id="btn-layer-osm" onclick="switchDetailMapLayer('osm')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Peta Jalan OpenStreetMap">
+                        <span>🗺️</span>
+                        <span>Jalanan</span>
+                    </button>
+                    <button type="button" id="btn-layer-topo" onclick="switchDetailMapLayer('topo')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Kontur & Elevasi Topografi">
+                        <span>🏔️</span>
+                        <span>Topografi</span>
+                    </button>
+                    <button type="button" id="btn-layer-dark" onclick="switchDetailMapLayer('dark')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Dark Taktis (Operasi Malam)">
+                        <span>🌙</span>
+                        <span>Dark Taktis</span>
+                    </button>
+                </div>
+
+                <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base=1" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-500/30 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold text-xs transition shadow-xs" title="Buka Halaman Plotting GIS Penuh dengan fitur Menggambar Search Area & Pola SAR">
+                    <span>✏️ Buka Plotting GIS</span>
+                    <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+                </a>
+            </div>
         </div>
-        <div id="map-detail-ops" class="w-full" style="height: 500px;"></div>
+
+        <!-- Tactical Stats & Legend Bar -->
+        <div class="px-4 py-2.5 bg-slate-100/70 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex flex-wrap items-center gap-3">
+                <span class="text-slate-400 font-semibold text-[11px]">Komponen Ditampilkan:</span>
+                <span class="inline-flex items-center gap-1 font-mono font-bold text-blue-600 dark:text-blue-400">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-blue-500"></span>
+                    <span>Search Area (<span id="stat-cnt-polygons"><?= $cntPolys ?></span>)</span>
+                </span>
+                <span class="inline-flex items-center gap-1 font-mono font-bold text-orange-600 dark:text-orange-400">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-orange-500"></span>
+                    <span>Pola SAR (<span id="stat-cnt-patterns"><?= $cntPatterns ?></span>)</span>
+                </span>
+                <span class="inline-flex items-center gap-1 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500"></span>
+                    <span>Jalur (<span id="stat-cnt-routes"><?= $cntRoutes ?></span>)</span>
+                </span>
+                <span class="inline-flex items-center gap-1 font-mono font-bold text-purple-600 dark:text-purple-400">
+                    <span class="w-2.5 h-2.5 rounded-sm bg-purple-500"></span>
+                    <span>Titik Taktis (<span id="stat-cnt-points"><?= $cntPoints ?></span>)</span>
+                </span>
+            </div>
+            <button type="button" onclick="detailOpsMap && detailOpsMap.fitAllComponents && detailOpsMap.fitAllComponents()" class="text-[11px] font-semibold text-slate-500 hover:text-orange-500 dark:text-slate-400 cursor-pointer flex items-center gap-1">
+                <span>🎯 Reset Tampilan Seluruh Komponen</span>
+            </button>
+        </div>
+
+        <!-- Leaflet Map Canvas -->
+        <div id="map-detail-ops" class="w-full" style="height: 520px;"></div>
+    </div>
+
+    <!-- History Komponen Taktis Tersimpan (Operasi & Base Map) -->
+    <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+                <h4 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>📜 Riwayat & Inventaris Komponen Taktis Tersimpan</span>
+                    <span id="detail-total-badge" class="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                        Total <?= $totalComponents ?>
+                    </span>
+                </h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Komponen Search Area, Pola Pencarian SAR, Jalur, dan Titik yang tersimpan pada ID Operasi ini serta data acuan Base Map.
+                </p>
+            </div>
+
+            <!-- Filter Category Pills -->
+            <div class="flex flex-wrap items-center gap-1.5" id="history-filter-pills">
+                <button type="button" onclick="filterDetailGisHistory('all')" id="btn-hist-all" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-orange-600 text-white transition cursor-pointer">
+                    Semua
+                </button>
+                <button type="button" onclick="filterDetailGisHistory('polygons')" id="btn-hist-polygons" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer">
+                    Search Area
+                </button>
+                <button type="button" onclick="filterDetailGisHistory('patterns')" id="btn-hist-patterns" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer">
+                    Pola SAR
+                </button>
+                <button type="button" onclick="filterDetailGisHistory('routes')" id="btn-hist-routes" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer">
+                    Jalur
+                </button>
+                <button type="button" onclick="filterDetailGisHistory('points')" id="btn-hist-points" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer">
+                    Titik Taktis
+                </button>
+                <button type="button" onclick="filterDetailGisHistory('basemap')" id="btn-hist-basemap" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer">
+                    Base Map
+                </button>
+            </div>
+        </div>
+
+        <!-- Component Cards List -->
+        <div id="detail-gis-history-container" class="space-y-2.5">
+            <!-- Populated via JavaScript -->
+        </div>
     </div>
 </div>
 
@@ -1234,6 +1350,325 @@ const OPS_DATA = <?= json_encode([
 ]) ?>;
 
 let detailOpsMap = null;
+let detailOpsGisBundle = <?= json_encode($gisBundle, JSON_UNESCAPED_UNICODE) ?> || {};
+let activeHistoryFilter = 'all';
+
+function formatDetailDms(lat, lng) {
+    function toDms(val, isLat) {
+        const dir = isLat ? (val >= 0 ? 'U' : 'S') : (val >= 0 ? 'T' : 'B');
+        const abs = Math.abs(val);
+        const deg = Math.floor(abs);
+        const minFloat = (abs - deg) * 60;
+        const min = Math.floor(minFloat);
+        const sec = ((minFloat - min) * 60).toFixed(1);
+        const degPad = isLat ? String(deg).padStart(2, '0') : String(deg).padStart(3, '0');
+        const minPad = String(min).padStart(2, '0');
+        const secPad = String(sec).padStart(4, '0');
+        return `${degPad}° ${minPad}' ${secPad}" ${dir}`;
+    }
+    return `${toDms(lat, true)} - ${toDms(lng, false)}`;
+}
+
+function switchDetailMapLayer(layerKey) {
+    if (!detailOpsMap) return;
+    detailOpsMap.switchBaseLayer(layerKey);
+
+    const layerBtns = {
+        'satellite': document.getElementById('btn-layer-satellite'),
+        'osm': document.getElementById('btn-layer-osm'),
+        'topo': document.getElementById('btn-layer-topo'),
+        'dark': document.getElementById('btn-layer-dark')
+    };
+
+    Object.entries(layerBtns).forEach(([key, btn]) => {
+        if (!btn) return;
+        if (key === layerKey) {
+            btn.className = 'px-2.5 py-1 rounded-lg transition cursor-pointer bg-orange-600 text-white shadow-xs font-bold text-[11px] flex items-center gap-1';
+        } else {
+            btn.className = 'px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1';
+        }
+    });
+}
+
+function filterDetailGisHistory(cat) {
+    activeHistoryFilter = cat;
+    const filterButtons = {
+        'all': document.getElementById('btn-hist-all'),
+        'polygons': document.getElementById('btn-hist-polygons'),
+        'patterns': document.getElementById('btn-hist-patterns'),
+        'routes': document.getElementById('btn-hist-routes'),
+        'points': document.getElementById('btn-hist-points'),
+        'basemap': document.getElementById('btn-hist-basemap')
+    };
+
+    Object.entries(filterButtons).forEach(([key, btn]) => {
+        if (!btn) return;
+        if (key === cat) {
+            btn.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-orange-600 text-white transition cursor-pointer';
+        } else {
+            btn.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition cursor-pointer';
+        }
+    });
+
+    renderDetailGisHistoryList();
+}
+
+function updateDetailGisStats() {
+    const polys = (detailOpsGisBundle.polygons || []).length;
+    const pats = (detailOpsGisBundle.searchPatterns || []).length;
+    const rts = (detailOpsGisBundle.routes || []).length;
+    const pts = (detailOpsGisBundle.points || []).length;
+    const total = polys + pats + rts + pts;
+
+    const elPolys = document.getElementById('stat-cnt-polygons');
+    const elPats = document.getElementById('stat-cnt-patterns');
+    const elRts = document.getElementById('stat-cnt-routes');
+    const elPts = document.getElementById('stat-cnt-points');
+    const elTotal = document.getElementById('detail-total-badge');
+    const elTabBadge = document.getElementById('gis-tab-count');
+
+    if (elPolys) elPolys.textContent = polys;
+    if (elPats) elPats.textContent = pats;
+    if (elRts) elRts.textContent = rts;
+    if (elPts) elPts.textContent = pts;
+    if (elTotal) elTotal.textContent = `Total ${total}`;
+    if (elTabBadge) {
+        elTabBadge.textContent = total;
+        if (total > 0) {
+            elTabBadge.classList.remove('hidden');
+        }
+    }
+}
+
+function focusDetailMapComponent(layerKey) {
+    if (!detailOpsMap) return;
+    const ok = detailOpsMap.focusComponent(layerKey);
+    const mapEl = document.getElementById('map-detail-ops');
+    if (mapEl) {
+        mapEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    if (!ok) {
+        showToast('Komponen belum terpetakan pada viewport saat ini', 'warning');
+    }
+}
+
+function copyDetailPolygonCoords(id) {
+    const p = (detailOpsGisBundle.polygons || []).find(item => item.id == id);
+    if (!p || !p.points || !p.points.length) {
+        showToast('Koordinat tidak ditemukan', 'error');
+        return;
+    }
+    const lines = p.points.map((pt, idx) => {
+        const letter = String.fromCharCode(65 + (idx % 26));
+        return `Titik ${letter}: ${formatDetailDms(pt.lat, pt.lng)}`;
+    });
+    copyToClipboard(`[Search Area: ${p.name || 'Sektor'}]\n` + lines.join('\n'), 'Koordinat Sudut Search Area Disalin!');
+}
+
+function copyDetailPatternCoords(id) {
+    const p = (detailOpsGisBundle.searchPatterns || []).find(item => item.id == id);
+    if (!p || !p.waypoints || !p.waypoints.length) {
+        showToast('Koordinat tidak ditemukan', 'error');
+        return;
+    }
+    const lines = p.waypoints.map((pt, idx) => {
+        const lbl = idx === 0 ? 'Start (Entry)' : (idx === p.waypoints.length - 1 ? 'End (Exit)' : `WP-${idx + 1}`);
+        return `${lbl}: ${formatDetailDms(pt.lat, pt.lng)}`;
+    });
+    copyToClipboard(`[Pola SAR: ${p.name || 'Pola'}]\n` + lines.join('\n'), 'Koordinat Pola SAR Disalin!');
+}
+
+function copyDetailRouteCoords(id) {
+    const r = (detailOpsGisBundle.routes || []).find(item => item.id == id);
+    if (!r || !r.points || !r.points.length) {
+        showToast('Koordinat tidak ditemukan', 'error');
+        return;
+    }
+    const lines = r.points.map((pt, idx) => {
+        return `WP-${idx + 1} (${pt.label || 'Titik'}): ${formatDetailDms(pt.lat, pt.lng)}`;
+    });
+    copyToClipboard(`[Jalur: ${r.name || 'Track'}]\n` + lines.join('\n'), 'Koordinat Jalur Disalin!');
+}
+
+function copyDetailPointCoords(id) {
+    const pt = (detailOpsGisBundle.points || []).find(item => item.id == id);
+    if (!pt) {
+        showToast('Koordinat tidak ditemukan', 'error');
+        return;
+    }
+    const dms = formatDetailDms(pt.lat, pt.lng);
+    copyToClipboard(`${pt.label || 'Titik Taktis'}: ${dms} (${Number(pt.lat).toFixed(6)}, ${Number(pt.lng).toFixed(6)})`, 'Koordinat Titik Disalin!');
+}
+
+function renderDetailGisHistoryList() {
+    const container = document.getElementById('detail-gis-history-container');
+    if (!container) return;
+
+    let items = [];
+
+    // 1. Polygons
+    if (Array.isArray(detailOpsGisBundle.polygons)) {
+        detailOpsGisBundle.polygons.forEach(p => {
+            const isBaseMap = !p.id_operasi;
+            if (activeHistoryFilter === 'polygons' || activeHistoryFilter === 'all' || (activeHistoryFilter === 'basemap' && isBaseMap)) {
+                items.push({
+                    type: 'polygon',
+                    layerKey: 'polygon_' + p.id,
+                    id: p.id,
+                    isBaseMap: isBaseMap,
+                    name: p.name || 'Sektor Pencarian',
+                    tag: 'Search Area',
+                    tagColor: 'blue',
+                    color: p.strokeColor || '#2563eb',
+                    meta: `${p.areaNm2 ? Number(p.areaNm2).toFixed(2) + ' Nm²' : '- Nm²'} &bull; ${(p.points || []).length} Sudut Batas`,
+                    desc: p.keterangan || '',
+                    copyFn: `copyDetailPolygonCoords(${p.id})`
+                });
+            }
+        });
+    }
+
+    // 2. Search Patterns
+    if (Array.isArray(detailOpsGisBundle.searchPatterns)) {
+        const typeLabels = {
+            'creeping_line': 'Creeping Line',
+            'parallel_track': 'Parallel Track',
+            'expanding_square': 'Expanding Square',
+            'e_sar': 'Pola E-SAR (Hutan/Darat)',
+            'sector_search': 'Pola E-SAR (Hutan/Darat)',
+            'track_line': 'Track Line'
+        };
+        detailOpsGisBundle.searchPatterns.forEach(p => {
+            const isBaseMap = !p.id_operasi;
+            if (activeHistoryFilter === 'patterns' || activeHistoryFilter === 'all' || (activeHistoryFilter === 'basemap' && isBaseMap)) {
+                const typeStr = typeLabels[p.patternType] || p.patternType || 'Pola SAR';
+                items.push({
+                    type: 'pattern',
+                    layerKey: 'pattern_' + p.id,
+                    id: p.id,
+                    isBaseMap: isBaseMap,
+                    name: p.name || 'Pola Pencarian SAR',
+                    tag: 'Pola SAR',
+                    tagColor: 'orange',
+                    color: p.color || '#ea580c',
+                    meta: `${typeStr} &bull; S: ${p.trackSpacingNm || '-'} Nm &bull; Jarak: ${p.totalDistanceNm ? Number(p.totalDistanceNm).toFixed(1) : '-'} Nm &bull; ${p.legsCount || (p.waypoints || []).length} Leg`,
+                    desc: p.notes || '',
+                    copyFn: `copyDetailPatternCoords(${p.id})`
+                });
+            }
+        });
+    }
+
+    // 3. Routes
+    if (Array.isArray(detailOpsGisBundle.routes)) {
+        detailOpsGisBundle.routes.forEach(r => {
+            const isBaseMap = !r.id_operasi;
+            if (activeHistoryFilter === 'routes' || activeHistoryFilter === 'all' || (activeHistoryFilter === 'basemap' && isBaseMap)) {
+                items.push({
+                    type: 'route',
+                    layerKey: 'route_' + r.id,
+                    id: r.id,
+                    isBaseMap: isBaseMap,
+                    name: r.name || 'Jalur Operasi',
+                    tag: 'Jalur',
+                    tagColor: 'emerald',
+                    color: r.strokeColor || '#059669',
+                    meta: `${r.totalDistanceNm ? Number(r.totalDistanceNm).toFixed(1) : '-'} Nm &bull; ${r.vesselSpeedKnots || 25} Knots &bull; ${(r.points || []).length} Waypoint`,
+                    desc: r.notes || '',
+                    copyFn: `copyDetailRouteCoords(${r.id})`
+                });
+            }
+        });
+    }
+
+    // 4. Points
+    if (Array.isArray(detailOpsGisBundle.points)) {
+        detailOpsGisBundle.points.forEach(pt => {
+            const isBaseMap = !pt.id_operasi;
+            if (activeHistoryFilter === 'points' || activeHistoryFilter === 'all' || (activeHistoryFilter === 'basemap' && isBaseMap)) {
+                items.push({
+                    type: 'point',
+                    layerKey: 'point_' + pt.id,
+                    id: pt.id,
+                    isBaseMap: isBaseMap,
+                    name: pt.label || 'Titik Taktis',
+                    tag: pt.category || 'Titik Taktis',
+                    tagColor: 'purple',
+                    color: '#8b5cf6',
+                    meta: `${formatDetailDms(pt.lat, pt.lng)}`,
+                    desc: pt.description || '',
+                    copyFn: `copyDetailPointCoords(${pt.id})`
+                });
+            }
+        });
+    }
+
+    if (items.length === 0) {
+        container.innerHTML = `
+            <div class="p-8 text-center bg-slate-50 dark:bg-slate-950/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
+                <div class="text-3xl mb-2">🗺️</div>
+                <div class="text-xs font-bold text-slate-700 dark:text-slate-300">Belum ada komponen pada kategori ini</div>
+                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    Buka halaman Plotting GIS untuk menggambar Search Area, Pola Pencarian SAR, atau membuat Titik Taktis baru.
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    items.forEach(item => {
+        const badgeBg = item.isBaseMap 
+            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' 
+            : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20';
+        const badgeText = item.isBaseMap ? 'BASE MAP' : 'OPERASI SAR';
+
+        let icon = '⬡';
+        if (item.type === 'pattern') icon = '⚡';
+        else if (item.type === 'route') icon = '↗️';
+        else if (item.type === 'point') icon = '📍';
+
+        html += `
+            <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 hover:border-orange-500/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div class="flex items-start gap-3 min-w-0">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-base" style="background-color: ${item.color}15; color: ${item.color};">
+                        ${icon}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-1.5 mb-0.5">
+                            <span class="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[240px] sm:max-w-xs">
+                                ${escapeHtml(item.name)}
+                            </span>
+                            <span class="text-[9px] font-bold px-1.5 py-0.2 rounded ${badgeBg} font-mono">
+                                ${badgeText}
+                            </span>
+                            <span class="text-[10px] font-medium text-slate-400">
+                                &bull; ${escapeHtml(item.tag)}
+                            </span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                            ${item.meta}
+                        </div>
+                        ${item.desc ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1 italic">${escapeHtml(item.desc)}</div>` : ''}
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    <button type="button" onclick="${item.copyFn}" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1" title="Salin Data Koordinat">
+                        <span>📋</span>
+                        <span class="text-[11px]">Salin</span>
+                    </button>
+                    <button type="button" onclick="focusDetailMapComponent('${item.layerKey}')" class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-xs" title="Fokuskan peta ke komponen ini">
+                        <span>🎯</span>
+                        <span class="text-[11px]">Fokus</span>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
 
 function switchTab(tabName) {
     let resolvedTab = tabName;
@@ -1286,6 +1721,11 @@ function initDetailMap() {
         }).addTo(detailOpsMap.layers.operations);
     }
 
+    // Load initial bundled components
+    detailOpsMap.loadOperationBundle(detailOpsGisBundle);
+    renderDetailGisHistoryList();
+    updateDetailGisStats();
+
     fetch('<?= BASE_URL ?>/api/sar-units')
         .then(r => r.json())
         .then(d => {
@@ -1293,11 +1733,25 @@ function initDetailMap() {
         })
         .catch(err => console.log('SAR Units error:', err));
 
+    // Live sync bundle in case plotting had recent updates
+    fetch('<?= BASE_URL ?>/api/gis/bundle?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base_map=1')
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.data) {
+                detailOpsGisBundle = res.data;
+                detailOpsMap.loadOperationBundle(detailOpsGisBundle);
+                renderDetailGisHistoryList();
+                updateDetailGisStats();
+            }
+        })
+        .catch(err => console.log('GIS Bundle live sync error:', err));
+
     setTimeout(() => {
         if (detailOpsMap && detailOpsMap.map) {
             detailOpsMap.map.invalidateSize();
+            detailOpsMap.fitAllComponents();
         }
-    }, 250);
+    }, 300);
 }
 
 document.addEventListener('DOMContentLoaded', () => {

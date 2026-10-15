@@ -7,7 +7,24 @@
 declare(strict_types=1);
 
 class RenopsModel {
+    private static bool $schemaChecked = false;
+
+    public static function ensureSchemaUpdated(): void {
+        if (self::$schemaChecked) return;
+        self::$schemaChecked = true;
+        try {
+            $db = getDB();
+            $cols = $db->query("SHOW COLUMNS FROM RenopsSRU LIKE 'total_sapuan'")->fetchAll();
+            if (empty($cols)) {
+                $db->exec("ALTER TABLE RenopsSRU ADD COLUMN total_sapuan VARCHAR(191) NULL DEFAULT NULL");
+            }
+        } catch (Throwable $e) {
+            error_log("[RenopsModel Schema Check] " . $e->getMessage());
+        }
+    }
+
     public static function getByOperasiId(int $idOperasi): array {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $stmt = $db->prepare("SELECT * FROM Renops WHERE id_operasi = :id ORDER BY id_renops ASC");
         $stmt->execute([':id' => $idOperasi]);
@@ -50,6 +67,7 @@ class RenopsModel {
     }
 
     public static function getById(int $id): ?array {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $stmt = $db->prepare("SELECT * FROM Renops WHERE id_renops = :id LIMIT 1");
         $stmt->execute([':id' => $id]);
@@ -78,6 +96,7 @@ class RenopsModel {
     }
 
     public static function create(array $data): int {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
 
@@ -124,7 +143,7 @@ class RenopsModel {
             $idRenops = (int)$db->lastInsertId();
 
             if (!empty($srus)) {
-                $stmtSru = $db->prepare("INSERT INTO RenopsSRU (id_renops, nama_sru, koordinat_area, luas_area, pola_pencarian) VALUES (:rid, :nama, :koor, :luas, :pola)");
+                $stmtSru = $db->prepare("INSERT INTO RenopsSRU (id_renops, nama_sru, koordinat_area, luas_area, pola_pencarian, total_sapuan) VALUES (:rid, :nama, :koor, :luas, :pola, :sapuan)");
                 foreach ($srus as $s) {
                     if (empty($s['nama_sru'])) continue;
                     $stmtSru->execute([
@@ -132,7 +151,8 @@ class RenopsModel {
                         ':nama' => $s['nama_sru'],
                         ':koor' => $s['koordinat_area'] ?? '',
                         ':luas' => $s['luas_area'] ?? '',
-                        ':pola' => $s['pola_pencarian'] ?? 'Parallel Track Search'
+                        ':pola' => $s['pola_pencarian'] ?? 'Parallel Track Search',
+                        ':sapuan' => $s['total_sapuan'] ?? ''
                     ]);
                 }
             }
@@ -149,6 +169,7 @@ class RenopsModel {
     }
 
     public static function update(int $id, array $data): bool {
+        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
 
@@ -194,7 +215,7 @@ class RenopsModel {
 
             if (isset($data['srus'])) {
                 $db->prepare("DELETE FROM RenopsSRU WHERE id_renops = :id")->execute([':id' => $id]);
-                $stmtSru = $db->prepare("INSERT INTO RenopsSRU (id_renops, nama_sru, koordinat_area, luas_area, pola_pencarian) VALUES (:rid, :nama, :koor, :luas, :pola)");
+                $stmtSru = $db->prepare("INSERT INTO RenopsSRU (id_renops, nama_sru, koordinat_area, luas_area, pola_pencarian, total_sapuan) VALUES (:rid, :nama, :koor, :luas, :pola, :sapuan)");
                 foreach ($srus as $s) {
                     if (empty($s['nama_sru'])) continue;
                     $stmtSru->execute([
@@ -202,7 +223,8 @@ class RenopsModel {
                         ':nama' => $s['nama_sru'],
                         ':koor' => $s['koordinat_area'] ?? '',
                         ':luas' => $s['luas_area'] ?? '',
-                        ':pola' => $s['pola_pencarian'] ?? 'Parallel Track Search'
+                        ':pola' => $s['pola_pencarian'] ?? 'Parallel Track Search',
+                        ':sapuan' => $s['total_sapuan'] ?? ''
                     ]);
                 }
             }

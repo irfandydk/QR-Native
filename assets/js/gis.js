@@ -17,8 +17,12 @@ class TacticalGisMap {
             operations: L.layerGroup(),
             searchPatterns: L.layerGroup(),
             polygons: L.layerGroup(),
+            routes: L.layerGroup(),
             measurements: L.layerGroup()
         };
+        this.baseLayers = {};
+        this.currentBaseLayerKey = 'satellite';
+        this.componentLayers = {};
 
         this.measureMode = false;
         this.measurePoints = [];
@@ -47,6 +51,18 @@ class TacticalGisMap {
             maxZoom: 17
         });
 
+        const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© CartoDB, OpenStreetMap contributors',
+            maxZoom: 19
+        });
+
+        this.baseLayers = {
+            satellite: satellite,
+            osm: osm,
+            topo: topo,
+            dark: dark
+        };
+
         this.map = L.map(this.containerId, {
             center: this.options.center,
             zoom: this.options.zoom,
@@ -57,14 +73,16 @@ class TacticalGisMap {
         const baseMaps = {
             "Satelit (Esri World Imagery)": satellite,
             "Peta Jalan (OpenStreetMap)": osm,
-            "Topografi (OpenTopoMap)": topo
+            "Topografi (OpenTopoMap)": topo,
+            "Dark Taktis (CartoDB Dark)": dark
         };
 
         const overlayMaps = {
             "Satuan SAR (Kansar/Pos SAR)": this.layers.sarUnits,
             "Operasi SAR Aktif": this.layers.operations,
+            "Area Pencarian (Search Area)": this.layers.polygons,
             "Pola Pencarian SAR": this.layers.searchPatterns,
-            "Area Pencarian": this.layers.polygons,
+            "Jalur & Rute": this.layers.routes,
             "Alat Ukur": this.layers.measurements
         };
 
@@ -76,6 +94,17 @@ class TacticalGisMap {
 
         // Click handler for coordinates
         this.map.on('click', (e) => this.onMapClick(e));
+    }
+
+    switchBaseLayer(layerKey) {
+        if (!this.baseLayers[layerKey] || !this.map) return;
+        Object.values(this.baseLayers).forEach(layer => {
+            if (this.map.hasLayer(layer)) {
+                this.map.removeLayer(layer);
+            }
+        });
+        this.baseLayers[layerKey].addTo(this.map);
+        this.currentBaseLayerKey = layerKey;
     }
 
     onMapClick(e) {
@@ -260,5 +289,210 @@ class TacticalGisMap {
         const cardinals = ['Utara', 'Timur Laut', 'Timur', 'Tenggara', 'Selatan', 'Barat Daya', 'Barat', 'Barat Laut', 'Utara'];
         const card = cardinals[Math.round(brng / 45)];
         return { deg: Math.round(brng), cardinal: card };
+    }
+
+    loadOperationBundle(bundle) {
+        if (!bundle || !this.map) return;
+        this.componentLayers = {};
+
+        // 1. Polygons (Search Area)
+        if (Array.isArray(bundle.polygons)) {
+            bundle.polygons.forEach(p => {
+                const pts = p.points || [];
+                if (pts.length < 3) return;
+                const latlngs = pts.map(pt => [pt.lat, pt.lng]);
+                const strokeColor = p.strokeColor || '#2563eb';
+                const fillColor = p.fillColor || strokeColor;
+                const area = p.areaNm2 ? Number(p.areaNm2).toFixed(2) : '-';
+                const isBaseMap = !p.id_operasi;
+
+                const polygonLayer = L.polygon(latlngs, {
+                    color: strokeColor,
+                    weight: Number(p.strokeWeight) || 3,
+                    opacity: Number(p.strokeOpacity) || 0.9,
+                    fillColor: fillColor,
+                    fillOpacity: Number(p.fillOpacity) || 0.25
+                }).addTo(this.layers.polygons);
+
+                const popupContent = `
+                    <div style="font-size:12px;min-width:180px;line-height:1.4;">
+                        <div style="font-weight:bold;color:${strokeColor};margin-bottom:3px;font-size:13px;">⬡ ${p.name || 'Sektor Pencarian'}</div>
+                        <div style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-bottom:6px;background:${isBaseMap ? '#eff6ff;color:#2563eb;' : '#fff7ed;color:#ea580c;'}">
+                            ${isBaseMap ? 'BASE MAP' : 'OPERASI SAR'}
+                        </div>
+                        <div>Luas: <strong>${area} Nm²</strong></div>
+                        <div>Sudut Batas: <strong>${pts.length} titik koordinat</strong></div>
+                        ${p.keterangan ? `<div style="margin-top:4px;color:#64748b;font-size:11px;">${p.keterangan}</div>` : ''}
+                    </div>
+                `;
+                polygonLayer.bindPopup(popupContent);
+                this.componentLayers['polygon_' + p.id] = polygonLayer;
+                this.componentLayers[p.id] = polygonLayer;
+            });
+        }
+
+        // 2. Search Patterns
+        if (Array.isArray(bundle.searchPatterns)) {
+            bundle.searchPatterns.forEach(p => {
+                const wps = p.waypoints || [];
+                if (wps.length < 2) return;
+                const latlngs = wps.map(w => [w.lat, w.lng]);
+                const color = p.color || '#ea580c';
+                const isBaseMap = !p.id_operasi;
+
+                const patternLayer = L.polyline(latlngs, {
+                    color: color,
+                    weight: Number(p.strokeWeight) || 3,
+                    opacity: Number(p.opacity) || 0.9,
+                    dashArray: '5, 5'
+                }).addTo(this.layers.searchPatterns);
+
+                // Add start & end markers
+                const startWp = wps[0];
+                const endWp = wps[wps.length - 1];
+                L.circleMarker([startWp.lat, startWp.lng], {
+                    radius: 5,
+                    color: '#ffffff',
+                    weight: 2,
+                    fillColor: '#10b981',
+                    fillOpacity: 1
+                }).bindTooltip('Entry (Start)', { permanent: false }).addTo(this.layers.searchPatterns);
+
+                L.circleMarker([endWp.lat, endWp.lng], {
+                    radius: 5,
+                    color: '#ffffff',
+                    weight: 2,
+                    fillColor: '#ef4444',
+                    fillOpacity: 1
+                }).bindTooltip('Exit (End)', { permanent: false }).addTo(this.layers.searchPatterns);
+
+                const typeLabels = {
+                    'creeping_line': 'Creeping Line Search',
+                    'parallel_track': 'Parallel Track Search',
+                    'expanding_square': 'Expanding Square Search',
+                    'e_sar': 'Pola Pencarian E-SAR',
+                    'sector_search': 'Pola Pencarian E-SAR',
+                    'track_line': 'Track Line Search'
+                };
+                const typeLabel = typeLabels[p.patternType] || p.patternType || 'Pola SAR';
+
+                const popupContent = `
+                    <div style="font-size:12px;min-width:180px;line-height:1.4;">
+                        <div style="font-weight:bold;color:${color};margin-bottom:3px;font-size:13px;">⚡ ${p.name || 'Pola Pencarian SAR'}</div>
+                        <div style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-bottom:6px;background:${isBaseMap ? '#eff6ff;color:#2563eb;' : '#fff7ed;color:#ea580c;'}">
+                            ${isBaseMap ? 'BASE MAP' : 'OPERASI SAR'}
+                        </div>
+                        <div>Tipe: <strong>${typeLabel}</strong></div>
+                        <div>Track Spacing: <strong>${p.trackSpacingNm || '-'} Nm</strong></div>
+                        <div>Total Jarak: <strong>${p.totalDistanceNm ? Number(p.totalDistanceNm).toFixed(1) : '-'} Nm</strong></div>
+                        <div>Jumlah Sapu: <strong>${p.legsCount || wps.length}</strong></div>
+                    </div>
+                `;
+                patternLayer.bindPopup(popupContent);
+                this.componentLayers['pattern_' + p.id] = patternLayer;
+                this.componentLayers[p.id] = patternLayer;
+            });
+        }
+
+        // 3. Routes
+        if (Array.isArray(bundle.routes)) {
+            bundle.routes.forEach(r => {
+                const pts = r.points || [];
+                if (pts.length < 2) return;
+                const latlngs = pts.map(pt => [pt.lat, pt.lng]);
+                const strokeColor = r.strokeColor || '#059669';
+                const isBaseMap = !r.id_operasi;
+
+                const routeLayer = L.polyline(latlngs, {
+                    color: strokeColor,
+                    weight: Number(r.strokeWeight) || 3.5,
+                    opacity: Number(r.strokeOpacity) || 0.9
+                }).addTo(this.layers.routes);
+
+                pts.forEach((pt, i) => {
+                    L.circleMarker([pt.lat, pt.lng], {
+                        radius: 4,
+                        color: '#ffffff',
+                        weight: 1.5,
+                        fillColor: strokeColor,
+                        fillOpacity: 1
+                    }).bindTooltip(pt.label || `WP-${i + 1}`).addTo(this.layers.routes);
+                });
+
+                const popupContent = `
+                    <div style="font-size:12px;min-width:180px;line-height:1.4;">
+                        <div style="font-weight:bold;color:${strokeColor};margin-bottom:3px;font-size:13px;">↗️ ${r.name || 'Jalur Operasi'}</div>
+                        <div style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-bottom:6px;background:${isBaseMap ? '#eff6ff;color:#2563eb;' : '#fff7ed;color:#ea580c;'}">
+                            ${isBaseMap ? 'BASE MAP' : 'OPERASI SAR'}
+                        </div>
+                        <div>Panjang: <strong>${r.totalDistanceNm ? Number(r.totalDistanceNm).toFixed(1) : '-'} Nm</strong></div>
+                        <div>Kecepatan Alut: <strong>${r.vesselSpeedKnots || 25} Knots</strong></div>
+                        <div>Titik Waypoint: <strong>${pts.length} titik</strong></div>
+                    </div>
+                `;
+                routeLayer.bindPopup(popupContent);
+                this.componentLayers['route_' + r.id] = routeLayer;
+                this.componentLayers[r.id] = routeLayer;
+            });
+        }
+
+        // 4. Points (Titik Taktis)
+        if (Array.isArray(bundle.points)) {
+            bundle.points.forEach(pt => {
+                const isBaseMap = !pt.id_operasi;
+                const cat = (pt.category || 'Taktis').toUpperCase();
+                let markerColor = '#8b5cf6';
+                if (cat.includes('POS') || cat.includes('KANSAR')) markerColor = '#f97316';
+                else if (cat.includes('LKP')) markerColor = '#ef4444';
+                else if (cat.includes('DERMAGA') || cat.includes('PELABUHAN')) markerColor = '#0284c7';
+                else if (cat.includes('HELIPAD') || cat.includes('BANDARA')) markerColor = '#10b981';
+
+                const marker = L.circleMarker([pt.lat, pt.lng], {
+                    radius: 7,
+                    color: '#ffffff',
+                    weight: 2,
+                    fillColor: markerColor,
+                    fillOpacity: 0.95
+                }).addTo(this.layers.operations);
+
+                const popupContent = `
+                    <div style="font-size:12px;min-width:180px;line-height:1.4;">
+                        <div style="font-weight:bold;color:${markerColor};margin-bottom:3px;font-size:13px;">📍 ${pt.label || 'Titik Taktis'}</div>
+                        <div style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-bottom:6px;background:${isBaseMap ? '#eff6ff;color:#2563eb;' : '#fff7ed;color:#ea580c;'}">
+                            ${isBaseMap ? 'BASE MAP' : 'OPERASI SAR'} &bull; ${cat}
+                        </div>
+                        <div style="font-family:monospace;font-size:11px;">Lat: ${Number(pt.lat).toFixed(6)} | Lng: ${Number(pt.lng).toFixed(6)}</div>
+                        ${pt.description ? `<div style="margin-top:4px;color:#64748b;font-size:11px;">${pt.description}</div>` : ''}
+                    </div>
+                `;
+                marker.bindPopup(popupContent);
+                this.componentLayers['point_' + pt.id] = marker;
+                this.componentLayers[pt.id] = marker;
+            });
+        }
+    }
+
+    focusComponent(id) {
+        const layer = this.componentLayers[id];
+        if (!layer || !this.map) return false;
+        if (typeof layer.getBounds === 'function') {
+            this.map.fitBounds(layer.getBounds(), { padding: [50, 50], maxZoom: 14 });
+            setTimeout(() => { if (layer.openPopup) layer.openPopup(); }, 300);
+        } else if (typeof layer.getLatLng === 'function') {
+            this.map.setView(layer.getLatLng(), 13);
+            setTimeout(() => { if (layer.openPopup) layer.openPopup(); }, 300);
+        }
+        return true;
+    }
+
+    fitAllComponents() {
+        if (!this.map) return;
+        const uniqueLayers = Array.from(new Set(Object.values(this.componentLayers)));
+        if (!uniqueLayers.length) return;
+        const group = new L.featureGroup(uniqueLayers);
+        const bounds = group.getBounds();
+        if (bounds.isValid()) {
+            this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+        }
     }
 }

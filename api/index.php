@@ -878,16 +878,37 @@ try {
     }
 
     // GIS endpoints
-    if ($path === '/gis/data' && $method === 'GET') {
+    if (($path === '/gis/data' || $path === '/gis/bundle') && $method === 'GET') {
         $requireAuth();
         $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
+        $includeGlobal = !isset($_GET['include_global']) && !isset($_GET['include_base_map'])
+            ? true
+            : (($_GET['include_global'] ?? $_GET['include_base_map'] ?? '1') === '1' || ($_GET['include_global'] ?? $_GET['include_base_map'] ?? '1') === 'true');
+        
+        $points = GisModel::getPoints($idOperasi, $includeGlobal);
+        $polygons = GisModel::getPolygons($idOperasi, $includeGlobal);
+        $routes = GisModel::getRoutes($idOperasi, $includeGlobal);
+        $searchPatterns = GisModel::getSearchPatterns($idOperasi, $includeGlobal);
+        $bundle = [
+            'id_operasi' => $idOperasi,
+            'include_base_map' => $includeGlobal,
+            'points' => $points,
+            'polygons' => $polygons,
+            'routes' => $routes,
+            'searchPatterns' => $searchPatterns
+        ];
+
         echo json_encode([
             'success' => true,
+            'data' => $bundle,
+            'id_operasi' => $idOperasi,
+            'include_base_map' => $includeGlobal,
             'sar_units' => MasterModel::getSarUnits(),
-            'points' => GisModel::getPoints($idOperasi),
-            'polygons' => GisModel::getPolygons($idOperasi),
-            'routes' => GisModel::getRoutes($idOperasi),
-            'search_patterns' => GisModel::getSearchPatterns($idOperasi),
+            'points' => $points,
+            'polygons' => $polygons,
+            'routes' => $routes,
+            'search_patterns' => $searchPatterns,
+            'searchPatterns' => $searchPatterns,
             'operasi' => OperasiModel::getAll('OPEN')
         ]);
         exit;
@@ -896,7 +917,10 @@ try {
     if (($path === '/gis/point' || $path === '/gis/points') && $method === 'GET') {
         $requireAuth();
         $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
-        echo json_encode(['success' => true, 'data' => GisModel::getPoints($idOperasi)]);
+        $includeGlobal = !isset($_GET['include_global']) && !isset($_GET['include_base_map'])
+            ? true
+            : (($_GET['include_global'] ?? $_GET['include_base_map'] ?? '1') === '1' || ($_GET['include_global'] ?? $_GET['include_base_map'] ?? '1') === 'true');
+        echo json_encode(['success' => true, 'data' => GisModel::getPoints($idOperasi, $includeGlobal)]);
         exit;
     }
 
@@ -983,7 +1007,10 @@ try {
     if (($path === '/gis/polygon' || $path === '/gis/polygons') && $method === 'GET') {
         $requireAuth();
         $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
-        echo json_encode(['success' => true, 'data' => GisModel::getPolygons($idOperasi)]);
+        $includeGlobal = !isset($_GET['include_global']) && !isset($_GET['include_base_map'])
+            ? true
+            : (($_GET['include_global'] ?? $_GET['include_base_map'] ?? '1') === '1' || ($_GET['include_global'] ?? $_GET['include_base_map'] ?? '1') === 'true');
+        echo json_encode(['success' => true, 'data' => GisModel::getPolygons($idOperasi, $includeGlobal)]);
         exit;
     }
 
@@ -1012,7 +1039,10 @@ try {
     if (($path === '/gis/pattern' || $path === '/gis/patterns' || $path === '/gis/search-patterns') && $method === 'GET') {
         $requireAuth();
         $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
-        echo json_encode(['success' => true, 'data' => GisModel::getSearchPatterns($idOperasi)]);
+        $includeGlobal = !isset($_GET['include_global']) && !isset($_GET['include_base_map'])
+            ? true
+            : (($_GET['include_global'] ?? $_GET['include_base_map'] ?? '1') === '1' || ($_GET['include_global'] ?? $_GET['include_base_map'] ?? '1') === 'true');
+        echo json_encode(['success' => true, 'data' => GisModel::getSearchPatterns($idOperasi, $includeGlobal)]);
         exit;
     }
 
@@ -1041,7 +1071,10 @@ try {
     if (($path === '/gis/route' || $path === '/gis/routes') && $method === 'GET') {
         $requireAuth();
         $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
-        echo json_encode(['success' => true, 'data' => GisModel::getRoutes($idOperasi)]);
+        $includeGlobal = !isset($_GET['include_global']) && !isset($_GET['include_base_map'])
+            ? true
+            : (($_GET['include_global'] ?? $_GET['include_base_map'] ?? '1') === '1' || ($_GET['include_global'] ?? $_GET['include_base_map'] ?? '1') === 'true');
+        echo json_encode(['success' => true, 'data' => GisModel::getRoutes($idOperasi, $includeGlobal)]);
         exit;
     }
 

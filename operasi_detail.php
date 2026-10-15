@@ -26,6 +26,8 @@ if (!$operasi) {
     exit;
 }
 
+$gisBundle = GisModel::getOperationBundle($id, true);
+
 $pageTitle = 'Operasi: ' . htmlspecialchars($operasi['nama_operasi']);
 $currentRoute = 'operasi';
 $navbarTitle = 'PUSAT KENDALI OPERASI SAR';

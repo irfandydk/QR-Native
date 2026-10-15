@@ -105,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Master data
 $masterTim = MasterModel::getTim();
 $masterAlut = MasterModel::getAlut();
+$gisBundle = GisModel::getOperationBundle($idOperasi, true);
 
 // Determine default day calculation based on actual operation calendar date (restarts if reopened)
 $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
@@ -127,17 +128,85 @@ if ($editMode) {
     $initialUnsurData = !empty($operasi['detail_unsur']) ? $operasi['detail_unsur'] : [];
     $initialAlutData = !empty($operasi['detail_alut']) ? $operasi['detail_alut'] : [];
     
-    // Default initial SRU
-    $lkpDesc = $operasi['lokasi_kejadian'] ?: 'LKP';
-    $koorDesc = $operasi['koordinat'] ?: '';
-    $initialSrus = [
-        [
-            'nama_sru' => 'SRU 1 Laut / Darat',
-            'koordinat_area' => "Penyisiran di sekitar LKP ({$lkpDesc})\nKoordinat: {$koorDesc}",
-            'luas_area' => '10 Nm²',
-            'pola_pencarian' => 'Parallel Track Search'
-        ]
-    ];
+    // Auto-detect initial SRUs from GIS plotting if available
+    $plottingPolys = !empty($gisBundle['polygons']) ? $gisBundle['polygons'] : [];
+    $plottingPatterns = !empty($gisBundle['searchPatterns']) ? $gisBundle['searchPatterns'] : [];
+    
+    if (!empty($plottingPolys)) {
+        $initialSrus = [];
+        $idx = 0;
+        foreach ($plottingPolys as $poly) {
+            $idx++;
+            $name = !empty($poly['name']) ? $poly['name'] : ("Sektor " . chr(64 + $idx));
+            $areaNm2 = !empty($poly['areaNm2']) ? (float)$poly['areaNm2'] : GisModel::calculatePolygonAreaNm2($poly['points'] ?? []);
+            $areaFormatted = $areaNm2 > 0 ? (number_format($areaNm2, 2, '.', '') . ' Nm²') : '';
+
+            // Format coordinates in Basarnas DMS
+            $coordLines = [];
+            if (!empty($poly['points']) && is_array($poly['points'])) {
+                foreach ($poly['points'] as $pIdx => $pt) {
+                    $lbl = !empty($pt['label']) ? $pt['label'] : ("Titik " . chr(65 + $pIdx));
+                    $dms = TemplateHelper::formatDmsPair($pt['lat'] ?? 0, $pt['lng'] ?? 0);
+                    $coordLines[] = "{$lbl}: {$dms}";
+                }
+            }
+            $coordsText = implode("\n", $coordLines);
+
+            // Match pattern
+            $matchedPattern = null;
+            foreach ($plottingPatterns as $pat) {
+                if (($pat['polygonId'] ?? '') === ($poly['id'] ?? '') || (!empty($pat['polygonName']) && !empty($poly['name']) && $pat['polygonName'] === $poly['name'])) {
+                    $matchedPattern = $pat;
+                    break;
+                }
+            }
+
+            $pola = 'Parallel Track Search';
+            $totalSapuan = '';
+            if ($matchedPattern) {
+                $ptType = $matchedPattern['patternType'] ?? 'parallel_track';
+                if ($ptType === 'creeping_line') $pola = 'Creeping Line Search';
+                elseif ($ptType === 'expanding_square') $pola = 'Expanding Square Search';
+                elseif ($ptType === 'e_sar' || $ptType === 'sector_search') $pola = 'Pola Pencarian E-SAR';
+                elseif ($ptType === 'track_line') $pola = 'Track Line Search';
+                else $pola = 'Parallel Track Search';
+
+                $legs = !empty($matchedPattern['legsCount']) ? (int)$matchedPattern['legsCount'] : 6;
+                $sp = !empty($matchedPattern['trackSpacingNm']) ? number_format((float)$matchedPattern['trackSpacingNm'], 2, '.', '') : '1.00';
+                $dist = !empty($matchedPattern['totalDistanceNm']) ? number_format((float)$matchedPattern['totalDistanceNm'], 1, '.', '') : '-';
+                if ($ptType === 'e_sar' || $ptType === 'sector_search') {
+                    $totalSapuan = "{$legs} Personel E-SAR (Spasi: {$sp} Nm, Total Lintasan: {$dist} Nm)";
+                } else {
+                    $totalSapuan = "{$legs} Sapuan / Lintasan (Spasi: {$sp} Nm, Total Lintasan: {$dist} Nm)";
+                }
+            }
+
+            $taskDetail = "Sektor: {$name}" . ($areaFormatted ? " ({$areaFormatted})" : "");
+            if ($coordsText) {
+                $taskDetail .= "\nBatas Koordinat:\n" . $coordsText;
+            }
+
+            $initialSrus[] = [
+                'nama_sru' => "SRU {$idx} - {$name}",
+                'koordinat_area' => $taskDetail,
+                'luas_area' => $areaFormatted,
+                'pola_pencarian' => $pola,
+                'total_sapuan' => $totalSapuan
+            ];
+        }
+    } else {
+        $lkpDesc = $operasi['lokasi_kejadian'] ?: 'LKP';
+        $koorDesc = $operasi['koordinat'] ?: '';
+        $initialSrus = [
+            [
+                'nama_sru' => 'SRU 1 Laut / Darat',
+                'koordinat_area' => "Penyisiran di sekitar LKP ({$lkpDesc})\nKoordinat: {$koorDesc}",
+                'luas_area' => '',
+                'pola_pencarian' => 'Parallel Track Search',
+                'total_sapuan' => ''
+            ]
+        ];
+    }
 }
 
 $pageTitle = ($editMode ? "Edit RENOPS {$hariKe}" : "Buat RENOPS {$hariKe}") . " - {$operasi['nama_operasi']}";

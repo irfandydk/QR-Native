@@ -31,18 +31,71 @@ class GisModel {
             }
             // Ensure customIconUrl is MEDIUMTEXT to prevent truncation on large DataURLs
             $db->exec("ALTER TABLE GisPoint MODIFY COLUMN customIconUrl MEDIUMTEXT NULL");
+
+            // Ensure areaNm2 exists on GisPolygon
+            $polyCols = $db->query("SHOW COLUMNS FROM GisPolygon LIKE 'areaNm2'")->fetchAll();
+            if (empty($polyCols)) {
+                $db->exec("ALTER TABLE GisPolygon ADD COLUMN areaNm2 DOUBLE NULL DEFAULT NULL");
+            }
         } catch (Throwable $e) {
             error_log("[GisModel Schema Check] " . $e->getMessage());
         }
     }
 
+    /**
+     * Compute exact geodesic / spherical polygon area in Nautical Miles squared (Nm²)
+     */
+    public static function calculatePolygonAreaNm2(array $points, ?string $shapeType = null, ?float $radiusNm = null, ?float $boxWidthNm = null, ?float $boxHeightNm = null): float {
+        if ($shapeType === 'circle' && $radiusNm !== null && $radiusNm > 0) {
+            return round(M_PI * $radiusNm * $radiusNm, 2);
+        }
+        if ($shapeType === 'box' && $boxWidthNm !== null && $boxHeightNm !== null && $boxWidthNm > 0 && $boxHeightNm > 0) {
+            return round($boxWidthNm * $boxHeightNm, 2);
+        }
+        if (empty($points) || count($points) < 3) {
+            return 0.0;
+        }
+
+        // Centroid / mean latitude for local nautical miles projection
+        $sumLat = 0.0;
+        foreach ($points as $p) {
+            $sumLat += (float)($p['lat'] ?? 0);
+        }
+        $meanLatRad = deg2rad($sumLat / count($points));
+        $cosMeanLat = cos($meanLatRad);
+
+        // Convert lat/lng to local nautical miles (x, y)
+        // 1 deg latitude = 60 Nm, 1 deg longitude = 60 * cos(lat) Nm
+        $n = count($points);
+        $areaSum = 0.0;
+        for ($i = 0; $i < $n; $i++) {
+            $j = ($i + 1) % $n;
+            $x1 = (float)($points[$i]['lng'] ?? 0) * 60.0 * $cosMeanLat;
+            $y1 = (float)($points[$i]['lat'] ?? 0) * 60.0;
+            $x2 = (float)($points[$j]['lng'] ?? 0) * 60.0 * $cosMeanLat;
+            $y2 = (float)($points[$j]['lat'] ?? 0) * 60.0;
+            $areaSum += ($x1 * $y2) - ($x2 * $y1);
+        }
+
+        $areaNm2 = abs($areaSum) / 2.0;
+        return round($areaNm2, 2);
+    }
+
     public static function getPoints(?int $idOperasi = null, bool $includeGlobal = true): array {
         self::ensureSchemaUpdated();
         $db = getDB();
-        if ($idOperasi !== null && $idOperasi > 0 && !$includeGlobal) {
-            $stmt = $db->prepare("SELECT * FROM GisPoint WHERE id_operasi = :id_ops ORDER BY id DESC");
-            $stmt->execute([':id_ops' => $idOperasi]);
-            return $stmt->fetchAll();
+        if ($idOperasi !== null && $idOperasi > 0) {
+            if ($includeGlobal) {
+                $stmt = $db->prepare("SELECT * FROM GisPoint WHERE id_operasi = :id_ops OR id_operasi IS NULL ORDER BY id DESC");
+                $stmt->execute([':id_ops' => $idOperasi]);
+                return $stmt->fetchAll();
+            } else {
+                $stmt = $db->prepare("SELECT * FROM GisPoint WHERE id_operasi = :id_ops ORDER BY id DESC");
+                $stmt->execute([':id_ops' => $idOperasi]);
+                return $stmt->fetchAll();
+            }
+        } elseif ($idOperasi === 0) {
+            return $db->query("SELECT * FROM GisPoint WHERE id_operasi IS NULL ORDER BY id DESC")->fetchAll();
         }
         return $db->query("SELECT * FROM GisPoint ORDER BY id DESC")->fetchAll();
     }
@@ -85,10 +138,18 @@ class GisModel {
     public static function getPolygons(?int $idOperasi = null, bool $includeGlobal = true): array {
         self::ensureSchemaUpdated();
         $db = getDB();
-        if ($idOperasi !== null && $idOperasi > 0 && !$includeGlobal) {
-            $stmt = $db->prepare("SELECT * FROM GisPolygon WHERE id_operasi = :id_ops ORDER BY id DESC");
-            $stmt->execute([':id_ops' => $idOperasi]);
-            $polys = $stmt->fetchAll();
+        if ($idOperasi !== null && $idOperasi > 0) {
+            if ($includeGlobal) {
+                $stmt = $db->prepare("SELECT * FROM GisPolygon WHERE id_operasi = :id_ops OR id_operasi IS NULL ORDER BY id DESC");
+                $stmt->execute([':id_ops' => $idOperasi]);
+                $polys = $stmt->fetchAll();
+            } else {
+                $stmt = $db->prepare("SELECT * FROM GisPolygon WHERE id_operasi = :id_ops ORDER BY id DESC");
+                $stmt->execute([':id_ops' => $idOperasi]);
+                $polys = $stmt->fetchAll();
+            }
+        } elseif ($idOperasi === 0) {
+            $polys = $db->query("SELECT * FROM GisPolygon WHERE id_operasi IS NULL ORDER BY id DESC")->fetchAll();
         } else {
             $polys = $db->query("SELECT * FROM GisPolygon ORDER BY id DESC")->fetchAll();
         }
@@ -107,6 +168,14 @@ class GisModel {
 
         foreach ($polys as &$p) {
             $p['points'] = $pointsByPoly[$p['id']] ?? [];
+            $calcArea = self::calculatePolygonAreaNm2(
+                $p['points'],
+                $p['shapeType'] ?? null,
+                isset($p['radiusNm']) ? (float)$p['radiusNm'] : null,
+                isset($p['boxWidthNm']) ? (float)$p['boxWidthNm'] : null,
+                isset($p['boxHeightNm']) ? (float)$p['boxHeightNm'] : null
+            );
+            $p['areaNm2'] = (!empty($p['areaNm2']) && (float)$p['areaNm2'] > 0) ? (float)$p['areaNm2'] : $calcArea;
         }
         return $polys;
     }
@@ -124,7 +193,22 @@ class GisModel {
                 $idOperasi = null;
             }
 
-            $stmt = $db->prepare("REPLACE INTO GisPolygon (id, id_operasi, name, strokeColor, strokeWeight, fillColor, fillOpacity) VALUES (:id, :id_ops, :name, :sc, :sw, :fc, :fo)");
+            $calcArea = self::calculatePolygonAreaNm2(
+                $data['points'] ?? [],
+                $data['shapeType'] ?? null,
+                isset($data['radiusNm']) ? (float)$data['radiusNm'] : null,
+                isset($data['boxWidthNm']) ? (float)$data['boxWidthNm'] : null,
+                isset($data['boxHeightNm']) ? (float)$data['boxHeightNm'] : null
+            );
+            $areaNm2 = isset($data['areaNm2']) && (float)$data['areaNm2'] > 0 ? (float)$data['areaNm2'] : $calcArea;
+
+            $stmt = $db->prepare("REPLACE INTO GisPolygon (
+                id, id_operasi, name, strokeColor, strokeWeight, fillColor, fillOpacity,
+                shapeType, centerLat, centerLng, radiusNm, boxWidthNm, boxHeightNm, areaNm2
+            ) VALUES (
+                :id, :id_ops, :name, :sc, :sw, :fc, :fo,
+                :st, :clat, :clng, :r, :bw, :bh, :area
+            )");
             $stmt->execute([
                 ':id' => $id,
                 ':id_ops' => $idOperasi,
@@ -132,7 +216,14 @@ class GisModel {
                 ':sc' => $data['strokeColor'] ?? '#ea580c',
                 ':sw' => (float)($data['strokeWeight'] ?? 2.5),
                 ':fc' => $data['fillColor'] ?? '#ea580c',
-                ':fo' => (float)($data['fillOpacity'] ?? 0.2)
+                ':fo' => (float)($data['fillOpacity'] ?? 0.2),
+                ':st' => $data['shapeType'] ?? 'polygon',
+                ':clat' => isset($data['centerLat']) ? (float)$data['centerLat'] : null,
+                ':clng' => isset($data['centerLng']) ? (float)$data['centerLng'] : null,
+                ':r' => isset($data['radiusNm']) ? (float)$data['radiusNm'] : null,
+                ':bw' => isset($data['boxWidthNm']) ? (float)$data['boxWidthNm'] : null,
+                ':bh' => isset($data['boxHeightNm']) ? (float)$data['boxHeightNm'] : null,
+                ':area' => $areaNm2
             ]);
 
             $db->prepare("DELETE FROM GisPolygonPoint WHERE polygonId = :id")->execute([':id' => $id]);
@@ -174,10 +265,18 @@ class GisModel {
     public static function getRoutes(?int $idOperasi = null, bool $includeGlobal = true): array {
         self::ensureSchemaUpdated();
         $db = getDB();
-        if ($idOperasi !== null && $idOperasi > 0 && !$includeGlobal) {
-            $stmt = $db->prepare("SELECT * FROM GisRoute WHERE id_operasi = :id_ops ORDER BY id DESC");
-            $stmt->execute([':id_ops' => $idOperasi]);
-            $routes = $stmt->fetchAll();
+        if ($idOperasi !== null && $idOperasi > 0) {
+            if ($includeGlobal) {
+                $stmt = $db->prepare("SELECT * FROM GisRoute WHERE id_operasi = :id_ops OR id_operasi IS NULL ORDER BY id DESC");
+                $stmt->execute([':id_ops' => $idOperasi]);
+                $routes = $stmt->fetchAll();
+            } else {
+                $stmt = $db->prepare("SELECT * FROM GisRoute WHERE id_operasi = :id_ops ORDER BY id DESC");
+                $stmt->execute([':id_ops' => $idOperasi]);
+                $routes = $stmt->fetchAll();
+            }
+        } elseif ($idOperasi === 0) {
+            $routes = $db->query("SELECT * FROM GisRoute WHERE id_operasi IS NULL ORDER BY id DESC")->fetchAll();
         } else {
             $routes = $db->query("SELECT * FROM GisRoute ORDER BY id DESC")->fetchAll();
         }
@@ -278,10 +377,18 @@ class GisModel {
     public static function getSearchPatterns(?int $idOperasi = null, bool $includeGlobal = true): array {
         self::ensureSchemaUpdated();
         $db = getDB();
-        if ($idOperasi !== null && $idOperasi > 0 && !$includeGlobal) {
-            $stmt = $db->prepare("SELECT * FROM GisSearchPattern WHERE id_operasi = :id_ops ORDER BY id DESC");
-            $stmt->execute([':id_ops' => $idOperasi]);
-            $patterns = $stmt->fetchAll();
+        if ($idOperasi !== null && $idOperasi > 0) {
+            if ($includeGlobal) {
+                $stmt = $db->prepare("SELECT * FROM GisSearchPattern WHERE id_operasi = :id_ops OR id_operasi IS NULL ORDER BY id DESC");
+                $stmt->execute([':id_ops' => $idOperasi]);
+                $patterns = $stmt->fetchAll();
+            } else {
+                $stmt = $db->prepare("SELECT * FROM GisSearchPattern WHERE id_operasi = :id_ops ORDER BY id DESC");
+                $stmt->execute([':id_ops' => $idOperasi]);
+                $patterns = $stmt->fetchAll();
+            }
+        } elseif ($idOperasi === 0) {
+            $patterns = $db->query("SELECT * FROM GisSearchPattern WHERE id_operasi IS NULL ORDER BY id DESC")->fetchAll();
         } else {
             $patterns = $db->query("SELECT * FROM GisSearchPattern ORDER BY id DESC")->fetchAll();
         }
@@ -319,10 +426,10 @@ class GisModel {
 
             $stmt = $db->prepare("REPLACE INTO GisSearchPattern (
                 id, id_operasi, name, polygonId, polygonName, patternType, trackSpacingNm,
-                legsCount, poskoId, poskoName, color, totalDistanceNm, createdAt
+                legsCount, poskoId, poskoName, color, opacity, strokeWeight, totalDistanceNm, createdAt
             ) VALUES (
                 :id, :id_ops, :name, :polyId, :polyName, :pt, :spacing,
-                :legs, :poskoId, :poskoName, :color, :dist, :created
+                :legs, :poskoId, :poskoName, :color, :opacity, :weight, :dist, :created
             )");
 
             $stmt->execute([
@@ -337,6 +444,8 @@ class GisModel {
                 ':poskoId' => $data['poskoId'] ?? '',
                 ':poskoName' => $data['poskoName'] ?? '',
                 ':color' => $data['color'] ?? '#0284c7',
+                ':opacity' => isset($data['opacity']) ? (float)$data['opacity'] : 0.9,
+                ':weight' => isset($data['strokeWeight']) ? (float)$data['strokeWeight'] : (isset($data['weight']) ? (float)$data['weight'] : 3.0),
                 ':dist' => (float)($data['totalDistanceNm'] ?? 0),
                 ':created' => $data['createdAt'] ?? (date('Y-m-d H:i') . ' WITA')
             ]);
@@ -375,5 +484,16 @@ class GisModel {
             $db->rollBack();
             return false;
         }
+    }
+
+    public static function getOperationBundle(int $idOperasi, bool $includeBaseMap = true): array {
+        return [
+            'id_operasi' => $idOperasi,
+            'include_base_map' => $includeBaseMap,
+            'points' => self::getPoints($idOperasi, $includeBaseMap),
+            'polygons' => self::getPolygons($idOperasi, $includeBaseMap),
+            'routes' => self::getRoutes($idOperasi, $includeBaseMap),
+            'searchPatterns' => self::getSearchPatterns($idOperasi, $includeBaseMap)
+        ];
     }
 }

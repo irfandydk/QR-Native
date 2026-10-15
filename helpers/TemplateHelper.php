@@ -76,6 +76,34 @@ class TemplateHelper {
         return "TW {$mm}{$dd} {$hh}{$min} H";
     }
 
+    public static function formatDMS(float|string|null $val, bool $isLat, bool $useIndoDir = false): string {
+        if ($val === null || $val === '') return '-';
+        $v = (float)$val;
+        $dir = $isLat ? ($v < 0 ? 'S' : ($useIndoDir ? 'U' : 'N')) : ($v < 0 ? ($useIndoDir ? 'B' : 'W') : ($useIndoDir ? 'T' : 'E'));
+        $abs = abs($v);
+        $d = (int)floor($abs);
+        $mFloat = ($abs - $d) * 60;
+        $m = (int)floor($mFloat);
+        $sFloat = ($mFloat - $m) * 60;
+        $s = round($sFloat, 1);
+        if ($s >= 60.0) {
+            $s = 0.0;
+            $m++;
+            if ($m >= 60) {
+                $m = 0;
+                $d++;
+            }
+        }
+        $dPad = $isLat ? str_pad((string)$d, 2, '0', STR_PAD_LEFT) : str_pad((string)$d, 3, '0', STR_PAD_LEFT);
+        $mPad = str_pad((string)$m, 2, '0', STR_PAD_LEFT);
+        $sPad = str_pad(number_format($s, 1, '.', ''), 4, '0', STR_PAD_LEFT);
+        return "{$dPad}° {$mPad}' {$sPad}\" {$dir}";
+    }
+
+    public static function formatDmsPair(float|string|null $lat, float|string|null $lng, bool $useIndoDir = false): string {
+        return self::formatDMS($lat, true, $useIndoDir) . " - " . self::formatDMS($lng, false, $useIndoDir);
+    }
+
     public static function getWaktuMulaiAktual(?array $operasi): string {
         if (!$operasi) return date('Y-m-d H:i:s');
         if (!empty($operasi['waktu_reopen'])) {
@@ -293,6 +321,20 @@ BODY;
         return $header . "\n\n" . $body . "\n\n" . self::getFooterWA();
     }
 
+    public static function cleanSruCoordinates(?string $koor): string {
+        if (!$koor) return '';
+        $lines = explode("\n", str_replace("\r", "", $koor));
+        $cleanLines = [];
+        foreach ($lines as $line) {
+            $trim = trim($line);
+            if (preg_match('/^(pola\s*pencarian\s*:|total\s*sapuan\s*:|\[pola\s*sar|tipe\s*:)/i', $trim)) {
+                continue;
+            }
+            $cleanLines[] = $line;
+        }
+        return trim(implode("\n", $cleanLines));
+    }
+
     public static function generateRenopsWA(array $ops, array $renops, array $srus = [], array $korban = [], array $unsur = [], array $alut = []): string {
         $hariKe = strtoupper($renops['hari_ke'] ?? 'H.1');
         $namaOps = $ops['nama_operasi'] ?? 'Operasi SAR';
@@ -306,30 +348,45 @@ BODY;
         // SRUs
         if (empty($srus)) {
             $koorOps = $ops['koordinat'] ?: '03° 58\' 30" S - 122° 35\' 12" E';
-            $sruText = "*SRU 1 Tim Rescue Kansar Kendari melakukan penyisiran dgn koordinat\nA: {$koorOps}\nLuas area pencarian 10 Nm²\nPola pencarian : Parallel Track Search";
+            $sruText = "*SRU 1 Tim Rescue Kansar Kendari* melakukan penyisiran dgn koordinat :\nA: {$koorOps}\nLuas area pencarian : 10 Nm²\nPola pencarian : Parallel Track Search";
         } else {
             $sList = [];
             foreach ($srus as $s) {
-                $name = str_starts_with($s['nama_sru'], '*') ? $s['nama_sru'] : "*{$s['nama_sru']}";
-                $koor = $s['koordinat_area'] ?: ($ops['koordinat'] ?: '-');
-                $pola = $s['pola_pencarian'] ?: 'Parallel Track Search';
-                $sList[] = "{$name} melakukan penyisiran dgn koordinat\n{$koor}\nLuas area pencarian {$s['luas_area']}\nPola pencarian : {$pola}";
+                $rawName = trim($s['nama_sru'] ?? 'SRU');
+                $cleanName = trim($rawName, "* \t\n\r\0\x0B") ?: 'SRU';
+                $nameFormatted = "*{$cleanName}* melakukan penyisiran dgn koordinat :";
+
+                $koor = self::cleanSruCoordinates($s['koordinat_area'] ?? '') ?: ($ops['koordinat'] ?: '-');
+                $pola = !empty($s['pola_pencarian']) ? $s['pola_pencarian'] : 'Parallel Track Search';
+                
+                $lines = [
+                    $nameFormatted,
+                    $koor
+                ];
+
+                if (!empty($s['luas_area'])) {
+                    $luasVal = trim($s['luas_area']);
+                    if (!preg_match('/^luas\s*area/i', $luasVal)) {
+                        $lines[] = "Luas area pencarian : {$luasVal}";
+                    } else {
+                        $lines[] = $luasVal;
+                    }
+                }
+
+                $lines[] = "Pola pencarian : {$pola}";
+
+                if (!empty($s['total_sapuan'])) {
+                    $sapuanVal = trim($s['total_sapuan']);
+                    if (!preg_match('/^total\s*sapuan\s*:/i', $sapuanVal)) {
+                        $lines[] = "Total sapuan : {$sapuanVal}";
+                    } else {
+                        $lines[] = $sapuanVal;
+                    }
+                }
+
+                $sList[] = implode("\n", $lines);
             }
             $sruText = implode("\n\n", $sList);
-        }
-
-        $stats = self::hitungStatistikKorban($korban);
-
-        if (empty($korban)) {
-            $identitasText = "1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -";
-        } else {
-            $kList = [];
-            foreach ($korban as $idx => $k) {
-                $num = $idx + 1;
-                $label = ($k['status_korban'] ?? 'DP') === 'DP' ? '' : ' (' . self::getLabelStatusKorban($k['status_korban']) . ')';
-                $kList[] = "{$num}. Nama : {$k['nama_korban']}{$label}\n   Umur : " . ($k['umur'] ?: '-') . "\n   Jenis Kelamin : " . ($k['jk'] ?: '-') . "\n   Alamat : " . ($k['alamat'] ?: '-');
-            }
-            $identitasText = implode("\n\n", $kList);
         }
 
         if (empty($unsur)) {
@@ -365,22 +422,13 @@ Dengan Tim dibagi {$sruCount} SRU dengan area pencarian sbb :
 
 {$sruText}
 
-1. Data Korban: {$stats['total']} Orang
-• S : {$stats['s']} ORANG
-• MD : {$stats['md']} ORANG
-• DP : {$stats['dp']} ORANG
-• H : {$stats['h']} ORANG
-
-2. Identitas Korban
-{$identitasText}
-
-3. Unsur SAR Terlibat
+1. Unsur SAR Terlibat :
 {$unsurText}
 
-4. Alut dan Palsar
+2. Alut dan Palsar :
 {$alutText}
 
-5. Kondisi Cuaca :
+3. Kondisi Cuaca :
 • Cuaca: {$cuaca}
 (Sumber BMKG)
 BODY;

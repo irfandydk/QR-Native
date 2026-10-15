@@ -443,6 +443,8 @@ CREATE TABLE `GisSearchPattern` (
   `poskoId` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `poskoName` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `color` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `opacity` double DEFAULT '0.9',
+  `strokeWeight` double DEFAULT '3',
   `totalDistanceNm` double NOT NULL,
   `createdAt` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
