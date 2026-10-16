@@ -65,9 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
     $waktuLap = $_POST['waktu_laporan'] ?? date('Y-m-d H:i:s');
     $tglLap = date('Y-m-d', strtotime($waktuLap));
-    if (empty($_POST['hari_ke'])) {
-        $_POST['hari_ke'] = TemplateHelper::hitungHariKe($baseDateOps, $tglLap);
-    }
+    $_POST['hari_ke'] = TemplateHelper::hitungHariKe($baseDateOps, $tglLap);
 
     try {
         if ($editMode) {
@@ -97,7 +95,7 @@ $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
 if ($editMode) {
     $waktuLaporan = !empty($laporan['waktu_laporan']) ? date('Y-m-d\TH:i', strtotime($laporan['waktu_laporan'])) : date('Y-m-d\TH:i');
     $tglLap = date('Y-m-d', strtotime($waktuLaporan));
-    $hariKe = $laporan['hari_ke'] ?: TemplateHelper::hitungHariKe($baseDateOps, $tglLap);
+    $hariKe = TemplateHelper::hitungHariKe($baseDateOps, $tglLap);
     $jenisLaporan = $laporan['jenis_laporan'] ?? 'PERKEMBANGAN';
     $waktuDebrief = !empty($laporan['waktu_debrief']) ? date('Y-m-d\TH:i', strtotime($laporan['waktu_debrief'])) : date('Y-m-d\TH:i');
     $cuaca = $laporan['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');

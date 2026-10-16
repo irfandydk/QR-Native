@@ -292,7 +292,8 @@ class OperasiModel {
             }
 
             // Insert Tim Berangkat
-            if (!empty($data['detail_tim_berangkat'])) {
+            $timBerangkat = trim((string)($data['tim_berangkat'] ?? ''));
+            if (!empty($data['detail_tim_berangkat']) && is_array($data['detail_tim_berangkat'])) {
                 $stmtT = $db->prepare("INSERT INTO DetailTimBerangkat (id_operasi, id_tim, nama_tim) VALUES (:id_ops, :id_tim, :nama)");
                 foreach ($data['detail_tim_berangkat'] as $t) {
                     if (empty($t['nama_tim'])) continue;
@@ -302,6 +303,19 @@ class OperasiModel {
                         ':nama' => $t['nama_tim']
                     ]);
                 }
+            } elseif ($timBerangkat !== '') {
+                $idTim = (int)($data['id_tim_berangkat'] ?? 0);
+                if ($idTim <= 0) {
+                    $stmtMt = $db->prepare("SELECT id_tim FROM MasterTim WHERE LOWER(nama_tim) = LOWER(:nama) LIMIT 1");
+                    $stmtMt->execute([':nama' => $timBerangkat]);
+                    $idTim = (int)($stmtMt->fetchColumn() ?: 0);
+                }
+                $stmtT = $db->prepare("INSERT INTO DetailTimBerangkat (id_operasi, id_tim, nama_tim) VALUES (:id_ops, :id_tim, :nama)");
+                $stmtT->execute([
+                    ':id_ops' => $idOperasi,
+                    ':id_tim' => $idTim,
+                    ':nama' => $timBerangkat
+                ]);
             }
 
             $db->commit();
@@ -459,6 +473,11 @@ class OperasiModel {
             // Differential update for DetailAlut
             if (isset($data['detail_alut'])) {
                 self::applyDifferentialAlut($db, $id, $data['detail_alut']);
+            }
+
+            // Differential update for DetailTimBerangkat
+            if (isset($data['tim_berangkat']) || isset($data['detail_tim_berangkat'])) {
+                self::applyDifferentialTimBerangkat($db, $id, $data);
             }
 
             $db->commit();
@@ -686,6 +705,35 @@ class OperasiModel {
         }
     }
 
+    public static function applyDifferentialTimBerangkat(PDO $db, int $idOperasi, array $data): void {
+        $timBerangkat = trim((string)($data['tim_berangkat'] ?? ''));
+        if ($timBerangkat === '' && empty($data['detail_tim_berangkat'])) {
+            $db->prepare("DELETE FROM DetailTimBerangkat WHERE id_operasi = :id")->execute([':id' => $idOperasi]);
+            return;
+        }
+
+        $idTim = (int)($data['id_tim_berangkat'] ?? 0);
+        if ($idTim <= 0 && $timBerangkat !== '') {
+            $stmtMt = $db->prepare("SELECT id_tim FROM MasterTim WHERE LOWER(nama_tim) = LOWER(:nama) LIMIT 1");
+            $stmtMt->execute([':nama' => $timBerangkat]);
+            $idTim = (int)($stmtMt->fetchColumn() ?: 0);
+        }
+
+        $stmtCheck = $db->prepare("SELECT id_detail_tim FROM DetailTimBerangkat WHERE id_operasi = :id ORDER BY id_detail_tim ASC LIMIT 1");
+        $stmtCheck->execute([':id' => $idOperasi]);
+        $existingId = $stmtCheck->fetchColumn();
+
+        if ($existingId) {
+            $db->prepare("UPDATE DetailTimBerangkat SET id_tim = :id_tim, nama_tim = :nama WHERE id_detail_tim = :dtid")
+               ->execute([':id_tim' => $idTim, ':nama' => $timBerangkat, ':dtid' => $existingId]);
+            $db->prepare("DELETE FROM DetailTimBerangkat WHERE id_operasi = :id AND id_detail_tim != :dtid")
+               ->execute([':id' => $idOperasi, ':dtid' => $existingId]);
+        } else {
+            $db->prepare("INSERT INTO DetailTimBerangkat (id_operasi, id_tim, nama_tim) VALUES (:id_ops, :id_tim, :nama)")
+               ->execute([':id_ops' => $idOperasi, ':id_tim' => $idTim, ':nama' => $timBerangkat]);
+        }
+    }
+
     public static function syncUnsurAlut(int $idOperasi, array $unsurData, array $alutData): void {
         $db = getDB();
         $inTx = $db->inTransaction();
@@ -743,6 +791,7 @@ class OperasiModel {
             'DetailAlut' => 'id_detail_alut',
             'DetailUnsur' => 'id_detail_unsur',
             'DetailTimBerangkat' => 'id_detail_tim',
+            'MasterTim' => 'id_tim',
             'Korban' => 'id_korban',
             'RenopsSRU' => 'id_sru',
             'BraSection' => 'id',

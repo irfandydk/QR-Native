@@ -625,6 +625,7 @@ function renderSruList() {
       <input type="hidden" name="srus[${idx}][luas_area]" value="${escapeHtml(s.luas_area || '')}">
       <input type="hidden" name="srus[${idx}][pola_pencarian]" value="${escapeHtml(s.pola_pencarian || 'Parallel Track Search')}">
       <input type="hidden" name="srus[${idx}][total_sapuan]" value="${escapeHtml(s.total_sapuan || '')}">
+      <input type="hidden" name="srus[${idx}][track_spacing]" value="${escapeHtml(s.track_spacing || '')}">
 
       <div>
         <div class="flex items-center justify-between mb-1">
@@ -1044,19 +1045,30 @@ ${footer}`;
 
 function copyRenopsWa() {
   const content = document.getElementById('renops-wa-preview-content')?.textContent || '';
-  if (navigator.clipboard) {
+  if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(content).then(() => {
       if (typeof showToast === 'function') showToast('Format WA RENOPS berhasil disalin!', 'success');
-    });
+    }).catch(() => fallbackCopyRenopsText(content));
   } else {
-    const ta = document.createElement('textarea');
-    ta.value = content;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    if (typeof showToast === 'function') showToast('Format WA RENOPS berhasil disalin!', 'success');
+    fallbackCopyRenopsText(content);
   }
+}
+
+function fallbackCopyRenopsText(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    if (typeof showToast === 'function') showToast('Format WA RENOPS berhasil disalin!', 'success');
+  } catch (err) {
+    if (typeof showToast === 'function') showToast('Gagal menyalin teks secara otomatis', 'error');
+  }
+  document.body.removeChild(ta);
 }
 
 function openModal(id) {
@@ -1564,7 +1576,7 @@ function handleImportPointClick(ptId, selectId) {
 }
 
 function getPatternDetails(matchedPattern) {
-  if (!matchedPattern) return { pola: 'Parallel Track Search', totalSapuan: '', detailText: '' };
+  if (!matchedPattern) return { pola: 'Parallel Track Search', totalSapuan: '', spacing: '', detailText: '' };
   
   let pola = 'Parallel Track Search';
   const pt = matchedPattern.patternType;
@@ -1585,7 +1597,7 @@ function getPatternDetails(matchedPattern) {
 
   const detailText = '';
 
-  return { pola, totalSapuan, detailText };
+  return { pola, totalSapuan, spacing, detailText };
 }
 
 function importAllPolygonsToSrus() {
@@ -1692,6 +1704,7 @@ function importPatternToSru(patId, targetIdx) {
   const patInfo = getPatternDetails(pat);
   currentSrus[targetIdx].pola_pencarian = patInfo.pola;
   currentSrus[targetIdx].total_sapuan = patInfo.totalSapuan;
+  currentSrus[targetIdx].track_spacing = patInfo.spacing;
 
   const linkedPoly = (SAR_GIS_BUNDLE.polygons || []).find(p => (pat.polygonId && p.id === pat.polygonId) || (pat.polygonName && p.name === pat.polygonName));
   if (linkedPoly) {
@@ -1737,7 +1750,8 @@ function importPatternToNewSru(patId) {
     koordinat_area: taskText,
     luas_area: area,
     pola_pencarian: patInfo.pola,
-    total_sapuan: patInfo.totalSapuan
+    total_sapuan: patInfo.totalSapuan,
+    track_spacing: patInfo.spacing
   });
   
   renderSruList();
@@ -1868,7 +1882,7 @@ document.addEventListener('input', (e) => {
   renopsDraftTimeout = setTimeout(saveRenopsDraft, 1000);
 });
 
-// Real-time Day Recalculation Based on Input Date
+// Real-time Day Recalculation & Schedule Alignment Based on Input Date
 const OPERASI_START_DATE = <?= jsonSafe(date('Y-m-d', strtotime(TemplateHelper::getWaktuMulaiAktual($operasi)))) ?>;
 
 function recalculateRenopsHariKe() {
@@ -1885,14 +1899,46 @@ function recalculateRenopsHariKe() {
   }
 }
 
-document.getElementById('renops_tanggal_laporan')?.addEventListener('input', recalculateRenopsHariKe);
-document.getElementById('renops_tanggal_laporan')?.addEventListener('change', recalculateRenopsHariKe);
+function syncRenopsScheduleDates() {
+  const tglInput = document.getElementById('renops_tanggal_laporan')?.value;
+  if (!tglInput) return;
+
+  const briefingEl = document.getElementById('renops_waktu_briefing');
+  if (briefingEl && briefingEl.value) {
+    const timePart = briefingEl.value.split('T')[1] || '07:00';
+    briefingEl.value = `${tglInput}T${timePart}`;
+  }
+  const mulaiEl = document.getElementById('renops_waktu_mulai_ops');
+  if (mulaiEl && mulaiEl.value) {
+    const timePart = mulaiEl.value.split('T')[1] || '07:30';
+    mulaiEl.value = `${tglInput}T${timePart}`;
+  }
+}
+
+document.getElementById('renops_tanggal_laporan')?.addEventListener('input', () => {
+  recalculateRenopsHariKe();
+  syncRenopsScheduleDates();
+});
+document.getElementById('renops_tanggal_laporan')?.addEventListener('change', () => {
+  recalculateRenopsHariKe();
+  syncRenopsScheduleDates();
+});
+
+// Ensure all dynamic JSON fields are synced and draft is cleared on submission
+document.getElementById('form-renops')?.addEventListener('submit', function() {
+  recalculateRenopsHariKe();
+  syncUnsurFields();
+  syncAlutFields();
+  clearRenopsDraft();
+});
 
 document.addEventListener('DOMContentLoaded', () => {
+  recalculateRenopsHariKe();
   renderSruList();
   renderUnsurList();
   renderAlutList();
   restoreRenopsDraft();
+  recalculateRenopsHariKe();
 });
 
 // Cross-tab auto-sync when plotting data is saved/updated/deleted in GIS map tab

@@ -138,6 +138,16 @@ try {
         exit;
     }
 
+    if ($path === '/auth/ping' && $method === 'GET') {
+        echo json_encode([
+            'success' => true,
+            'logged_in' => AuthHelper::isLoggedIn(),
+            'user' => AuthHelper::isLoggedIn() ? (AuthHelper::getCurrentUser()['username'] ?? 'user') : null,
+            'time' => time()
+        ]);
+        exit;
+    }
+
     if ($path === '/auth/change-password' && $method === 'POST') {
         $requireAuth();
         $currentUser = AuthHelper::getCurrentUser();
@@ -687,6 +697,20 @@ try {
         $kat = $_GET['kategori'] ?? 'MAPEL';
         $satker = $_GET['satker'] ?? DEFAULT_SATKER_KODE;
         echo json_encode(['success' => true, 'data' => BraHelper::getNextNomorBra($kat, $satker)]);
+        exit;
+    }
+
+    if ($path === '/bra/vessels' && $method === 'GET') {
+        $requireAuth();
+        echo json_encode(['success' => true, 'data' => BraHelper::getAvailableVessels()]);
+        exit;
+    }
+
+    if ($path === '/bra/vessel-template' && $method === 'GET') {
+        $requireAuth();
+        $vessel = $_GET['vessel'] ?? 'KN_SAR_PACITAN';
+        $movement = $_GET['movement'] ?? 'TOLAK';
+        echo json_encode(['success' => true, 'data' => BraHelper::buildSectionsFromVesselMovement($vessel, $movement)]);
         exit;
     }
 

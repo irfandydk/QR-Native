@@ -22,23 +22,46 @@ function reindexSections() {
     updateWordCount();
 }
 
-// Live Telegram Word Count
+// Live Telegram Word Count (Standardized Senkom Formula)
 function updateWordCount() {
     let text = '';
-    document.querySelectorAll('.sec-content-input').forEach(el => {
-        text += ' ' + el.value;
-    });
-    const perihalEl = document.getElementById('bra-perihal');
-    if (perihalEl) text += ' ' + perihalEl.value;
+    const perihalEl = document.getElementById('perihalInput') || document.getElementById('bra-perihal');
+    if (perihalEl && perihalEl.value.trim()) {
+        text += perihalEl.value.trim() + ' ';
+    }
+
+    const sectionRows = document.querySelectorAll('.section-block, .bra-section-row');
+    if (sectionRows.length > 0) {
+        sectionRows.forEach(row => {
+            const badge = row.querySelector('.sec-code-badge, .sec-code-input');
+            const ta = row.querySelector('.sec-content-textarea, .sec-content-input');
+            const code = badge ? (badge.textContent || badge.value || '').trim() : '';
+            const isi = ta ? ta.value.trim() : '';
+            if (isi) {
+                if (code) text += code + ' ';
+                text += isi + ' ';
+            }
+        });
+    } else {
+        document.querySelectorAll('.sec-content-textarea, .sec-content-input').forEach(el => {
+            if (el.value.trim()) text += el.value.trim() + ' ';
+        });
+    }
 
     const words = text.trim().split(/\s+/).filter(Boolean);
     const count = words.length;
+    const str = count + ' KATA';
 
-    const countInput = document.getElementById('bra-word-count');
-    if (countInput) countInput.value = count + ' KATA';
+    const countInput = document.getElementById('hiddenJumlahKata') || document.getElementById('bra-word-count');
+    if (countInput) countInput.value = str;
 
-    const displayEl = document.getElementById('word-count-badge');
-    if (displayEl) displayEl.textContent = count + ' KATA';
+    const displayEl = document.getElementById('liveWordCountBadge') || document.getElementById('word-count-badge');
+    if (displayEl) displayEl.textContent = str;
+
+    const pvEl = document.getElementById('pvJumlahKata');
+    if (pvEl) pvEl.textContent = str;
+
+    return count;
 }
 
 // Render QR Code with Center Basarnas Emblem on Canvas

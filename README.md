@@ -1,13 +1,17 @@
 # QR-SAR (Quick Report Search and Rescue) - PHP Native & MySQL
-### Sistem Pelaporan Operasi SAR & Berita Radio SAR (FILE AKTIF)
-**Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari — Badan Nasional Pencarian dan Pertolongan (BASARNAS)**
+
+## Sistem Pelaporan Operasi SAR & Berita Radio SAR (FILE AKTIF)
+
+Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari — Badan Nasional Pencarian dan Pertolongan (BASARNAS).
 
 ---
 
 ## 🌟 Ringkasan Aplikasi
-Aplikasi **QR-SAR PHP Native** ini adalah implementasi sistematis, elegan, dan profesional berstandar kedinasan Basarnas yang dibangun menggunakan **PHP Native murni (PHP 8.0+)** dengan basis data **MySQL**. 
+
+Aplikasi **QR-SAR PHP Native** ini adalah implementasi sistematis, elegan, dan profesional berstandar kedinasan Basarnas yang dibangun menggunakan **PHP Native murni (PHP 8.0+)** dengan basis data **MySQL**.
 
 Aplikasi ini mereplikasi 100% workflow, struktur data, format laporan dinas Basarnas, dan estetika visual dari repositori referensi [QR-SAR](https://github.com/irfandydk/QR-SAR.git), dilengkapi fitur:
+
 1. **Inisiasi Laporan Awal Operasi SAR** (Format FILE AKTIF resmi Basarnas dengan DMS GPS converter, Haversine NM/Km, perhitungan heading/azimuth dari Kansar).
 2. **Siklus Rencana Operasi SAR (RENOPS H.X)** (Pembagian Sektor A-B-C-D, SRU 1 & SRU 2, alut terlibat, dan pola pencarian).
 3. **Laporan Perkembangan Harian (SITREP / LAPBANG)** (Pembaruan status korban: Selamat / Meninggal Dunia / Dalam Pencarian / Hilang, kendala operasi, cuaca).
@@ -85,21 +89,27 @@ QR-SAR/
 ## 🚀 Panduan Menjalankan Aplikasi
 
 ### 1. Prasyarat Sistem
+
 - **PHP** versi 8.0, 8.1, 8.2, 8.3, atau 8.5+ (Ekstensi `pdo_mysql`, `json`, `mbstring` aktif).
 - **MySQL / MariaDB** (Versi 5.7, 8.0, atau MariaDB 10.4+).
 - Web Server: Built-in PHP Server, Apache (XAMPP/Laragon/MAMP), atau Nginx.
 
 ### 2. Import Basis Data MySQL
+
 Buat database bernama `qrsar` (atau sesuaikan pada konfigurasi), lalu import file SQL:
+
 ```bash
 # Melalui terminal MySQL:
 mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS qrsar CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 mysql -u root -p qrsar < database/db_sar_qr.sql
 ```
+
 *Atau gunakan **phpMyAdmin**: Buat database `qrsar` baru dan import file `database/db_sar_qr.sql`.*
 
 ### 3. Konfigurasi Lingkungan (`.env`)
+
 Salin file `.env.example` menjadi `.env` jika diperlukan (secara default aplikasi langsung mendeteksi koneksi lokal `localhost` dengan user `root` tanpa password):
+
 ```ini
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -113,19 +123,25 @@ DB_PASSWORD=
 Aplikasi QR-SAR mendukung arsitektur **Dual-Mode Deployment** yang fleksibel:
 
 #### Opsi 1: Mode Cepat Pangkalan (Root Document Root)
+
 Sangat cocok untuk pengujian cepat di laptop siaga menggunakan PHP Built-in Server:
+
 ```bash
 php -S 127.0.0.1:8000 router.php
 ```
 
 #### Opsi 2: Mode Modern Aman Produksi (Public Document Root)
+
 Direkomendasikan untuk server produksi Linux (Apache / Nginx). Direktori privat (`config`, `models`, `helpers`, `views`, `database`) berada 100% di luar Document Root:
+
 ```bash
 php -S 127.0.0.1:8000 -t public public/router.php
 ```
 
 #### Manajemen & Sinkronisasi Aset Publik (Single Source of Truth)
+
 Seluruh aset desain dan berkas unggahan berpusat pada folder `/assets` dan `/uploads`. Folder `/public` secara cerdas terhubung melalui tautan simbolik (*symlink*) otomatis dengan sistem *fallback streaming* PHP jika server tidak mendukung symlink. Gunakan alat bantu CLI untuk mengelola keterhubungan aset:
+
 ```bash
 # Periksa status keterhubungan aset publik:
 php cli/sync_assets.php --status
@@ -143,7 +159,9 @@ Buka peramban (*browser*) dan akses alamat:
 ---
 
 ## 🔐 Akun Masuk Sistem (Default Login)
+
 Sistem dilengkapi dua tingkatan peran (*role*):
+
 1. **Administrator Utama (SMC)**
    - **Username**: `admin`
    - **Password**: `Kendari304` *(atau `admin123`)*
@@ -158,12 +176,14 @@ Sistem dilengkapi dua tingkatan peran (*role*):
 
 ## 📑 Spesifikasi Fitur Utama
 
-### 1. Inisiasi Laporan Awal & Penomoran Resmi
-- Penomoran otomatis berformat dinas Basarnas: `NO: LA-[TANGGAL]-[URUT]/OPS-SAR/[KODE_SATKER]/[BULAN][TAHUN]` (contoh: `LA-210926-001/OPS-SAR/SAR-304/0926`).
+### 1. Inisiasi Laporan Awal (Emergency Quick Report)
+
+- Format baku pesan darurat siaga SAR tanpa nomor surat pada fase respons awal (sesuai standar pesan cepat Basarnas).
 - Konversi koordinat instan antara Derajat Menit Detik (DMS) dan Angka Desimal.
-- Kalkulasi otomatis jarak Nautical Miles (NM) dan Kilometer dari Kantor SAR Kendari ke titik LKP beserta perkiraan waktu tempuh (*Estimated Time of Arrival / ETA*).
+- Kalkulasi otomatis jarak Nautical Miles (NM) dan radial derajat kompas dari pangkalan/pos tim yang diberangkatkan ke titik LKP beserta perkiraan waktu tempuh (*Estimated Time of Arrival / ETA*).
 
 ### 2. Tabbed Hub Operasi SAR
+
 - **Tab Ringkasan**: Laporan Awal lengkap, visualisasi status korban (*Selamat, Meninggal Dunia, Dalam Pencarian, Hilang*), tombol salin naskah WhatsApp resmi 1-klik, dan cetak dokumen.
 - **Tab Rencana Operasi (RENOPS)**: Pembuatan Renops H.1, H.2, dst., dengan grid pembagian SRU 1 & SRU 2, batas koordinat area pencarian, alut, dan frekuensi komunikasi.
 - **Tab Laporan Perkembangan (SITREP)**: Entri harian hasil pencarian, cuaca BMKG maritim, faktor penghambat, dan pembaruan korban.
@@ -172,6 +192,7 @@ Sistem dilengkapi dua tingkatan peran (*role*):
 - **Tutup & Rollback Operasi**: Fitur penutupan resmi operasi dan pengembalian (*rollback*) status bila ada perkembangan korban baru.
 
 ### 3. Berita Radio SAR (BRA) Standar Senkom
+
 - Kategori dokumen: `BRA MAPEL` (Radio Siaran Informasi), `BRA SAR` (Operasi SAR), dan `BRA PERGERAKAN KAPAL` (Pelayaran KN SAR / Rescue Boat).
 - Penomoran atomik: `[NOMOR_URUT]/SAR-304/[BULAN][TAHUN]`.
 - Seksi dinas alfabetis `AAA`, `BBB`, `CCC`, dst., dengan penghitung kata (*live word counter*) otomatis.
@@ -184,6 +205,7 @@ Sistem dilengkapi dua tingkatan peran (*role*):
   - 4 Kolom buku komunikasi operator Senkom (T.W.T, T.W.K, SISTEM, PARAF).
 
 ### 4. Tactical Maritime GIS
+
 - Pemetaan maritim interaktif berbasis Leaflet dengan dua pilihan layer: Citra Satelit Resolusi Tinggi (Esri World Imagery) dan Peta Vektor OSM.
 - Plotting titik taktis: LKP Kejadian, Kantor SAR, Pos SAR Baubau, Dermaga Sandar, Helipad.
 - Perhitungan luas poligon pencarian (*Search Area*) dalam Nautical Miles persegi (NM²).
@@ -198,6 +220,7 @@ Sistem dilengkapi dua tingkatan peran (*role*):
 ---
 
 ## 🛡️ Keamanan & Standar Koding
+
 - **PHP 8 Strict Typing** (`declare(strict_types=1);`).
 - **CSRF Token Protection** di semua form mutasi data.
 - **PDO Prepared Statements** untuk mencegah serangan SQL Injection secara menyeluruh.

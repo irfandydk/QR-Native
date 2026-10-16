@@ -29,14 +29,47 @@ if ($method === 'POST') {
         if (is_array($decodedU)) $_POST['detail_unsur'] = $decodedU;
     }
 
+    if ($action === 'create' || $action === 'update') {
+        $errors = [];
+        if (empty(trim($_POST['nama_operasi'] ?? ''))) {
+            $errors[] = 'Nama Operasi SAR wajib diisi.';
+        }
+        if (empty(trim($_POST['nama_pelapor'] ?? ''))) {
+            $errors[] = 'Nama Pelapor wajib diisi.';
+        }
+        if (empty(trim($_POST['lokasi_kejadian'] ?? ''))) {
+            $errors[] = 'Lokasi Kejadian wajib diisi.';
+        }
+        if (empty(trim($_POST['waktu_lapor'] ?? ''))) {
+            $errors[] = 'Waktu Lapor Kejadian wajib diisi.';
+        }
+        if (empty(trim($_POST['waktu_berangkat'] ?? ''))) {
+            $errors[] = 'Waktu Tim Berangkat wajib diisi.';
+        }
+
+        if (!empty($errors)) {
+            $_SESSION['old_input'] = $_POST;
+            setFlash('error', implode(' ', $errors));
+            if ($action === 'update') {
+                $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
+                header("Location: " . BASE_URL . "/operasi_form.php?id={$id}");
+            } else {
+                header("Location: " . BASE_URL . "/operasi_form.php");
+            }
+            exit;
+        }
+    }
+
     if ($action === 'create') {
         try {
             $newId = OperasiModel::create($_POST);
+            unset($_SESSION['old_input']);
             setFlash('success', 'Laporan Awal Operasi SAR berhasil diterbitkan!');
             header("Location: " . BASE_URL . "/operasi_detail.php?id={$newId}");
             exit;
         } catch (Throwable $e) {
-            setFlash('error', 'Gagal membuat operasi: ' . $e->getMessage());
+            $_SESSION['old_input'] = $_POST;
+            setFlash('error', 'Gagal membuat operasi SAR: ' . $e->getMessage());
             header("Location: " . BASE_URL . "/operasi_form.php");
             exit;
         }
@@ -46,11 +79,13 @@ if ($method === 'POST') {
         $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
         try {
             OperasiModel::update($id, $_POST);
+            unset($_SESSION['old_input']);
             setFlash('success', 'Data Operasi SAR berhasil diperbarui!');
             header("Location: " . BASE_URL . "/operasi_detail.php?id={$id}");
             exit;
         } catch (Throwable $e) {
-            setFlash('error', 'Gagal memperbarui operasi: ' . $e->getMessage());
+            $_SESSION['old_input'] = $_POST;
+            setFlash('error', 'Gagal memperbarui operasi SAR: ' . $e->getMessage());
             header("Location: " . BASE_URL . "/operasi_form.php?id={$id}");
             exit;
         }

@@ -113,9 +113,10 @@ class BraModel {
         try {
             $kategori = strtoupper($data['kategori'] ?? 'MAPEL');
             $satkerKode = $data['satker_kode'] ?? DEFAULT_SATKER_KODE;
+            $isAuto = !isset($data['is_auto_no_bra']) || $data['is_auto_no_bra'] === '1' || $data['is_auto_no_bra'] === 1 || $data['is_auto_no_bra'] === true;
 
-            // Generate sequence and no_bra with atomic row-level lock if not provided
-            if (empty($data['no_bra'])) {
+            // Generate sequence and no_bra with atomic row-level lock
+            if ($isAuto || empty($data['no_bra'])) {
                 $next = BraHelper::getNextNomorBra($kategori, $satkerKode, $db, true);
                 $nomorUrut = $next['nomor_urut'];
                 $noBra = $next['no_bra'];
@@ -126,10 +127,30 @@ class BraModel {
                 $satkerKode = $parsed['satker_kode'];
                 $bulanTahun = $parsed['bulan_tahun'];
                 $noBra = $parsed['no_bra'];
+
+                // Verifikasi ketersediaan nomor kustom dengan penguncian baris
+                $stmtCheck = $db->prepare("SELECT id_bra FROM BraSar WHERE no_bra = :no_bra LIMIT 1 FOR UPDATE");
+                $stmtCheck->execute([':no_bra' => $noBra]);
+                if ($stmtCheck->fetch()) {
+                    // Jika no_bra kustom ternyata sudah digunakan, otomatis alokasikan nomor urut berikutnya secara atomik
+                    $next = BraHelper::getNextNomorBra($kategori, $satkerKode, $db, true);
+                    $nomorUrut = $next['nomor_urut'];
+                    $noBra = $next['no_bra'];
+                    $bulanTahun = $next['bulan_tahun'];
+                }
             }
 
             $sections = $data['sections'] ?? [];
-            $wordCount = $data['jumlah_kata'] ?? (BraHelper::countBraWords($sections) . ' KATA');
+            $perihal = trim((string)($data['perihal'] ?? ''));
+            $wordCount = !empty($data['jumlah_kata']) ? $data['jumlah_kata'] : (BraHelper::countBraWords($sections, $perihal) . ' KATA');
+
+            $idOps = !empty($data['id_operasi']) ? (int)$data['id_operasi'] : null;
+            $namaOps = trim((string)($data['nama_operasi'] ?? ''));
+            if ($idOps && empty($namaOps)) {
+                $stmtOps = $db->prepare("SELECT nama_operasi FROM Operasi WHERE id_operasi = :id LIMIT 1");
+                $stmtOps->execute([':id' => $idOps]);
+                $namaOps = (string)($stmtOps->fetchColumn() ?: '');
+            }
 
             $stmt = $db->prepare("INSERT INTO BraSar (
                 kategori, no_bra, nomor_urut, satker_kode, bulan_tahun,
@@ -148,7 +169,6 @@ class BraModel {
             )");
 
             $now = date('Y-m-d H:i:s');
-            $idOps = !empty($data['id_operasi']) ? (int)$data['id_operasi'] : null;
 
             $stmt->execute([
                 ':kategori' => $kategori,
@@ -157,7 +177,7 @@ class BraModel {
                 ':satker_kode' => $satkerKode,
                 ':bulan_tahun' => $bulanTahun,
                 ':id_operasi' => $idOps,
-                ':nama_operasi' => $data['nama_operasi'] ?? '',
+                ':nama_operasi' => $namaOps,
                 ':panggilan' => $data['panggilan'] ?? '',
                 ':jenis' => $data['jenis'] ?? '',
                 ':nr_stn' => $data['nr_stn'] ?? '',
@@ -167,7 +187,7 @@ class BraModel {
                 ':aksi' => $data['aksi'] ?? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN',
                 ':info' => $data['info'] ?? 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN',
                 ':sifat' => $data['sifat'] ?? '',
-                ':menbra' => $data['menbra'] ?? '',
+                ':menbra' => (strtoupper(trim((string)($data['menbra'] ?? ''))) === 'SEGERA' || trim((string)($data['menbra'] ?? '')) === '-') ? '' : trim((string)($data['menbra'] ?? '')),
                 ':perihal' => $data['perihal'] ?? '',
                 ':tanggal_waktu' => $data['tanggal_waktu'] ?? '',
                 ':twu' => $data['twu'] ?? BraHelper::formatMilitaryTW(),
@@ -188,20 +208,7 @@ class BraModel {
 
             $idBra = (int)$db->lastInsertId();
 
-            // Set default barcode_data with cryptographic token
-            if (empty($data['barcode_data'])) {
-                $verifyUrl = self::generateVerifyUrl([
-                    'id_bra' => $idBra,
-                    'no_bra' => $noBra,
-                    'twu' => $data['twu'] ?? ''
-                ]);
-                $db->prepare("UPDATE BraSar SET barcode_data = :bc WHERE id_bra = :id")->execute([
-                    ':bc' => $verifyUrl,
-                    ':id' => $idBra
-                ]);
-            }
-
-            // Insert Sections
+            // Insert Sections terlebih dahulu agar tersedia saat token QR dihitung
             if (!empty($sections)) {
                 $stmtSec = $db->prepare("INSERT INTO BraSection (id_bra, kode, isi) VALUES (:id_bra, :kode, :isi)");
                 foreach ($sections as $sec) {
@@ -212,6 +219,23 @@ class BraModel {
                         ':isi' => $sec['isi']
                     ]);
                 }
+            }
+
+            // Set barcode_data dengan token verifikasi kriptografis modern
+            if (empty($data['barcode_data'])) {
+                $verifyUrl = self::generateVerifyUrl([
+                    'id_bra' => $idBra,
+                    'no_bra' => $noBra,
+                    'twu' => $data['twu'] ?? '',
+                    'nama_smc' => $data['nama_smc'] ?? 'AMIRUDDIN A.S., S.Sos.',
+                    'pangkat_smc' => $data['pangkat_smc'] ?? 'PEMBINA (IV/a)',
+                    'perihal' => $data['perihal'] ?? '',
+                    'sections' => $sections
+                ]);
+                $db->prepare("UPDATE BraSar SET barcode_data = :bc WHERE id_bra = :id")->execute([
+                    ':bc' => $verifyUrl,
+                    ':id' => $idBra
+                ]);
             }
 
             if ($db->inTransaction()) {
@@ -234,9 +258,16 @@ class BraModel {
 
         try {
             $sections = $data['sections'] ?? [];
-            $wordCount = $data['jumlah_kata'] ?? (BraHelper::countBraWords($sections) . ' KATA');
+            $perihal = trim((string)($data['perihal'] ?? ''));
+            $wordCount = !empty($data['jumlah_kata']) ? $data['jumlah_kata'] : (BraHelper::countBraWords($sections, $perihal) . ' KATA');
 
             $idOps = !empty($data['id_operasi']) ? (int)$data['id_operasi'] : null;
+            $namaOps = trim((string)($data['nama_operasi'] ?? ''));
+            if ($idOps && empty($namaOps)) {
+                $stmtOps = $db->prepare("SELECT nama_operasi FROM Operasi WHERE id_operasi = :id LIMIT 1");
+                $stmtOps->execute([':id' => $idOps]);
+                $namaOps = (string)($stmtOps->fetchColumn() ?: '');
+            }
 
             $parsed = BraHelper::parseNoBra($data['no_bra'] ?? '', $data['satker_kode'] ?? DEFAULT_SATKER_KODE);
             $nomorUrut = $parsed['nomor_urut'];
@@ -285,7 +316,7 @@ class BraModel {
                 ':satker_kode' => $satkerKode,
                 ':bulan_tahun' => $bulanTahun,
                 ':id_operasi' => $idOps,
-                ':nama_operasi' => $data['nama_operasi'] ?? ($data['perihal'] ?? ''),
+                ':nama_operasi' => $namaOps ?: ($perihal ?: ''),
                 ':panggilan' => $data['panggilan'] ?? '',
                 ':jenis' => $data['jenis'] ?? '',
                 ':nr_stn' => $data['nr_stn'] ?? '',
@@ -295,7 +326,7 @@ class BraModel {
                 ':aksi' => $data['aksi'] ?? '',
                 ':info' => $data['info'] ?? '',
                 ':sifat' => $data['sifat'] ?? '',
-                ':menbra' => $data['menbra'] ?? '',
+                ':menbra' => (strtoupper(trim((string)($data['menbra'] ?? ''))) === 'SEGERA' || trim((string)($data['menbra'] ?? '')) === '-') ? '' : trim((string)($data['menbra'] ?? '')),
                 ':perihal' => $data['perihal'] ?? '',
                 ':tanggal_waktu' => $data['tanggal_waktu'] ?? '',
                 ':twu' => $data['twu'] ?? '',
@@ -309,17 +340,6 @@ class BraModel {
                 ':twk' => $data['twk'] ?? '',
                 ':sistem' => $data['sistem'] ?? '',
                 ':paraf' => $data['paraf'] ?? ''
-            ]);
-
-            // Sync updated barcode_data verify token
-            $verifyUrl = self::generateVerifyUrl([
-                'id_bra' => $id,
-                'no_bra' => $noBra,
-                'twu' => $data['twu'] ?? ''
-            ]);
-            $db->prepare("UPDATE BraSar SET barcode_data = :bc WHERE id_bra = :id")->execute([
-                ':bc' => $verifyUrl,
-                ':id' => $id
             ]);
 
             // Differential update for sections to prevent ID escalation in BraSection
@@ -378,6 +398,21 @@ class BraModel {
                     $stmtDel->execute([...$toDelete, $id]);
                 }
             }
+
+            // Sync updated barcode_data verify token dengan checksum seksi dan data terkini
+            $verifyUrl = self::generateVerifyUrl([
+                'id_bra' => $id,
+                'no_bra' => $noBra,
+                'twu' => $data['twu'] ?? '',
+                'nama_smc' => $data['nama_smc'] ?? '',
+                'pangkat_smc' => $data['pangkat_smc'] ?? '',
+                'perihal' => $data['perihal'] ?? '',
+                'sections' => $sections
+            ]);
+            $db->prepare("UPDATE BraSar SET barcode_data = :bc WHERE id_bra = :id")->execute([
+                ':bc' => $verifyUrl,
+                ':id' => $id
+            ]);
 
             if ($db->inTransaction()) {
                 $db->commit();
@@ -444,9 +479,51 @@ class BraModel {
 
     /**
      * Menghasilkan tanda tangan digital / token verifikasi kriptografis resmi BRA SAR
-     * Memakai HMAC-SHA256 untuk memastikan keaslian lembar dokumen dan mencegah IDOR / URL tampering
+     * Memakai HMAC-SHA256 yang memvalidasi integritas penuh: ID, No BRA, TWU, SMC, Perihal, dan Checksum Seksi (AAA-ZZZ)
      */
     public static function generateVerifyToken(array $bra): string {
+        $id = (string)($bra['id_bra'] ?? '');
+        $noBra = strtoupper(trim((string)($bra['no_bra'] ?? '')));
+        $twu = strtoupper(trim((string)($bra['twu'] ?? '')));
+        $smc = strtoupper(trim((string)($bra['nama_smc'] ?? '')));
+        $pangkat = strtoupper(trim((string)($bra['pangkat_smc'] ?? '')));
+        $perihal = strtoupper(trim((string)($bra['perihal'] ?? '')));
+
+        // Checksum isi seluruh seksi berita (AAA-ZZZ)
+        $sections = $bra['sections'] ?? [];
+        if (empty($sections) && !empty($id) && is_numeric($id)) {
+            try {
+                $db = getDB();
+                $stmtSec = $db->prepare("SELECT kode, isi FROM BraSection WHERE id_bra = :id ORDER BY id ASC");
+                $stmtSec->execute([':id' => (int)$id]);
+                $sections = $stmtSec->fetchAll();
+            } catch (Throwable) {
+                $sections = [];
+            }
+        }
+
+        $secSignatures = [];
+        if (is_array($sections)) {
+            foreach ($sections as $s) {
+                $k = strtoupper(trim((string)($s['kode'] ?? '')));
+                $i = trim((string)($s['isi'] ?? ''));
+                if ($k !== '' || $i !== '') {
+                    $normalizedIsi = preg_replace('/\s+/', ' ', $i);
+                    $secSignatures[] = "{$k}=" . md5($normalizedIsi);
+                }
+            }
+        }
+        $sectionsHash = implode(';', $secSignatures);
+
+        $salt = defined('APP_KEY') ? APP_KEY : 'BASARNAS_KENDARI_BRA_SECRET_SALT_2026';
+        $payload = "BASARNAS_BRA:{$id}:{$noBra}:{$twu}:{$smc}:{$pangkat}:" . md5($perihal) . ":{$sectionsHash}";
+        return strtoupper(substr(hash_hmac('sha256', $payload, $salt), 0, 16));
+    }
+
+    /**
+     * Menghasilkan token versi lama (legacy) untuk backward compatibility
+     */
+    public static function generateLegacyVerifyToken(array $bra): string {
         $id = (string)($bra['id_bra'] ?? '');
         $noBra = (string)($bra['no_bra'] ?? '');
         $twu = (string)($bra['twu'] ?? '');
@@ -462,8 +539,17 @@ class BraModel {
         if ($token === null || trim($token) === '') {
             return false;
         }
-        $expected = self::generateVerifyToken($bra);
-        return hash_equals($expected, strtoupper(trim($token)));
+        $cleanToken = strtoupper(trim($token));
+
+        // 1. Cek kecocokan token modern (dengan proteksi isi seksi & pejabat SMC)
+        $expectedModern = self::generateVerifyToken($bra);
+        if (hash_equals($expectedModern, $cleanToken)) {
+            return true;
+        }
+
+        // 2. Fallback verifikasi token legacy (untuk dokumen yang telah dicetak sebelumnya)
+        $expectedLegacy = self::generateLegacyVerifyToken($bra);
+        return hash_equals($expectedLegacy, $cleanToken);
     }
 
     /**

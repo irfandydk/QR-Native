@@ -217,11 +217,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
     <button class="tab-btn <?= $activeTab === 'gis' ? 'active' : '' ?>" onclick="switchTab('gis')">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
         <span>Peta Taktis (GIS)</span>
-        <?php if ($totalComponents > 0): ?>
-            <span id="gis-tab-count" class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30"><?= $totalComponents ?></span>
-        <?php else: ?>
-            <span id="gis-tab-count" class="hidden ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">0</span>
-        <?php endif; ?>
+        <span id="gis-tab-count" class="<?= $totalComponents > 0 ? '' : 'hidden' ?> ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30"><?= $totalComponents ?></span>
     </button>
     <button class="tab-btn <?= $activeTab === 'cetak' ? 'active' : '' ?>" onclick="switchTab('cetak')">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
@@ -365,9 +361,16 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
         $snapAlut = !empty($ren['detail_alut']) && is_array($ren['detail_alut']) ? $ren['detail_alut'] : ($operasi['detail_alut'] ?? []);
         $totalSnapPers = array_sum(array_map(fn($u) => (int)($u['jumlah_personil'] ?? 0), $snapUnsur));
         $totalSnapAlut = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 0), $snapAlut));
+
+        // Perhitungan hari dinamis sebenarnya dari tanggal pelaksanaan vs waktu mulai aktual operasi SAR
+        $renTgl = !empty($ren['tanggal_laporan']) ? $ren['tanggal_laporan'] : (!empty($ren['waktu_briefing']) ? date('Y-m-d', strtotime($ren['waktu_briefing'])) : date('Y-m-d'));
+        $dynamicHariKe = TemplateHelper::hitungHariKe($waktuMulaiOps, $renTgl);
+        $renForWa = $ren;
+        $renForWa['hari_ke'] = $dynamicHariKe;
+
         $renWa = $ren['full_text_wa'] ?? '';
-        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false || strpos($renWa, 'Data Korban:') !== false) {
-            $renWa = TemplateHelper::generateRenopsWA($operasi, $ren, $ren['srus'] ?? [], $operasi['korban'] ?? [], $snapUnsur, $snapAlut);
+        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false || strpos($renWa, 'Data Korban:') !== false || (!empty($ren['hari_ke']) && $ren['hari_ke'] !== $dynamicHariKe)) {
+            $renWa = TemplateHelper::generateRenopsWA($operasi, $renForWa, $ren['srus'] ?? [], $operasi['korban'] ?? [], $snapUnsur, $snapAlut);
         }
     ?>
     <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden transition-all">
@@ -375,7 +378,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
         <div class="p-3.5 sm:p-4 border-b bg-slate-50/70 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
                 <span class="px-2.5 py-0.5 rounded-lg font-mono font-black text-xs bg-orange-600 text-white shadow-xs">
-                    <?= e($ren['hari_ke']) ?>
+                    <?= e($dynamicHariKe) ?>
                 </span>
                 <span class="text-xs font-bold text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5">
                     <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
@@ -470,7 +473,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
-                        <span>Potensi SAR & Armada Terlibat (Snapshot <?= e($ren['hari_ke']) ?>):</span>
+                        <span>Potensi SAR & Armada Terlibat (Snapshot <?= e($dynamicHariKe) ?>):</span>
                     </span>
                     <span class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400">
                         <?= $totalSnapPers ?> Personel &bull; <?= $totalSnapAlut ?> Unit Alut
@@ -511,7 +514,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <summary class="flex items-center justify-between cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-300 select-none">
                     <span class="flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.774-.954l.583-2.183A7.95 7.95 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
-                        <span>Format Naskah WhatsApp Siap Kirim (<?= e($ren['hari_ke']) ?>)</span>
+                        <span>Format Naskah WhatsApp Siap Kirim (<?= e($dynamicHariKe) ?>)</span>
                     </span>
                     <span class="text-slate-400 group-open:rotate-180 transition-transform text-[11px] font-mono">&dtrif;</span>
                 </summary>
@@ -538,7 +541,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             <?php if ($isOpen): ?>
             <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs transition cursor-pointer">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                <span>+ Terbitkan SITREP <?= e($hariKe) ?></span>
+                <span>+ Terbitkan SITREP <?= e($nextLapbang['target_day'] ?? $hariKe) ?></span>
             </a>
             <?php endif; ?>
             <a href="<?= BASE_URL ?>/bra_form.php?id_operasi=<?= $id ?>&kategori=SAR_UMUM" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white border border-slate-200 dark:border-slate-700 font-semibold text-xs transition" title="Buat Berita Radio dari Laporan Perkembangan">
@@ -569,14 +572,14 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
         <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
         </div>
-        <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-1">Belum Ada Laporan Perkembangan (SITREP)</h3>
+        <h3 class="text-sm font-bold text-slate-900 dark:white mb-1">Belum Ada Laporan Perkembangan (SITREP)</h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-4 leading-relaxed">
             Laporan perkembangan memuat evaluasi hasil pencarian harian tim gabungan dan debriefing lapangan.
         </p>
         <?php if ($isOpen): ?>
         <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs transition">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-            <span>+ Terbitkan SITREP <?= e($hariKe) ?></span>
+            <span>+ Terbitkan SITREP <?= e($nextLapbang['target_day'] ?? $hariKe) ?></span>
         </a>
         <?php endif; ?>
     </div>
@@ -588,9 +591,16 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             $snapAlut = !empty($lap['detail_alut']) && is_array($lap['detail_alut']) ? $lap['detail_alut'] : ($operasi['detail_alut'] ?? []);
             $totalSnapPers = array_sum(array_map(fn($u) => (int)($u['jumlah_personil'] ?? 0), $snapUnsur));
             $totalSnapAlut = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 0), $snapAlut));
+
+            // Perhitungan hari dinamis sebenarnya dari tanggal laporan vs waktu mulai aktual operasi SAR
+            $lapTgl = !empty($lap['waktu_laporan']) ? date('Y-m-d', strtotime($lap['waktu_laporan'])) : (!empty($lap['tanggal_laporan']) ? $lap['tanggal_laporan'] : date('Y-m-d'));
+            $dynamicHariKeLap = TemplateHelper::hitungHariKe($waktuMulaiOps, $lapTgl);
+            $lapForWa = $lap;
+            $lapForWa['hari_ke'] = $dynamicHariKeLap;
+
             $lapWa = $lap['full_text_wa'] ?? '';
-            if (empty($lapWa) || strpos($lapWa, 'FILE AKTIF') === false) {
-                $lapWa = TemplateHelper::generateLapbangWA($operasi, $lap, $operasi['korban'] ?? [], $snapUnsur, $snapAlut, $isPenutupan);
+            if (empty($lapWa) || strpos($lapWa, 'FILE AKTIF') === false || (!empty($lap['hari_ke']) && $lap['hari_ke'] !== $dynamicHariKeLap)) {
+                $lapWa = TemplateHelper::generateLapbangWA($operasi, $lapForWa, $operasi['korban'] ?? [], $snapUnsur, $snapAlut, $isPenutupan);
             }
         ?>
         <div class="rounded-2xl bg-white dark:bg-slate-900 border <?= $isPenutupan ? 'border-red-500/30 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800' ?> shadow-xs overflow-hidden transition-all">
@@ -599,7 +609,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             <div class="p-3.5 sm:p-4 border-b <?= $isPenutupan ? 'bg-red-50/40 dark:bg-red-950/20 border-red-200/50 dark:border-red-900/40' : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800' ?> flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="px-2.5 py-0.5 rounded-lg font-mono font-black text-xs <?= $isPenutupan ? 'bg-red-500 text-white shadow-xs' : 'bg-blue-600 text-white shadow-xs' ?>">
-                        <?= $isPenutupan ? 'PENUTUPAN OPERASI' : "LAPBANG " . e($lap['hari_ke']) ?>
+                        <?= $isPenutupan ? 'PENUTUPAN OPERASI' : "LAPBANG " . e($dynamicHariKeLap) ?>
                     </span>
                     <span class="text-xs font-bold text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/></svg>
@@ -661,7 +671,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                     <div class="flex items-center justify-between mb-2.5">
                         <span class="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                             <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
-                            <span>Potensi & Alut Terlibat (Snapshot <?= e($lap['hari_ke']) ?>):</span>
+                            <span>Potensi & Alut Terlibat (Snapshot <?= e($dynamicHariKeLap) ?>):</span>
                         </span>
                         <span class="px-2.5 py-0.5 rounded-full font-mono text-[11px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400">
                             <?= $totalSnapPers ?> Personel &bull; <?= $totalSnapAlut ?> Unit Alut
@@ -1270,10 +1280,12 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             <button type="button" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" onclick="closeModal('modal-view-wa-awal')">✕</button>
         </div>
         <?php
-            $awalWa = $operasi['full_text_wa'] ?? '';
-            if (empty($awalWa) || strpos($awalWa, 'FILE AKTIF') === false) {
-                $awalWa = TemplateHelper::generateLaporanAwalWA($operasi, $operasi['korban'] ?? [], $operasi['detail_unsur'] ?? [], $operasi['detail_alut'] ?? []);
-            }
+            $awalWa = TemplateHelper::generateLaporanAwalWA(
+                $operasi, 
+                $operasi['korban'] ?? [], 
+                $operasi['detail_unsur'] ?? [], 
+                $operasi['detail_alut'] ?? []
+            );
         ?>
         <div class="modal-body p-4">
             <pre id="modal-wa-awal-text" class="font-mono p-4 rounded-xl text-xs bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 leading-relaxed max-h-[55vh] overflow-y-auto select-all whitespace-pre-wrap"><?= e($awalWa) ?></pre>
@@ -1774,11 +1786,22 @@ async function deleteRenops(id) {
         return;
     }
     if (await confirmAction('Hapus RENOPS?', 'Apakah Anda yakin ingin menghapus lembar Rencana Operasi ini?')) {
-        const res = await fetch(`<?= BASE_URL ?>/api/renops/${id}`, { method: 'DELETE' });
-        const json = await res.json();
-        if (json.success) {
-            showToast('RENOPS berhasil dihapus', 'success');
-            setTimeout(() => location.reload(), 600);
+        try {
+            const res = await fetch(`<?= BASE_URL ?>/api/renops/${id}`, { 
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-Token': '<?= csrfToken() ?>'
+                }
+            });
+            const json = await res.json();
+            if (json.success) {
+                showToast('RENOPS berhasil dihapus', 'success');
+                setTimeout(() => location.reload(), 600);
+            } else {
+                showToast(json.error || json.message || 'Gagal menghapus RENOPS', 'error');
+            }
+        } catch (e) {
+            showToast('Terjadi kesalahan jaringan: ' + e.message, 'error');
         }
     }
 }
@@ -1789,11 +1812,22 @@ async function deleteLaporan(id) {
         return;
     }
     if (await confirmAction('Hapus SITREP?', 'Apakah Anda yakin ingin menghapus laporan perkembangan ini?')) {
-        const res = await fetch(`<?= BASE_URL ?>/api/laporan/${id}`, { method: 'DELETE' });
-        const json = await res.json();
-        if (json.success) {
-            showToast('Laporan berhasil dihapus', 'success');
-            setTimeout(() => location.reload(), 600);
+        try {
+            const res = await fetch(`<?= BASE_URL ?>/api/laporan/${id}`, { 
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-Token': '<?= csrfToken() ?>'
+                }
+            });
+            const json = await res.json();
+            if (json.success) {
+                showToast('Laporan berhasil dihapus', 'success');
+                setTimeout(() => location.reload(), 600);
+            } else {
+                showToast(json.error || json.message || 'Gagal menghapus laporan', 'error');
+            }
+        } catch (e) {
+            showToast('Terjadi kesalahan jaringan: ' + e.message, 'error');
         }
     }
 }
@@ -1850,8 +1884,14 @@ async function confirmAndRollbackOperasi(idOperasi) {
         try {
             const resp = await fetch(`<?= BASE_URL ?>/api/operasi/${idOperasi}/rollback-penutupan`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ waktu_reopen: waktuReopenInput })
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': '<?= csrfToken() ?>'
+                },
+                body: JSON.stringify({ 
+                    waktu_reopen: waktuReopenInput,
+                    csrf_token: '<?= csrfToken() ?>'
+                })
             });
             const data = await resp.json();
             if (data.success) {
@@ -1896,7 +1936,14 @@ async function confirmAndRollbackOperasi(idOperasi) {
 }
 
 function printBerkas(type) {
-    window.print();
+    if (type === 'laporan_awal') {
+        openModal('modal-view-wa-awal');
+    } else if (type === 'renops') {
+        switchTab('renops');
+    } else if (type === 'penutupan') {
+        switchTab('sitrep');
+    }
+    setTimeout(() => window.print(), 300);
 }
 </script>
 

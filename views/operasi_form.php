@@ -16,6 +16,8 @@ $masterAlut = MasterModel::getAlut();
 $masterTim = MasterModel::getTim();
 $sarUnits = MasterModel::getSarUnits();
 $defaultUnit = MasterModel::getSarUnits()[0] ?? null;
+$settings = class_exists('SettingsModel') ? SettingsModel::get() : [];
+$satkerKode = $settings['satker_kode'] ?? 'SAR-304';
 $operasi = (isset($operasi) && is_array($operasi)) ? $operasi : [];
 $editMode = !empty($operasi['id_operasi']);
 $formTitle = $editMode ? ("Edit Laporan Awal: " . ($operasi['nama_operasi'] ?? '')) : "Inisiasi Laporan Awal Operasi SAR";
@@ -175,6 +177,25 @@ if (!empty($operasi['radial'])) {
     </div>
   </div>
 
+  <!-- LocalStorage Draft Restore Banner (Only in Create Mode) -->
+  <div id="draft-restore-alert" class="hidden p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+    <div class="flex items-center gap-2.5 text-amber-900 dark:text-amber-200">
+      <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      <div>
+        <span class="font-bold">Draf Laporan Otomatis Ditemukan!</span>
+        <p class="text-[11px] text-amber-700 dark:text-amber-300/80">Sistem mendeteksi draf pengisian laporan awal yang tersimpan dari sesi sebelumnya.</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+      <button type="button" onclick="restoreLocalStorageDraft()" class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold cursor-pointer transition shadow-xs">
+        Pulihkan Draf
+      </button>
+      <button type="button" onclick="discardLocalStorageDraft()" class="px-3 py-1.5 rounded-xl border border-amber-500/30 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold cursor-pointer transition">
+        Abaikan / Hapus
+      </button>
+    </div>
+  </div>
+
   <form id="form-inisiasi-ops" method="POST" action="<?= BASE_URL ?>/<?= $editMode ? ("operasi.php?action=update&id=" . (int)($operasi['id_operasi'] ?? 0)) : "operasi.php?action=create" ?>" class="space-y-6">
     <?= csrfInput() ?>
     <?php if ($editMode): ?>
@@ -321,13 +342,53 @@ if (!empty($operasi['radial'])) {
         </div>
 
         <div class="sm:col-span-2">
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Tim yang Diberangkatkan
-          </label>
-          <input type="text" name="tim_berangkat" id="tim_berangkat"
-            placeholder="Contoh: Tim Rescue Kansar Kendari / Pos SAR Kolaka"
-            value="<?= e($operasi['tim_berangkat'] ?? 'Tim Rescue Kansar Kendari') ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
+              Tim yang Diberangkatkan <span class="text-red-500">*</span>
+            </label>
+            <a href="<?= BASE_URL ?>/master.php?tab=tim" target="_blank" class="text-[11px] text-orange-600 dark:text-orange-400 hover:underline flex items-center gap-1 font-medium" title="Buka Manajemen Master Tim di Tab Baru">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+              <span>Kelola Master Tim</span>
+            </a>
+          </div>
+
+          <?php 
+            $currentTimVal = trim($operasi['tim_berangkat'] ?? 'Tim Rescue Kansar Kendari');
+            $matchedTim = false;
+            $selectedIdTim = 0;
+            foreach ($masterTim as $mt) {
+                if (strcasecmp(trim($mt['nama_tim']), $currentTimVal) === 0) {
+                    $matchedTim = true;
+                    $selectedIdTim = (int)$mt['id_tim'];
+                    break;
+                }
+            }
+          ?>
+          <div class="space-y-2">
+            <select id="select_tim_berangkat" onchange="handleSelectTimBerangkat(this)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium">
+              <option value="">-- Pilih Tim Penyelamat dari Master Data --</option>
+              <?php foreach ($masterTim as $mt): 
+                $isSel = (strcasecmp(trim($mt['nama_tim']), $currentTimVal) === 0);
+              ?>
+                <option value="<?= e($mt['nama_tim']) ?>" data-id="<?= (int)$mt['id_tim'] ?>" <?= $isSel ? 'selected' : '' ?>>
+                  🏢 <?= e($mt['nama_tim']) ?>
+                </option>
+              <?php endforeach; ?>
+              <option value="__CUSTOM__" <?= (!$matchedTim && !empty($currentTimVal)) ? 'selected' : '' ?>>
+                ✏️ + Ketik Nama Tim Kustom / Lainnya...
+              </option>
+            </select>
+
+            <div id="wrapper_custom_tim" class="<?= $matchedTim ? 'hidden' : '' ?>">
+              <input type="text" name="tim_berangkat" id="tim_berangkat"
+                placeholder="Ketik nama tim yang diberangkatkan..."
+                value="<?= e($currentTimVal) ?>"
+                oninput="updateWaPreview()"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium" />
+              <p class="text-[10px] text-slate-400 mt-1 italic">* Masukkan nama tim atau unsur khusus jika tidak terdaftar di Master Tim.</p>
+            </div>
+            <input type="hidden" name="id_tim_berangkat" id="id_tim_berangkat" value="<?= $selectedIdTim ?>" />
+          </div>
         </div>
 
         <div class="sm:col-span-2">
@@ -446,6 +507,31 @@ if (!empty($operasi['radial'])) {
           <input type="hidden" name="koordinat" id="koordinat" value="<?= e(!empty($operasi['koordinat']) ? $operasi['koordinat'] : '04° 02\' 16" S - 122° 29\' 12" E') ?>">
         </div>
 
+        <!-- Pangkalan / Pos Asal Pemberangkatan (Origin Base) Dinamis -->
+        <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <label class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                <span>📍 Pangkalan / Pos Awal Pemberangkatan (Origin):</span>
+              </label>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Titik tolak tim penyelamat (Pos SAR / Kansar / USS / Dermaga) untuk perhitungan jarak & heading radial ke LKP</p>
+            </div>
+            <button type="button" onclick="calculateDistanceAndRadial(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-500/10 hover:bg-orange-600 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/20 hover:border-orange-600 transition cursor-pointer shadow-xs shrink-0" title="Hitung ulang jarak nautical miles dan bearing derajat kompas dari pangkalan ini ke LKP">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              <span>⚡ Hitung Jarak & Radial Otomatis</span>
+            </button>
+          </div>
+          
+          <select id="origin_base_select" onchange="handleOriginBaseChange()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <?php foreach ($sarUnits as $unit): ?>
+              <option value="<?= (int)$unit['id_unit'] ?>" data-lat="<?= $unit['latitude'] ?>" data-lng="<?= $unit['longitude'] ?>" data-dms="<?= e($unit['koordinat_dms'] ?? '') ?>" <?= (!empty($unit['is_default']) ? 'selected' : '') ?>>
+                <?= e($unit['nama_unit']) ?> — <?= e($unit['wilayah']) ?> [<?= e($unit['koordinat_dms'] ?? '') ?>]
+              </option>
+            <?php endforeach; ?>
+          </select>
+          <div id="origin_calc_feedback" class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold min-h-[16px]"></div>
+        </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <!-- Jarak Tempuh (Hanya Angka, Satuan Otomatis) -->
           <div>
@@ -480,7 +566,7 @@ if (!empty($operasi['radial'])) {
               <span class="absolute right-3.5 text-xs font-bold text-slate-400 select-none">°</span>
             </div>
             <input type="hidden" name="radial" id="radial" value="<?= e($operasi['radial'] ?? '') ?>">
-            <span class="text-[10px] text-slate-400 block mt-1">Sudut bearing kompas (0° - 360°)</span>
+            <span class="text-[10px] text-slate-400 block mt-1">Sudut bearing kompas dari pangkalan asal (0° - 360°)</span>
           </div>
         </div>
       </div>
@@ -643,6 +729,7 @@ if (!empty($operasi['radial'])) {
 
         <!-- Input Bar (Nama Unsur, Jumlah Personil, Tambah) -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40">
+          <input type="hidden" id="unsur-input-id" value="">
           <div class="sm:col-span-8">
             <input type="text" id="unsur-input-nama" placeholder="Ketik nama unsur (contoh: Tim Rescue KPP Kendari, Polairud)..." class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
           </div>
@@ -703,6 +790,7 @@ if (!empty($operasi['radial'])) {
 
         <!-- Input Bar (Nama, Jumlah, Satuan, Tambah) -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40">
+          <input type="hidden" id="alut-input-id" value="">
           <div class="sm:col-span-7">
             <input type="text" id="alut-input-nama" placeholder="Ketik nama alut / palsar (contoh: Mobil Rescue, RIB 01)..." class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
           </div>
@@ -834,7 +922,7 @@ if (!empty($operasi['radial'])) {
 
     <!-- Sticky Bottom Actions Bar -->
     <div class="sticky bottom-4 z-20 p-4 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-xl flex items-center justify-between gap-4 transition-colors">
-      <a href="<?= BASE_URL ?>/index.php" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition cursor-pointer">
+      <a href="<?= $editMode ? (BASE_URL . '/operasi_detail.php?id=' . (int)($operasi['id_operasi'] ?? 0)) : (BASE_URL . '/index.php') ?>" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition cursor-pointer">
         Batal
       </a>
 
@@ -1021,6 +1109,32 @@ function renderUnsurList() {
   syncUnsurFields();
 }
 
+function handleSelectTimBerangkat(sel) {
+  const customWrapper = document.getElementById('wrapper_custom_tim');
+  const customInput = document.getElementById('tim_berangkat');
+  const idInput = document.getElementById('id_tim_berangkat');
+  if (!sel || !customInput) return;
+  const opt = sel.options[sel.selectedIndex];
+
+  if (sel.value === '__CUSTOM__') {
+    if (customWrapper) customWrapper.classList.remove('hidden');
+    customInput.focus();
+    if (idInput) idInput.value = '0';
+  } else if (sel.value !== '') {
+    if (customWrapper) customWrapper.classList.add('hidden');
+    customInput.value = sel.value;
+    if (idInput) idInput.value = opt ? (opt.getAttribute('data-id') || '0') : '0';
+    matchTeamToOriginBase(sel.value);
+  } else {
+    if (customWrapper) customWrapper.classList.add('hidden');
+    customInput.value = '';
+    if (idInput) idInput.value = '0';
+  }
+  if (typeof updateWaPreview === 'function') {
+    updateWaPreview();
+  }
+}
+
 function pickMasterTim(jsonStr) {
   if (!jsonStr) return;
   try {
@@ -1028,6 +1142,8 @@ function pickMasterTim(jsonStr) {
     if (item && item.nama_tim) {
       document.getElementById('unsur-input-nama').value = item.nama_tim;
       document.getElementById('unsur-input-jml').value = '1';
+      const idEl = document.getElementById('unsur-input-id');
+      if (idEl) idEl.value = item.id_tim || '';
       document.getElementById('unsur-input-nama').focus();
     }
   } catch (e) {}
@@ -1036,9 +1152,11 @@ function pickMasterTim(jsonStr) {
 function handleAddUnsurClick() {
   const namaInput = document.getElementById('unsur-input-nama');
   const jmlInput = document.getElementById('unsur-input-jml');
+  const idInput = document.getElementById('unsur-input-id');
 
   const nama = namaInput.value.trim();
   const jml = parseInt(jmlInput.value, 10) || 1;
+  const idTim = idInput ? (parseInt(idInput.value, 10) || null) : null;
 
   if (!nama) {
     namaInput.focus();
@@ -1046,12 +1164,14 @@ function handleAddUnsurClick() {
   }
 
   currentUnsurList.push({
+    id_tim: idTim,
     nama_unsur: nama,
     jumlah_personil: jml
   });
 
   namaInput.value = '';
   jmlInput.value = '1';
+  if (idInput) idInput.value = '';
   const sel = document.getElementById('select-master-tim');
   if (sel) sel.value = '';
 
@@ -1127,6 +1247,10 @@ function updateDmsCoordinate() {
 
   const previewEl = document.getElementById('dms_preview_text');
   if (previewEl) previewEl.textContent = formatted;
+
+  if (typeof calculateDistanceAndRadial === 'function') {
+    calculateDistanceAndRadial(false);
+  }
 
   if (typeof updateLiveWa === 'function') {
     updateLiveWa();
@@ -1208,6 +1332,8 @@ function pickMasterAlut(jsonStr) {
       if (item.satuan) {
         document.getElementById('alut-input-satuan').value = item.satuan;
       }
+      const idEl = document.getElementById('alut-input-id');
+      if (idEl) idEl.value = item.id_alut || '';
       document.getElementById('alut-input-nama').focus();
     }
   } catch (e) {}
@@ -1229,10 +1355,12 @@ function handleAddAlutClick() {
   const namaInput = document.getElementById('alut-input-nama');
   const jmlInput = document.getElementById('alut-input-jml');
   const satInput = document.getElementById('alut-input-satuan');
+  const idInput = document.getElementById('alut-input-id');
 
   const nama = namaInput.value.trim();
   const jml = parseInt(jmlInput.value, 10) || 1;
   const sat = satInput.value.trim() || 'Unit';
+  const idAlut = idInput ? (parseInt(idInput.value, 10) || null) : null;
 
   if (!nama) {
     namaInput.focus();
@@ -1240,6 +1368,7 @@ function handleAddAlutClick() {
   }
 
   currentAlutList.push({
+    id_alut: idAlut,
     nama_alut: nama,
     jumlah_alut: jml,
     satuan: sat
@@ -1247,6 +1376,7 @@ function handleAddAlutClick() {
 
   namaInput.value = '';
   jmlInput.value = '1';
+  if (idInput) idInput.value = '';
   document.getElementById('select-master-alut').value = '';
 
   renderAlutList();
@@ -1291,10 +1421,150 @@ function syncAlutFields() {
   }
 }
 
+// Data Injections from Backend
+window.sarUnits = <?= json_encode($sarUnits) ?>;
+window.satkerKode = '<?= e($satkerKode) ?>';
+
 // Helper escapeHtml
 function escapeHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Dynamic Origin-Aware Distance & Bearing/Radial Calculation ──
+function getLkpDecimalCoordinates() {
+  const latDeg = parseInt(document.getElementById('dms_lat_deg')?.value || '0', 10);
+  const latMin = parseInt(document.getElementById('dms_lat_min')?.value || '0', 10);
+  const latSec = parseFloat(document.getElementById('dms_lat_sec')?.value || '0');
+  const latDir = document.getElementById('dms_lat_dir')?.value || 'S';
+
+  const lngDeg = parseInt(document.getElementById('dms_lng_deg')?.value || '0', 10);
+  const lngMin = parseInt(document.getElementById('dms_lng_min')?.value || '0', 10);
+  const lngSec = parseFloat(document.getElementById('dms_lng_sec')?.value || '0');
+  const lngDir = document.getElementById('dms_lng_dir')?.value || 'E';
+
+  let lat = latDeg + (latMin / 60) + ((isNaN(latSec) ? 0 : latSec) / 3600);
+  if (latDir === 'S') lat = -lat;
+
+  let lng = lngDeg + (lngMin / 60) + ((isNaN(lngSec) ? 0 : lngSec) / 3600);
+  if (lngDir === 'W') lng = -lng;
+
+  return { lat, lng };
+}
+
+function calculateDistanceAndBearing(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const km = R * c;
+  const nm = km * 0.539957; // Nautical miles
+
+  // Initial Compass Bearing / Radial
+  const y = Math.sin(dLon) * Math.cos(lat2 * Math.PI / 180);
+  const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+            Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLon);
+  let brng = Math.atan2(y, x) * 180 / Math.PI;
+  brng = (brng + 360) % 360;
+
+  return { km, nm, bearing: brng };
+}
+
+function calculateDistanceAndRadial(autoApply = true) {
+  const originSelect = document.getElementById('origin_base_select');
+  if (!originSelect) return;
+  const opt = originSelect.options[originSelect.selectedIndex];
+  if (!opt) return;
+
+  const originLat = parseFloat(opt.getAttribute('data-lat'));
+  const originLng = parseFloat(opt.getAttribute('data-lng'));
+  const baseName = opt.textContent.split('—')[0].trim();
+
+  if (isNaN(originLat) || isNaN(originLng)) return;
+
+  const lkp = getLkpDecimalCoordinates();
+  if (isNaN(lkp.lat) || isNaN(lkp.lng) || (lkp.lat === 0 && lkp.lng === 0)) return;
+
+  const res = calculateDistanceAndBearing(originLat, originLng, lkp.lat, lkp.lng);
+
+  const fbEl = document.getElementById('origin_calc_feedback');
+  if (fbEl) {
+    fbEl.innerHTML = `📍 Terkalkulasi dari <strong>${escapeHtml(baseName)}</strong> ke LKP: <strong>${res.nm.toFixed(1)} NM</strong> (${res.km.toFixed(1)} KM), Radial <strong>${Math.round(res.bearing).toString().padStart(3, '0')}°</strong>`;
+  }
+
+  if (autoApply) {
+    const jarakUnit = document.getElementById('jarak_unit')?.value || 'NM';
+    const jarakAngkaEl = document.getElementById('jarak_angka');
+    const radialAngkaEl = document.getElementById('radial_angka');
+
+    if (jarakAngkaEl) {
+      jarakAngkaEl.value = (jarakUnit === 'KM' ? res.km : res.nm).toFixed(1);
+    }
+    if (radialAngkaEl) {
+      radialAngkaEl.value = Math.round(res.bearing).toString().padStart(3, '0');
+    }
+
+    syncJarakDanRadial();
+
+    // Auto ETA suggestion if eta_lokasi is empty
+    const etaLokasiEl = document.getElementById('eta_lokasi');
+    if (etaLokasiEl && !etaLokasiEl.value.trim()) {
+      const hours = res.nm / 20; // baseline speed ~20 knots
+      const totalMins = Math.round(hours * 60);
+      if (totalMins < 60) {
+        etaLokasiEl.value = `${Math.max(15, totalMins)} Menit`;
+      } else {
+        const h = Math.floor(totalMins / 60);
+        const m = totalMins % 60;
+        etaLokasiEl.value = m > 0 ? `${h} Jam ${m} Menit` : `${h} Jam`;
+      }
+    }
+
+    if (typeof showToast === 'function') {
+      showToast(`Jarak & Radial otomatis dihitung dari ${baseName}!`, 'info');
+    }
+  }
+}
+
+function handleOriginBaseChange() {
+  calculateDistanceAndRadial(true);
+}
+
+function matchTeamToOriginBase(teamName) {
+  if (!teamName || !window.sarUnits || !window.sarUnits.length) return;
+  const tn = teamName.toLowerCase();
+  const originSelect = document.getElementById('origin_base_select');
+  if (!originSelect) return;
+
+  let matchedUnit = null;
+  if (tn.includes('kolaka utara')) {
+    matchedUnit = window.sarUnits.find(u => u.nama_unit.toLowerCase().includes('kolaka utara'));
+  } else if (tn.includes('kolaka')) {
+    matchedUnit = window.sarUnits.find(u => u.nama_unit.toLowerCase().includes('pos sar kolaka'));
+  } else if (tn.includes('bau') || tn.includes('baubau')) {
+    matchedUnit = window.sarUnits.find(u => u.nama_unit.toLowerCase().includes('baubau'));
+  } else if (tn.includes('wakatobi')) {
+    matchedUnit = window.sarUnits.find(u => u.nama_unit.toLowerCase().includes('wakatobi'));
+  } else if (tn.includes('konawe utara')) {
+    matchedUnit = window.sarUnits.find(u => u.nama_unit.toLowerCase().includes('konawe utara'));
+  } else if (tn.includes('konawe') && !tn.includes('utara') && !tn.includes('selatan')) {
+    matchedUnit = window.sarUnits.find(u => u.nama_unit.toLowerCase().includes('siaga sar konawe'));
+  } else if (tn.includes('muna') || tn.includes('raha')) {
+    matchedUnit = window.sarUnits.find(u => u.nama_unit.toLowerCase().includes('muna'));
+  } else if (tn.includes('pacitan') || tn.includes('rb 210') || tn.includes('rb 307') || tn.includes('kapal') || tn.includes('dermaga')) {
+    matchedUnit = window.sarUnits.find(u => u.nama_unit.toLowerCase().includes('dermaga'));
+  } else if (tn.includes('kendari') || tn.includes('kansar') || tn.includes('smc')) {
+    matchedUnit = window.sarUnits.find(u => u.nama_unit.toLowerCase().includes('kansar kendari'));
+  }
+
+  if (matchedUnit) {
+    originSelect.value = String(matchedUnit.id_unit);
+    calculateDistanceAndRadial(true);
+  }
 }
 
 function syncJarakDanRadial() {
@@ -1316,13 +1586,7 @@ function syncJarakDanRadial() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  renderAlutList();
-  renderUnsurList();
-  bindDmsInputEvents();
-  updateDmsCoordinate();
-  syncJarakDanRadial();
-});
+let pobIsManuallyEdited = false;
 
 // Dynamic Victims
 function addKorbanRow() {
@@ -1366,9 +1630,18 @@ function addKorbanRow() {
   `;
   tbody.appendChild(tr);
 
-  // Update total POB input
+  // Update total POB input only if not manually overridden with a higher custom number
   const pobInput = document.getElementById('jumlah_pob');
-  if (pobInput) pobInput.value = num;
+  if (pobInput) {
+    const currentPob = parseInt(pobInput.value, 10) || 0;
+    if (!pobIsManuallyEdited || currentPob < num) {
+      pobInput.value = Math.max(currentPob, num);
+    }
+  }
+
+  if (typeof updateWaPreview === 'function') {
+    updateWaPreview();
+  }
 }
 
 function removeKorbanRow(btn) {
@@ -1381,7 +1654,8 @@ function removeKorbanRow(btn) {
   btn.closest('.korban-row').remove();
   
   // Re-number
-  tbody.querySelectorAll('.korban-row').forEach((r, idx) => {
+  const remRows = tbody.querySelectorAll('.korban-row');
+  remRows.forEach((r, idx) => {
     r.querySelector('.row-num').textContent = idx + 1;
     r.querySelectorAll('input, select').forEach(el => {
       if (el.name) el.name = el.name.replace(/\[\d+\]/, `[${idx}]`);
@@ -1389,7 +1663,13 @@ function removeKorbanRow(btn) {
   });
 
   const pobInput = document.getElementById('jumlah_pob');
-  if (pobInput) pobInput.value = tbody.querySelectorAll('.korban-row').length;
+  if (pobInput && !pobIsManuallyEdited) {
+    pobInput.value = remRows.length;
+  }
+
+  if (typeof updateWaPreview === 'function') {
+    updateWaPreview();
+  }
 }
 
 // Modal Helper Delegation
@@ -1413,43 +1693,43 @@ window.closeModal = closeModal;
 
 // WhatsApp Preview Generator with Strict "12 Oktober 2026" Date Format
 function previewWhatsApp() {
-  const namaOps = document.getElementById('nama_operasi').value || 'Operasi SAR';
-  const pelapor = document.getElementById('nama_pelapor').value || 'Bpk. Pelapor';
-  const hub = document.getElementById('hubungan_pelapor').value || 'Masyarakat';
-  const hp = document.getElementById('no_telp_pelapor').value || '-';
+  const namaOps = document.getElementById('nama_operasi')?.value || 'Operasi SAR';
+  const pelapor = document.getElementById('nama_pelapor')?.value || 'Bpk. Pelapor';
+  const hub = document.getElementById('hubungan_pelapor')?.value || 'Masyarakat';
+  const hp = document.getElementById('no_telp_pelapor')?.value || '-';
 
-  const waktuLapor = document.getElementById('waktu_lapor').value;
-  const waktuBerangkat = document.getElementById('waktu_berangkat').value;
-  const etaTiba = document.getElementById('eta_tiba').value;
-  const etaLokasi = document.getElementById('eta_lokasi').value || '-';
-  const tim = document.getElementById('tim_berangkat').value || 'Tim Rescue Kansar Kendari';
+  const waktuLapor = document.getElementById('waktu_lapor')?.value;
+  const waktuBerangkat = document.getElementById('waktu_berangkat')?.value;
+  const etaTiba = document.getElementById('eta_tiba')?.value;
+  const etaLokasi = document.getElementById('eta_lokasi')?.value || '-';
+  const tim = document.getElementById('tim_berangkat')?.value || 'Tim Rescue Kansar Kendari';
 
-  const lokasi = document.getElementById('lokasi_kejadian').value || '-';
-  const koordinat = document.getElementById('koordinat').value || '-';
-  const jarak = document.getElementById('jarak').value || '-';
-  const radial = document.getElementById('radial').value || '';
+  const lokasi = document.getElementById('lokasi_kejadian')?.value || '-';
+  const koordinat = document.getElementById('koordinat')?.value || '-';
+  const jarak = document.getElementById('jarak')?.value || '-';
+  const radial = document.getElementById('radial')?.value || '';
   const jarakDanRadial = (jarak && jarak !== '-') ? (jarak + (radial && radial !== '-' ? ` (Radial ${radial})` : '')) : '-';
 
-  const kronologi = document.getElementById('kronologi').value || '-';
-  const unsur = document.getElementById('unsur_terlibat').value || '-';
-  const alut = document.getElementById('alut_palsar').value || '-';
+  const kronologi = document.getElementById('kronologi')?.value || '-';
+  const unsur = document.getElementById('unsur_terlibat')?.value || '-';
+  const alut = document.getElementById('alut_palsar')?.value || '-';
 
-  const cuaca = document.getElementById('cuaca').value || 'Cerah Berawan';
-  const gelombang = document.getElementById('gelombang').value || '0.5 - 1.25 M';
-  const angin = document.getElementById('angin').value || 'Barat Daya, 5 - 15 Knots';
-  const penghambat = document.getElementById('faktor_penghambat').value || 'Nihil';
+  const cuaca = document.getElementById('cuaca')?.value || 'Cerah Berawan';
+  const gelombang = document.getElementById('gelombang')?.value || '0.5 - 1.25 M';
+  const angin = document.getElementById('angin')?.value || 'Barat Daya, 5 - 15 Knots';
+  const penghambat = document.getElementById('faktor_penghambat')?.value || 'Nihil';
 
   // Format Dates with Indonesian format: "12 Oktober 2026"
-  const tglLaporStr = window.formatTanggalIndo(waktuLapor);
-  const jamLaporStr = window.formatJamWita(waktuLapor);
+  const tglLaporStr = window.formatTanggalIndo ? window.formatTanggalIndo(waktuLapor) : waktuLapor;
+  const jamLaporStr = window.formatJamWita ? window.formatJamWita(waktuLapor) : '';
 
-  const tglBerangkatStr = window.formatTanggalIndo(waktuBerangkat);
-  const jamBerangkatStr = window.formatJamWita(waktuBerangkat);
+  const tglBerangkatStr = window.formatTanggalIndo ? window.formatTanggalIndo(waktuBerangkat) : waktuBerangkat;
+  const jamBerangkatStr = window.formatJamWita ? window.formatJamWita(waktuBerangkat) : '';
 
-  const tglEtaStr = window.formatTanggalIndo(etaTiba);
-  const jamEtaStr = window.formatJamWita(etaTiba);
+  const tglEtaStr = window.formatTanggalIndo ? window.formatTanggalIndo(etaTiba) : etaTiba;
+  const jamEtaStr = window.formatJamWita ? window.formatJamWita(etaTiba) : '';
 
-  const todayStr = window.formatTanggalIndo(new Date());
+  const todayStr = window.formatTanggalIndo ? window.formatTanggalIndo(new Date()) : '';
 
   // Victim Statistics & Text
   const korbanRows = document.querySelectorAll('.korban-row');
@@ -1548,12 +1828,22 @@ KKS Kendari
 📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id
 📲 Medsos : @Basarnaskendari`;
 
-  document.getElementById('wa-preview-text').textContent = preview;
+  const waEl = document.getElementById('wa-preview-text');
+  if (waEl) waEl.textContent = preview;
   openModal('modal-wa-preview');
 }
 
+function updateWaPreview() {
+  const modal = document.getElementById('modal-wa-preview');
+  if (modal && !modal.classList.contains('hidden') && modal.style.display !== 'none') {
+    previewWhatsApp();
+  }
+}
+window.updateWaPreview = updateWaPreview;
+window.updateLiveWa = updateWaPreview;
+
 function copyWaText() {
-  const txt = document.getElementById('wa-preview-text').textContent;
+  const txt = document.getElementById('wa-preview-text')?.textContent || '';
   if (typeof copyToClipboard === 'function') {
     copyToClipboard(txt, 'Naskah Laporan Awal WhatsApp Berhasil Disalin!');
   } else {
@@ -1636,11 +1926,17 @@ async function quickDraftAiKronologi(btn) {
 
   if (typeof showToast === 'function') showToast('Menyusun draf kronologi resmi dengan AI Gemini...', 'info');
 
+  const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '<?= csrfToken() ?>';
+
   try {
     const res = await fetch('<?= BASE_URL ?>/api/ai/draft-kronologi', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
+      },
       body: JSON.stringify({
+        csrf_token: csrfToken,
         draftInput,
         ...ctx
       })
@@ -1670,7 +1966,6 @@ async function quickDraftAiKronologi(btn) {
 }
 
 // Generate narrative inside Modal (Asisten AI Kronologi)
-// Berfokus murni menyusun ulang dan merapikan kalimat laporan mentah tanpa menimpa waktu/fakta dengan data form!
 async function generateAiKronologi() {
   const draftInput = document.getElementById('ai-draft-input')?.value.trim() || '';
 
@@ -1689,11 +1984,17 @@ async function generateAiKronologi() {
 
   if (typeof showToast === 'function') showToast('Asisten AI sedang menyusun ulang laporan mentah...', 'info');
 
+  const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '<?= csrfToken() ?>';
+
   try {
     const res = await fetch('<?= BASE_URL ?>/api/ai/refine-kronologi', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
+      },
       body: JSON.stringify({
+        csrf_token: csrfToken,
         rawDraft: draftInput,
         mode: 'refine_raw'
       })
@@ -1734,5 +2035,208 @@ function applyAiKronologi() {
   if (typeof showToast === 'function') showToast('Narasi resmi diterapkan ke kronologi form!', 'success');
 }
 
+// ── LocalStorage Draft & Auto-Recovery ──
+const DRAFT_KEY = 'qrsar_form_draft_inisiasi';
 
+function checkLocalStorageDraft() {
+  <?php if ($editMode): ?>
+    return; // Don't prompt in edit mode
+  <?php endif; ?>
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (draft && draft.nama_operasi && draft.timestamp && (Date.now() - draft.timestamp) < 86400000 * 3) {
+      const banner = document.getElementById('draft-restore-alert');
+      if (banner) banner.classList.remove('hidden');
+    }
+  } catch (e) {}
+}
+
+function saveLocalStorageDraft() {
+  <?php if ($editMode): ?>
+    return;
+  <?php endif; ?>
+  try {
+    const form = document.getElementById('form-inisiasi-ops');
+    if (!form) return;
+    const data = {
+      timestamp: Date.now(),
+      nama_operasi: document.getElementById('nama_operasi')?.value || '',
+      nama_pelapor: document.getElementById('nama_pelapor')?.value || '',
+      hubungan_pelapor: document.getElementById('hubungan_pelapor')?.value || '',
+      no_telp_pelapor: document.getElementById('no_telp_pelapor')?.value || '',
+      lokasi_kejadian: document.getElementById('lokasi_kejadian')?.value || '',
+      waktu_lapor: document.getElementById('waktu_lapor')?.value || '',
+      waktu_kejadian: document.getElementById('waktu_kejadian')?.value || '',
+      waktu_berangkat: document.getElementById('waktu_berangkat')?.value || '',
+      eta_tiba: document.getElementById('eta_tiba')?.value || '',
+      eta_lokasi: document.getElementById('eta_lokasi')?.value || '',
+      tim_berangkat: document.getElementById('tim_berangkat')?.value || '',
+      kronologi: document.getElementById('kronologi')?.value || '',
+      faktor_penghambat: document.getElementById('faktor_penghambat')?.value || '',
+      cuaca: document.getElementById('cuaca')?.value || '',
+      gelombang: document.getElementById('gelombang')?.value || '',
+      angin: document.getElementById('angin')?.value || '',
+      jumlah_pob: document.getElementById('jumlah_pob')?.value || '',
+      lat_deg: document.getElementById('dms_lat_deg')?.value || '',
+      lat_min: document.getElementById('dms_lat_min')?.value || '',
+      lat_sec: document.getElementById('dms_lat_sec')?.value || '',
+      lat_dir: document.getElementById('dms_lat_dir')?.value || 'S',
+      lng_deg: document.getElementById('dms_lng_deg')?.value || '',
+      lng_min: document.getElementById('dms_lng_min')?.value || '',
+      lng_sec: document.getElementById('dms_lng_sec')?.value || '',
+      lng_dir: document.getElementById('dms_lng_dir')?.value || 'E',
+      jarak_angka: document.getElementById('jarak_angka')?.value || '',
+      jarak_unit: document.getElementById('jarak_unit')?.value || 'NM',
+      radial_angka: document.getElementById('radial_angka')?.value || '',
+      origin_base_id: document.getElementById('origin_base_select')?.value || '',
+      alutList: currentAlutList,
+      unsurList: currentUnsurList
+    };
+
+    if (data.nama_operasi || data.nama_pelapor || data.lokasi_kejadian) {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+    }
+  } catch (e) {}
+}
+
+function restoreLocalStorageDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (!d) return;
+
+    if (d.nama_operasi) document.getElementById('nama_operasi').value = d.nama_operasi;
+    if (d.nama_pelapor) document.getElementById('nama_pelapor').value = d.nama_pelapor;
+    if (d.hubungan_pelapor) document.getElementById('hubungan_pelapor').value = d.hubungan_pelapor;
+    if (d.no_telp_pelapor) document.getElementById('no_telp_pelapor').value = d.no_telp_pelapor;
+    if (d.lokasi_kejadian) document.getElementById('lokasi_kejadian').value = d.lokasi_kejadian;
+    if (d.waktu_lapor) document.getElementById('waktu_lapor').value = d.waktu_lapor;
+    if (d.waktu_kejadian) document.getElementById('waktu_kejadian').value = d.waktu_kejadian;
+    if (d.waktu_berangkat) document.getElementById('waktu_berangkat').value = d.waktu_berangkat;
+    if (d.eta_tiba) document.getElementById('eta_tiba').value = d.eta_tiba;
+    if (d.eta_lokasi) document.getElementById('eta_lokasi').value = d.eta_lokasi;
+    if (d.tim_berangkat) document.getElementById('tim_berangkat').value = d.tim_berangkat;
+    if (d.kronologi) document.getElementById('kronologi').value = d.kronologi;
+    if (d.faktor_penghambat) document.getElementById('faktor_penghambat').value = d.faktor_penghambat;
+    if (d.cuaca) document.getElementById('cuaca').value = d.cuaca;
+    if (d.gelombang) document.getElementById('gelombang').value = d.gelombang;
+    if (d.angin) document.getElementById('angin').value = d.angin;
+    if (d.jumlah_pob) document.getElementById('jumlah_pob').value = d.jumlah_pob;
+
+    if (d.lat_deg) document.getElementById('dms_lat_deg').value = d.lat_deg;
+    if (d.lat_min) document.getElementById('dms_lat_min').value = d.lat_min;
+    if (d.lat_sec) document.getElementById('dms_lat_sec').value = d.lat_sec;
+    if (d.lat_dir) document.getElementById('dms_lat_dir').value = d.lat_dir;
+    if (d.lng_deg) document.getElementById('dms_lng_deg').value = d.lng_deg;
+    if (d.lng_min) document.getElementById('dms_lng_min').value = d.lng_min;
+    if (d.lng_sec) document.getElementById('dms_lng_sec').value = d.lng_sec;
+    if (d.lng_dir) document.getElementById('dms_lng_dir').value = d.lng_dir;
+
+    if (d.jarak_angka) document.getElementById('jarak_angka').value = d.jarak_angka;
+    if (d.jarak_unit) document.getElementById('jarak_unit').value = d.jarak_unit;
+    if (d.radial_angka) document.getElementById('radial_angka').value = d.radial_angka;
+
+    if (d.origin_base_id && document.getElementById('origin_base_select')) {
+      document.getElementById('origin_base_select').value = d.origin_base_id;
+    }
+
+    if (Array.isArray(d.alutList) && d.alutList.length > 0) {
+      currentAlutList = d.alutList;
+      renderAlutList();
+    }
+    if (Array.isArray(d.unsurList) && d.unsurList.length > 0) {
+      currentUnsurList = d.unsurList;
+      renderUnsurList();
+    }
+
+    updateDmsCoordinate();
+    syncJarakDanRadial();
+    calculateDistanceAndRadial(false);
+
+    const banner = document.getElementById('draft-restore-alert');
+    if (banner) banner.classList.add('hidden');
+
+    if (typeof showToast === 'function') {
+      showToast('Draf formulir berhasil dipulihkan!', 'success');
+    }
+  } catch (e) {
+    console.error('restoreLocalStorageDraft error:', e);
+  }
+}
+
+function discardLocalStorageDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+  const banner = document.getElementById('draft-restore-alert');
+  if (banner) banner.classList.add('hidden');
+  if (typeof showToast === 'function') {
+    showToast('Draf lokal telah dihapus.', 'info');
+  }
+}
+
+// ── DOM Initialization ──
+document.addEventListener('DOMContentLoaded', function() {
+  renderAlutList();
+  renderUnsurList();
+  bindDmsInputEvents();
+  updateDmsCoordinate();
+  syncJarakDanRadial();
+  calculateDistanceAndRadial(false);
+  checkLocalStorageDraft();
+
+  // Watch for manual POB edits
+  const pobInput = document.getElementById('jumlah_pob');
+  if (pobInput) {
+    pobInput.addEventListener('input', function() {
+      pobIsManuallyEdited = true;
+    });
+  }
+
+  // Auto-sync waktu_berangkat date when waktu_lapor date is changed
+  const waktuLaporEl = document.getElementById('waktu_lapor');
+  const waktuBerangkatEl = document.getElementById('waktu_berangkat');
+  if (waktuLaporEl && waktuBerangkatEl) {
+    waktuLaporEl.addEventListener('change', () => {
+      if (waktuLaporEl.value) {
+        const newDatePart = waktuLaporEl.value.split('T')[0];
+        if (waktuBerangkatEl.value) {
+          const bParts = waktuBerangkatEl.value.split('T');
+          const bTimePart = bParts[1] || '08:00';
+          waktuBerangkatEl.value = `${newDatePart}T${bTimePart}`;
+        } else {
+          waktuBerangkatEl.value = `${newDatePart}T08:00`;
+        }
+      }
+      updateWaPreview();
+    });
+  }
+
+  // Watch for date inputs to update live preview
+  ['waktu_lapor', 'waktu_berangkat', 'waktu_kejadian', 'eta_tiba'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('change', () => {
+        updateWaPreview();
+      });
+    }
+  });
+
+  // Auto-save form inputs
+  const formEl = document.getElementById('form-inisiasi-ops');
+  if (formEl) {
+    formEl.addEventListener('input', saveLocalStorageDraft);
+    formEl.addEventListener('change', saveLocalStorageDraft);
+    formEl.addEventListener('submit', function() {
+      localStorage.removeItem(DRAFT_KEY);
+    });
+  }
+  setInterval(saveLocalStorageDraft, 10000);
+
+  // Keepalive Heartbeat: Ping server every 5 minutes to keep PHP session active
+  setInterval(function() {
+    fetch('<?= BASE_URL ?>/api/auth/ping', { method: 'GET' }).catch(() => {});
+  }, 300000);
+});
 </script>

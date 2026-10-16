@@ -458,7 +458,7 @@ INSTRUCTION;
             $res = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $curlErr = curl_error($ch);
-            curl_close($ch);
+            unset($ch);
 
             if ($httpCode === 200 && $res) {
                 $data = json_decode((string)$res, true);

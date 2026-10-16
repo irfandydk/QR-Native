@@ -109,12 +109,23 @@ class TemplateHelper {
         if (!empty($operasi['waktu_reopen'])) {
             return $operasi['waktu_reopen'];
         }
+
+        $candidates = [];
         if (!empty($operasi['waktu_berangkat'])) {
-            return $operasi['waktu_berangkat'];
+            $candidates[] = $operasi['waktu_berangkat'];
         }
         if (!empty($operasi['waktu_lapor'])) {
-            return $operasi['waktu_lapor'];
+            $candidates[] = $operasi['waktu_lapor'];
         }
+
+        if (!empty($candidates)) {
+            // Ambil waktu operasional paling awal untuk menentukan tanggal mulai operasi sebenarnya
+            usort($candidates, function($a, $b) {
+                return strtotime($a) <=> strtotime($b);
+            });
+            return $candidates[0];
+        }
+
         if (!empty($operasi['waktu_kejadian'])) {
             return $operasi['waktu_kejadian'];
         }
@@ -306,9 +317,51 @@ class TemplateHelper {
         };
     }
 
-    public static function getHeaderWA(string $judulLaporan, string $namaOperasi, ?string $waktu = null): string {
+    /**
+     * Penomoran dinas resmi Laporan Awal Operasi SAR Basarnas:
+     * Format: NO: LA-[TANGGAL]-[URUT]/OPS-SAR/[KODE_SATKER]/[BULAN][TAHUN]
+     * Contoh: LA-210926-001/OPS-SAR/SAR-304/0926
+     */
+    public static function generateNomorLaporanAwal(array $ops, ?string $satkerKode = null): string {
+        $waktu = null;
+        if (!empty($ops['tanggal_lapor'])) {
+            $waktu = trim($ops['tanggal_lapor'] . ' ' . ($ops['waktu_lapor'] ?? '00:00:00'));
+        } elseif (!empty($ops['waktu_lapor'])) {
+            $waktu = $ops['waktu_lapor'];
+        } elseif (!empty($ops['waktu_berangkat'])) {
+            $waktu = $ops['waktu_berangkat'];
+        } elseif (!empty($ops['waktu_kejadian'])) {
+            $waktu = $ops['waktu_kejadian'];
+        } elseif (!empty($ops['created_at'])) {
+            $waktu = $ops['created_at'];
+        }
+
+        $ts = self::parseToTimestamp($waktu);
+        if ($ts === null) $ts = time();
+
+        $tgl = date('dmy', $ts);
+        $blnthn = date('my', $ts);
+        $urutNum = (int)($ops['id_operasi'] ?? 1);
+        if ($urutNum <= 0) $urutNum = 1;
+        $urut = str_pad((string)$urutNum, 3, '0', STR_PAD_LEFT);
+
+        if (!$satkerKode) {
+            if (class_exists('SettingsModel')) {
+                $st = SettingsModel::get();
+                $satkerKode = $st['satker_kode'] ?? 'SAR-304';
+            } else {
+                $satkerKode = 'SAR-304';
+            }
+        }
+        $satkerKode = strtoupper(trim((string)$satkerKode)) ?: 'SAR-304';
+
+        return "LA-{$tgl}-{$urut}/OPS-SAR/{$satkerKode}/{$blnthn}";
+    }
+
+    public static function getHeaderWA(string $judulLaporan, string $namaOperasi, ?string $waktu = null, ?string $nomor = null): string {
         $tglFormatted = self::formatTanggalIndo($waktu ?: date('Y-m-d H:i:s'));
         $judulUpper = strtoupper($judulLaporan);
+        $nomorLine = !empty($nomor) ? "\nNO: {$nomor}" : "";
         return <<<HEADER
 FILE AKTIF
 ____
@@ -317,7 +370,7 @@ SEMANGAT QUICK ACTION SEARCH AND RESCUE
 SATU JIWA SATU RASA
 WE ARE FAMILY
 PROFESIONAL MODERN TERUJI
-{$judulUpper}
+{$judulUpper}{$nomorLine}
 
 KANTOR PENCARIAN DAN PERTOLONGAN KENDARI
 {$tglFormatted}
@@ -410,15 +463,24 @@ FOOTER;
             $alutText = implode("\n", $aList);
         }
 
-        $pelapor = $ops['nama_pelapor'] ?: 'Bpk. Pelapor';
-        $hub = $ops['hubungan_pelapor'] ?: 'Masyarakat';
-        $hp = $ops['no_telp_pelapor'] ?: '-';
-        $tim = $ops['tim_berangkat'] ?: 'Tim Rescue Kansar Kendari';
+        $pelapor = ($ops['nama_pelapor'] ?? '') ?: 'Bpk. Pelapor';
+        $hub = ($ops['hubungan_pelapor'] ?? '') ?: 'Masyarakat';
+        $hp = ($ops['no_telp_pelapor'] ?? '') ?: '-';
+        $tim = ($ops['tim_berangkat'] ?? '') ?: 'Tim Rescue Kansar Kendari';
 
-        $jarakStr = $ops['jarak'] ?: '-';
+        $jarakStr = ($ops['jarak'] ?? '') ?: '-';
         if (!empty($ops['radial'])) {
             $jarakStr .= " (Radial {$ops['radial']})";
         }
+
+        $lokasiKejadian = $ops['lokasi_kejadian'] ?? '-';
+        $koordinatOps = $ops['koordinat'] ?? '-';
+        $etaLokasi = ($ops['eta_lokasi'] ?? '') ?: '-';
+        $kronologi = ($ops['kronologi'] ?? '') ?: '-';
+        $faktorPenghambat = ($ops['faktor_penghambat'] ?? '') ?: 'Nihil';
+        $cuacaOps = ($ops['cuaca'] ?? '') ?: 'Cerah Berawan';
+        $gelombangOps = ($ops['gelombang'] ?? '') ?: '0.5 - 1.25 M';
+        $anginOps = ($ops['angin'] ?? '') ?: 'Barat Daya 5 - 15 Knots';
 
         $body = <<<BODY
 1. Sumber Info kejadian :
@@ -426,16 +488,16 @@ FOOTER;
 Pada Tanggal {$tglLapor} pukul {$jamLapor} Wita
 
 2. Lokasi Kejadian :
-Lokasi : {$ops['lokasi_kejadian']}
-Koordinat : {$ops['koordinat']}
+Lokasi : {$lokasiKejadian}
+Koordinat : {$koordinatOps}
 jarak tempuh : {$jarakStr}
-Estimasi waktu tempuh : {$ops['eta_lokasi']}
+Estimasi waktu tempuh : {$etaLokasi}
 
 3. Pelaksanaan SAR
 Pada Tanggal {$tglBerangkat} pukul {$jamBerangkat} Wita, {$tim} berangkat ke LKP untuk melaksanakan Operasi SAR, dengan estimasi waktu tempuh ETA {$tglEta} pukul {$jamEta} WITA.
 
 4. Kronologi Kejadian
-{$ops['kronologi']}
+{$kronologi}
 
 5. Data Korban: {$stats['total']} orang
 • S : {$stats['s']} orang
@@ -453,12 +515,12 @@ Identitas Korban :
 {$alutText}
 
 8. Faktor Penghambat
-{$ops['faktor_penghambat']}
+{$faktorPenghambat}
 
 9. Kondisi Cuaca :
-• cuaca : {$ops['cuaca']}
-• Gelombang : {$ops['gelombang']}
-• Angin: {$ops['angin']}
+• cuaca : {$cuacaOps}
+• Gelombang : {$gelombangOps}
+• Angin: {$anginOps}
 BODY;
 
         return $header . "\n\n" . $body . "\n\n" . self::getFooterWA();

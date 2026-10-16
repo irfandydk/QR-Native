@@ -23,8 +23,77 @@ $id = (int)($_GET['id'] ?? 0);
 $isEdit = $id > 0;
 $bra = $isEdit ? BraModel::getById($id) : null;
 
-$initialKategori = $_GET['kategori'] ?? ($bra['kategori'] ?? 'MAPEL');
 $preselectedOpId = (int)($_GET['id_operasi'] ?? ($bra['id_operasi'] ?? 0));
+$fromModul = trim((string)($_GET['from'] ?? ''));
+
+// Jika ada kaitan dengan Operasi SAR atau modul turunan, arahkan kategori ke SAR_UMUM
+if (!empty($preselectedOpId) || !empty($fromModul)) {
+    $initialKategori = $_GET['kategori'] ?? ($bra['kategori'] ?? 'SAR_UMUM');
+} else {
+    $initialKategori = $_GET['kategori'] ?? ($bra['kategori'] ?? 'MAPEL');
+}
+
+$currentKategori = strtoupper($bra['kategori'] ?? $initialKategori);
+$currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
+
+// Integrasi Pre-fill Data Otomatis saat membuat BRA dari halaman Detail Operasi
+$selectedOps = null;
+if (!$isEdit && $preselectedOpId > 0) {
+    $selectedOps = OperasiModel::getById($preselectedOpId);
+    if ($selectedOps) {
+        $currentKategori = 'SAR_UMUM';
+        if (!is_array($bra)) $bra = [];
+        $bra['id_operasi'] = $preselectedOpId;
+        $bra['nama_operasi'] = $selectedOps['nama_operasi'] ?? '';
+
+        $autoTemplate = null;
+        if ($fromModul === 'renops') {
+            $idRenops = (int)($_GET['id_renops'] ?? 0);
+            $renopsTarget = null;
+            if (!empty($selectedOps['renops'])) {
+                foreach ($selectedOps['renops'] as $rn) {
+                    if ($idRenops > 0 && (int)($rn['id_renops'] ?? 0) === $idRenops) {
+                        $renopsTarget = $rn;
+                        break;
+                    }
+                }
+                if (!$renopsTarget) {
+                    $renopsTarget = end($selectedOps['renops']);
+                }
+            }
+            if ($renopsTarget) {
+                $autoTemplate = BraHelper::buildSectionsFromRenops($selectedOps, $renopsTarget, $renopsTarget['srus'] ?? []);
+            }
+        } elseif ($fromModul === 'sitrep') {
+            $idLaporan = (int)($_GET['id_laporan'] ?? 0);
+            $sitrepTarget = null;
+            if (!empty($selectedOps['laporan_harian'])) {
+                foreach ($selectedOps['laporan_harian'] as $lp) {
+                    if ($idLaporan > 0 && (int)($lp['id_laporan'] ?? 0) === $idLaporan) {
+                        $sitrepTarget = $lp;
+                        break;
+                    }
+                }
+                if (!$sitrepTarget) {
+                    $sitrepTarget = end($selectedOps['laporan_harian']);
+                }
+            }
+            if ($sitrepTarget) {
+                $autoTemplate = BraHelper::buildSectionsFromSitrep($selectedOps, $sitrepTarget, $selectedOps['korban'] ?? []);
+            }
+        } elseif ($fromModul === 'laporan_awal' || empty($bra['sections'])) {
+            $autoTemplate = BraHelper::buildSectionsFromLaporanAwal($selectedOps);
+        }
+
+        if (!empty($autoTemplate)) {
+            $bra['perihal'] = $autoTemplate['perihal'] ?? '';
+            $bra['aksi'] = $autoTemplate['aksi'] ?? '';
+            $bra['info'] = $autoTemplate['info'] ?? '';
+            $bra['dari'] = $autoTemplate['dari'] ?? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
+            $bra['sections'] = $autoTemplate['sections'] ?? [];
+        }
+    }
+}
 
 $operasiList = OperasiModel::getListSimple();
 $settings = SettingsModel::get();
@@ -42,9 +111,6 @@ $bulanTahunPlaceholder = $seq['bulan_tahun'];
 $now = date('Y-m-d H:i:s');
 $twuPlaceholder = BraHelper::formatMilitaryTW($now, 'H');
 $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15 minutes')), 'H');
-
-$currentKategori = strtoupper($bra['kategori'] ?? $initialKategori);
-$currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
 ?>
 
 <!-- ── BRA Form Scoped Modern Stylesheet ── -->
@@ -668,7 +734,7 @@ $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
         <input type="hidden" name="satker_kode" value="<?= htmlspecialchars($satkerKode) ?>">
         <input type="hidden" name="bulan_tahun" id="hiddenBulanTahun" value="<?= htmlspecialchars($bra['bulan_tahun'] ?? $bulanTahunPlaceholder) ?>">
         <input type="hidden" name="nomor_urut" id="hiddenNomorUrut" value="<?= htmlspecialchars((string)($bra['nomor_urut'] ?? $nomorUrutPlaceholder)) ?>">
-        <input type="hidden" name="nama_operasi" id="hiddenNamaOperasi" value="<?= htmlspecialchars($bra['nama_operasi'] ?? '') ?>">
+        <input type="hidden" name="nama_operasi" id="hiddenNamaOperasi" value="<?= htmlspecialchars($bra['nama_operasi'] ?? ($selectedOps['nama_operasi'] ?? '')) ?>">
         <input type="hidden" name="tanggal_waktu" id="hiddenTanggalWaktu" value="<?= htmlspecialchars($bra['tanggal_waktu'] ?? date('d F Y')) ?>">
         <input type="hidden" name="jumlah_kata" id="hiddenJumlahKata" value="<?= htmlspecialchars($bra['jumlah_kata'] ?? '0 KATA') ?>">
         <input type="hidden" name="logo_url" value="<?= htmlspecialchars($customLogo) ?>">
@@ -736,18 +802,47 @@ $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
             </label>
           </div>
 
-          <!-- Quick Vessel Presets Bar (Muncul Khusus PERGERAKAN_KAPAL) -->
+          <!-- Quick Vessel Presets Bar (Muncul Khusus PERGERAKAN_KAPAL) (ISSUE-10) -->
           <div id="vesselPresetsContainer" class="bra-preset-banner mb-4 <?= $currentKategori === 'PERGERAKAN_KAPAL' ? '' : 'hidden' ?>" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.08);">
-            <div class="flex items-center gap-2 text-xs font-semibold text-cyan-800 dark:text-cyan-300">
-              <span>🚢</span>
-              <span><strong>Pilihan Cepat Format Lampiran Kapal:</strong> Muat spesifikasi teknis alut resmi:</span>
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pb-2.5 border-b border-cyan-500/20">
+              <div class="flex items-center gap-2 text-xs font-bold text-cyan-800 dark:text-cyan-300">
+                <span class="text-base">🚢</span>
+                <div>
+                  <span class="tracking-wide">Format Telegram Pergerakan Alut Laut Resmi (KPP Kendari)</span>
+                  <span class="block text-[11px] font-normal text-muted dark:text-cyan-200/70">Pilih salah satu dari 3 kapal resmi dan jenis pergerakan operasional:</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <label for="selectVesselChoice" class="text-[11px] font-bold uppercase tracking-wider text-cyan-800 dark:text-cyan-300 shrink-0">Kapal:</label>
+                <select id="selectVesselChoice" class="text-xs font-bold py-1.5 px-2.5 rounded-lg bg-white dark:bg-slate-800 border border-cyan-500/40 text-cyan-900 dark:text-cyan-200 cursor-pointer shadow-sm focus:outline-none focus:ring-1 focus:ring-cyan-500">
+                  <option value="KN_SAR_PACITAN">⚓ KN SAR PACITAN 102</option>
+                  <option value="RB_210">🚤 RESCUE BOAT 210</option>
+                  <option value="RB_307">🚤 RESCUE BOAT 307</option>
+                </select>
+              </div>
             </div>
-            <div class="flex items-center gap-2">
-              <button type="button" id="btnPresetPacitan" class="preset-btn vessel">
-                ⚓ KN SAR Pacitan 102 (BKO)
+
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <span class="text-[11px] font-semibold text-cyan-900 dark:text-cyan-200">Aksi Gerak:</span>
+              <button type="button" id="btnVesselTolak" class="preset-btn vessel flex items-center gap-1.5" title="Muat naskah Tolak / Keberangkatan Pelayaran">
+                <span>🛫</span> <span>Tolak / Berlayar</span>
               </button>
-              <button type="button" id="btnPresetRB210" class="preset-btn vessel">
-                🚤 Rescue Boat 210 (Pemanasan)
+              <button type="button" id="btnVesselPantauan" class="preset-btn vessel flex items-center gap-1.5" title="Muat naskah Pantauan Posisi & Cuaca Saat Berlayar">
+                <span>🧭</span> <span>Pantauan Posisi</span>
+              </button>
+              <button type="button" id="btnVesselSandar" class="preset-btn vessel flex items-center gap-1.5" title="Muat naskah Sandar / Tiba di Pangkalan Dermaga">
+                <span>⚓</span> <span>Sandar / Tiba</span>
+              </button>
+              <div class="hidden sm:inline-block w-px h-5 bg-cyan-500/30 mx-1"></div>
+              <span class="text-[10px] font-medium text-cyan-800/80 dark:text-cyan-300/80 hidden lg:inline">Pintasan Cepat:</span>
+              <button type="button" id="btnPresetPacitan" class="preset-btn vessel text-[11px] opacity-85 hover:opacity-100" title="Cepat: Muat KN SAR Pacitan 102 (BKO)">
+                ⚓ Pacitan 102
+              </button>
+              <button type="button" id="btnPresetRB210" class="preset-btn vessel text-[11px] opacity-85 hover:opacity-100" title="Cepat: Muat RB 210 (Pemanasan)">
+                🚤 RB 210
+              </button>
+              <button type="button" id="btnPresetRB307" class="preset-btn vessel text-[11px] opacity-85 hover:opacity-100" title="Cepat: Muat RB 307 (Patroli)">
+                🚤 RB 307
               </button>
             </div>
           </div>
@@ -761,9 +856,9 @@ $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
               <?php endif; ?>
             </label>
             <select name="id_operasi" id="operasiSelect" class="bra-control">
-              <option value="">— Buat Mandiri / Tanpa Kaitan Operasi SAR —</option>
+              <option value="" data-nama="">— Buat Mandiri / Tanpa Kaitan Operasi SAR —</option>
               <?php foreach ($operasiList as $op): ?>
-                <option value="<?= $op['id_operasi'] ?>" <?= ($currentOpId === (int)$op['id_operasi']) ? 'selected' : '' ?>>
+                <option value="<?= $op['id_operasi'] ?>" data-nama="<?= htmlspecialchars($op['nama_operasi']) ?>" <?= ($currentOpId === (int)$op['id_operasi']) ? 'selected' : '' ?>>
                   #OPS-<?= $op['id_operasi'] ?> &bull; <?= htmlspecialchars($op['nama_operasi']) ?> (Status: <?= htmlspecialchars($op['status'] ?? 'OPEN') ?>)
                 </option>
               <?php endforeach; ?>
@@ -816,6 +911,7 @@ $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
             <div class="bra-field">
               <label class="bra-label">Nomor Naskah BRA <span class="req">*</span></label>
               <input type="text" name="no_bra" id="noBraInput" value="<?= htmlspecialchars(!empty($bra['no_bra']) ? $bra['no_bra'] : $noBraPlaceholder) ?>" placeholder="<?= $noBraPlaceholder ?>" class="bra-control mono bold upper" required>
+              <input type="hidden" name="is_auto_no_bra" id="isAutoNoBra" value="<?= $isEdit ? '0' : '1' ?>">
               <span class="bra-hint">Format resmi: <code>[Nomor Urut]/<?= htmlspecialchars($satkerKode) ?>/[BulanTahun]</code></span>
             </div>
 
@@ -833,13 +929,13 @@ $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
               <span class="bra-hint">SGR = Segera (Default Basarnas), KILAT, atau RUTIN</span>
             </div>
 
-            <!-- MENBRA / Sifat -->
+            <!-- MENBRA (Rujukan Naskah Lalu) (ISSUE-08) -->
             <div class="bra-field" id="menbraFieldWrapper">
               <label class="bra-label" id="menbraLabelText">
                 <span id="labelMenbraTitle">MENBRA (Rujukan BRA Lalu)</span>
               </label>
-              <input type="text" name="menbra" id="menbraInput" value="<?= htmlspecialchars($bra['menbra'] ?? '') ?>" placeholder="<?= max(1, $nomorUrutPlaceholder - 1) ?>/<?= $satkerKode ?>/<?= $bulanTahunPlaceholder ?>" class="bra-control mono upper">
-              <span class="bra-hint" id="hintMenbraText">Nomor naskah BRA sebelumnya yang menjadi dasar rujukan (bila ada).</span>
+              <input type="text" name="menbra" id="menbraInput" value="<?= (strtoupper(trim((string)($bra['menbra'] ?? ''))) === 'SEGERA' || trim((string)($bra['menbra'] ?? '')) === '-') ? '' : htmlspecialchars($bra['menbra'] ?? '') ?>" placeholder="<?= max(1, $nomorUrutPlaceholder - 1) ?>/<?= $satkerKode ?>/<?= $bulanTahunPlaceholder ?>" class="bra-control mono upper">
+              <span class="bra-hint" id="hintMenbraText">Nomor naskah BRA sebelumnya yang menjadi dasar rujukan (bila ada). Biarkan kosong jika naskah baru / tanpa rujukan.</span>
             </div>
           </div>
 
@@ -1252,10 +1348,10 @@ $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
                     <span class="w-3 text-center shrink-0 text-black font-black">:</span>
                     <span id="pvNoBra" class="flex-1 font-extrabold tracking-wider ml-1 text-black"><?= htmlspecialchars(!empty($bra['no_bra']) ? $bra['no_bra'] : $noBraPlaceholder) ?></span>
                   </div>
-                  <div id="pvMenbraRow" class="flex items-start text-[11px] font-bold uppercase <?= empty($bra['menbra']) ? 'hidden' : '' ?>">
+                  <div id="pvMenbraRow" class="flex items-start text-[11px] font-bold uppercase <?= (empty($bra['menbra']) || strtoupper(trim((string)$bra['menbra'])) === 'SEGERA' || trim((string)$bra['menbra']) === '-') ? 'hidden' : '' ?>">
                     <span class="w-14 font-black shrink-0 text-black">MENBRA</span>
                     <span class="w-3 text-center shrink-0 text-black font-black">:</span>
-                    <span id="pvMenbra" class="flex-1 font-extrabold tracking-wider ml-1 text-black"><?= htmlspecialchars($bra['menbra'] ?? '') ?></span>
+                    <span id="pvMenbra" class="flex-1 font-extrabold tracking-wider ml-1 text-black"><?= (strtoupper(trim((string)($bra['menbra'] ?? ''))) === 'SEGERA' || trim((string)($bra['menbra'] ?? '')) === '-') ? '' : htmlspecialchars($bra['menbra'] ?? '') ?></span>
                   </div>
                 </div>
                 <div id="pvPerihal" class="font-black uppercase text-[11px] tracking-tight leading-snug mt-2 mb-1 text-black">
@@ -1570,16 +1666,27 @@ function initBraForm() {
     }
   });
 
-  // Calculate words
+  // Calculate words (Standardized Senkom Formula: Perihal + Kode Seksi + Isi Seksi)
   function calculateWordCount() {
     let combined = '';
-    sectionsContainer.querySelectorAll('.sec-content-textarea').forEach(ta => {
-      combined += ' ' + ta.value.trim();
-    });
-    const perihal = document.getElementById('perihalInput').value.trim();
-    combined += ' ' + perihal;
+    const perihalEl = document.getElementById('perihalInput');
+    const perihalVal = perihalEl ? perihalEl.value.trim() : '';
+    if (perihalVal) {
+      combined += perihalVal + ' ';
+    }
 
-    const words = combined.split(/\s+/).filter(Boolean);
+    sectionsContainer.querySelectorAll('.section-block').forEach(row => {
+      const badge = row.querySelector('.sec-code-badge');
+      const ta = row.querySelector('.sec-content-textarea');
+      const code = badge ? badge.textContent.trim() : '';
+      const isi = ta ? ta.value.trim() : '';
+      if (isi) {
+        if (code) combined += code + ' ';
+        combined += isi + ' ';
+      }
+    });
+
+    const words = combined.trim().split(/\s+/).filter(Boolean);
     const count = words.length;
     const str = `${count} KATA`;
 
@@ -1625,8 +1732,11 @@ function initBraForm() {
     const menbraVal = document.getElementById('menbraInput').value.trim();
     if (pvMenbra) pvMenbra.textContent = menbraVal;
     if (pvMenbraRow) {
-      if (menbraVal) pvMenbraRow.classList.remove('hidden');
-      else pvMenbraRow.classList.add('hidden');
+      if (menbraVal && menbraVal.toUpperCase() !== 'SEGERA' && menbraVal !== '-') {
+        pvMenbraRow.classList.remove('hidden');
+      } else {
+        pvMenbraRow.classList.add('hidden');
+      }
     }
 
     if (pvPerihal) pvPerihal.textContent = document.getElementById('perihalInput').value.trim() || 'BERITA RADIO SAR TTK';
@@ -1680,6 +1790,21 @@ function initBraForm() {
     syncLivePreview();
   });
 
+  // Track Auto vs Custom Nomor Naskah
+  const noBraInput = document.getElementById('noBraInput');
+  const isAutoNoBra = document.getElementById('isAutoNoBra');
+  const initialNoBraPlaceholder = '<?= addslashes($noBraPlaceholder) ?>';
+  if (noBraInput && isAutoNoBra) {
+    noBraInput.addEventListener('input', function() {
+      const val = this.value.trim().toUpperCase();
+      if (!val || val === initialNoBraPlaceholder) {
+        isAutoNoBra.value = '1';
+      } else {
+        isAutoNoBra.value = '0';
+      }
+    });
+  }
+
   // Format Sandi Telegram (Kapital & TTK/KMA/TTK DUA)
   document.getElementById('btnFormatTelegramPunctuation').addEventListener('click', function() {
     form.querySelectorAll('textarea, input[type="text"]').forEach(el => {
@@ -1705,19 +1830,34 @@ function initBraForm() {
 
       if (kat === 'PERGERAKAN_KAPAL') {
         vesselPresets.classList.remove('hidden');
-        if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan Lalu)';
-        if (menbraInput) menbraInput.placeholder = 'Rujukan naskah pergerakan kapal sebelumnya';
+        if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan Naskah Lalu)';
+        if (menbraInput) {
+          menbraInput.placeholder = 'Nomor naskah pergerakan kapal sebelumnya (opsional)';
+          if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
+        }
+        if (hintMenbra) hintMenbra.textContent = 'Nomor naskah telegram pergerakan kapal sebelumnya bila merupakan pergerakan lanjutan.';
+        const vesselSel = document.getElementById('selectVesselChoice');
+        const defaultCallSign = vesselSel ? (VESSEL_SPECS[vesselSel.value]?.callSign || 'YCSB') : 'YCSB';
+        const panggilEl = document.getElementById('panggilanInput');
+        if (panggilEl && (!panggilEl.value || panggilEl.value === '—' || panggilEl.value === '-')) {
+          panggilEl.value = defaultCallSign;
+        }
       } else if (kat === 'MAPEL') {
         vesselPresets.classList.add('hidden');
-        if (menbraTitle) menbraTitle.textContent = 'SIFAT BERITA';
+        if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan BRA/MAPEL Lalu)';
         if (menbraInput) {
-          menbraInput.placeholder = 'SEGERA';
-          if (!menbraInput.value) menbraInput.value = 'SEGERA';
+          menbraInput.placeholder = 'Nomor MAPEL/BRA rujukan sebelumnya (opsional)';
+          if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
         }
+        if (hintMenbra) hintMenbra.textContent = 'Nomor naskah telegram/MAPEL sebelumnya yang menjadi dasar rujukan bila ada lanjutan.';
       } else {
         vesselPresets.classList.add('hidden');
         if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan BRA Lalu)';
-        if (menbraInput) menbraInput.placeholder = '<?= $nomorUrutPlaceholder - 1 ?>/<?= $satkerKode ?>/<?= $bulanTahunPlaceholder ?>';
+        if (menbraInput) {
+          menbraInput.placeholder = '<?= max(1, $nomorUrutPlaceholder - 1) ?>/<?= $satkerKode ?>/<?= $bulanTahunPlaceholder ?>';
+          if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
+        }
+        if (hintMenbra) hintMenbra.textContent = 'Nomor naskah BRA sebelumnya yang menjadi dasar rujukan (bila ada).';
       }
 
       reindexSections();
@@ -1727,10 +1867,27 @@ function initBraForm() {
   // Operasi Select handler
   opSelect.addEventListener('change', function() {
     const opId = this.value;
+    const opt = this.options[this.selectedIndex];
+    const hiddenNamaOperasi = document.getElementById('hiddenNamaOperasi');
+
     if (opId) {
+      if (hiddenNamaOperasi) {
+        hiddenNamaOperasi.value = opt.getAttribute('data-nama') || opt.text.split(' • ')[1]?.split(' (Status')[0]?.trim() || '';
+      }
       opRecBar.classList.remove('hidden');
       document.getElementById('jabatanSmcInput').value = 'SMC';
+
+      // Otomatis aktifkan radio SAR_UMUM jika sebelumnya bukan kapal
+      const currentKat = getSelectedKategori();
+      if (currentKat !== 'PERGERAKAN_KAPAL') {
+        const radSar = document.querySelector('input[name="kategori"][value="SAR_UMUM"]');
+        if (radSar && !radSar.checked) {
+          radSar.checked = true;
+          radSar.dispatchEvent(new Event('change'));
+        }
+      }
     } else {
+      if (hiddenNamaOperasi) hiddenNamaOperasi.value = '';
       opRecBar.classList.add('hidden');
       document.getElementById('jabatanSmcInput').value = 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
     }
@@ -1919,41 +2076,173 @@ function initBraForm() {
     if (typeof showToast === 'function') showToast('Rekomendasi Naskah Penutupan Operasi SAR berhasil dimuat!', 'success');
   });
 
-  // 5. Preset Kapal: KN SAR Pacitan 102
-  document.getElementById('btnPresetPacitan').addEventListener('click', function() {
-    document.querySelector('input[name="kategori"][value="PERGERAKAN_KAPAL"]').checked = true;
-    document.getElementById('perihalInput').value = 'PELAYARAN KN SAR PACITAN 102 KENDARI DALAM RANGKA BKO OPRASI SAR KAPAL TENGGELAM KM VIRGO TRANSPORT 8 DISEPUTARAN LAUT JAWA - BANJARMASIN TTK';
+  // 5. Preset Alut Laut Resmi KPP Kendari (ISSUE-10): KN SAR Pacitan, Rescue Boat 210, Rescue Boat 307
+  const VESSEL_SPECS = {
+    'KN_SAR_PACITAN': {
+      name: 'KN SAR PACITAN 102',
+      shortName: 'KN SAR PACITAN',
+      callSign: 'YCSB',
+      loa: '59,80 METER',
+      type: 'ALUMINIUM ALLOY',
+      speedMax: '20 KNOT',
+      speedEco: '15 KNOT',
+      endurance: '48 JAM / 70%',
+      basePort: 'DERMAGA UTAMA BASARNAS BUNGKUTOKO KENDARI',
+      pobTotal: 40,
+      abkCount: 20,
+      rescuerCount: 20,
+      nakhoda: 'RUSLAN, S.T.',
+      palsarAlkom: 'SEA RIDER 1 UNIT (40 PK) READY KMA SEKOCI 2 UNIT READY KMA ALAT SELAM 4 SET READY KMA RADAR AIS ECDIS READY TTK'
+    },
+    'RB_210': {
+      name: 'RESCUE BOAT 210 KENDARI',
+      shortName: 'RB 210',
+      callSign: 'YCSB-210',
+      loa: '36 METER',
+      type: 'MONOHULL FIBERGLASS',
+      speedMax: '26 KNOT',
+      speedEco: '18 KNOT',
+      endurance: '14.500 LITER BBM / 6.000 LITER AIR TAWAR',
+      basePort: 'DERMAGA UTAMA BASARNAS KENDARI',
+      pobTotal: 16,
+      abkCount: 12,
+      rescuerCount: 4,
+      nakhoda: 'JUMARDIN, S.E.',
+      palsarAlkom: 'RUBBER BOAT 1 UNIT (25 PK) KMA LIFE JACKET 20 BUAH KMA ALAT SELAM 2 SET KMA VHF MARINE RADAR GPS AIS READY TTK'
+    },
+    'RB_307': {
+      name: 'RESCUE BOAT 307 KENDARI',
+      shortName: 'RB 307',
+      callSign: 'YCSB-307',
+      loa: '28 METER',
+      type: 'MONOHULL FIBERGLASS',
+      speedMax: '25 KNOT',
+      speedEco: '16 KNOT',
+      endurance: '12.000 LITER BBM / 4.000 LITER AIR TAWAR',
+      basePort: 'DERMAGA BASARNAS KENDARI / POS SAR BAUBAU',
+      pobTotal: 14,
+      abkCount: 10,
+      rescuerCount: 4,
+      nakhoda: 'ERIK PRATAMA, S.Sos.',
+      palsarAlkom: 'RUBBER BOAT 1 UNIT (25 PK) KMA LIFE JACKET 15 BUAH KMA ALAT SELAM 2 SET KMA VHF MARINE RADAR GPS AIS READY TTK'
+    }
+  };
+
+  function applyVesselPreset(vesselKey, movementType = 'TOLAK') {
+    const radioKapal = document.querySelector('input[name="kategori"][value="PERGERAKAN_KAPAL"]');
+    if (radioKapal) {
+      radioKapal.checked = true;
+      radioKapal.dispatchEvent(new Event('change'));
+    }
+
+    const vKey = VESSEL_SPECS[vesselKey] ? vesselKey : 'KN_SAR_PACITAN';
+    const v = VESSEL_SPECS[vKey];
+    const vesselSel = document.getElementById('selectVesselChoice');
+    if (vesselSel) vesselSel.value = vKey;
+
+    const twbVal = document.getElementById('twbInput').value || getMilitaryTW(new Date());
+    const panggilanInput = document.getElementById('panggilanInput');
+    if (panggilanInput) panggilanInput.value = v.callSign;
+
     document.getElementById('aksiInput').value = 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
-    document.getElementById('infoInput').value = 'DEPUTI OPS DAN KESIAPSIAGAAN KMA DEPUTI SARPRAS DAN SISTEM KOMUNIKASI KMA DIREKTUR SARPRAS DAN DIREKTUR KESIAPSIAGAAN';
-    document.getElementById('derajatInput').value = 'SGR';
+    document.getElementById('infoInput').value = 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN KMA DIREKTUR SARPRAS KMA DIREKTUR KESIAPSIAGAAN';
 
-    const twbVal = document.getElementById('twbInput').value || '<?= $twbPlaceholder ?>';
+    let perihal = '';
+    let derajat = 'SGR';
+    let sections = [];
 
-    setSectionsContent([
-      { kode: 'AAA', isi: `PD TW ${twbVal} KMA PELAYARAN KN SAR PACITAN 102 KENDARI DALAM RANGKA BKO OPERASI SAR KAPAL TENGGELAM KM VIRGO TRANSPORT 8 DISEPUTARAN LAUT JAWA - BANJARMASIN TTK` },
-      { kode: 'BBB', isi: `DATA KAPAL TTK DUA\nNAMA : KN.SAR PACITAN 102\nNAKHODA : RUSLAN, S.T\nLOA : 59,80 M\nTYPE : ALUMINIUM\nTAHUN : 2013\nENDURANCE : 47 JAM / 69,84%\nSPEED MAX : 20 KNOT\nSPEED ECO : 15 KNOT\n\nREN LAYAR TTK DUA\nRUTE : DERMAGA UTAMA BASARNAS KAWASAN TIMUR KMA KENDARI MENUJU PERAIRAN LAUT JAWA - BANJARMASIN\nHEADING : 266°\nJARAK TEMPUH : 620 NM\nESTIMASI PERGERAKAN : 45 JAM\n\nMUATAN POB TTK DUA\nCREW KN SAR PACITAN : 20 ORANG\nRESCUER : 13 ORANG (PENYELAM 7 ORG KMA RESCUE 4 ORG KMA PILOT DRONE 1 ORG KMA OSC 1 ORG)\nTOTAL POB : 40 ORANG\n\nDATA PALSAR ALKOM ALNAV TTK DUA\nSEA RIDER 1 UNIT (40 PK) READY KMA SEKOCI 2 UNIT READY KMA ALAT SELAM 4 SET READY KMA RADAR AIS ECDIS READY TTK` },
-      { kode: 'CCC', isi: `LAPORAN PERKEMBANGAN MENYUSUL KMA NAKHODA KN SAR PACITAN 102 KRM TTK HBS` }
-    ]);
-    if (typeof showToast === 'function') showToast('Preset Resmi KN SAR Pacitan 102 berhasil dimuat!', 'success');
-  });
+    if (movementType === 'SANDAR') {
+      derajat = 'RUTIN';
+      perihal = `PERGERAKAN ${v.name} TIBA DAN SANDAR DI ${v.basePort} TTK`;
+      sections = [
+        { kode: 'AAA', isi: `PD TW ${twbVal} KMA ${v.name} TELAH TIBA DAN SANDAR AMAN DI ${v.basePort} SETELAH MELAKSANAKAN KEGIATAN OPERASI SAR / PATROLI DI PERAIRAN SULAWESI TENGGARA TTK` },
+        { kode: 'BBB', isi: `STATUS ALUT PASCA PELAYARAN TTK DUA\n• KONDISI MESIN / LAMBUNG : BAIK DAN NORMAL\n• KESIAPSIAGAAN : SIAP DITUGASKAN KEMBALI SEWAKTU-WAKTU (STANDBY PANGKALAN)\n• SISA BBM & AIR TAWAR : AMAN / CUKUP UNTUK SIAGA KEDARURATAN TTK` },
+        { kode: 'CCC', isi: `SELURUH CREW DAN RESCUER LENGKAP DALAM KEADAAN SEHAT KMA DMKN SBG LAPORAN KMA NAKHODA ${v.name} KRM TTK HBS` }
+      ];
+    } else if (movementType === 'PANTAUAN') {
+      derajat = 'SGR';
+      perihal = `LAPORAN PERKEMBANGAN POSISI ${v.name} DI PERAIRAN SULAWESI TENGGARA TTK`;
+      sections = [
+        { kode: 'AAA', isi: `PD TW ${twbVal} KMA POSISI ${v.name} BERADA PADA KOORDINAT 03° 58' 30" S - 122° 38' 15" E KMA HALUAN 135° KMA KECEPATAN ${v.speedEco} MENUJU SEKTOR PENCARIAN / PATROLI TTK` },
+        { kode: 'BBB', isi: `KONDISI METEOROLOGI DAN LAUT TTK DUA\n• CUACA : CERAH BERAWAN\n• ANGIN : TIMUR LAUT - TENGGARA, KECEPATAN 8 - 15 KNOTS\n• TINGGI GELOMBANG : 0.5 - 1.25 METER\n• JARAK PANDANG : BAIK (VISIBILITY 8 - 10 NM)\n\nKONDISI MATERIAL DAN PERSONIL TTK DUA\nSELURUH CREW DAN RESCUER LENGKAP ${v.pobTotal} ORANG DALAM KEADAAN SEHAT KMA ALUT DAN PERALATAN KAPAL BERFUNGSI NORMAL TTK` },
+        { kode: 'CCC', isi: `PELAYARAN DILANJUTKAN SESUAI RENCANA OPERASI KMA NAKHODA ${v.name} KRM TTK HBS` }
+      ];
+    } else {
+      // Default: TOLAK (Keberangkatan / Berlayar)
+      derajat = 'SGR';
+      perihal = `PELAYARAN ${v.name} DALAM RANGKA BKO / OPERASI SAR DI SEKITAR PERAIRAN SULAWESI TENGGARA TTK`;
+      sections = [
+        { kode: 'AAA', isi: `PD TW ${twbVal} KMA PERINTAH/RENCANA PELAYARAN ${v.name} DARI ${v.basePort} MENUJU LKP/AREA OPERASI DI SEKITAR PERAIRAN SULTRA DALAM RANGKA PELAKSANAAN OPERASI SAR TTK` },
+        { kode: 'BBB', isi: `DATA KAPAL TTK DUA\nNAMA : ${v.name}\nCALL SIGN : ${v.callSign}\nNAKHODA : ${v.nakhoda}\nLOA : ${v.loa}\nTYPE : ${v.type}\nSPEED MAX : ${v.speedMax}\nSPEED ECO : ${v.speedEco}\nENDURANCE : ${v.endurance}\nKONDISI MESIN : BAIK / SIAP OPERASI\n\nREN LAYAR TTK DUA\nRUTE : ${v.basePort} MENUJU PERAIRAN SULAWESI TENGGARA\nESTIMASI : 4 JAM PERJALANAN\n\nMUATAN POB TTK DUA\nTOTAL POB : ${v.pobTotal} ORANG (CREW ${v.abkCount} ORANG + RESCUER ${v.rescuerCount} ORANG)\n\nDATA PALSAR ALKOM ALNAV TTK DUA\n${v.palsarAlkom}` },
+        { kode: 'CCC', isi: `LAPORAN PERKEMBANGAN MENYUSUL KMA NAKHODA ${v.name} KRM TTK HBS` }
+      ];
+    }
 
-  // 6. Preset Kapal: Rescue Boat 210
-  document.getElementById('btnPresetRB210').addEventListener('click', function() {
-    document.querySelector('input[name="kategori"][value="PERGERAKAN_KAPAL"]').checked = true;
-    document.getElementById('perihalInput').value = 'RENCANA PELAYARAN RESCUE BOAT 210 KENDARI DALAM RANGKA PEMANASAN BERGERAK DAN PROFICIENCY ABK TTK';
-    document.getElementById('aksiInput').value = 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
-    document.getElementById('infoInput').value = 'DEPUTI OPS DAN KESIAPSIAGAAN KMA DIREKTUR KESIAPSIAGAAN KMA DIREKTUR SARPRAS';
-    document.getElementById('derajatInput').value = 'RUTIN';
+    document.getElementById('derajatInput').value = derajat;
+    document.getElementById('perihalInput').value = perihal;
+    setSectionsContent(sections);
+    syncLivePreview();
+    if (typeof showToast === 'function') {
+      const typeLabel = movementType === 'SANDAR' ? 'Sandar / Tiba' : (movementType === 'PANTAUAN' ? 'Pantauan Posisi' : 'Tolak / Berlayar');
+      showToast(`Format ${v.shortName} (${typeLabel}) berhasil dimuat!`, 'success');
+    }
+  }
 
-    const twbVal = document.getElementById('twbInput').value || '<?= $twbPlaceholder ?>';
+  // Event Listeners for Vessel Controls
+  const selectVessel = document.getElementById('selectVesselChoice');
+  if (selectVessel) {
+    selectVessel.addEventListener('change', function() {
+      const v = VESSEL_SPECS[this.value];
+      const panggilEl = document.getElementById('panggilanInput');
+      if (panggilEl && v) panggilEl.value = v.callSign;
+    });
+  }
 
-    setSectionsContent([
-      { kode: 'AAA', isi: `PD TW ${twbVal} KMA RENCANA PELAYARAN RESCUE BOAT 210 KENDARI DALAM RANGKA PEMANASAN BERGERAK DAN PROFICIENCY ABK DI SEKITAR PERAIRAN TELUK KENDARI TTK` },
-      { kode: 'BBB', isi: `DATA KAPAL TTK DUA\nNAMA : RB 210 KENDARI\nNAKHODA : JUMARDIN, S.E.\nLOA : 36 METER\nSPEED MAX : 26 KNOT\nBBM : 14.500 LITER (READY)\nAIR TAWAR : 6.000 LITER (READY)\n\nREN LAYAR TTK DUA\nRUTE : DERMAGA UTAMA BASARNAS KENDARI MENUJU PERAIRAN TELUK KENDARI\nESTIMASI : 4 JAM\nPOB : 16 ORANG (CREW 12 KMA RESCUER 4)\n\nPALSAR ALKOM TTK DUA\nRUBBER BOAT 1 UNIT (25 PK) KMA LIFE JACKET 20 BUAH KMA ALAT SELAM 2 SET KMA VHF MARINE RADAR GPS AIS READY TTK` },
-      { kode: 'CCC', isi: `LAPORAN PERKEMBANGAN MENYUSUL KMA NAKHODA RB 210 KRM TTK HBS` }
-    ]);
-    if (typeof showToast === 'function') showToast('Preset Resmi Rescue Boat 210 berhasil dimuat!', 'success');
-  });
+  const btnVesselTolak = document.getElementById('btnVesselTolak');
+  if (btnVesselTolak) {
+    btnVesselTolak.addEventListener('click', function() {
+      const vKey = selectVessel ? selectVessel.value : 'KN_SAR_PACITAN';
+      applyVesselPreset(vKey, 'TOLAK');
+    });
+  }
+
+  const btnVesselPantauan = document.getElementById('btnVesselPantauan');
+  if (btnVesselPantauan) {
+    btnVesselPantauan.addEventListener('click', function() {
+      const vKey = selectVessel ? selectVessel.value : 'KN_SAR_PACITAN';
+      applyVesselPreset(vKey, 'PANTAUAN');
+    });
+  }
+
+  const btnVesselSandar = document.getElementById('btnVesselSandar');
+  if (btnVesselSandar) {
+    btnVesselSandar.addEventListener('click', function() {
+      const vKey = selectVessel ? selectVessel.value : 'KN_SAR_PACITAN';
+      applyVesselPreset(vKey, 'SANDAR');
+    });
+  }
+
+  // Shortcuts
+  const btnPacitan = document.getElementById('btnPresetPacitan');
+  if (btnPacitan) {
+    btnPacitan.addEventListener('click', function() {
+      applyVesselPreset('KN_SAR_PACITAN', 'TOLAK');
+    });
+  }
+
+  const btnRB210 = document.getElementById('btnPresetRB210');
+  if (btnRB210) {
+    btnRB210.addEventListener('click', function() {
+      applyVesselPreset('RB_210', 'TOLAK');
+    });
+  }
+
+  const btnRB307 = document.getElementById('btnPresetRB307');
+  if (btnRB307) {
+    btnRB307.addEventListener('click', function() {
+      applyVesselPreset('RB_307', 'TOLAK');
+    });
+  }
 
   // QR Code Rendering for Live Preview & Modal Preview
   const verifyUrl = '<?= BASE_URL ?>/bra.php?view=<?= $id ?: 9999 ?>';

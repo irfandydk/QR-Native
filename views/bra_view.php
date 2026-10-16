@@ -26,16 +26,10 @@ $settings = SettingsModel::get();
 $customLogo = getAppLogoUrl();
 $logoDataUri = getAppLogoDataUri();
 
-// Calculate total words in sections
-$totalWords = 0;
+// Calculate total words in sections + perihal using standardized BraHelper
 $sections = $bra['sections'] ?? [];
-foreach ($sections as $sec) {
-    $words = preg_split('/\s+/', trim($sec['isi'] ?? ''));
-    if (!empty($words) && $words[0] !== '') {
-        $totalWords += count($words);
-    }
-}
-$jumlahKataStr = $bra['jumlah_kata'] ?? ($totalWords > 0 ? "{$totalWords} KATA" : '-');
+$totalWords = BraHelper::countBraWords($sections, $bra['perihal'] ?? '');
+$jumlahKataStr = $totalWords > 0 ? "{$totalWords} KATA" : (!empty($bra['jumlah_kata']) ? $bra['jumlah_kata'] : '-');
 
 $docHash = BraModel::generateVerifyToken($bra);
 $verifyUrl = BraModel::generateVerifyUrl($bra);
@@ -287,7 +281,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
                   <span class="w-4 text-center shrink-0 text-black font-black leading-relaxed">:</span>
                   <span class="font-extrabold tracking-wider ml-1 text-black flex-1 leading-relaxed"><?= htmlspecialchars($bra['no_bra'] ?? '') ?></span>
                 </div>
-                <?php if (!empty($bra['menbra'])): ?>
+                <?php if (!empty($bra['menbra']) && strtoupper(trim((string)$bra['menbra'])) !== 'SEGERA' && trim((string)$bra['menbra']) !== '-'): ?>
                   <div class="flex items-start text-xs sm:text-[13px] leading-relaxed uppercase">
                     <span class="w-14 sm:w-16 font-black shrink-0 text-black leading-relaxed">MENBRA</span>
                     <span class="w-4 text-center shrink-0 text-black font-black leading-relaxed">:</span>
@@ -544,7 +538,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
       txt += "TWU  : <?= addslashes($bra['twu'] ?? '') ?>\n";
       txt += "JUMLAH KATA : <?= addslashes($jumlahKataStr) ?>\n\n";
       txt += "NO.    : <?= addslashes($bra['no_bra'] ?? '') ?>\n";
-      <?php if (!empty($bra['menbra'])): ?>
+      <?php if (!empty($bra['menbra']) && strtoupper(trim((string)$bra['menbra'])) !== 'SEGERA' && trim((string)$bra['menbra']) !== '-'): ?>
       txt += "MENBRA : <?= addslashes($bra['menbra']) ?>\n";
       <?php endif; ?>
       <?php if (!empty($bra['perihal'])): ?>

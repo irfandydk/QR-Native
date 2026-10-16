@@ -1238,6 +1238,7 @@ document.addEventListener('input', (e) => {
 });
 
 document.getElementById('form-sitrep')?.addEventListener('submit', () => {
+  recalculateSitrepHariKe();
   clearSitrepDraft();
 });
 
@@ -1263,8 +1264,10 @@ document.getElementById('sitrep_waktu_laporan')?.addEventListener('input', recal
 document.getElementById('sitrep_waktu_laporan')?.addEventListener('change', recalculateSitrepHariKe);
 
 document.addEventListener('DOMContentLoaded', () => {
+  recalculateSitrepHariKe();
   renderUnsurList();
   renderAlutList();
   restoreSitrepDraft();
+  recalculateSitrepHariKe();
 });
 </script>

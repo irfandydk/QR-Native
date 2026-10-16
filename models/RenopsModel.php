@@ -143,7 +143,7 @@ class RenopsModel {
             $idRenops = (int)$db->lastInsertId();
 
             if (!empty($srus)) {
-                $stmtSru = $db->prepare("INSERT INTO RenopsSRU (id_renops, nama_sru, koordinat_area, luas_area, pola_pencarian, total_sapuan) VALUES (:rid, :nama, :koor, :luas, :pola, :sapuan)");
+                $stmtSru = $db->prepare("INSERT INTO RenopsSRU (id_renops, nama_sru, koordinat_area, luas_area, pola_pencarian, total_sapuan, track_spacing) VALUES (:rid, :nama, :koor, :luas, :pola, :sapuan, :track)");
                 foreach ($srus as $s) {
                     if (empty($s['nama_sru'])) continue;
                     $stmtSru->execute([
@@ -152,7 +152,8 @@ class RenopsModel {
                         ':koor' => $s['koordinat_area'] ?? '',
                         ':luas' => $s['luas_area'] ?? '',
                         ':pola' => $s['pola_pencarian'] ?? 'Parallel Track Search',
-                        ':sapuan' => $s['total_sapuan'] ?? ''
+                        ':sapuan' => $s['total_sapuan'] ?? '',
+                        ':track' => !empty($s['track_spacing']) ? $s['track_spacing'] : null
                     ]);
                 }
             }
@@ -223,8 +224,8 @@ class RenopsModel {
                 $existingRows = $stmtExisting->fetchAll();
                 $existingIds = array_column($existingRows, 'id_sru');
 
-                $stmtUpdate = $db->prepare("UPDATE RenopsSRU SET nama_sru = :nama, koordinat_area = :koor, luas_area = :luas, pola_pencarian = :pola, total_sapuan = :sapuan WHERE id_sru = :sid AND id_renops = :rid");
-                $stmtInsert = $db->prepare("INSERT INTO RenopsSRU (id_renops, nama_sru, koordinat_area, luas_area, pola_pencarian, total_sapuan) VALUES (:rid, :nama, :koor, :luas, :pola, :sapuan)");
+                $stmtUpdate = $db->prepare("UPDATE RenopsSRU SET nama_sru = :nama, koordinat_area = :koor, luas_area = :luas, pola_pencarian = :pola, total_sapuan = :sapuan, track_spacing = :track WHERE id_sru = :sid AND id_renops = :rid");
+                $stmtInsert = $db->prepare("INSERT INTO RenopsSRU (id_renops, nama_sru, koordinat_area, luas_area, pola_pencarian, total_sapuan, track_spacing) VALUES (:rid, :nama, :koor, :luas, :pola, :sapuan, :track)");
 
                 $keptIds = [];
                 $pool = $existingRows;
@@ -237,9 +238,10 @@ class RenopsModel {
                     $luas = $s['luas_area'] ?? '';
                     $pola = $s['pola_pencarian'] ?? 'Parallel Track Search';
                     $sapuan = $s['total_sapuan'] ?? '';
+                    $track = !empty($s['track_spacing']) ? $s['track_spacing'] : null;
 
                     if ($sId && in_array($sId, $existingIds, true) && !in_array($sId, $keptIds, true)) {
-                        $stmtUpdate->execute([':sid' => $sId, ':rid' => $id, ':nama' => $nama, ':koor' => $koor, ':luas' => $luas, ':pola' => $pola, ':sapuan' => $sapuan]);
+                        $stmtUpdate->execute([':sid' => $sId, ':rid' => $id, ':nama' => $nama, ':koor' => $koor, ':luas' => $luas, ':pola' => $pola, ':sapuan' => $sapuan, ':track' => $track]);
                         $keptIds[] = $sId;
                         foreach ($pool as $pIdx => $pItem) {
                             if ((int)$pItem['id_sru'] === $sId) {
@@ -261,10 +263,10 @@ class RenopsModel {
                         $reusedId = (int)$pool[$matchKey]['id_sru'];
                         unset($pool[$matchKey]);
 
-                        $stmtUpdate->execute([':sid' => $reusedId, ':rid' => $id, ':nama' => $nama, ':koor' => $koor, ':luas' => $luas, ':pola' => $pola, ':sapuan' => $sapuan]);
+                        $stmtUpdate->execute([':sid' => $reusedId, ':rid' => $id, ':nama' => $nama, ':koor' => $koor, ':luas' => $luas, ':pola' => $pola, ':sapuan' => $sapuan, ':track' => $track]);
                         $keptIds[] = $reusedId;
                     } else {
-                        $stmtInsert->execute([':rid' => $id, ':nama' => $nama, ':koor' => $koor, ':luas' => $luas, ':pola' => $pola, ':sapuan' => $sapuan]);
+                        $stmtInsert->execute([':rid' => $id, ':nama' => $nama, ':koor' => $koor, ':luas' => $luas, ':pola' => $pola, ':sapuan' => $sapuan, ':track' => $track]);
                     }
                 }
 

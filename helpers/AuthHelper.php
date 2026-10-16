@@ -13,6 +13,12 @@ class AuthHelper {
 
     public static function requireLogin(): void {
         if (!self::isLoggedIn()) {
+            if (session_status() !== PHP_SESSION_ACTIVE) {
+                @session_start();
+            }
+            if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && !empty($_SERVER['REQUEST_URI'])) {
+                $_SESSION['redirect_url'] = $_SERVER['REQUEST_URI'];
+            }
             if (function_exists('setFlash')) {
                 setFlash('error', 'Sesi login diperlukan untuk mengakses sistem ini.');
             }
@@ -93,13 +99,21 @@ class AuthHelper {
     }
 
     public static function getClientIp(): string {
-        $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ??
-              ($_SERVER['HTTP_X_FORWARDED_FOR'] ??
-              ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'));
-        if (str_contains($ip, ',')) {
-            $ip = trim(explode(',', $ip)[0]);
+        $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+            $rawFwd = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+            if (!empty($rawFwd)) {
+                $candidates = explode(',', $rawFwd);
+                foreach ($candidates as $c) {
+                    $c = trim($c);
+                    if (filter_var($c, FILTER_VALIDATE_IP)) {
+                        return $c;
+                    }
+                }
+            }
+            return '127.0.0.1';
         }
-        return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '127.0.0.1';
+        return $ip;
     }
 
     public static function checkLoginThrottle(): ?string {
@@ -206,6 +220,41 @@ class AuthHelper {
             UserModel::syncFromAppSettings();
         }
 
+        $cleanUser = trim($username);
+        $cleanPass = trim($password);
+
+        // 1. Check dynamic Users table first (Unified User Management)
+        if (class_exists('UserModel')) {
+            UserModel::ensureTableExists();
+            $dbUser = UserModel::getByUsername($cleanUser);
+            if ($dbUser && !empty($dbUser['is_active']) && self::verifyPassword($cleanPass, (string)$dbUser['password_hash'])) {
+                self::resetLoginThrottle();
+                UserModel::updateLastLogin((string)$dbUser['id']);
+                $roleUpper = strtoupper((string)($dbUser['role'] ?? 'USER'));
+                $user = [
+                    'id' => $dbUser['id'],
+                    'username' => $dbUser['username'],
+                    'nama' => $dbUser['nama'] ?: ($roleUpper === 'ADMIN' ? 'Administrator SAR' : 'Petugas Siaga SAR'),
+                    'nip' => $dbUser['nip'] ?: '-',
+                    'role' => $roleUpper,
+                    'roleTitle' => $roleUpper === 'ADMIN' ? 'Administrator Utama SAR' : 'Operator Siaga SAR & Senkom',
+                    'pangkat' => $dbUser['pangkat'] ?: '-',
+                    'jabatan' => $dbUser['jabatan'] ?: ($roleUpper === 'ADMIN' ? 'Kepala Kantor KPP Kendari' : 'Petugas Siaga SAR'),
+                    'email' => $dbUser['email'] ?: '',
+                    'no_hp' => $dbUser['no_hp'] ?: '',
+                    'loginAt' => date('Y-m-d H:i:s')
+                ];
+                self::setSession($user);
+
+                if (class_exists('AuditHelper')) {
+                    AuditHelper::log('AUTH_LOGIN_SUCCESS', "Pengguna {$user['nama']} ({$cleanUser}) berhasil masuk ke sistem.", 'AUTH', $user['id']);
+                }
+
+                return ['success' => true, 'user' => $user];
+            }
+        }
+
+        // 2. Fallback check AppSettings row (Legacy/Direct Settings Compatibility)
         $db = getDB();
         $stmt = $db->query("SELECT * FROM AppSettings WHERE id = 1 LIMIT 1");
         $settings = $stmt->fetch() ?: [];
@@ -214,9 +263,6 @@ class AuthHelper {
         $adminPass = (string)($settings['admin_password'] ?? '');
         $userUser = $settings['user_username'] ?? 'user';
         $userPass = (string)($settings['user_password'] ?? '');
-
-        $cleanUser = trim($username);
-        $cleanPass = trim($password);
 
         // Check ADMIN
         if (strcasecmp($cleanUser, $adminUser) === 0 && self::verifyPassword($cleanPass, $adminPass)) {
@@ -364,5 +410,9 @@ class AuthHelper {
 
     public static function validateCsrf(?string $token): bool {
         return !empty($_SESSION['csrf_token']) && !empty($token) && hash_equals($_SESSION['csrf_token'], $token);
+    }
+
+    public static function verifyCsrf(?string $token): bool {
+        return self::validateCsrf($token);
     }
 }

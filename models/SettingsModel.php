@@ -17,7 +17,17 @@ class SettingsModel {
         $settings = $stmt->fetch();
 
         if (!$settings) {
-            $db->exec("INSERT INTO AppSettings (id, satker_kode, satker_nama) VALUES (1, 'SAR-304', 'Kantor Pencarian dan Pertolongan Kelas A Kendari')");
+            $defaultHash = password_hash(defined('DEFAULT_RESET_PASSWORD') ? DEFAULT_RESET_PASSWORD : 'Kendari304', PASSWORD_DEFAULT);
+            $stmtInit = $db->prepare("INSERT INTO AppSettings (
+                id, satker_kode, satker_nama, 
+                admin_username, admin_password, admin_nama, admin_role,
+                user_username, user_password, user_nama, user_role
+            ) VALUES (
+                1, 'SAR-304', 'Kantor Pencarian dan Pertolongan Kelas A Kendari',
+                'admin', :pa, 'AMIRUDDIN AS, S.Sos.', 'ADMIN',
+                'user', :pu, 'Petugas Siaga SAR', 'USER'
+            )");
+            $stmtInit->execute([':pa' => $defaultHash, ':pu' => $defaultHash]);
             $stmt = $db->query("SELECT * FROM AppSettings WHERE id = 1 LIMIT 1");
             $settings = $stmt->fetch();
         }

@@ -28,7 +28,13 @@ if ($method === 'POST') {
     $res = AuthHelper::login($username, $password);
     if ($res['success']) {
         setFlash('success', 'Selamat datang kembali, ' . ($res['user']['nama'] ?? 'Petugas SAR') . '!');
-        header("Location: " . BASE_URL . "/index.php");
+        $redirect = $_SESSION['redirect_url'] ?? (BASE_URL . '/index.php');
+        unset($_SESSION['redirect_url']);
+        // Sanity check against open redirect vulnerabilities
+        if (str_starts_with($redirect, 'http') && !str_starts_with($redirect, BASE_URL)) {
+            $redirect = BASE_URL . '/index.php';
+        }
+        header("Location: " . $redirect);
         exit;
     } else {
         setFlash('error', $res['error'] ?? $res['message'] ?? 'Nama pengguna atau kata sandi tidak valid.');

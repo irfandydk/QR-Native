@@ -68,10 +68,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($_POST['srus'] as $s) {
             if (!empty($s['nama_sru'])) {
                 $srus[] = [
+                    'id_sru' => !empty($s['id_sru']) ? (int)$s['id_sru'] : null,
                     'nama_sru' => trim($s['nama_sru']),
                     'koordinat_area' => trim($s['koordinat_area'] ?? ''),
                     'luas_area' => trim($s['luas_area'] ?? ''),
-                    'pola_pencarian' => trim($s['pola_pencarian'] ?? 'Parallel Track Search')
+                    'pola_pencarian' => trim($s['pola_pencarian'] ?? 'Parallel Track Search'),
+                    'total_sapuan' => trim($s['total_sapuan'] ?? ''),
+                    'track_spacing' => trim($s['track_spacing'] ?? '')
                 ];
             }
         }
@@ -80,9 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
     $tglInput = $_POST['tanggal_laporan'] ?? date('Y-m-d');
-    if (empty($_POST['hari_ke'])) {
-        $_POST['hari_ke'] = TemplateHelper::hitungHariKe($baseDateOps, $tglInput);
-    }
+    $_POST['hari_ke'] = TemplateHelper::hitungHariKe($baseDateOps, $tglInput);
 
     try {
         if ($editMode) {
@@ -112,7 +113,7 @@ $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
 
 if ($editMode) {
     $tanggalLaporan = $renops['tanggal_laporan'] ?? date('Y-m-d');
-    $hariKe = $renops['hari_ke'] ?: TemplateHelper::hitungHariKe($baseDateOps, $tanggalLaporan);
+    $hariKe = TemplateHelper::hitungHariKe($baseDateOps, $tanggalLaporan);
     $waktuBriefing = !empty($renops['waktu_briefing']) ? date('Y-m-d\TH:i', strtotime($renops['waktu_briefing'])) : date('Y-m-d\T07:00');
     $waktuMulaiOps = !empty($renops['waktu_mulai_ops']) ? date('Y-m-d\TH:i', strtotime($renops['waktu_mulai_ops'])) : date('Y-m-d\T07:30');
     $cuaca = $renops['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
@@ -120,13 +121,14 @@ if ($editMode) {
     $initialAlutData = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi['detail_alut'] ?? []);
     $initialSrus = $renops['srus'] ?? [];
 } else {
-    $tanggalLaporan = date('Y-m-d');
-    $hariKe = TemplateHelper::hitungHariKe($baseDateOps, $tanggalLaporan);
-    $waktuBriefing = date('Y-m-d\T07:00');
-    $waktuMulaiOps = date('Y-m-d\T07:30');
-    $cuaca = $operasi['cuaca'] ?: 'Cerah Berawan';
-    $initialUnsurData = !empty($operasi['detail_unsur']) ? $operasi['detail_unsur'] : [];
-    $initialAlutData = !empty($operasi['detail_alut']) ? $operasi['detail_alut'] : [];
+    $nextRenops = HierarchyHelper::getNextRenopsDefaults($operasi);
+    $tanggalLaporan = $nextRenops['target_date_str'] ?? date('Y-m-d');
+    $hariKe = $nextRenops['hari_ke'] ?? TemplateHelper::hitungHariKe($baseDateOps, $tanggalLaporan);
+    $waktuBriefing = $tanggalLaporan . 'T07:00';
+    $waktuMulaiOps = $tanggalLaporan . 'T07:30';
+    $cuaca = $nextRenops['inherited_cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
+    $initialUnsurData = !empty($nextRenops['inherited_unsur']) ? $nextRenops['inherited_unsur'] : (!empty($operasi['detail_unsur']) ? $operasi['detail_unsur'] : []);
+    $initialAlutData = !empty($nextRenops['inherited_alut']) ? $nextRenops['inherited_alut'] : (!empty($operasi['detail_alut']) ? $operasi['detail_alut'] : []);
     
     // Auto-detect initial SRUs from GIS plotting if available
     $plottingPolys = !empty($gisBundle['polygons']) ? $gisBundle['polygons'] : [];

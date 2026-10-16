@@ -13,6 +13,17 @@ AuthHelper::requireLogin();
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $operasi = $id ? OperasiModel::getById($id) : null;
 
+$oldInput = $_SESSION['old_input'] ?? null;
+unset($_SESSION['old_input']);
+
+if ($oldInput && is_array($oldInput)) {
+    if (!$operasi) {
+        $operasi = $oldInput;
+    } else {
+        $operasi = array_merge($operasi, $oldInput);
+    }
+}
+
 $pageTitle = $operasi ? "Edit Operasi - {$operasi['nama_operasi']}" : "Inisiasi Laporan Awal Operasi SAR";
 $currentRoute = 'operasi_form';
 $navbarTitle = $operasi ? "Edit Operasi SAR" : "Inisiasi Laporan Awal";
