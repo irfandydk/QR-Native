@@ -104,11 +104,8 @@ class TemplateHelper {
         return self::formatDMS($lat, true, $useIndoDir) . " - " . self::formatDMS($lng, false, $useIndoDir);
     }
 
-    public static function getWaktuMulaiAktual(?array $operasi): string {
+    public static function getWaktuMulaiAwal(?array $operasi): string {
         if (!$operasi) return date('Y-m-d H:i:s');
-        if (!empty($operasi['waktu_reopen'])) {
-            return $operasi['waktu_reopen'];
-        }
 
         $candidates = [];
         if (!empty($operasi['waktu_berangkat'])) {
@@ -121,30 +118,169 @@ class TemplateHelper {
         if (!empty($candidates)) {
             // Ambil waktu operasional paling awal untuk menentukan tanggal mulai operasi sebenarnya
             usort($candidates, function($a, $b) {
-                return strtotime($a) <=> strtotime($b);
+                return (self::parseToTimestamp((string)$a) ?? 0) <=> (self::parseToTimestamp((string)$b) ?? 0);
             });
-            return $candidates[0];
+            return (string)$candidates[0];
         }
 
         if (!empty($operasi['waktu_kejadian'])) {
-            return $operasi['waktu_kejadian'];
+            return (string)$operasi['waktu_kejadian'];
+        }
+        if (!empty($operasi['created_at'])) {
+            return (string)$operasi['created_at'];
         }
         return date('Y-m-d H:i:s');
     }
 
-    public static function hitungHariKe(string|array|null $waktuOrOperasi, ?string $targetDate = null): string {
-        if (is_array($waktuOrOperasi)) {
-            $waktu = self::getWaktuMulaiAktual($waktuOrOperasi);
-        } else {
-            $waktu = $waktuOrOperasi;
+    public static function getWaktuMulaiAktual(?array $operasi, bool $ignoreReopen = false): string {
+        if (!$operasi) return date('Y-m-d H:i:s');
+        if (!$ignoreReopen && !empty($operasi['waktu_reopen'])) {
+            return (string)$operasi['waktu_reopen'];
+        }
+        return self::getWaktuMulaiAwal($operasi);
+    }
+
+    /**
+     * Menentukan hari penutupan awal (N) sebelum operasi dibuka kembali (reopen).
+     * Contoh: jika operasi ditutup pada H.7 (15 Oktober) lalu dibuka kembali pada 17 Oktober,
+     * maka nilai dasar N = 7 sehingga hari berikutnya menjadi H7 + 1, H7 + 2, dst.
+     */
+    public static function getBaseHariSebelumReopen(?array $operasi): int {
+        if (!$operasi) return 7;
+
+        if (!empty($operasi['hari_sebelum_reopen']) && (int)$operasi['hari_sebelum_reopen'] > 0) {
+            return (int)$operasi['hari_sebelum_reopen'];
         }
 
-        if (!$waktu) return 'H.1';
-        $t1 = strtotime(date('Y-m-d', strtotime($waktu)));
-        $t2 = strtotime(date('Y-m-d', $targetDate ? strtotime($targetDate) : time()));
+        $initialStart = self::getWaktuMulaiAwal($operasi);
+        $startTs = self::parseToTimestamp($initialStart);
+        $t1 = $startTs !== null ? strtotime(date('Y-m-d', $startTs)) : false;
 
-        if ($t1 === false || $t2 === false) return 'H.1';
+        $reopenStart = !empty($operasi['waktu_reopen']) ? (string)$operasi['waktu_reopen'] : null;
+        $reopenTs = $reopenStart !== null ? self::parseToTimestamp($reopenStart) : null;
+        $tReopen = $reopenTs !== null ? strtotime(date('Y-m-d', $reopenTs)) : false;
+
+        // Jika masih memiliki waktu_selesai sebelum di-reopen (misal saat dipanggil dari rollbackPenutupan)
+        if ($tReopen === false && !empty($operasi['waktu_selesai']) && $t1 !== false) {
+            $selesaiTs = self::parseToTimestamp((string)$operasi['waktu_selesai']);
+            if ($selesaiTs !== null) {
+                $tSelesai = strtotime(date('Y-m-d', $selesaiTs));
+                if ($tSelesai !== false && $tSelesai >= $t1) {
+                    return max(1, (int)floor(($tSelesai - $t1) / 86400) + 1);
+                }
+            }
+        }
+
+        // Cek laporan penutupan atau dokumen terakhir sebelum tanggal reopen
+        $lapList = $operasi['laporan_harian'] ?? ($operasi['lapbang'] ?? []);
+        $renList = $operasi['renops'] ?? [];
+        $maxPreReopenDay = 0;
+        $penutupanDay = 0;
+
+        foreach ($lapList as $l) {
+            $lRaw = $l['waktu_debrief'] ?? ($l['waktu_laporan'] ?? ($l['tanggal_laporan'] ?? ''));
+            $lTs = !empty($lRaw) ? self::parseToTimestamp((string)$lRaw) : null;
+            if ($lTs === null) continue;
+            $tLap = strtotime(date('Y-m-d', $lTs));
+            if ($tLap === false) continue;
+
+            if ($tReopen === false || $tLap < $tReopen) {
+                $day = ($t1 !== false && $tLap >= $t1)
+                    ? max(1, (int)floor(($tLap - $t1) / 86400) + 1)
+                    : 0;
+                if ($day === 0 && !empty($l['hari_ke']) && preg_match('/^H\.?(\d+)$/i', trim((string)$l['hari_ke']), $mH)) {
+                    $day = (int)$mH[1];
+                }
+                if ($day > $maxPreReopenDay) {
+                    $maxPreReopenDay = $day;
+                }
+                if (strtoupper((string)($l['jenis_laporan'] ?? '')) === 'PENUTUPAN' && $day > 0) {
+                    $penutupanDay = $day;
+                }
+            }
+        }
+
+        if ($penutupanDay > 0) {
+            return $penutupanDay;
+        }
+
+        foreach ($renList as $r) {
+            $rRaw = $r['tanggal_laporan'] ?? ($r['tanggal'] ?? ($r['waktu_briefing'] ?? ''));
+            $rTs = !empty($rRaw) ? self::parseToTimestamp((string)$rRaw) : null;
+            if ($rTs === null) continue;
+            $tRen = strtotime(date('Y-m-d', $rTs));
+            if ($tRen === false) continue;
+
+            if ($tReopen === false || $tRen < $tReopen) {
+                $day = ($t1 !== false && $tRen >= $t1)
+                    ? max(1, (int)floor(($tRen - $t1) / 86400) + 1)
+                    : 0;
+                if ($day === 0 && !empty($r['hari_ke']) && preg_match('/^H\.?(\d+)$/i', trim((string)$r['hari_ke']), $mH)) {
+                    $day = (int)$mH[1];
+                }
+                if ($day > $maxPreReopenDay) {
+                    $maxPreReopenDay = $day;
+                }
+            }
+        }
+
+        if ($maxPreReopenDay > 0) {
+            return $maxPreReopenDay;
+        }
+
+        return 7;
+    }
+
+    public static function hitungHariKe(string|array|null $waktuOrOperasi, ?string $targetDate = null, ?string $fallbackHariKe = null): string {
+        $targetTs = null;
+        if ($targetDate !== null && trim($targetDate) !== '') {
+            $targetTs = self::parseToTimestamp($targetDate);
+        }
+
+        if (is_array($waktuOrOperasi)) {
+            // PHP-02: Jika operasi berstatus CLOSED dan targetDate tidak dikirim, gunakan waktu_selesai (bukan hari ini)
+            $statusOp = strtoupper((string)($waktuOrOperasi['status'] ?? $waktuOrOperasi['status_operasi'] ?? ''));
+            if ($targetTs === null && $statusOp === 'CLOSED' && !empty($waktuOrOperasi['waktu_selesai'])) {
+                $targetTs = self::parseToTimestamp((string)$waktuOrOperasi['waktu_selesai']);
+            }
+            if ($targetTs === null) {
+                $targetTs = time();
+            }
+
+            $t2 = strtotime(date('Y-m-d', $targetTs));
+            $initialStart = self::getWaktuMulaiAwal($waktuOrOperasi);
+            $reopenStart = !empty($waktuOrOperasi['waktu_reopen']) ? (string)$waktuOrOperasi['waktu_reopen'] : null;
+
+            // PHP-03: Dokumen sebelum tanggal reopen tetap H.1..H.N; dokumen pada/setelah reopen menjadi H{N} + 1, H{N} + 2, dst.
+            if ($reopenStart !== null) {
+                $reopenTs = self::parseToTimestamp($reopenStart);
+                $tReopen = $reopenTs !== null ? strtotime(date('Y-m-d', $reopenTs)) : false;
+                if ($tReopen !== false && $t2 !== false && $t2 >= $tReopen) {
+                    $baseHari = self::getBaseHariSebelumReopen($waktuOrOperasi);
+                    $extDay = max(1, (int)floor(($t2 - $tReopen) / 86400) + 1);
+                    return "H{$baseHari} + {$extDay}";
+                }
+            }
+            $waktu = $initialStart;
+        } else {
+            $waktu = $waktuOrOperasi;
+            if ($targetTs === null) {
+                $targetTs = time();
+            }
+            $t2 = strtotime(date('Y-m-d', $targetTs));
+        }
+
+        if (!$waktu) return $fallbackHariKe ?: 'H.1';
+        $startTs = self::parseToTimestamp($waktu);
+        if ($startTs === null) return $fallbackHariKe ?: 'H.1';
+
+        $t1 = strtotime(date('Y-m-d', $startTs));
+        if ($t1 === false || $t2 === false) return $fallbackHariKe ?: 'H.1';
+
         $diffDays = (int)floor(($t2 - $t1) / 86400);
+        if ($diffDays < 0 && !empty($fallbackHariKe) && preg_match('/^H(?:\.?\d+(?:\s*\+\s*\d+)?)$/i', trim($fallbackHariKe))) {
+            return strtoupper(trim($fallbackHariKe));
+        }
         $dayNumber = max(1, $diffDays + 1);
 
         return "H.{$dayNumber}";
@@ -209,16 +345,14 @@ class TemplateHelper {
     /**
      * Hitung Hari Pelaksanaan Operasi SAR
      * - Jika sudah ditutup: "1 s/d 7 Hari" atau "1 s/d 7 Hari + X Hari Tambahan (Total Y Hari)" jika diperpanjang
-     * - Jika masih open: "Hari ke-X (Sedang Berjalan)" atau "7 Hari + X Hari Tambahan (Sedang Berjalan)"
+     * - Jika masih open: "Hari ke-X (Sedang Berjalan)" atau "H7 + X (Sedang Berjalan)"
      */
     public static function hitungPelaksanaanOperasi(array $op, ?string $nowDate = null): array {
         $status = strtoupper((string)($op['status'] ?? 'OPEN'));
         $isOpen = ($status === 'OPEN');
         $isReopened = !empty($op['waktu_reopen']);
         
-        $waktuBerangkat = !empty($op['waktu_berangkat']) 
-            ? $op['waktu_berangkat'] 
-            : (!empty($op['waktu_kejadian']) ? $op['waktu_kejadian'] : (!empty($op['waktu_lapor']) ? $op['waktu_lapor'] : ($op['created_at'] ?? 'now')));
+        $waktuBerangkat = self::getWaktuMulaiAwal($op);
         
         $tMulai = strtotime(date('Y-m-d', strtotime($waktuBerangkat)));
         if ($tMulai === false) $tMulai = time();
@@ -228,14 +362,16 @@ class TemplateHelper {
             if ($isReopened) {
                 $tReopen = strtotime(date('Y-m-d', strtotime((string)$op['waktu_reopen'])));
                 $xHari = max(1, (int)floor(($tNow - $tReopen) / 86400) + 1);
-                $totalHari = 7 + $xHari;
+                $baseHari = self::getBaseHariSebelumReopen($op);
+                $totalHari = $baseHari + $xHari;
+                $hLabel = "H{$baseHari} + {$xHari}";
                 return [
                     'status' => 'OPEN_REOPEN',
-                    'teks' => "7 Hari + {$xHari} Hari Tambahan",
-                    'subteks' => "Perpanjangan H.{$xHari} (Total {$totalHari} Hari)",
-                    'badge' => "7 + {$xHari} Hari",
-                    'h_display' => "H-{$xHari}",
-                    'h_full' => "H-{$totalHari} (Ext)",
+                    'teks' => "{$baseHari} Hari + {$xHari} Hari Tambahan",
+                    'subteks' => "Perpanjangan {$hLabel} (Total {$totalHari} Hari)",
+                    'badge' => $hLabel,
+                    'h_display' => $hLabel,
+                    'h_full' => "{$hLabel} (Ext)",
                     'is_extended' => true,
                     'total_hari' => $totalHari,
                     'x_hari' => $xHari
@@ -246,9 +382,9 @@ class TemplateHelper {
                     'status' => 'OPEN',
                     'teks' => "1 s/d Hari ke-{$hariKeNum}",
                     'subteks' => "Sedang Berjalan (Hari ke-{$hariKeNum})",
-                    'badge' => "H-{$hariKeNum}",
-                    'h_display' => "H-{$hariKeNum}",
-                    'h_full' => "H-{$hariKeNum}",
+                    'badge' => "H.{$hariKeNum}",
+                    'h_display' => "H.{$hariKeNum}",
+                    'h_full' => "H.{$hariKeNum}",
                     'is_extended' => false,
                     'total_hari' => $hariKeNum,
                     'x_hari' => 0
@@ -263,14 +399,16 @@ class TemplateHelper {
             if ($isReopened) {
                 $tReopen = strtotime(date('Y-m-d', strtotime((string)$op['waktu_reopen'])));
                 $xHari = max(1, (int)floor(($tSelesai - $tReopen) / 86400) + 1);
-                $totalHari = 7 + $xHari;
+                $baseHari = self::getBaseHariSebelumReopen($op);
+                $totalHari = $baseHari + $xHari;
+                $hLabel = "H{$baseHari} + {$xHari}";
                 return [
                     'status' => 'CLOSED_REOPEN',
-                    'teks' => "1 s/d 7 Hari + {$xHari} Hari Tambahan",
-                    'subteks' => "Perpanjangan Selesai (Total {$totalHari} Hari)",
-                    'badge' => "7 + {$xHari} Hari Selesai",
-                    'h_display' => "H-{$totalHari}",
-                    'h_full' => "H-{$totalHari} (Ext Selesai)",
+                    'teks' => "1 s/d {$baseHari} Hari + {$xHari} Hari Tambahan",
+                    'subteks' => "Perpanjangan Selesai {$hLabel} (Total {$totalHari} Hari)",
+                    'badge' => "{$hLabel} Selesai",
+                    'h_display' => $hLabel,
+                    'h_full' => "{$hLabel} (Selesai)",
                     'is_extended' => true,
                     'total_hari' => $totalHari,
                     'x_hari' => $xHari
@@ -282,8 +420,8 @@ class TemplateHelper {
                     'teks' => "1 s/d {$durasiHari} Hari",
                     'subteks' => "Operasi Selesai ({$durasiHari} Hari)",
                     'badge' => "1 s/d {$durasiHari} Hari",
-                    'h_display' => "H-{$durasiHari}",
-                    'h_full' => "H-{$durasiHari} (Selesai)",
+                    'h_display' => "H.{$durasiHari}",
+                    'h_full' => "H.{$durasiHari} (Selesai)",
                     'is_extended' => false,
                     'total_hari' => $durasiHari,
                     'x_hari' => 0

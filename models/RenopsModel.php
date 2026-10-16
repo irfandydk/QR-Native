@@ -9,7 +9,8 @@ declare(strict_types=1);
 class RenopsModel {
     private static bool $schemaChecked = false;
 
-    public static function ensureSchemaUpdated(): void {
+    public static function ensureSchemaUpdated(bool $force = false): void {
+        if (!$force) return;
         if (self::$schemaChecked) return;
         self::$schemaChecked = true;
         try {
@@ -18,13 +19,16 @@ class RenopsModel {
             if (empty($cols)) {
                 $db->exec("ALTER TABLE RenopsSRU ADD COLUMN total_sapuan VARCHAR(191) NULL DEFAULT NULL");
             }
+            $colsTs = $db->query("SHOW COLUMNS FROM RenopsSRU LIKE 'track_spacing'")->fetchAll();
+            if (empty($colsTs)) {
+                $db->exec("ALTER TABLE RenopsSRU ADD COLUMN track_spacing VARCHAR(191) NULL DEFAULT NULL");
+            }
         } catch (Throwable $e) {
             error_log("[RenopsModel Schema Check] " . $e->getMessage());
         }
     }
 
     public static function getByOperasiId(int $idOperasi): array {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $stmt = $db->prepare("SELECT * FROM Renops WHERE id_operasi = :id ORDER BY id_renops ASC");
         $stmt->execute([':id' => $idOperasi]);
@@ -162,8 +166,6 @@ class RenopsModel {
             OperasiModel::syncUnsurAlut((int)$data['id_operasi'], $unsur, $alut);
 
             $db->commit();
-            self::syncAutoIncrement();
-            OperasiModel::syncChildAutoIncrements();
             return $idRenops;
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
@@ -174,7 +176,6 @@ class RenopsModel {
     }
 
     public static function update(int $id, array $data): bool {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
 
@@ -284,8 +285,9 @@ class RenopsModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement();
-            OperasiModel::syncChildAutoIncrements();
+            if (!empty($toDelete)) {
+                self::syncAutoIncrement('RenopsSRU');
+            }
             return true;
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
@@ -305,7 +307,6 @@ class RenopsModel {
                 $db->commit();
             }
             self::syncAutoIncrement();
-            OperasiModel::syncChildAutoIncrements();
             return true;
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
@@ -317,24 +318,29 @@ class RenopsModel {
 
     /**
      * Synchronize and reset Renops & RenopsSRU AUTO_INCREMENT to strictly MAX(id) + 1.
+     * If $table is specified ('Renops' or 'RenopsSRU'), only that table will be checked and updated.
      */
-    public static function syncAutoIncrement(): void {
+    public static function syncAutoIncrement(?string $table = null): void {
         $db = getDB();
         if ($db->inTransaction()) {
             return;
         }
         try {
-            $stmtRen = $db->query("SELECT COALESCE(MAX(id_renops), 0) FROM Renops");
-            $maxRenops = (int)$stmtRen->fetchColumn();
-            $stmtRen->closeCursor();
-            $nextRenops = max(1, $maxRenops + 1);
-            $db->exec("ALTER TABLE Renops AUTO_INCREMENT = {$nextRenops}");
+            if ($table === null || $table === 'Renops') {
+                $stmtRen = $db->query("SELECT COALESCE(MAX(id_renops), 0) FROM Renops");
+                $maxRenops = (int)$stmtRen->fetchColumn();
+                $stmtRen->closeCursor();
+                $nextRenops = max(1, $maxRenops + 1);
+                $db->exec("ALTER TABLE Renops AUTO_INCREMENT = {$nextRenops}");
+            }
 
-            $stmtSru = $db->query("SELECT COALESCE(MAX(id_sru), 0) FROM RenopsSRU");
-            $maxSru = (int)$stmtSru->fetchColumn();
-            $stmtSru->closeCursor();
-            $nextSru = max(1, $maxSru + 1);
-            $db->exec("ALTER TABLE RenopsSRU AUTO_INCREMENT = {$nextSru}");
+            if ($table === null || $table === 'RenopsSRU') {
+                $stmtSru = $db->query("SELECT COALESCE(MAX(id_sru), 0) FROM RenopsSRU");
+                $maxSru = (int)$stmtSru->fetchColumn();
+                $stmtSru->closeCursor();
+                $nextSru = max(1, $maxSru + 1);
+                $db->exec("ALTER TABLE RenopsSRU AUTO_INCREMENT = {$nextSru}");
+            }
         } catch (Throwable) {
             // Silently continue
         }

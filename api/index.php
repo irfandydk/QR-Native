@@ -519,8 +519,13 @@ try {
 
         if ($method === 'PUT' || $method === 'POST') {
             $requireAuth();
-            $ok = OperasiModel::update($id, $input);
-            echo json_encode(['success' => $ok, 'message' => 'Data Operasi SAR berhasil diperbarui.']);
+            try {
+                $ok = OperasiModel::update($id, $input);
+                echo json_encode(['success' => $ok, 'message' => 'Data Operasi SAR berhasil diperbarui.']);
+            } catch (\Throwable $e) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => $e->getMessage(), 'message' => $e->getMessage()]);
+            }
             exit;
         }
 
@@ -541,8 +546,13 @@ try {
         $requireAuth();
         $id = (int)$m[1];
         $waktu = $input['waktu_selesai'] ?? date('Y-m-d H:i:s');
-        $ok = OperasiModel::closeOperation($id, $waktu);
-        echo json_encode(['success' => $ok, 'message' => 'Operasi SAR resmi ditutup.']);
+        try {
+            $ok = OperasiModel::closeOperation($id, $waktu);
+            echo json_encode(['success' => $ok, 'message' => 'Operasi SAR resmi ditutup.']);
+        } catch (\Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => $e->getMessage(), 'message' => $e->getMessage()]);
+        }
         exit;
     }
 
@@ -550,12 +560,18 @@ try {
         $requireAuth();
         $id = (int)$m[1];
         $waktuReopen = $input['waktu_reopen'] ?? $input['waktu'] ?? date('Y-m-d H:i:s');
-        $ok = OperasiModel::rollbackPenutupan($id, $waktuReopen);
-        echo json_encode([
-            'success' => $ok, 
-            'message' => 'Status Operasi SAR berhasil dibuka kembali (OPEN) dan perhitungan hari operasional dimulai lagi.',
-            'waktu_reopen' => $waktuReopen
-        ]);
+        try {
+            $ok = OperasiModel::rollbackPenutupan($id, $waktuReopen);
+            $updatedOps = OperasiModel::getById($id);
+            echo json_encode([
+                'success' => $ok, 
+                'message' => 'Status Operasi SAR berhasil dibuka kembali (OPEN) dan perhitungan hari operasional dimulai lagi.',
+                'waktu_reopen' => $updatedOps['waktu_reopen'] ?? $waktuReopen
+            ]);
+        } catch (\Throwable $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => $e->getMessage(), 'message' => $e->getMessage()]);
+        }
         exit;
     }
 
@@ -589,30 +605,32 @@ try {
     }
 
     if (preg_match('#^/renops/(\d+)$#', $path, $m)) {
+        $requireAuth();
         $id = (int)$m[1];
         $existingRenops = RenopsModel::getById($id);
-        if ($existingRenops) {
-            $parentOps = OperasiModel::getById((int)$existingRenops['id_operasi']);
-            if ($parentOps && $parentOps['status'] === 'CLOSED') {
-                http_response_code(403);
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'Operasi SAR telah berstatus DITUTUP (CLOSED). Data RENOPS terkunci dan tidak dapat diubah/dihapus kecuali status operasi dibuka kembali.'
-                ]);
-                exit;
-            }
+        if (!$existingRenops) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'error' => 'Data Rencana Operasi (RENOPS) tidak ditemukan.']);
+            exit;
+        }
+        $parentOps = OperasiModel::getById((int)$existingRenops['id_operasi']);
+        if ($parentOps && $parentOps['status'] === 'CLOSED') {
+            http_response_code(403);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Operasi SAR telah berstatus DITUTUP (CLOSED). Data RENOPS terkunci dan tidak dapat diubah/dihapus kecuali status operasi dibuka kembali.'
+            ]);
+            exit;
         }
         if ($method === 'PUT' || $method === 'POST') {
-            $requireAuth();
             $ok = RenopsModel::update($id, $input);
             echo json_encode(['success' => $ok, 'message' => 'Rencana Operasi berhasil diperbarui.']);
             exit;
         }
         if ($method === 'DELETE') {
-            $requireAuth();
             if (!AuthHelper::canDelete()) {
                 http_response_code(403);
-                echo json_encode(['success' => false, 'error' => 'Akses ditolak.']);
+                echo json_encode(['success' => false, 'error' => 'Akses ditolak: Hanya Administrator yang berwenang menghapus data RENOPS.']);
                 exit;
             }
             $ok = RenopsModel::delete($id);
@@ -651,30 +669,32 @@ try {
     }
 
     if (preg_match('#^/laporan/(\d+)$#', $path, $m)) {
+        $requireAuth();
         $id = (int)$m[1];
         $existingLap = LaporanModel::getById($id);
-        if ($existingLap) {
-            $parentOps = OperasiModel::getById((int)$existingLap['id_operasi']);
-            if ($parentOps && $parentOps['status'] === 'CLOSED') {
-                http_response_code(403);
-                echo json_encode([
-                    'success' => false,
-                    'error' => 'Operasi SAR telah berstatus DITUTUP (CLOSED). Laporan Perkembangan terkunci dan tidak dapat diubah/dihapus kecuali status operasi dibuka kembali.'
-                ]);
-                exit;
-            }
+        if (!$existingLap) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'error' => 'Data Laporan Perkembangan (SITREP) tidak ditemukan.']);
+            exit;
+        }
+        $parentOps = OperasiModel::getById((int)$existingLap['id_operasi']);
+        if ($parentOps && $parentOps['status'] === 'CLOSED') {
+            http_response_code(403);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Operasi SAR telah berstatus DITUTUP (CLOSED). Laporan Perkembangan terkunci dan tidak dapat diubah/dihapus kecuali status operasi dibuka kembali.'
+            ]);
+            exit;
         }
         if ($method === 'PUT' || $method === 'POST') {
-            $requireAuth();
             $ok = LaporanModel::update($id, $input);
             echo json_encode(['success' => $ok, 'message' => 'Laporan Perkembangan berhasil diperbarui.']);
             exit;
         }
         if ($method === 'DELETE') {
-            $requireAuth();
             if (!AuthHelper::canDelete()) {
                 http_response_code(403);
-                echo json_encode(['success' => false, 'error' => 'Akses ditolak.']);
+                echo json_encode(['success' => false, 'error' => 'Akses ditolak: Hanya Administrator yang berwenang menghapus data SITREP.']);
                 exit;
             }
             $ok = LaporanModel::delete($id);
@@ -923,7 +943,7 @@ try {
             'routes' => $routes,
             'search_patterns' => $searchPatterns,
             'searchPatterns' => $searchPatterns,
-            'operasi' => OperasiModel::getAll('OPEN')
+            'operasi' => (!$idOperasi || isset($_GET['include_operations'])) ? OperasiModel::getAll('OPEN') : []
         ]);
         exit;
     }

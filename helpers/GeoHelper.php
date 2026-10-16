@@ -17,17 +17,33 @@ class GeoHelper {
     public static function decimalToDms(float $lat, float $lng): string {
         $latDir = $lat < 0 ? 'S' : 'N';
         $absLat = abs($lat);
-        $latDeg = floor($absLat);
+        $latDeg = (int)floor($absLat);
         $latMinFloat = ($absLat - $latDeg) * 60;
-        $latMin = floor($latMinFloat);
-        $latSec = round(($latMinFloat - $latMin) * 60);
+        $latMin = (int)floor($latMinFloat);
+        $latSec = (int)round(($latMinFloat - $latMin) * 60);
+        if ($latSec >= 60) {
+            $latSec = 0;
+            $latMin++;
+            if ($latMin >= 60) {
+                $latMin = 0;
+                $latDeg++;
+            }
+        }
 
         $lngDir = $lng < 0 ? 'W' : 'E';
         $absLng = abs($lng);
-        $lngDeg = floor($absLng);
+        $lngDeg = (int)floor($absLng);
         $lngMinFloat = ($absLng - $lngDeg) * 60;
-        $lngMin = floor($lngMinFloat);
-        $lngSec = round(($lngMinFloat - $lngMin) * 60);
+        $lngMin = (int)floor($lngMinFloat);
+        $lngSec = (int)round(($lngMinFloat - $lngMin) * 60);
+        if ($lngSec >= 60) {
+            $lngSec = 0;
+            $lngMin++;
+            if ($lngMin >= 60) {
+                $lngMin = 0;
+                $lngDeg++;
+            }
+        }
 
         $latStr = sprintf("%02d° %02d' %02d\" %s", $latDeg, $latMin, $latSec, $latDir);
         $lngStr = sprintf("%03d° %02d' %02d\" %s", $lngDeg, $lngMin, $lngSec, $lngDir);
@@ -36,37 +52,89 @@ class GeoHelper {
     }
 
     /**
-     * Parse DMS string to Decimal latitude and longitude array [lat, lng]
+     * Parse DMS or Decimal coordinate string to Decimal latitude and longitude array ['lat' => float, 'lng' => float]
+     * Supports:
+     * - Standard DMS: "04° 01' 04\" S - 122° 34' 10\" E"
+     * - Indonesian DMS: "04° 01' 04.5\" S - 122° 34' 10.2\" T" (U/S/T/B)
+     * - Comma-separated DMS: "04° 01' 04\" S, 122° 34' 10\" E"
+     * - Negative/Positive Decimal Degrees: "-4.037694, 122.486694" or "-4.037694 - 122.486694"
      */
     public static function parseCoordinates(?string $coordString): ?array {
         if (!$coordString) return null;
-        $parts = preg_split('/[-–—]/', $coordString);
-        if (count($parts) < 2) return null;
+        $clean = trim($coordString);
+        if ($clean === '' || $clean === '-') return null;
+
+        // 1. Direct Decimal Degrees pair: e.g. "-4.037694, 122.486694" or "-4.037694 - 122.486694"
+        if (preg_match('/^\s*(-?\d{1,2}(?:\.\d+)?)\s*(LU|LS|[NSU])?\s*(?:[,;\/]|\s+[-–—]\s+|\s+)\s*(-?\d{1,3}(?:\.\d+)?)\s*(BT|BB|[EWTB])?\s*$/i', $clean, $mDec)) {
+            $lat = (float)$mDec[1];
+            $latDir = strtoupper($mDec[2] ?? '');
+            if (($latDir === 'S' || $latDir === 'LS') && $lat > 0) $lat = -$lat;
+
+            $lng = (float)$mDec[3];
+            $lngDir = strtoupper($mDec[4] ?? '');
+            if (($lngDir === 'W' || $lngDir === 'B' || $lngDir === 'BB') && $lng > 0) $lng = -$lng;
+
+            if ($lat >= -90.0 && $lat <= 90.0 && $lng >= -180.0 && $lng <= 180.0) {
+                return ['lat' => $lat, 'lng' => $lng];
+            }
+        }
+
+        // 2. Split DMS / mixed coordinate pair safely without breaking leading negative sign
+        $parts = preg_split('/(?:\s+[-–—]\s+|[,;\/]|(?<=[NSEWUSTBnsewustb"\'”″])\s*[-–—]\s*)/u', $clean);
+        if (!$parts || count($parts) < 2) {
+            // Fallback: split on hyphen not at index 0
+            $parts = preg_split('/(?<!^)\s*[-–—]\s*/u', $clean, 2);
+        }
+        if (!$parts || count($parts) < 2) return null;
 
         $lat = self::dmsPartToDecimal(trim($parts[0]));
         $lng = self::dmsPartToDecimal(trim($parts[1]));
 
         if ($lat === null || $lng === null) return null;
+        if ($lat < -90.0 || $lat > 90.0 || $lng < -180.0 || $lng > 180.0) return null;
+
         return ['lat' => $lat, 'lng' => $lng];
     }
 
     public static function dmsPartToDecimal(string $str): ?float {
-        if (preg_match('/(\d{1,3})[°\s]+(\d{1,2})[\'\s]+(\d{1,2}(?:\.\d+)?)["]?\s*([NSEWnsew])?/i', trim($str), $m)) {
+        $trimmed = trim($str);
+        if ($trimmed === '') return null;
+
+        // Match DMS: deg° min' sec" [N/S/E/W or U/S/T/B or LU/LS/BT/BB]
+        if (preg_match('/^(-?\d{1,3})\s*(?:°|deg|\s)\s*(\d{1,2})\s*(?:[\'’′]|min|\s)\s*(\d{1,2}(?:\.\d+)?)\s*(?:["”″]|sec|s)?\s*(LU|LS|BT|BB|[NSEWUSTB])?$/iu', $trimmed, $m)) {
             $deg = (float)$m[1];
             $min = (float)$m[2];
             $sec = (float)$m[3];
             $dir = isset($m[4]) ? strtoupper($m[4]) : '';
 
-            $dec = $deg + ($min / 60) + ($sec / 3600);
-            if ($dir === 'S' || $dir === 'W') {
+            $dec = abs($deg) + ($min / 60.0) + ($sec / 3600.0);
+            if ($deg < 0 || in_array($dir, ['S', 'LS', 'W', 'B', 'BB'], true)) {
                 $dec = -$dec;
             }
             return $dec;
         }
 
-        // Check if already decimal number
-        if (is_numeric(trim($str))) {
-            return (float)trim($str);
+        // Match DM (Degrees + Decimal Minutes): deg° min' [N/S/E/W or U/S/T/B or LU/LS/BT/BB]
+        if (preg_match('/^(-?\d{1,3})\s*(?:°|deg|\s)\s*(\d{1,2}(?:\.\d+)?)\s*(?:[\'’′]|min)?\s*(LU|LS|BT|BB|[NSEWUSTB])?$/iu', $trimmed, $mDm)) {
+            $deg = (float)$mDm[1];
+            $min = (float)$mDm[2];
+            $dir = isset($mDm[3]) ? strtoupper($mDm[3]) : '';
+
+            $dec = abs($deg) + ($min / 60.0);
+            if ($deg < 0 || in_array($dir, ['S', 'LS', 'W', 'B', 'BB'], true)) {
+                $dec = -$dec;
+            }
+            return $dec;
+        }
+
+        // Match Decimal with optional compass suffix/prefix: e.g. "-4.037694" or "4.037694 S"
+        if (preg_match('/^(LU|LS|BT|BB|[NSEWUSTB])?\s*(-?\d+(?:\.\d+)?)\s*°?\s*(LU|LS|BT|BB|[NSEWUSTB])?$/iu', $trimmed, $mDec)) {
+            $dir = strtoupper(($mDec[1] ?? '') ?: ($mDec[3] ?? ''));
+            $val = (float)$mDec[2];
+            if ($val < 0 || in_array($dir, ['S', 'LS', 'W', 'B', 'BB'], true)) {
+                $val = -abs($val);
+            }
+            return $val;
         }
 
         return null;

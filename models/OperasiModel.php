@@ -320,9 +320,6 @@ class OperasiModel {
 
             $db->commit();
 
-            self::syncAutoIncrement();
-            self::syncChildAutoIncrements();
-
             if (class_exists('AuditHelper')) {
                 AuditHelper::log('CREATE_OPERASI', "Operasi SAR dibuka: {$data['nama_operasi']}", 'OPERASI', "OPS-{$idOperasi}");
             }
@@ -342,7 +339,12 @@ class OperasiModel {
 
         try {
             $ops = self::getById($id);
-            if (!$ops) return false;
+            if (!$ops) {
+                throw new RuntimeException('Operasi SAR tidak ditemukan.');
+            }
+            if (($ops['status'] ?? '') === 'CLOSED') {
+                throw new RuntimeException('Operasi SAR telah berstatus DITUTUP (CLOSED). Data Laporan Awal terkunci dan tidak dapat diubah kecuali status operasi dibuka kembali.');
+            }
 
             $korbanData = $data['korban'] ?? $ops['korban'];
             $unsurData = $data['detail_unsur'] ?? $ops['detail_unsur'];
@@ -462,26 +464,39 @@ class OperasiModel {
                     $delPlaceholders = implode(',', array_fill(0, count($toDeleteK), '?'));
                     $stmtDelK = $db->prepare("DELETE FROM Korban WHERE id_korban IN ({$delPlaceholders}) AND id_operasi = ?");
                     $stmtDelK->execute([...$toDeleteK, $id]);
+                    $delKorban = true;
                 }
             }
 
             // Differential update for DetailUnsur
+            $delUnsur = false;
             if (isset($data['detail_unsur'])) {
-                self::applyDifferentialUnsur($db, $id, $data['detail_unsur']);
+                $delUnsur = self::applyDifferentialUnsur($db, $id, $data['detail_unsur']);
             }
 
             // Differential update for DetailAlut
+            $delAlut = false;
             if (isset($data['detail_alut'])) {
-                self::applyDifferentialAlut($db, $id, $data['detail_alut']);
+                $delAlut = self::applyDifferentialAlut($db, $id, $data['detail_alut']);
             }
 
             // Differential update for DetailTimBerangkat
+            $delTim = false;
             if (isset($data['tim_berangkat']) || isset($data['detail_tim_berangkat'])) {
-                self::applyDifferentialTimBerangkat($db, $id, $data);
+                $delTim = self::applyDifferentialTimBerangkat($db, $id, $data);
             }
 
             $db->commit();
-            self::syncChildAutoIncrements();
+            if (!empty($delKorban)) self::syncChildAutoIncrements('Korban');
+            if ($delUnsur) self::syncChildAutoIncrements('DetailUnsur');
+            if ($delAlut) self::syncChildAutoIncrements('DetailAlut');
+            if ($delTim) self::syncChildAutoIncrements('DetailTimBerangkat');
+
+            if (class_exists('AuditHelper')) {
+                $namaUpdated = $data['nama_operasi'] ?? $ops['nama_operasi'];
+                AuditHelper::log('UPDATE_OPERASI', "Data Laporan Awal Operasi SAR diperbarui: {$namaUpdated}", 'OPERASI', "OPS-{$id}");
+            }
+
             return true;
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
@@ -569,29 +584,101 @@ class OperasiModel {
         }
     }
 
+    private static function normalizeDateTime(?string $raw): string {
+        if ($raw === null || trim($raw) === '') {
+            return date('Y-m-d H:i:s');
+        }
+        $clean = trim($raw);
+        $ts = class_exists('TemplateHelper')
+            ? TemplateHelper::parseToTimestamp($clean)
+            : strtotime(str_replace('T', ' ', $clean));
+        if ($ts === false || $ts <= 0) {
+            return date('Y-m-d H:i:s');
+        }
+        return date('Y-m-d H:i:s', $ts);
+    }
+
     public static function closeOperation(int $id, ?string $waktuSelesai = null): bool {
         $db = getDB();
-        $waktu = $waktuSelesai ?: date('Y-m-d H:i:s');
+        $stmtCheck = $db->prepare("SELECT id_operasi, nama_operasi, status FROM Operasi WHERE id_operasi = :id");
+        $stmtCheck->execute([':id' => $id]);
+        $ops = $stmtCheck->fetch();
+        if (!$ops) {
+            throw new RuntimeException('Operasi SAR tidak ditemukan.');
+        }
+        if (($ops['status'] ?? '') === 'CLOSED') {
+            throw new RuntimeException('Operasi SAR ini sudah berstatus DITUTUP (CLOSED).');
+        }
+
+        $waktu = self::normalizeDateTime($waktuSelesai);
         $stmt = $db->prepare("UPDATE Operasi SET status = 'CLOSED', waktu_selesai = :waktu WHERE id_operasi = :id");
         $res = $stmt->execute([':waktu' => $waktu, ':id' => $id]);
         if ($res && class_exists('AuditHelper')) {
-            AuditHelper::log('CLOSE_OPERASI', "Operasi SAR resmi ditutup (CLOSED): ID {$id}", 'OPERASI', "OPS-{$id}");
+            $namaOps = $ops['nama_operasi'] ?? "ID #{$id}";
+            AuditHelper::log('CLOSE_OPERASI', "Operasi SAR resmi ditutup (CLOSED): {$namaOps} (ID #{$id}) pada {$waktu}", 'OPERASI', "OPS-{$id}");
         }
         return $res;
+    }
+
+    private static bool $schemaChecked = false;
+
+    public static function ensureSchemaUpdated(bool $force = false): void {
+        if (!$force) return;
+        if (self::$schemaChecked) return;
+        self::$schemaChecked = true;
+        try {
+            $db = getDB();
+            if ($db->inTransaction()) return;
+
+            $opsCols = [
+                'jenis_kejadian' => "ALTER TABLE Operasi ADD COLUMN jenis_kejadian VARCHAR(191) NULL DEFAULT NULL AFTER nama_operasi",
+                'radial' => "ALTER TABLE Operasi ADD COLUMN radial VARCHAR(191) NULL DEFAULT NULL AFTER jarak",
+                'waktu_reopen' => "ALTER TABLE Operasi ADD COLUMN waktu_reopen DATETIME NULL DEFAULT NULL AFTER waktu_selesai",
+                'catatan_reopen' => "ALTER TABLE Operasi ADD COLUMN catatan_reopen TEXT NULL DEFAULT NULL AFTER waktu_reopen",
+                'hari_sebelum_reopen' => "ALTER TABLE Operasi ADD COLUMN hari_sebelum_reopen INT NULL DEFAULT NULL AFTER catatan_reopen"
+            ];
+            foreach ($opsCols as $colName => $alterSql) {
+                $cols = $db->query("SHOW COLUMNS FROM Operasi LIKE '{$colName}'")->fetchAll();
+                if (empty($cols)) {
+                    $db->exec($alterSql);
+                }
+            }
+        } catch (Throwable $e) {
+            error_log("[OperasiModel Schema Check] " . $e->getMessage());
+        }
     }
 
     public static function rollbackPenutupan(int $id, ?string $waktuReopen = null): bool {
         $db = getDB();
-        $waktu = $waktuReopen ?: date('Y-m-d H:i:s');
-        $stmt = $db->prepare("UPDATE Operasi SET status = 'OPEN', waktu_selesai = NULL, waktu_reopen = :waktu WHERE id_operasi = :id");
-        $res = $stmt->execute([':waktu' => $waktu, ':id' => $id]);
+        $ops = self::getById($id);
+        if (!$ops) {
+            throw new RuntimeException('Operasi SAR tidak ditemukan.');
+        }
+        if (($ops['status'] ?? '') !== 'CLOSED') {
+            throw new RuntimeException('Operasi SAR sudah berstatus AKTIF (OPEN) dan tidak memerlukan pembukaan kembali.');
+        }
+
+        // Hitung hari ke-N saat operasi ditutup sebelum waktu_selesai direset ke NULL
+        $opsForBase = $ops;
+        unset($opsForBase['waktu_reopen']);
+        $hariTutup = class_exists('TemplateHelper') ? TemplateHelper::getBaseHariSebelumReopen($opsForBase) : 7;
+
+        $waktu = self::normalizeDateTime($waktuReopen);
+        try {
+            $stmt = $db->prepare("UPDATE Operasi SET status = 'OPEN', waktu_selesai = NULL, waktu_reopen = :waktu, hari_sebelum_reopen = :hari_tutup WHERE id_operasi = :id");
+            $res = $stmt->execute([':waktu' => $waktu, ':hari_tutup' => $hariTutup, ':id' => $id]);
+        } catch (Throwable) {
+            $stmt = $db->prepare("UPDATE Operasi SET status = 'OPEN', waktu_selesai = NULL, waktu_reopen = :waktu WHERE id_operasi = :id");
+            $res = $stmt->execute([':waktu' => $waktu, ':id' => $id]);
+        }
         if ($res && class_exists('AuditHelper')) {
-            AuditHelper::log('REOPEN_OPERASI', "Operasi SAR dibuka kembali (RE-OPEN): ID {$id} pada {$waktu}", 'OPERASI', "OPS-{$id}");
+            $namaOps = $ops['nama_operasi'] ?? "ID #{$id}";
+            AuditHelper::log('REOPEN_OPERASI', "Operasi SAR dibuka kembali (RE-OPEN): {$namaOps} (ID #{$id}) pada {$waktu} (melanjutkan dari H.{$hariTutup} -> H{$hariTutup} + 1)", 'OPERASI', "OPS-{$id}");
         }
         return $res;
     }
 
-    public static function applyDifferentialUnsur(PDO $db, int $idOperasi, array $unsurData): void {
+    public static function applyDifferentialUnsur(PDO $db, int $idOperasi, array $unsurData): bool {
         $stmtExisting = $db->prepare("SELECT id_detail_unsur, nama_unsur FROM DetailUnsur WHERE id_operasi = :id ORDER BY id_detail_unsur ASC");
         $stmtExisting->execute([':id' => $idOperasi]);
         $existingRows = $stmtExisting->fetchAll();
@@ -644,10 +731,12 @@ class OperasiModel {
             $delPlaceholders = implode(',', array_fill(0, count($toDelete), '?'));
             $stmtDel = $db->prepare("DELETE FROM DetailUnsur WHERE id_detail_unsur IN ({$delPlaceholders}) AND id_operasi = ?");
             $stmtDel->execute([...$toDelete, $idOperasi]);
+            return true;
         }
+        return false;
     }
 
-    public static function applyDifferentialAlut(PDO $db, int $idOperasi, array $alutData): void {
+    public static function applyDifferentialAlut(PDO $db, int $idOperasi, array $alutData): bool {
         $stmtExisting = $db->prepare("SELECT id_detail_alut, nama_alut FROM DetailAlut WHERE id_operasi = :id ORDER BY id_detail_alut ASC");
         $stmtExisting->execute([':id' => $idOperasi]);
         $existingRows = $stmtExisting->fetchAll();
@@ -702,14 +791,17 @@ class OperasiModel {
             $delPlaceholders = implode(',', array_fill(0, count($toDelete), '?'));
             $stmtDel = $db->prepare("DELETE FROM DetailAlut WHERE id_detail_alut IN ({$delPlaceholders}) AND id_operasi = ?");
             $stmtDel->execute([...$toDelete, $idOperasi]);
+            return true;
         }
+        return false;
     }
 
-    public static function applyDifferentialTimBerangkat(PDO $db, int $idOperasi, array $data): void {
+    public static function applyDifferentialTimBerangkat(PDO $db, int $idOperasi, array $data): bool {
         $timBerangkat = trim((string)($data['tim_berangkat'] ?? ''));
         if ($timBerangkat === '' && empty($data['detail_tim_berangkat'])) {
-            $db->prepare("DELETE FROM DetailTimBerangkat WHERE id_operasi = :id")->execute([':id' => $idOperasi]);
-            return;
+            $stmtDel = $db->prepare("DELETE FROM DetailTimBerangkat WHERE id_operasi = :id");
+            $stmtDel->execute([':id' => $idOperasi]);
+            return $stmtDel->rowCount() > 0;
         }
 
         $idTim = (int)($data['id_tim_berangkat'] ?? 0);
@@ -726,11 +818,13 @@ class OperasiModel {
         if ($existingId) {
             $db->prepare("UPDATE DetailTimBerangkat SET id_tim = :id_tim, nama_tim = :nama WHERE id_detail_tim = :dtid")
                ->execute([':id_tim' => $idTim, ':nama' => $timBerangkat, ':dtid' => $existingId]);
-            $db->prepare("DELETE FROM DetailTimBerangkat WHERE id_operasi = :id AND id_detail_tim != :dtid")
-               ->execute([':id' => $idOperasi, ':dtid' => $existingId]);
+            $stmtDel = $db->prepare("DELETE FROM DetailTimBerangkat WHERE id_operasi = :id AND id_detail_tim != :dtid");
+            $stmtDel->execute([':id' => $idOperasi, ':dtid' => $existingId]);
+            return $stmtDel->rowCount() > 0;
         } else {
             $db->prepare("INSERT INTO DetailTimBerangkat (id_operasi, id_tim, nama_tim) VALUES (:id_ops, :id_tim, :nama)")
                ->execute([':id_ops' => $idOperasi, ':id_tim' => $idTim, ':nama' => $timBerangkat]);
+            return false;
         }
     }
 
@@ -740,16 +834,19 @@ class OperasiModel {
         if (!$inTx) $db->beginTransaction();
 
         try {
+            $delUnsur = false;
+            $delAlut = false;
             if (!empty($unsurData)) {
-                self::applyDifferentialUnsur($db, $idOperasi, $unsurData);
+                $delUnsur = self::applyDifferentialUnsur($db, $idOperasi, $unsurData);
             }
             if (!empty($alutData)) {
-                self::applyDifferentialAlut($db, $idOperasi, $alutData);
+                $delAlut = self::applyDifferentialAlut($db, $idOperasi, $alutData);
             }
 
             if (!$inTx) {
                 $db->commit();
-                self::syncChildAutoIncrements();
+                if ($delUnsur) self::syncChildAutoIncrements('DetailUnsur');
+                if ($delAlut) self::syncChildAutoIncrements('DetailAlut');
             }
         } catch (Throwable $e) {
             if (!$inTx && $db->inTransaction()) {
@@ -779,10 +876,11 @@ class OperasiModel {
     }
 
     /**
-     * Synchronize and reset all child table AUTO_INCREMENT values to MAX(id) + 1.
+     * Synchronize and reset child table AUTO_INCREMENT values to MAX(id) + 1.
+     * If $onlyTable is specified, only that table will be checked and updated.
      * Keeps primary keys compact and prevents auto-increment high-water mark drift.
      */
-    public static function syncChildAutoIncrements(): void {
+    public static function syncChildAutoIncrements(?string $onlyTable = null): void {
         $db = getDB();
         if ($db->inTransaction()) {
             return; // DDL causes implicit commit; never run inside an active transaction
@@ -800,7 +898,11 @@ class OperasiModel {
             'GisSearchPatternWaypoint' => 'id',
             'LoginThrottle' => 'id'
         ];
-        foreach ($childTables as $table => $col) {
+        $targets = $onlyTable !== null ? (isset($childTables[$onlyTable]) ? [$onlyTable => $childTables[$onlyTable]] : []) : $childTables;
+        if (empty($targets)) {
+            return;
+        }
+        foreach ($targets as $table => $col) {
             try {
                 $stmt = $db->query("SELECT COALESCE(MAX({$col}), 0) FROM {$table}");
                 $max = (int)$stmt->fetchColumn();

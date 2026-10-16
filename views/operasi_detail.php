@@ -18,8 +18,8 @@ $id = (int)$operasi['id_operasi'];
 $isOpen = ($operasi['status'] ?? '') === 'OPEN';
 $waktuMulaiOps = TemplateHelper::getWaktuMulaiAktual($operasi);
 $tglMulaiOps = date('Y-m-d', strtotime($waktuMulaiOps));
-$hariKe = TemplateHelper::hitungHariKe($waktuMulaiOps);
-$statsKorban = $operasi['stats_korban'] ?? ['total' => 0, 's' => 0, 'md' => 0, 'dp' => 0];
+$hariKe = TemplateHelper::hitungHariKe($operasi);
+$statsKorban = $operasi['stats_korban'] ?? ['total' => 0, 's' => 0, 'md' => 0, 'dp' => 0, 'h' => 0];
 $tglKejadian = TemplateHelper::formatTanggalIndo($operasi['waktu_kejadian']);
 $jamKejadian = TemplateHelper::formatJamWITA($operasi['waktu_kejadian']);
 $tglBerangkat = TemplateHelper::formatTanggalIndo($operasi['waktu_berangkat'] ?: $waktuMulaiOps);
@@ -42,8 +42,6 @@ if ($activeTab === 'laporan') {
 $timeline = HierarchyHelper::getOperationalTimeline($operasi);
 $nextRenops = HierarchyHelper::getNextRenopsDefaults($operasi);
 $nextLapbang = HierarchyHelper::getNextLapbangDefaults($operasi);
-$masterAlut = MasterModel::getAlut();
-$masterTim = MasterModel::getTim();
 
 // Coordinates
 $lkpCoords = GeoHelper::parseCoordinates($operasi['koordinat'] ?? '');
@@ -67,7 +65,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
 <!-- ======================================================== -->
 <!-- TOP BREADCRUMB & CONTEXT HEADER -->
 <!-- ======================================================== -->
-<div class="flex items-center justify-between gap-3 mb-4">
+<div class="flex items-center justify-between gap-3 mb-4 no-print">
     <div class="flex items-center gap-2">
         <a href="<?= BASE_URL ?>/operasi.php" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition">
             <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
@@ -79,7 +77,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
         </span>
     </div>
 
-    <?php if (AuthHelper::isAdmin()): ?>
+    <?php if (AuthHelper::canDelete()): ?>
     <form method="POST" action="<?= BASE_URL ?>/operasi.php?action=delete" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus Operasi SAR ini secara permanen beserta seluruh Renops, Sitrep, dan data terkait? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Operasi SAR Permanen" data-confirm-btn="Ya, Hapus Permanen" data-confirm-danger="true">
         <?= csrfInput() ?>
         <input type="hidden" name="id" value="<?= $id ?>">
@@ -113,7 +111,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <?php else: ?>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-mono tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                     <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
-                    OPERASI SELESAI
+                    OPERASI SELESAI (<?= e($hariKe) ?>)
                 </span>
                 <?php endif; ?>
 
@@ -154,7 +152,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
         </div>
 
         <!-- Action Toolbar -->
-        <div class="flex flex-wrap items-center gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800">
+        <div class="flex flex-wrap items-center gap-2 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800 no-print">
             <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= $id ?>&include_base=1" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-xs transition" title="Buka Peta Taktis GIS Operasi Ini">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
                 <span>Peta Plotting GIS</span>
@@ -193,7 +191,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
 <!-- ======================================================== -->
 <!-- TAB NAVIGATION (CLEAN & MODERN) -->
 <!-- ======================================================== -->
-<div class="tabs-header border-b border-slate-200 dark:border-slate-800 mb-6 flex overflow-x-auto">
+<div class="tabs-header border-b border-slate-200 dark:border-slate-800 mb-6 flex overflow-x-auto no-print">
     <button class="tab-btn <?= $activeTab === 'hierarchy' ? 'active' : '' ?>" onclick="switchTab('hierarchy')">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>Hirarki Dokumen (<?= count($timeline) ?>)</span>
@@ -290,12 +288,12 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                         <span>Naskah WA</span>
                     </button>
                     <?php elseif ($isRenops): ?>
-                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/25 font-semibold text-xs transition cursor-pointer" onclick="switchTab('renops')">
+                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/25 font-semibold text-xs transition cursor-pointer" onclick="navigateToDoc('renops', <?= (int)($doc['doc_id'] ?? 0) ?>)">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
                         <span>Buka RENOPS</span>
                     </button>
                     <?php elseif ($isLapbang || $isPenutupan): ?>
-                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-500/25 font-semibold text-xs transition cursor-pointer" onclick="switchTab('sitrep')">
+                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-500/25 font-semibold text-xs transition cursor-pointer" onclick="navigateToDoc('sitrep', <?= (int)($doc['doc_id'] ?? 0) ?>)">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
                         <span>Buka SITREP</span>
                     </button>
@@ -320,7 +318,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
         <?php if ($isOpen): ?>
         <a href="<?= BASE_URL ?>/renops_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-xs transition cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-            <span>+ Buat RENOPS H.<?= $nextRenops['target_day_number'] ?? substr($hariKe, 2) ?></span>
+            <span>+ Buat RENOPS <?= e($nextRenops['hari_ke'] ?? $hariKe) ?></span>
         </a>
         <?php endif; ?>
     </div>
@@ -352,28 +350,31 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
         <?php if ($isOpen): ?>
         <a href="<?= BASE_URL ?>/renops_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-xs transition">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-            <span>+ Buat RENOPS H.<?= $nextRenops['target_day_number'] ?? substr($hariKe, 2) ?></span>
+            <span>+ Buat RENOPS <?= e($nextRenops['hari_ke'] ?? $hariKe) ?></span>
         </a>
         <?php endif; ?>
     </div>
     <?php else: foreach ($operasi['renops'] as $ren): 
         $snapUnsur = !empty($ren['detail_unsur']) && is_array($ren['detail_unsur']) ? $ren['detail_unsur'] : ($operasi['detail_unsur'] ?? []);
         $snapAlut = !empty($ren['detail_alut']) && is_array($ren['detail_alut']) ? $ren['detail_alut'] : ($operasi['detail_alut'] ?? []);
-        $totalSnapPers = array_sum(array_map(fn($u) => (int)($u['jumlah_personil'] ?? 0), $snapUnsur));
-        $totalSnapAlut = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 0), $snapAlut));
+        $totalSnapPers = array_sum(array_map(fn($u) => (int)($u['jumlah_personil'] ?? 1), $snapUnsur));
+        $totalSnapAlut = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 1), $snapAlut));
 
-        // Perhitungan hari dinamis sebenarnya dari tanggal pelaksanaan vs waktu mulai aktual operasi SAR
+        // Perhitungan hari dinamis sebenarnya dari tanggal pelaksanaan vs waktu mulai operasi SAR (menghormati siklus sebelum/sesudah reopen)
         $renTgl = !empty($ren['tanggal_laporan']) ? $ren['tanggal_laporan'] : (!empty($ren['waktu_briefing']) ? date('Y-m-d', strtotime($ren['waktu_briefing'])) : date('Y-m-d'));
-        $dynamicHariKe = TemplateHelper::hitungHariKe($waktuMulaiOps, $renTgl);
+        $dynamicHariKe = TemplateHelper::hitungHariKe($operasi, $renTgl, $ren['hari_ke'] ?? null);
         $renForWa = $ren;
         $renForWa['hari_ke'] = $dynamicHariKe;
 
         $renWa = $ren['full_text_wa'] ?? '';
-        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false || strpos($renWa, 'Data Korban:') !== false || (!empty($ren['hari_ke']) && $ren['hari_ke'] !== $dynamicHariKe)) {
+        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false || strpos($renWa, 'Data Korban:') !== false) {
             $renWa = TemplateHelper::generateRenopsWA($operasi, $renForWa, $ren['srus'] ?? [], $operasi['korban'] ?? [], $snapUnsur, $snapAlut);
+        } elseif (!empty($ren['hari_ke']) && $ren['hari_ke'] !== $dynamicHariKe) {
+            // PHP-05: Pertahankan snapshot historis full_text_wa; hanya sesuaikan label H.x pada header jika berbeda
+            $renWa = preg_replace('/\bRENCANA (?:OPERASI|OPS) SAR\s+H(?:\.?\d+(?:\s*\+\s*\d+)?)/i', 'RENCANA OPS SAR ' . $dynamicHariKe, $renWa, 1) ?? $renWa;
         }
     ?>
-    <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden transition-all">
+    <div id="card-renops-<?= (int)$ren['id_renops'] ?>" class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden transition-all">
         <!-- Renops Header -->
         <div class="p-3.5 sm:p-4 border-b bg-slate-50/70 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
@@ -387,7 +388,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             </div>
 
             <!-- Action Toolbar for Renops -->
-            <div class="flex items-center gap-1.5 flex-wrap">
+            <div class="flex items-center gap-1.5 flex-wrap no-print">
                 <button type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer" onclick='copyTextToClipboard(<?= htmlspecialchars(json_encode($renWa), ENT_QUOTES) ?>, "Naskah RENOPS WhatsApp Berhasil Disalin!")'>
                     <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"/></svg>
                     <span>Salin WA</span>
@@ -405,8 +406,8 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                     <span>BRA Renops</span>
                 </a>
 
-                <?php if ($isOpen): ?>
-                <button type="button" class="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer" onclick="deleteRenops(<?= $ren['id_renops'] ?>)" title="Hapus Lembar Renops">
+                <?php if ($isOpen && AuthHelper::canDelete()): ?>
+                <button type="button" class="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer" onclick="deleteRenops(<?= (int)$ren['id_renops'] ?>)" title="Hapus Lembar Renops">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
                 </button>
                 <?php endif; ?>
@@ -541,7 +542,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             <?php if ($isOpen): ?>
             <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs transition cursor-pointer">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                <span>+ Terbitkan SITREP <?= e($nextLapbang['target_day'] ?? $hariKe) ?></span>
+                <span>+ Terbitkan SITREP <?= e($nextLapbang['hari_ke'] ?? $hariKe) ?></span>
             </a>
             <?php endif; ?>
             <a href="<?= BASE_URL ?>/bra_form.php?id_operasi=<?= $id ?>&kategori=SAR_UMUM" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white border border-slate-200 dark:border-slate-700 font-semibold text-xs transition" title="Buat Berita Radio dari Laporan Perkembangan">
@@ -579,7 +580,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
         <?php if ($isOpen): ?>
         <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs transition">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-            <span>+ Terbitkan SITREP <?= e($nextLapbang['target_day'] ?? $hariKe) ?></span>
+            <span>+ Terbitkan SITREP <?= e($nextLapbang['hari_ke'] ?? $hariKe) ?></span>
         </a>
         <?php endif; ?>
     </div>
@@ -589,21 +590,24 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             $isPenutupan = ($lap['jenis_laporan'] ?? '') === 'PENUTUPAN';
             $snapUnsur = !empty($lap['detail_unsur']) && is_array($lap['detail_unsur']) ? $lap['detail_unsur'] : ($operasi['detail_unsur'] ?? []);
             $snapAlut = !empty($lap['detail_alut']) && is_array($lap['detail_alut']) ? $lap['detail_alut'] : ($operasi['detail_alut'] ?? []);
-            $totalSnapPers = array_sum(array_map(fn($u) => (int)($u['jumlah_personil'] ?? 0), $snapUnsur));
-            $totalSnapAlut = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 0), $snapAlut));
+            $totalSnapPers = array_sum(array_map(fn($u) => (int)($u['jumlah_personil'] ?? 1), $snapUnsur));
+            $totalSnapAlut = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 1), $snapAlut));
 
-            // Perhitungan hari dinamis sebenarnya dari tanggal laporan vs waktu mulai aktual operasi SAR
+            // Perhitungan hari dinamis sebenarnya dari tanggal laporan vs waktu mulai operasi SAR (menghormati siklus sebelum/sesudah reopen)
             $lapTgl = !empty($lap['waktu_laporan']) ? date('Y-m-d', strtotime($lap['waktu_laporan'])) : (!empty($lap['tanggal_laporan']) ? $lap['tanggal_laporan'] : date('Y-m-d'));
-            $dynamicHariKeLap = TemplateHelper::hitungHariKe($waktuMulaiOps, $lapTgl);
+            $dynamicHariKeLap = TemplateHelper::hitungHariKe($operasi, $lapTgl, $lap['hari_ke'] ?? null);
             $lapForWa = $lap;
             $lapForWa['hari_ke'] = $dynamicHariKeLap;
 
             $lapWa = $lap['full_text_wa'] ?? '';
-            if (empty($lapWa) || strpos($lapWa, 'FILE AKTIF') === false || (!empty($lap['hari_ke']) && $lap['hari_ke'] !== $dynamicHariKeLap)) {
+            if (empty($lapWa) || strpos($lapWa, 'FILE AKTIF') === false) {
                 $lapWa = TemplateHelper::generateLapbangWA($operasi, $lapForWa, $operasi['korban'] ?? [], $snapUnsur, $snapAlut, $isPenutupan);
+            } elseif (!empty($lap['hari_ke']) && $lap['hari_ke'] !== $dynamicHariKeLap) {
+                // PHP-05: Pertahankan snapshot historis full_text_wa; hanya sesuaikan label H.x pada header jika berbeda
+                $lapWa = preg_replace('/\b(?:LAPORAN PERKEMBANGAN|LAPBANG OPS SAR)(?:\s+DAN\s+PENUTUPAN)?\s+H(?:\.?\d+(?:\s*\+\s*\d+)?)/i', ($isPenutupan ? "LAPBANG OPS SAR {$dynamicHariKeLap} DAN PENUTUPAN" : "LAPBANG OPS SAR {$dynamicHariKeLap}"), $lapWa, 1) ?? $lapWa;
             }
         ?>
-        <div class="rounded-2xl bg-white dark:bg-slate-900 border <?= $isPenutupan ? 'border-red-500/30 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800' ?> shadow-xs overflow-hidden transition-all">
+        <div id="card-sitrep-<?= (int)($lap['id_laporan'] ?? ($lap['id_lapbang'] ?? 0)) ?>" class="rounded-2xl bg-white dark:bg-slate-900 border <?= $isPenutupan ? 'border-red-500/30 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800' ?> shadow-xs overflow-hidden transition-all">
             
             <!-- Sitrep Header -->
             <div class="p-3.5 sm:p-4 border-b <?= $isPenutupan ? 'bg-red-50/40 dark:bg-red-950/20 border-red-200/50 dark:border-red-900/40' : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800' ?> flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -620,7 +624,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 </div>
 
                 <!-- Action Toolbar -->
-                <div class="flex items-center gap-1.5 flex-wrap">
+                <div class="flex items-center gap-1.5 flex-wrap no-print">
                     <button type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer" onclick='copyTextToClipboard(<?= htmlspecialchars(json_encode($lapWa), ENT_QUOTES) ?>, "Naskah SITREP WhatsApp Berhasil Disalin!")'>
                         <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"/></svg>
                         <span>Salin WA</span>
@@ -638,8 +642,8 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                         <span>BRA Sitrep</span>
                     </a>
 
-                    <?php if ($isOpen): ?>
-                    <button type="button" class="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer" onclick="deleteLaporan(<?= $lap['id_laporan'] ?>)" title="Hapus Laporan Perkembangan">
+                    <?php if ($isOpen && AuthHelper::canDelete()): ?>
+                    <button type="button" class="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition cursor-pointer" onclick="deleteLaporan(<?= (int)$lap['id_laporan'] ?>)" title="Hapus Laporan Perkembangan">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
                     </button>
                     <?php endif; ?>
@@ -734,8 +738,8 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
 <!-- ======================================================== -->
 <div id="tab-content-korban" class="tab-pane space-y-5" style="display: <?= $activeTab === 'korban' ? 'block' : 'none' ?>;">
     
-    <!-- STATS SUMMARY 4 MINI CARDS -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <!-- STATS SUMMARY 5 MINI CARDS -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <div class="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
             <div>
                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Korban</span>
@@ -779,6 +783,17 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
         </div>
+
+        <div class="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+            <div>
+                <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Hilang / Nihil (H)</span>
+                <span class="text-xl sm:text-2xl font-black text-slate-600 dark:text-slate-300 font-mono"><?= (int)($statsKorban['h'] ?? 0) ?></span>
+                <span class="text-[11px] text-slate-400 block">Operasi Ditutup</span>
+            </div>
+            <div class="w-9 h-9 rounded-xl bg-slate-500/10 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+            </div>
+        </div>
     </div>
 
     <!-- MAIN TWO-COLUMN CONTENT -->
@@ -814,11 +829,16 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                     <tbody class="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                         <?php foreach ($operasi['korban'] as $idx => $k): 
                             $st = $k['status_korban'];
-                            $stClass = $st === 'S' 
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
-                                : ($st === 'MD' 
-                                    ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20' 
-                                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20');
+                            $stUpper = strtoupper((string)$st);
+                            if (in_array($stUpper, ['S', 'SELAMAT'], true)) {
+                                $stClass = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
+                            } elseif (in_array($stUpper, ['MD', 'MENINGGAL', 'MENINGGAL DUNIA'], true)) {
+                                $stClass = 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20';
+                            } elseif (in_array($stUpper, ['H', 'HILANG', 'NIHIL'], true)) {
+                                $stClass = 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30';
+                            } else {
+                                $stClass = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20';
+                            }
                         ?>
                         <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
                             <td class="py-2.5 px-3.5 text-center font-bold font-mono text-slate-400"><?= $idx + 1 ?></td>
@@ -973,7 +993,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             </div>
             <?php else: ?>
             <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 whitespace-pre-line leading-relaxed">
-                <?= e($operasi['alut_palsar'] ?: '• 1 Unit Rescue Car\n• 1 Unit Rubber Boat + Mopel') ?>
+                <?= e($operasi['alut_palsar'] ?: "• 1 Unit Rescue Car\n• 1 Unit Rubber Boat + Mopel") ?>
             </div>
             <?php endif; ?>
         </div>
@@ -1100,6 +1120,11 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                         <span>Terrain</span>
                     </button>
                 </div>
+
+                <button type="button" onclick="refreshDetailGis(true)" id="btn-refresh-gis" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition shadow-xs cursor-pointer" title="Perbarui data plotting GIS dari server">
+                    <svg id="icon-refresh-gis" class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                    <span>Segarkan</span>
+                </button>
 
                 <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base=1" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-500/30 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold text-xs transition shadow-xs" title="Buka Halaman Plotting GIS Penuh dengan fitur Menggambar Search Area & Pola SAR">
                     <span>✏️ Buka Plotting GIS</span>
@@ -1237,10 +1262,24 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                     <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Naskah telegram resmi Basarnas dengan verifikasi QR Digital.</p>
                 </div>
                 <?php if (!empty($operasi['bra_sar'])): ?>
-                <a href="<?= BASE_URL ?>/bra.php?view=<?= $operasi['bra_sar'][0]['id_bra'] ?>" class="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs text-center transition shadow-xs flex items-center justify-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
-                    <span>Cetak Dokumen BRA</span>
-                </a>
+                    <?php if (count($operasi['bra_sar']) === 1): ?>
+                    <a href="<?= BASE_URL ?>/bra.php?view=<?= (int)$operasi['bra_sar'][0]['id_bra'] ?>" class="w-full py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs text-center transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                        <span>Cetak Dokumen BRA</span>
+                    </a>
+                    <?php else: ?>
+                    <div class="space-y-1.5">
+                        <select id="select-bra-cetak" class="w-full text-xs p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+                            <?php foreach ($operasi['bra_sar'] as $b): ?>
+                            <option value="<?= (int)$b['id_bra'] ?>">BRA #<?= (int)$b['id_bra'] ?> &bull; <?= e($b['nomor_surat'] ?: $b['perihal']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="button" onclick="const bid = document.getElementById('select-bra-cetak').value; window.location.href='<?= BASE_URL ?>/bra.php?view=' + bid;" class="w-full py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                            <span>Cetak BRA Terpilih</span>
+                        </button>
+                    </div>
+                    <?php endif; ?>
                 <?php else: ?>
                 <span class="text-[11px] text-slate-400 text-center py-2">Belum ada BRA terbit</span>
                 <?php endif; ?>
@@ -1280,12 +1319,15 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             <button type="button" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" onclick="closeModal('modal-view-wa-awal')">✕</button>
         </div>
         <?php
-            $awalWa = TemplateHelper::generateLaporanAwalWA(
-                $operasi, 
-                $operasi['korban'] ?? [], 
-                $operasi['detail_unsur'] ?? [], 
-                $operasi['detail_alut'] ?? []
-            );
+            $awalWa = trim((string)($operasi['full_text_wa'] ?? ''));
+            if (empty($awalWa) || strpos($awalWa, 'FILE AKTIF') === false) {
+                $awalWa = TemplateHelper::generateLaporanAwalWA(
+                    $operasi, 
+                    $operasi['korban'] ?? [], 
+                    $operasi['detail_unsur'] ?? [], 
+                    $operasi['detail_alut'] ?? []
+                );
+            }
         ?>
         <div class="modal-body p-4">
             <pre id="modal-wa-awal-text" class="font-mono p-4 rounded-xl text-xs bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 leading-relaxed max-h-[55vh] overflow-y-auto select-all whitespace-pre-wrap"><?= e($awalWa) ?></pre>
@@ -1345,6 +1387,7 @@ const OPS_DATA = <?= jsonSafe([
     'nama_operasi' => $operasi['nama_operasi'],
     'status' => $operasi['status'],
     'is_open' => $operasi['status'] === 'OPEN',
+    'can_delete' => AuthHelper::canDelete(),
     'waktu_berangkat' => $operasi['waktu_berangkat'],
     'waktu_lapor' => $operasi['waktu_lapor'],
     'waktu_kejadian' => $operasi['waktu_kejadian'],
@@ -1369,13 +1412,21 @@ function formatDetailDms(lat, lng) {
     function toDms(val, isLat) {
         const dir = isLat ? (val >= 0 ? 'U' : 'S') : (val >= 0 ? 'T' : 'B');
         const abs = Math.abs(val);
-        const deg = Math.floor(abs);
+        let deg = Math.floor(abs);
         const minFloat = (abs - deg) * 60;
-        const min = Math.floor(minFloat);
-        const sec = ((minFloat - min) * 60).toFixed(1);
+        let min = Math.floor(minFloat);
+        let sec = parseFloat(((minFloat - min) * 60).toFixed(1));
+        if (sec >= 60.0) {
+            sec = 0.0;
+            min += 1;
+            if (min >= 60) {
+                min = 0;
+                deg += 1;
+            }
+        }
         const degPad = isLat ? String(deg).padStart(2, '0') : String(deg).padStart(3, '0');
         const minPad = String(min).padStart(2, '0');
-        const secPad = String(sec).padStart(4, '0');
+        const secPad = sec.toFixed(1).padStart(4, '0');
         return `${degPad}° ${minPad}' ${secPad}" ${dir}`;
     }
     return `${toDms(lat, true)} - ${toDms(lng, false)}`;
@@ -1512,6 +1563,19 @@ function copyDetailPointCoords(id) {
     copyToClipboard(`${pt.label || 'Titik Taktis'}: ${dms} (${Number(pt.lat).toFixed(6)}, ${Number(pt.lng).toFixed(6)})`, 'Koordinat Titik Disalin!');
 }
 
+function sanitizeDetailGisColor(color, fallback = '#2563eb') {
+    if (!color || typeof color !== 'string') return fallback;
+    const trimmed = color.trim();
+    return /^#[0-9a-fA-F]{3,8}$/.test(trimmed) ? trimmed : fallback;
+}
+
+function triggerDetailGisCopy(type, id) {
+    if (type === 'polygon') return copyDetailPolygonCoords(id);
+    if (type === 'pattern') return copyDetailPatternCoords(id);
+    if (type === 'route') return copyDetailRouteCoords(id);
+    if (type === 'point') return copyDetailPointCoords(id);
+}
+
 function renderDetailGisHistoryList() {
     const container = document.getElementById('detail-gis-history-container');
     if (!container) return;
@@ -1531,10 +1595,9 @@ function renderDetailGisHistoryList() {
                     name: p.name || 'Sektor Pencarian',
                     tag: 'Search Area',
                     tagColor: 'blue',
-                    color: p.strokeColor || '#2563eb',
+                    color: sanitizeDetailGisColor(p.strokeColor, '#2563eb'),
                     meta: `${p.areaNm2 ? Number(p.areaNm2).toFixed(2) + ' Nm²' : '- Nm²'} &bull; ${(p.points || []).length} Sudut Batas`,
-                    desc: p.keterangan || '',
-                    copyFn: `copyDetailPolygonCoords('${p.id}')`
+                    desc: p.keterangan || ''
                 });
             }
         });
@@ -1553,7 +1616,10 @@ function renderDetailGisHistoryList() {
         detailOpsGisBundle.searchPatterns.forEach(p => {
             const isBaseMap = !p.id_operasi;
             if (activeHistoryFilter === 'patterns' || activeHistoryFilter === 'all' || (activeHistoryFilter === 'basemap' && isBaseMap)) {
-                const typeStr = typeLabels[p.patternType] || p.patternType || 'Pola SAR';
+                const typeStr = escapeHtml(typeLabels[p.patternType] || p.patternType || 'Pola SAR');
+                const safeSpacing = escapeHtml(p.trackSpacingNm || '-');
+                const safeDist = p.totalDistanceNm ? Number(p.totalDistanceNm).toFixed(1) : '-';
+                const safeLegs = Number(p.legsCount) || (p.waypoints || []).length;
                 items.push({
                     type: 'pattern',
                     layerKey: 'pattern_' + p.id,
@@ -1562,10 +1628,9 @@ function renderDetailGisHistoryList() {
                     name: p.name || 'Pola Pencarian SAR',
                     tag: 'Pola SAR',
                     tagColor: 'orange',
-                    color: p.color || '#ea580c',
-                    meta: `${typeStr} &bull; S: ${p.trackSpacingNm || '-'} Nm &bull; Jarak: ${p.totalDistanceNm ? Number(p.totalDistanceNm).toFixed(1) : '-'} Nm &bull; ${p.legsCount || (p.waypoints || []).length} Leg`,
-                    desc: p.notes || '',
-                    copyFn: `copyDetailPatternCoords('${p.id}')`
+                    color: sanitizeDetailGisColor(p.color, '#ea580c'),
+                    meta: `${typeStr} &bull; S: ${safeSpacing} Nm &bull; Jarak: ${safeDist} Nm &bull; ${safeLegs} Leg`,
+                    desc: p.notes || ''
                 });
             }
         });
@@ -1576,6 +1641,8 @@ function renderDetailGisHistoryList() {
         detailOpsGisBundle.routes.forEach(r => {
             const isBaseMap = !r.id_operasi;
             if (activeHistoryFilter === 'routes' || activeHistoryFilter === 'all' || (activeHistoryFilter === 'basemap' && isBaseMap)) {
+                const safeDist = r.totalDistanceNm ? Number(r.totalDistanceNm).toFixed(1) : '-';
+                const safeSpeed = escapeHtml(r.vesselSpeedKnots || 25);
                 items.push({
                     type: 'route',
                     layerKey: 'route_' + r.id,
@@ -1584,10 +1651,9 @@ function renderDetailGisHistoryList() {
                     name: r.name || 'Jalur Operasi',
                     tag: 'Jalur',
                     tagColor: 'emerald',
-                    color: r.strokeColor || '#059669',
-                    meta: `${r.totalDistanceNm ? Number(r.totalDistanceNm).toFixed(1) : '-'} Nm &bull; ${r.vesselSpeedKnots || 25} Knots &bull; ${(r.points || []).length} Waypoint`,
-                    desc: r.notes || '',
-                    copyFn: `copyDetailRouteCoords('${r.id}')`
+                    color: sanitizeDetailGisColor(r.strokeColor, '#059669'),
+                    meta: `${safeDist} Nm &bull; ${safeSpeed} Knots &bull; ${(r.points || []).length} Waypoint`,
+                    desc: r.notes || ''
                 });
             }
         });
@@ -1607,9 +1673,8 @@ function renderDetailGisHistoryList() {
                     tag: pt.category || 'Titik Taktis',
                     tagColor: 'purple',
                     color: '#8b5cf6',
-                    meta: `${formatDetailDms(pt.lat, pt.lng)}`,
-                    desc: pt.description || '',
-                    copyFn: `copyDetailPointCoords('${pt.id}')`
+                    meta: `${escapeHtml(formatDetailDms(Number(pt.lat) || 0, Number(pt.lng) || 0))}`,
+                    desc: pt.description || ''
                 });
             }
         });
@@ -1640,10 +1705,15 @@ function renderDetailGisHistoryList() {
         else if (item.type === 'route') icon = '↗️';
         else if (item.type === 'point') icon = '📍';
 
+        const safeColor = sanitizeDetailGisColor(item.color, '#2563eb');
+        const safeIdAttr = escapeHtml(item.id);
+        const safeTypeAttr = escapeHtml(item.type);
+        const safeLayerKeyAttr = escapeHtml(item.layerKey);
+
         html += `
             <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 hover:border-orange-500/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
                 <div class="flex items-start gap-3 min-w-0">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-base" style="background-color: ${item.color}15; color: ${item.color};">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-base" style="background-color: ${safeColor}15; color: ${safeColor};">
                         ${icon}
                     </div>
                     <div class="min-w-0">
@@ -1666,11 +1736,11 @@ function renderDetailGisHistoryList() {
                 </div>
 
                 <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                    <button type="button" onclick="${item.copyFn}" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1" title="Salin Data Koordinat">
+                    <button type="button" data-copy-type="${safeTypeAttr}" data-copy-id="${safeIdAttr}" onclick="triggerDetailGisCopy(this.dataset.copyType, this.dataset.copyId)" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1" title="Salin Data Koordinat">
                         <span>📋</span>
                         <span class="text-[11px]">Salin</span>
                     </button>
-                    <button type="button" onclick="focusDetailMapComponent('${item.layerKey}')" class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-xs" title="Fokuskan peta ke komponen ini">
+                    <button type="button" data-layer-key="${safeLayerKeyAttr}" onclick="focusDetailMapComponent(this.dataset.layerKey)" class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-xs" title="Fokuskan peta ke komponen ini">
                         <span>🎯</span>
                         <span class="text-[11px]">Fokus</span>
                     </button>
@@ -1707,6 +1777,23 @@ function switchTab(tabName) {
     }
 }
 
+function navigateToDoc(tab, docId) {
+    switchTab(tab);
+    if (!docId) return;
+    setTimeout(() => {
+        const cardId = tab === 'renops' ? `card-renops-${docId}` : `card-sitrep-${docId}`;
+        const target = document.getElementById(cardId);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const ringColor = tab === 'renops' ? 'ring-orange-500' : 'ring-blue-500';
+            target.classList.add('ring-4', ringColor, 'ring-offset-2', 'dark:ring-offset-slate-900', 'transition-all', 'duration-500');
+            setTimeout(() => {
+                target.classList.remove('ring-4', ringColor, 'ring-offset-2', 'dark:ring-offset-slate-900');
+            }, 2500);
+        }
+    }, 150);
+}
+
 function initDetailMap() {
     if (detailOpsMap) {
         detailOpsMap.map.invalidateSize();
@@ -1733,25 +1820,48 @@ function initDetailMap() {
     renderDetailGisHistoryList();
     updateDetailGisStats();
 
-    // Live sync bundle in case plotting had recent updates
-    fetch('<?= BASE_URL ?>/api/gis/bundle?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base_map=1')
-        .then(r => r.json())
-        .then(res => {
-            if (res.success && res.data) {
-                detailOpsGisBundle = res.data;
-                detailOpsMap.loadOperationBundle(detailOpsGisBundle);
-                renderDetailGisHistoryList();
-                updateDetailGisStats();
-            }
-        })
-        .catch(err => console.log('GIS Bundle live sync error:', err));
-
     setTimeout(() => {
         if (detailOpsMap && detailOpsMap.map) {
             detailOpsMap.map.invalidateSize();
             detailOpsMap.fitAllComponents();
         }
     }, 300);
+}
+
+function refreshDetailGis(showFeedback = false) {
+    const btn = document.getElementById('btn-refresh-gis');
+    const icon = document.getElementById('icon-refresh-gis');
+    if (btn) btn.disabled = true;
+    if (icon) icon.classList.add('animate-spin');
+
+    return fetch('<?= BASE_URL ?>/api/gis/bundle?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base_map=1')
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.data) {
+                detailOpsGisBundle = res.data;
+                if (detailOpsMap) {
+                    detailOpsMap.loadOperationBundle(detailOpsGisBundle);
+                    detailOpsMap.fitAllComponents();
+                }
+                renderDetailGisHistoryList();
+                updateDetailGisStats();
+                if (showFeedback && typeof showToast === 'function') {
+                    showToast('Data plotting GIS berhasil diperbarui', 'success');
+                }
+            } else if (showFeedback && typeof showToast === 'function') {
+                showToast(res.message || 'Gagal memuat pembaruan GIS', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('GIS Bundle sync error:', err);
+            if (showFeedback && typeof showToast === 'function') {
+                showToast('Gagal terhubung ke server GIS', 'error');
+            }
+        })
+        .finally(() => {
+            if (btn) btn.disabled = false;
+            if (icon) icon.classList.remove('animate-spin');
+        });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -1771,7 +1881,7 @@ function copyTextToClipboard(text, msg) {
 }
 
 function escapeHtml(text) {
-    if (!text) return '';
+    if (text === null || text === undefined) return '';
     return String(text)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -1781,13 +1891,17 @@ function escapeHtml(text) {
 }
 
 async function deleteRenops(id) {
+    if (!OPS_DATA.can_delete) {
+        showToast('Akses ditolak: Hanya Administrator yang berwenang menghapus dokumen RENOPS.', 'error');
+        return;
+    }
     if (!OPS_DATA.is_open) {
         showToast('Operasi SAR ini telah DITUTUP. Data tidak dapat dihapus.', 'error');
         return;
     }
     if (await confirmAction('Hapus RENOPS?', 'Apakah Anda yakin ingin menghapus lembar Rencana Operasi ini?')) {
         try {
-            const res = await fetch(`<?= BASE_URL ?>/api/renops/${id}`, { 
+            const res = await fetch(`<?= BASE_URL ?>/api/renops/${encodeURIComponent(id)}`, { 
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-Token': '<?= csrfToken() ?>'
@@ -1807,13 +1921,17 @@ async function deleteRenops(id) {
 }
 
 async function deleteLaporan(id) {
+    if (!OPS_DATA.can_delete) {
+        showToast('Akses ditolak: Hanya Administrator yang berwenang menghapus dokumen SITREP.', 'error');
+        return;
+    }
     if (!OPS_DATA.is_open) {
         showToast('Operasi SAR ini telah DITUTUP. Data tidak dapat dihapus.', 'error');
         return;
     }
     if (await confirmAction('Hapus SITREP?', 'Apakah Anda yakin ingin menghapus laporan perkembangan ini?')) {
         try {
-            const res = await fetch(`<?= BASE_URL ?>/api/laporan/${id}`, { 
+            const res = await fetch(`<?= BASE_URL ?>/api/laporan/${encodeURIComponent(id)}`, { 
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-Token': '<?= csrfToken() ?>'
@@ -1835,7 +1953,9 @@ async function deleteLaporan(id) {
 async function confirmAndRollbackOperasi(idOperasi) {
     if (!idOperasi) return;
 
-    const nowDefault = new Date().toISOString().slice(0, 16);
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const nowDefault = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
     if (typeof Swal !== 'undefined') {
         const res = await Swal.fire({
@@ -1847,7 +1967,7 @@ async function confirmAndRollbackOperasi(idOperasi) {
                         <span>Perhitungan Hari Operasi Dimulai Lagi:</span>
                     </p>
                     <p class="text-[11px] leading-relaxed">
-                        Sesuai ketentuan operasional SAR, perhitungan hari (H.1, H.2, dst.) untuk RENOPS dan SITREP akan dihitung mulai dari tanggal operasi dibuka kembali.
+                        Sesuai ketentuan operasional SAR, perhitungan hari lanjutan (misal: <strong>H7 + 1, H7 + 2, dst.</strong>) untuk RENOPS dan SITREP akan dihitung mulai dari tanggal operasi dibuka kembali.
                     </p>
                 </div>
                 <div class="space-y-1.5 pt-1">
@@ -1937,7 +2057,51 @@ async function confirmAndRollbackOperasi(idOperasi) {
 
 function printBerkas(type) {
     if (type === 'laporan_awal') {
-        openModal('modal-view-wa-awal');
+        const text = (document.getElementById('modal-wa-awal-text')?.textContent || '').trim();
+        const namaOps = <?= jsonSafe($operasi['nama_operasi']) ?>;
+        const noOps = <?= jsonSafe($operasi['id_operasi']) ?>;
+        const printWin = window.open('', '_blank');
+        if (printWin) {
+            printWin.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Laporan Awal - ${escapeHtml(namaOps)}</title>
+                    <style>
+                        @page { size: A4 portrait; margin: 15mm; }
+                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 20px; color: #0f172a; font-size: 11pt; line-height: 1.5; }
+                        .header { border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end; }
+                        .title { font-size: 14pt; font-weight: 800; color: #ea580c; text-transform: uppercase; }
+                        .meta { font-size: 9pt; color: #64748b; font-family: monospace; }
+                        pre { font-family: "Courier New", Courier, monospace; white-space: pre-wrap; word-break: break-word; font-size: 10pt; line-height: 1.6; background: #f8fafc; padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px; }
+                        @media print { pre { border: none; background: transparent; padding: 0; font-size: 10pt; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <div>
+                            <div class="title">Laporan Awal Operasi SAR</div>
+                            <div style="font-weight:bold;margin-top:2px;">${escapeHtml(namaOps)}</div>
+                        </div>
+                        <div class="meta">OPS-#${noOps} &bull; BASARNAS KENDARI</div>
+                    </div>
+                    <pre>${escapeHtml(text)}</pre>
+                </body>
+                </html>
+            `);
+            printWin.document.close();
+            printWin.focus();
+            setTimeout(() => {
+                printWin.print();
+                printWin.close();
+            }, 300);
+            return;
+        } else {
+            openModal('modal-view-wa-awal');
+            setTimeout(() => window.print(), 300);
+            return;
+        }
     } else if (type === 'renops') {
         switchTab('renops');
     } else if (type === 'penutupan') {

@@ -222,6 +222,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
+
+    // Close modal on backdrop click (outside modal dialog container)
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.classList && (e.target.classList.contains('modal-overlay') || e.target.classList.contains('bra-modal-overlay'))) {
+            closeModal(e.target);
+        }
+    });
 });
 
 function updateThemeIcon(theme) {

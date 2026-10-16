@@ -88,12 +88,14 @@ $initialAlutData = $initialAlutData ?? [];
       <input type="hidden" name="id_laporan" value="<?= $idLaporan ?>">
     <?php endif; ?>
 
-    <?php if (!empty($operasi['waktu_reopen'])): ?>
+    <?php if (!empty($operasi['waktu_reopen'])): 
+      $baseHariReopen = TemplateHelper::getBaseHariSebelumReopen($operasi);
+    ?>
     <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 flex items-center gap-3">
       <svg class="w-5 h-5 text-amber-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
       <div class="text-xs">
         <p class="font-bold">Operasi SAR Diperpanjang / Dibuka Kembali</p>
-        <p class="text-[11px] opacity-90">Operasi dibuka kembali pada <strong><?= TemplateHelper::formatTanggalIndo($operasi['waktu_reopen']) ?> (<?= TemplateHelper::formatJamWITA($operasi['waktu_reopen']) ?> WITA)</strong>. Perhitungan hari operasional (H.1, H.2, dst.) dimulai lagi sejak tanggal pembukaan ini.</p>
+        <p class="text-[11px] opacity-90">Operasi dibuka kembali pada <strong><?= TemplateHelper::formatTanggalIndo($operasi['waktu_reopen']) ?> (<?= TemplateHelper::formatJamWITA($operasi['waktu_reopen']) ?> WITA)</strong>. Perhitungan hari operasional lanjutan menggunakan format <strong>H<?= $baseHariReopen ?> + 1, H<?= $baseHariReopen ?> + 2, dst.</strong> sejak tanggal pembukaan ini.</p>
       </div>
     </div>
     <?php endif; ?>
@@ -620,7 +622,8 @@ function applyH7ClosureTemplate() {
   const debriefInput = document.getElementById('sitrep_waktu_debrief');
   if (debriefInput && !debriefInput.value) {
     const now = new Date();
-    debriefInput.value = now.toISOString().slice(0, 16);
+    const pad = n => String(n).padStart(2, '0');
+    debriefInput.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
   }
   const isiEl = document.getElementById('sitrep_isi_laporan');
   if (isiEl) {
@@ -1243,21 +1246,34 @@ document.getElementById('form-sitrep')?.addEventListener('submit', () => {
 });
 
 // Real-time Day Recalculation Based on Input Date
-const OPERASI_START_DATE = <?= jsonSafe(date('Y-m-d', strtotime(TemplateHelper::getWaktuMulaiAktual($operasi)))) ?>;
+const OPERASI_START_DATE = <?= jsonSafe(date('Y-m-d', strtotime(TemplateHelper::getWaktuMulaiAwal($operasi)))) ?>;
+const OPERASI_REOPEN_DATE = <?= jsonSafe(!empty($operasi['waktu_reopen']) ? date('Y-m-d', strtotime((string)$operasi['waktu_reopen'])) : null) ?>;
+const OPERASI_BASE_HARI_REOPEN = <?= (int)TemplateHelper::getBaseHariSebelumReopen($operasi) ?>;
 
 function recalculateSitrepHariKe() {
   const dtInput = document.getElementById('sitrep_waktu_laporan')?.value;
   if (!dtInput || !OPERASI_START_DATE) return;
   const tglOnly = dtInput.split('T')[0];
-  const t1 = new Date(OPERASI_START_DATE + 'T00:00:00');
   const t2 = new Date(tglOnly + 'T00:00:00');
-  if (isNaN(t1.getTime()) || isNaN(t2.getTime())) return;
-  const diffDays = Math.floor((t2 - t1) / (1000 * 60 * 60 * 24));
-  const dayNum = Math.max(1, diffDays + 1);
+  if (isNaN(t2.getTime())) return;
+
   const inputHari = document.getElementById('sitrep_hari_ke');
-  if (inputHari) {
-    inputHari.value = 'H.' + dayNum;
+  if (!inputHari) return;
+
+  if (OPERASI_REOPEN_DATE) {
+    const tReopen = new Date(OPERASI_REOPEN_DATE + 'T00:00:00');
+    if (!isNaN(tReopen.getTime()) && t2 >= tReopen) {
+      const extDay = Math.max(1, Math.floor((t2 - tReopen) / 86400000) + 1);
+      inputHari.value = 'H' + OPERASI_BASE_HARI_REOPEN + ' + ' + extDay;
+      return;
+    }
   }
+
+  const t1 = new Date(OPERASI_START_DATE + 'T00:00:00');
+  if (isNaN(t1.getTime())) return;
+  const diffDays = Math.floor((t2 - t1) / 86400000);
+  const dayNum = Math.max(1, diffDays + 1);
+  inputHari.value = 'H.' + dayNum;
 }
 
 document.getElementById('sitrep_waktu_laporan')?.addEventListener('input', recalculateSitrepHariKe);

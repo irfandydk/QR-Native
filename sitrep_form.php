@@ -62,10 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
     $waktuLap = $_POST['waktu_laporan'] ?? date('Y-m-d H:i:s');
     $tglLap = date('Y-m-d', strtotime($waktuLap));
-    $_POST['hari_ke'] = TemplateHelper::hitungHariKe($baseDateOps, $tglLap);
+    $_POST['hari_ke'] = TemplateHelper::hitungHariKe($operasi, $tglLap);
 
     try {
         if ($editMode) {
@@ -95,7 +94,7 @@ $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
 if ($editMode) {
     $waktuLaporan = !empty($laporan['waktu_laporan']) ? date('Y-m-d\TH:i', strtotime($laporan['waktu_laporan'])) : date('Y-m-d\TH:i');
     $tglLap = date('Y-m-d', strtotime($waktuLaporan));
-    $hariKe = TemplateHelper::hitungHariKe($baseDateOps, $tglLap);
+    $hariKe = TemplateHelper::hitungHariKe($operasi, $tglLap);
     $jenisLaporan = $laporan['jenis_laporan'] ?? 'PERKEMBANGAN';
     $waktuDebrief = !empty($laporan['waktu_debrief']) ? date('Y-m-d\TH:i', strtotime($laporan['waktu_debrief'])) : date('Y-m-d\TH:i');
     $cuaca = $laporan['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
@@ -103,15 +102,16 @@ if ($editMode) {
     $initialUnsurData = !empty($laporan['detail_unsur']) ? $laporan['detail_unsur'] : ($operasi['detail_unsur'] ?? []);
     $initialAlutData = !empty($laporan['detail_alut']) ? $laporan['detail_alut'] : ($operasi['detail_alut'] ?? []);
 } else {
+    $nextLapbang = HierarchyHelper::getNextLapbangDefaults($operasi);
     $waktuLaporan = date('Y-m-d\TH:i');
     $tglLap = date('Y-m-d', strtotime($waktuLaporan));
-    $hariKe = TemplateHelper::hitungHariKe($baseDateOps, $tglLap);
+    $hariKe = $nextLapbang['hari_ke'] ?? TemplateHelper::hitungHariKe($operasi, $tglLap);
     $jenisLaporan = 'PERKEMBANGAN';
     $waktuDebrief = date('Y-m-d\TH:i');
-    $cuaca = $operasi['cuaca'] ?: 'Cerah Berawan';
+    $cuaca = $nextLapbang['inherited_cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
     $isiLaporan = "Pada pelaksanaan operasi SAR hari ini, tim gabungan telah melaksanakan pencarian sesuai rencana operasi (RENOPS). Hingga saat laporan ini disusun, hasil pencarian masih nihil / korban belum ditemukan. Operasi SAR dihentikan sementara dan akan dilanjutkan esok hari.";
-    $initialUnsurData = !empty($operasi['detail_unsur']) ? $operasi['detail_unsur'] : [];
-    $initialAlutData = !empty($operasi['detail_alut']) ? $operasi['detail_alut'] : [];
+    $initialUnsurData = !empty($nextLapbang['inherited_unsur']) ? $nextLapbang['inherited_unsur'] : (!empty($operasi['detail_unsur']) ? $operasi['detail_unsur'] : []);
+    $initialAlutData = !empty($nextLapbang['inherited_alut']) ? $nextLapbang['inherited_alut'] : (!empty($operasi['detail_alut']) ? $operasi['detail_alut'] : []);
 }
 
 $pageTitle = ($editMode ? "Edit SITREP {$hariKe}" : "Penerbitan SITREP {$hariKe}") . " - {$operasi['nama_operasi']}";

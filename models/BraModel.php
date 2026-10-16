@@ -241,7 +241,6 @@ class BraModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement();
             AuditHelper::log('BRA_CREATE', "Menerbitkan Naskah BRA {$kategori} No. {$noBra} (ID: {$idBra})", 'BraSar', (string)$idBra);
             return $idBra;
         } catch (Throwable $e) {
@@ -417,7 +416,9 @@ class BraModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement();
+            if (!empty($toDelete)) {
+                self::syncAutoIncrement('BraSection');
+            }
             AuditHelper::log('BRA_UPDATE', "Memperbarui Naskah BRA No. {$noBra} (ID: {$id})", 'BraSar', (string)$id);
             return true;
         } catch (Throwable $e) {
@@ -450,24 +451,29 @@ class BraModel {
 
     /**
      * Synchronize and reset BraSar & BraSection AUTO_INCREMENT to strictly MAX(id) + 1.
+     * If $table is specified ('BraSar' or 'BraSection'), only that table will be checked and updated.
      */
-    public static function syncAutoIncrement(): void {
+    public static function syncAutoIncrement(?string $table = null): void {
         $db = getDB();
         if ($db->inTransaction()) {
             return;
         }
         try {
-            $stmtBra = $db->query("SELECT COALESCE(MAX(id_bra), 0) FROM BraSar");
-            $maxBra = (int)$stmtBra->fetchColumn();
-            $stmtBra->closeCursor();
-            $nextBra = max(1, $maxBra + 1);
-            $db->exec("ALTER TABLE BraSar AUTO_INCREMENT = {$nextBra}");
+            if ($table === null || $table === 'BraSar') {
+                $stmtBra = $db->query("SELECT COALESCE(MAX(id_bra), 0) FROM BraSar");
+                $maxBra = (int)$stmtBra->fetchColumn();
+                $stmtBra->closeCursor();
+                $nextBra = max(1, $maxBra + 1);
+                $db->exec("ALTER TABLE BraSar AUTO_INCREMENT = {$nextBra}");
+            }
 
-            $stmtSec = $db->query("SELECT COALESCE(MAX(id), 0) FROM BraSection");
-            $maxSec = (int)$stmtSec->fetchColumn();
-            $stmtSec->closeCursor();
-            $nextSec = max(1, $maxSec + 1);
-            $db->exec("ALTER TABLE BraSection AUTO_INCREMENT = {$nextSec}");
+            if ($table === null || $table === 'BraSection') {
+                $stmtSec = $db->query("SELECT COALESCE(MAX(id), 0) FROM BraSection");
+                $maxSec = (int)$stmtSec->fetchColumn();
+                $stmtSec->closeCursor();
+                $nextSec = max(1, $maxSec + 1);
+                $db->exec("ALTER TABLE BraSection AUTO_INCREMENT = {$nextSec}");
+            }
         } catch (Throwable) {
             // Silently continue if DDL is restricted
         }

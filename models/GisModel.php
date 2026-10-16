@@ -37,10 +37,21 @@ class GisModel {
             // Ensure customIconUrl is MEDIUMTEXT to prevent truncation on large DataURLs
             $db->exec("ALTER TABLE GisPoint MODIFY COLUMN customIconUrl MEDIUMTEXT NULL");
 
-            // Ensure areaNm2 exists on GisPolygon
-            $polyCols = $db->query("SHOW COLUMNS FROM GisPolygon LIKE 'areaNm2'")->fetchAll();
-            if (empty($polyCols)) {
-                $db->exec("ALTER TABLE GisPolygon ADD COLUMN areaNm2 DOUBLE NULL DEFAULT NULL");
+            // Ensure shape & geometry attributes exist on GisPolygon
+            $gisPolyCols = [
+                'shapeType' => "ALTER TABLE GisPolygon ADD COLUMN shapeType VARCHAR(50) NULL DEFAULT 'polygon'",
+                'centerLat' => "ALTER TABLE GisPolygon ADD COLUMN centerLat DOUBLE NULL DEFAULT NULL",
+                'centerLng' => "ALTER TABLE GisPolygon ADD COLUMN centerLng DOUBLE NULL DEFAULT NULL",
+                'radiusNm' => "ALTER TABLE GisPolygon ADD COLUMN radiusNm DOUBLE NULL DEFAULT NULL",
+                'boxWidthNm' => "ALTER TABLE GisPolygon ADD COLUMN boxWidthNm DOUBLE NULL DEFAULT NULL",
+                'boxHeightNm' => "ALTER TABLE GisPolygon ADD COLUMN boxHeightNm DOUBLE NULL DEFAULT NULL",
+                'areaNm2' => "ALTER TABLE GisPolygon ADD COLUMN areaNm2 DOUBLE NULL DEFAULT NULL"
+            ];
+            foreach ($gisPolyCols as $colName => $alterSql) {
+                $check = $db->query("SHOW COLUMNS FROM GisPolygon LIKE '{$colName}'")->fetchAll();
+                if (empty($check)) {
+                    $db->exec($alterSql);
+                }
             }
         } catch (Throwable $e) {
             error_log("[GisModel Schema Check] " . $e->getMessage());
@@ -200,14 +211,20 @@ class GisModel {
 
         if (empty($polys)) return [];
 
-        $allPoints = $db->query("SELECT polygonId, lat, lng, label FROM GisPolygonPoint ORDER BY id ASC")->fetchAll();
+        $polyIds = array_values(array_filter(array_map('strval', array_column($polys, 'id'))));
         $pointsByPoly = [];
-        foreach ($allPoints as $pt) {
-            $pointsByPoly[$pt['polygonId']][] = [
-                'lat' => (float)$pt['lat'],
-                'lng' => (float)$pt['lng'],
-                'label' => $pt['label'] ?? ''
-            ];
+        if (!empty($polyIds)) {
+            $inClause = implode(',', array_fill(0, count($polyIds), '?'));
+            $stmt = $db->prepare("SELECT polygonId, lat, lng, label FROM GisPolygonPoint WHERE polygonId IN ($inClause) ORDER BY id ASC");
+            $stmt->execute($polyIds);
+            $allPoints = $stmt->fetchAll();
+            foreach ($allPoints as $pt) {
+                $pointsByPoly[$pt['polygonId']][] = [
+                    'lat' => (float)$pt['lat'],
+                    'lng' => (float)$pt['lng'],
+                    'label' => $pt['label'] ?? ''
+                ];
+            }
         }
 
         foreach ($polys as &$p) {
@@ -306,7 +323,9 @@ class GisModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement();
+            if (!empty($toDeletePts)) {
+                self::syncAutoIncrement('GisPolygonPoint');
+            }
             return $id;
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
@@ -326,7 +345,7 @@ class GisModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement();
+            self::syncAutoIncrement('GisPolygonPoint');
             return true;
         } catch (Throwable) {
             if ($db->inTransaction()) {
@@ -357,14 +376,20 @@ class GisModel {
 
         if (empty($routes)) return [];
 
-        $allPoints = $db->query("SELECT routeId, lat, lng, label FROM GisRoutePoint ORDER BY id ASC")->fetchAll();
+        $routeIds = array_values(array_filter(array_map('strval', array_column($routes, 'id'))));
         $pointsByRoute = [];
-        foreach ($allPoints as $pt) {
-            $pointsByRoute[$pt['routeId']][] = [
-                'lat' => (float)$pt['lat'],
-                'lng' => (float)$pt['lng'],
-                'label' => $pt['label'] ?? ''
-            ];
+        if (!empty($routeIds)) {
+            $inClause = implode(',', array_fill(0, count($routeIds), '?'));
+            $stmt = $db->prepare("SELECT routeId, lat, lng, label FROM GisRoutePoint WHERE routeId IN ($inClause) ORDER BY id ASC");
+            $stmt->execute($routeIds);
+            $allPoints = $stmt->fetchAll();
+            foreach ($allPoints as $pt) {
+                $pointsByRoute[$pt['routeId']][] = [
+                    'lat' => (float)$pt['lat'],
+                    'lng' => (float)$pt['lng'],
+                    'label' => $pt['label'] ?? ''
+                ];
+            }
         }
 
         foreach ($routes as &$r) {
@@ -448,7 +473,9 @@ class GisModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement();
+            if (!empty($toDeletePts)) {
+                self::syncAutoIncrement('GisRoutePoint');
+            }
             return $id;
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
@@ -468,7 +495,7 @@ class GisModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement();
+            self::syncAutoIncrement('GisRoutePoint');
             return true;
         } catch (Throwable) {
             if ($db->inTransaction()) {
@@ -499,14 +526,20 @@ class GisModel {
 
         if (empty($patterns)) return [];
 
-        $allWp = $db->query("SELECT searchPatternId, lat, lng, label FROM GisSearchPatternWaypoint ORDER BY id ASC")->fetchAll();
+        $patternIds = array_values(array_filter(array_map('strval', array_column($patterns, 'id'))));
         $wpByPattern = [];
-        foreach ($allWp as $wp) {
-            $wpByPattern[$wp['searchPatternId']][] = [
-                'lat' => (float)$wp['lat'],
-                'lng' => (float)$wp['lng'],
-                'label' => $wp['label'] ?? ''
-            ];
+        if (!empty($patternIds)) {
+            $inClause = implode(',', array_fill(0, count($patternIds), '?'));
+            $stmt = $db->prepare("SELECT searchPatternId, lat, lng, label FROM GisSearchPatternWaypoint WHERE searchPatternId IN ($inClause) ORDER BY id ASC");
+            $stmt->execute($patternIds);
+            $allWp = $stmt->fetchAll();
+            foreach ($allWp as $wp) {
+                $wpByPattern[$wp['searchPatternId']][] = [
+                    'lat' => (float)$wp['lat'],
+                    'lng' => (float)$wp['lng'],
+                    'label' => $wp['label'] ?? ''
+                ];
+            }
         }
 
         foreach ($patterns as &$p) {
@@ -590,7 +623,9 @@ class GisModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement();
+            if (!empty($toDeleteWps)) {
+                self::syncAutoIncrement('GisSearchPatternWaypoint');
+            }
             return $id;
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
@@ -610,7 +645,7 @@ class GisModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement();
+            self::syncAutoIncrement('GisSearchPatternWaypoint');
             return true;
         } catch (Throwable) {
             if ($db->inTransaction()) {
@@ -622,30 +657,37 @@ class GisModel {
 
     /**
      * Synchronize and reset GIS point/waypoint table AUTO_INCREMENT values to strictly MAX(id) + 1.
+     * If $table is specified, only that table will be checked and updated.
      */
-    public static function syncAutoIncrement(): void {
+    public static function syncAutoIncrement(?string $table = null): void {
         $db = getDB();
         if ($db->inTransaction()) {
             return;
         }
         try {
-            $stmtPolyPt = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisPolygonPoint");
-            $maxPolyPt = (int)$stmtPolyPt->fetchColumn();
-            $stmtPolyPt->closeCursor();
-            $nextPolyPt = max(1, $maxPolyPt + 1);
-            $db->exec("ALTER TABLE GisPolygonPoint AUTO_INCREMENT = {$nextPolyPt}");
+            if ($table === null || $table === 'GisPolygonPoint') {
+                $stmtPolyPt = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisPolygonPoint");
+                $maxPolyPt = (int)$stmtPolyPt->fetchColumn();
+                $stmtPolyPt->closeCursor();
+                $nextPolyPt = max(1, $maxPolyPt + 1);
+                $db->exec("ALTER TABLE GisPolygonPoint AUTO_INCREMENT = {$nextPolyPt}");
+            }
 
-            $stmtRoutePt = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisRoutePoint");
-            $maxRoutePt = (int)$stmtRoutePt->fetchColumn();
-            $stmtRoutePt->closeCursor();
-            $nextRoutePt = max(1, $maxRoutePt + 1);
-            $db->exec("ALTER TABLE GisRoutePoint AUTO_INCREMENT = {$nextRoutePt}");
+            if ($table === null || $table === 'GisRoutePoint') {
+                $stmtRoutePt = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisRoutePoint");
+                $maxRoutePt = (int)$stmtRoutePt->fetchColumn();
+                $stmtRoutePt->closeCursor();
+                $nextRoutePt = max(1, $maxRoutePt + 1);
+                $db->exec("ALTER TABLE GisRoutePoint AUTO_INCREMENT = {$nextRoutePt}");
+            }
 
-            $stmtWp = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisSearchPatternWaypoint");
-            $maxWp = (int)$stmtWp->fetchColumn();
-            $stmtWp->closeCursor();
-            $nextWp = max(1, $maxWp + 1);
-            $db->exec("ALTER TABLE GisSearchPatternWaypoint AUTO_INCREMENT = {$nextWp}");
+            if ($table === null || $table === 'GisSearchPatternWaypoint') {
+                $stmtWp = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisSearchPatternWaypoint");
+                $maxWp = (int)$stmtWp->fetchColumn();
+                $stmtWp->closeCursor();
+                $nextWp = max(1, $maxWp + 1);
+                $db->exec("ALTER TABLE GisSearchPatternWaypoint AUTO_INCREMENT = {$nextWp}");
+            }
         } catch (Throwable) {
             // Silently continue
         }

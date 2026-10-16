@@ -92,19 +92,34 @@ if ($method === 'POST') {
     }
 
     if ($action === 'close') {
-        $id = (int)($_POST['id_operasi'] ?? 0);
+        $id = (int)($_POST['id_operasi'] ?? $_POST['id'] ?? 0);
+        if ($id <= 0) {
+            setFlash('error', 'Gagal menutup operasi: ID Operasi tidak valid.');
+            header("Location: " . BASE_URL . "/operasi.php");
+            exit;
+        }
+
         $waktu = $_POST['waktu_selesai'] ?? date('Y-m-d H:i:s');
-        OperasiModel::closeOperation($id, $waktu);
-        setFlash('success', 'Operasi SAR resmi dinyatakan DITUTUP.');
+        try {
+            $ok = OperasiModel::closeOperation($id, $waktu);
+            if ($ok) {
+                setFlash('success', 'Operasi SAR resmi dinyatakan DITUTUP.');
+            } else {
+                setFlash('error', 'Gagal menutup operasi SAR: Sistem basis data gagal memperbarui status.');
+            }
+        } catch (Throwable $e) {
+            setFlash('error', 'Gagal menutup operasi SAR: ' . $e->getMessage());
+        }
+
         header("Location: " . BASE_URL . "/operasi_detail.php?id={$id}");
         exit;
     }
 
     if ($action === 'rollback') {
-        $id = (int)($_POST['id_operasi'] ?? $_POST['id'] ?? $_GET['id'] ?? 0);
+        $id = (int)($_POST['id_operasi'] ?? $_POST['id'] ?? 0);
         if ($id <= 0) {
             setFlash('error', 'Gagal membuka kembali operasi: ID Operasi tidak ditemukan.');
-            header("Location: " . BASE_URL . "/index.php");
+            header("Location: " . BASE_URL . "/operasi.php");
             exit;
         }
 
@@ -112,7 +127,7 @@ if ($method === 'POST') {
         try {
             $ok = OperasiModel::rollbackPenutupan($id, $waktuReopen);
             if ($ok) {
-                setFlash('success', 'Operasi SAR berhasil dibuka kembali (Status: OPEN). Perhitungan hari operasional dimulai lagi sejak tanggal pembukaan.');
+                setFlash('success', 'Operasi SAR berhasil dibuka kembali (Status: OPEN). Perhitungan hari operasional lanjutan (misal: H7 + 1, dst.) dihitung sejak tanggal pembukaan kembali.');
             } else {
                 setFlash('error', 'Gagal membuka kembali operasi SAR: Sistem basis data gagal memperbarui status.');
             }

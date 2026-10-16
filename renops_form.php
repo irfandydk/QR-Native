@@ -81,9 +81,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $_POST['srus'] = $srus;
 
-    $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
     $tglInput = $_POST['tanggal_laporan'] ?? date('Y-m-d');
-    $_POST['hari_ke'] = TemplateHelper::hitungHariKe($baseDateOps, $tglInput);
+    $_POST['hari_ke'] = TemplateHelper::hitungHariKe($operasi, $tglInput);
 
     try {
         if ($editMode) {
@@ -113,7 +112,7 @@ $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
 
 if ($editMode) {
     $tanggalLaporan = $renops['tanggal_laporan'] ?? date('Y-m-d');
-    $hariKe = TemplateHelper::hitungHariKe($baseDateOps, $tanggalLaporan);
+    $hariKe = TemplateHelper::hitungHariKe($operasi, $tanggalLaporan);
     $waktuBriefing = !empty($renops['waktu_briefing']) ? date('Y-m-d\TH:i', strtotime($renops['waktu_briefing'])) : date('Y-m-d\T07:00');
     $waktuMulaiOps = !empty($renops['waktu_mulai_ops']) ? date('Y-m-d\TH:i', strtotime($renops['waktu_mulai_ops'])) : date('Y-m-d\T07:30');
     $cuaca = $renops['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
@@ -123,7 +122,7 @@ if ($editMode) {
 } else {
     $nextRenops = HierarchyHelper::getNextRenopsDefaults($operasi);
     $tanggalLaporan = $nextRenops['target_date_str'] ?? date('Y-m-d');
-    $hariKe = $nextRenops['hari_ke'] ?? TemplateHelper::hitungHariKe($baseDateOps, $tanggalLaporan);
+    $hariKe = $nextRenops['hari_ke'] ?? TemplateHelper::hitungHariKe($operasi, $tanggalLaporan);
     $waktuBriefing = $tanggalLaporan . 'T07:00';
     $waktuMulaiOps = $tanggalLaporan . 'T07:30';
     $cuaca = $nextRenops['inherited_cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');

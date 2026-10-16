@@ -23,6 +23,20 @@ try {
         echo "[OK] GIS schema validated.\n";
     }
 
+    // 1b. Run OperasiModel forced migration
+    if (class_exists('OperasiModel')) {
+        echo "[RUN] Checking Operasi tables...\n";
+        OperasiModel::ensureSchemaUpdated(true);
+        echo "[OK] Operasi schema validated.\n";
+    }
+
+    // 1c. Run RenopsModel forced migration
+    if (class_exists('RenopsModel')) {
+        echo "[RUN] Checking Renops tables...\n";
+        RenopsModel::ensureSchemaUpdated(true);
+        echo "[OK] Renops schema validated.\n";
+    }
+
     // 2. Run UserModel table migration
     if (class_exists('UserModel')) {
         echo "[RUN] Checking Users table...\n";
