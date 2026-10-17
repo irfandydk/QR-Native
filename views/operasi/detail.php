@@ -394,6 +394,11 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                     <span>Salin WA</span>
                 </button>
 
+                <a href="<?= BASE_URL ?>/operasi.php?action=print_renops&id=<?= $id ?>&id_renops=<?= (int)$ren['id_renops'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold text-xs transition cursor-pointer" title="Cetak Berkas Lembar Resmi RENOPS (A4 Basarnas)">
+                    <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                    <span>Cetak Berkas</span>
+                </a>
+
                 <?php if ($isOpen): ?>
                 <a href="<?= BASE_URL ?>/renops_form.php?id_operasi=<?= $id ?>&id_renops=<?= $ren['id_renops'] ?>" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer">
                     <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"/></svg>
@@ -545,7 +550,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <span>+ Terbitkan SITREP <?= e($nextLapbang['hari_ke'] ?? $hariKe) ?></span>
             </a>
             <?php endif; ?>
-            <a href="<?= BASE_URL ?>/bra.php?action=create&id_operasi=<?= $id ?>&kategori=SAR_UMUM" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white border border-slate-200 dark:border-slate-700 font-semibold text-xs transition" title="Buat Berita Radio dari Laporan Perkembangan">
+            <a href="<?= BASE_URL ?>/bra.php?action=create&id_operasi=<?= $id ?>&kategori=OPERASI_SAR" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white border border-slate-200 dark:border-slate-700 font-semibold text-xs transition" title="Buat Berita Radio dari Laporan Perkembangan">
                 <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
                 <span>BRA Operasi SAR</span>
             </a>
@@ -629,6 +634,18 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                         <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"/></svg>
                         <span>Salin WA</span>
                     </button>
+
+                    <?php if ($isPenutupan): ?>
+                    <a href="<?= BASE_URL ?>/operasi.php?action=print_penutupan&id=<?= $id ?>&id_laporan=<?= (int)$lap['id_laporan'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 font-semibold text-xs transition cursor-pointer" title="Cetak Berita Acara Penutupan Operasi (A4 Basarnas)">
+                        <svg class="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                        <span>Cetak Berita Acara</span>
+                    </a>
+                    <?php else: ?>
+                    <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= (int)$lap['id_laporan'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold text-xs transition cursor-pointer" title="Cetak Lembar Resmi SITREP Harian (A4 Basarnas)">
+                        <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                        <span>Cetak SITREP</span>
+                    </a>
+                    <?php endif; ?>
 
                     <?php if ($isOpen): ?>
                     <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>&id_laporan=<?= $lap['id_laporan'] ?>" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer">
@@ -742,9 +759,9 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <div class="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
             <div>
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Korban</span>
-                <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono"><?= $countKorban ?></span>
-                <span class="text-[11px] text-slate-400 block">Orang</span>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Korban (POB)</span>
+                <span class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-mono"><?= (int)($statsKorban['total'] ?? $countKorban) ?></span>
+                <span class="text-[11px] text-slate-400 block"><?= (int)($statsKorban['identified'] ?? $countKorban) ?> Terdata<?= !empty($statsKorban['unrecorded_dp']) ? " • {$statsKorban['unrecorded_dp']} Belum" : '' ?></span>
             </div>
             <div class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
@@ -806,11 +823,11 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                     <h3 class="text-sm font-bold text-slate-900 dark:text-white">Daftar Identitas Korban</h3>
                 </div>
                 <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                    <?= $countKorban ?> Orang
+                    Total <?= (int)($statsKorban['total'] ?? $countKorban) ?> Orang (POB)
                 </span>
             </div>
 
-            <?php if (empty($operasi['korban'])): ?>
+            <?php if (empty($operasi['korban']) && empty($statsKorban['unrecorded_dp'])): ?>
             <div class="p-8 text-center text-slate-400 text-xs">
                 <p>Tidak ada data korban tercatat.</p>
             </div>
@@ -854,6 +871,24 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                             </td>
                         </tr>
                         <?php endforeach; ?>
+
+                        <?php if (!empty($statsKorban['unrecorded_dp'])): ?>
+                        <tr class="bg-amber-500/5 dark:bg-amber-500/10 font-medium">
+                            <td class="py-2.5 px-3.5 text-center font-bold font-mono text-amber-500">
+                                <?= count($operasi['korban']) > 0 ? (count($operasi['korban']) + 1) : 1 ?>
+                            </td>
+                            <td class="py-2.5 px-3.5 font-bold text-amber-800 dark:text-amber-300">
+                                <?= (int)$statsKorban['unrecorded_dp'] ?> Orang Korban Belum Terdata (POB)
+                            </td>
+                            <td class="py-2.5 px-3.5 text-amber-700 dark:text-amber-400 text-[11px]">-</td>
+                            <td class="py-2.5 px-3.5 text-amber-700 dark:text-amber-400 text-[11px]">Identitas belum terverifikasi</td>
+                            <td class="py-2.5 px-3.5 text-center">
+                                <span class="px-2 py-0.5 rounded-lg font-bold font-mono text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                    Dalam Pencarian (DP)
+                                </span>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -1036,7 +1071,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
             <div class="flex items-center gap-2">
                 <span class="px-2.5 py-0.5 rounded-lg bg-orange-500 text-white font-mono font-bold text-xs">
-                    <?= in_array(strtoupper($bra['kategori']), ['SAR_UMUM', 'OPERASI_SAR']) ? 'BRA SAR OPERASI SAR' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? 'BRA KAPAL' : 'BRA MAPEL') ?>
+                    <?= in_array(strtoupper($bra['kategori']), ['SAR_UMUM', 'OPERASI_SAR']) ? 'BRA OPERASI SAR' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? 'BRA KAPAL' : 'BRA MAPEL') ?>
                 </span>
                 <span class="font-mono font-black text-sm text-slate-900 dark:text-white">
                     NO: <?= e($bra['no_bra']) ?>
@@ -1229,12 +1264,12 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
                     </div>
                     <h4 class="font-bold text-xs text-slate-900 dark:text-white">1. Berkas Laporan Awal</h4>
-                    <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Format standar informasi kejadian dan pemberangkatan tim SAR.</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Naskah dinas resmi Basarnas lengkap dengan Kop, tabel terstruktur, tanda tangan & QR verifikasi.</p>
                 </div>
-                <button type="button" class="w-full py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5" onclick="printBerkas('laporan_awal')">
+                <a href="<?= BASE_URL ?>/operasi.php?action=print_laporan_awal&id=<?= $id ?>" target="_blank" class="w-full py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5 no-underline">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
-                    <span>Cetak Dokumen</span>
-                </button>
+                    <span>Cetak Berkas Resmi</span>
+                </a>
             </div>
 
             <!-- Card 2: RENOPS -->
@@ -1244,12 +1279,30 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
                     </div>
                     <h4 class="font-bold text-xs text-slate-900 dark:text-white">2. Rencana Operasi SAR</h4>
-                    <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Lembar RENOPS harian lengkap dengan sektor & SRU.</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Lembar RENOPS harian lengkap dengan pembagian sektor & SRU.</p>
                 </div>
-                <button type="button" class="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5" onclick="printBerkas('renops')">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
-                    <span>Cetak Lembar RENOPS</span>
-                </button>
+                <?php if (!empty($operasi['renops'])): ?>
+                    <?php if (count($operasi['renops']) === 1): ?>
+                    <a href="<?= BASE_URL ?>/operasi.php?action=print_renops&id=<?= $id ?>&id_renops=<?= (int)$operasi['renops'][0]['id_renops'] ?>" target="_blank" class="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs text-center transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer no-underline">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                        <span>Cetak Lembar RENOPS</span>
+                    </a>
+                    <?php else: ?>
+                    <div class="space-y-1.5">
+                        <select id="select-renops-cetak" class="w-full text-xs p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+                            <?php foreach ($operasi['renops'] as $r): ?>
+                            <option value="<?= (int)$r['id_renops'] ?>"><?= e($r['hari_ke']) ?> &bull; <?= TemplateHelper::formatTanggalSimple($r['tanggal_laporan']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <button type="button" onclick="const rid = document.getElementById('select-renops-cetak').value; window.open('<?= BASE_URL ?>/operasi.php?action=print_renops&id=<?= $id ?>&id_renops=' + rid, '_blank');" class="w-full py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                            <span>Cetak RENOPS Terpilih</span>
+                        </button>
+                    </div>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <span class="text-[11px] text-slate-400 text-center py-2">Belum ada RENOPS terbit</span>
+                <?php endif; ?>
             </div>
 
             <!-- Card 3: BRA SAR -->
@@ -1271,7 +1324,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                     <div class="space-y-1.5">
                         <select id="select-bra-cetak" class="w-full text-xs p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
                             <?php foreach ($operasi['bra_sar'] as $b): ?>
-                            <option value="<?= (int)$b['id_bra'] ?>">BRA #<?= (int)$b['id_bra'] ?> &bull; <?= e($b['nomor_surat'] ?: $b['perihal']) ?></option>
+                            <option value="<?= (int)$b['id_bra'] ?>">BRA #<?= (int)$b['id_bra'] ?> &bull; <?= e(!empty($b['no_bra']) ? $b['no_bra'] : $b['perihal']) ?></option>
                             <?php endforeach; ?>
                         </select>
                         <button type="button" onclick="const bid = document.getElementById('select-bra-cetak').value; window.location.href='<?= BASE_URL ?>/bra.php?view=' + bid;" class="w-full py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
@@ -1285,19 +1338,41 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <?php endif; ?>
             </div>
 
-            <!-- Card 4: Penutupan -->
+            <!-- Card 4: Penutupan & SITREP -->
             <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex flex-col justify-between space-y-3">
                 <div>
                     <div class="w-8 h-8 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center font-bold text-xs mb-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
                     </div>
-                    <h4 class="font-bold text-xs text-slate-900 dark:text-white">4. Berita Acara Penutupan</h4>
-                    <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Debriefing usul penutupan operasi dan pelepasan unsur SAR.</p>
+                    <h4 class="font-bold text-xs text-slate-900 dark:text-white">4. Berita Acara & SITREP</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Berita Acara Penutupan resmi dan lembar cetak SITREP harian.</p>
                 </div>
-                <button type="button" class="w-full py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5" onclick="printBerkas('penutupan')">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
-                    <span>Cetak Berita Acara</span>
-                </button>
+                <div class="space-y-1.5">
+                    <a href="<?= BASE_URL ?>/operasi.php?action=print_penutupan&id=<?= $id ?>" target="_blank" class="w-full py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition shadow-xs cursor-pointer flex items-center justify-center gap-1.5 no-underline">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                        <span>Cetak Berita Acara</span>
+                    </a>
+                    <?php if (!empty($operasi['laporan_harian'])): ?>
+                        <?php if (count($operasi['laporan_harian']) === 1): ?>
+                        <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= (int)$operasi['laporan_harian'][0]['id_laporan'] ?>" target="_blank" class="w-full py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 no-underline">
+                            <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                            <span>Cetak Lembar SITREP</span>
+                        </a>
+                        <?php else: ?>
+                        <div class="space-y-1 pt-1 border-t border-slate-200 dark:border-slate-700/60">
+                            <select id="select-sitrep-cetak" class="w-full text-xs p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+                                <?php foreach ($operasi['laporan_harian'] as $lh): ?>
+                                <option value="<?= (int)$lh['id_laporan'] ?>"><?= e($lh['hari_ke']) ?> &bull; <?= strtoupper($lh['jenis_laporan']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="button" onclick="const lid = document.getElementById('select-sitrep-cetak').value; window.open('<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=' + lid, '_blank');" class="w-full py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer">
+                                <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                                <span>Cetak SITREP Terpilih</span>
+                            </button>
+                        </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>

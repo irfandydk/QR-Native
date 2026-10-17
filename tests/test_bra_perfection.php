@@ -184,20 +184,20 @@ assertCheck(
     "assets/css/style.css enforces break-inside: avoid on .bra-text-line to prevent text cutting"
 );
 assertCheck(
-    strpos($braFormJs, "margin: [15, 15, 15, 15]") !== false,
-    "bra_form.js sets 15mm (1.5cm) uniform margin for A4 PDF export"
+    strpos($braFormJs, "margin: [5, 15, 15, 15]") !== false,
+    "bra_form.js sets standardized 5mm top & 15mm sides/bottom margin for A4 PDF export"
 );
 assertCheck(
-    strpos($viewPhp, "margin: [15, 15, 15, 15]") !== false,
-    "views/bra/view.php sets 15mm (1.5cm) uniform margin for A4 PDF export"
+    strpos($viewPhp, "margin: [5, 15, 15, 15]") !== false,
+    "views/bra/view.php sets standardized 5mm top & 15mm sides/bottom margin for A4 PDF export"
 );
 assertCheck(
-    strpos($styleCss, "margin: 15mm 15mm 15mm 15mm;") !== false,
-    "assets/css/style.css enforces 15mm (1.5cm) @page margin in @media print"
+    strpos($styleCss, "margin: 5mm 15mm 15mm 15mm;") !== false,
+    "assets/css/style.css enforces 5mm top & 15mm sides/bottom @page margin in @media print"
 );
 assertCheck(
-    strpos($formPhp, "margin: 15mm 15mm 15mm 15mm;") !== false,
-    "views/bra/form.php enforces 15mm (1.5cm) @page margin in @media print"
+    strpos($formPhp, "margin: 5mm 15mm 15mm 15mm;") !== false,
+    "views/bra/form.php enforces 5mm top & 15mm sides/bottom @page margin in @media print"
 );
 assertCheck(
     strpos($viewPhp, "width = '680px'") !== false && strpos($braFormJs, "width = '680px'") !== false,
@@ -212,8 +212,8 @@ assertCheck(
     "Table wrappers enforce pr-1 right padding so table box does not touch outer edge"
 );
 assertCheck(
-    strpos($viewPhp, "mb_strlen(\$rLine) > 140 && preg_match('/\\bTTK\\b/i'") !== false && strpos($braFormJs, "l.length > 140 && /\\bTTK\\b/i") !== false,
-    "Section engines split long run-on sentences ending with TTK to prevent multi-line paragraph cuts in CCC and DDD"
+    strpos($viewPhp, "mb_strlen(\$rLine) > 500 && preg_match('/\\bTTK(?!\\s+DUA)\\b/i'") !== false && strpos($braFormJs, "l.length > 500 && /\\bTTK(?!\\s+DUA)\\b/i") !== false,
+    "Section engines protect TTK DUA from being severed and keep paragraphs under 500 chars intact"
 );
 assertCheck(
     strpos($formPhp, "height: 260px") !== false && strpos($formPhp, "bottom-0 w-5 flex items-center justify-center select-none pointer-events-none senkom-vertical-label") === false,

@@ -267,9 +267,12 @@ $initialAlutData = $initialAlutData ?? [];
             <p class="text-xs text-slate-500 dark:text-slate-400">Ubah status kondisi korban terkini berdasarkan hasil evakuasi lapangan</p>
           </div>
         </div>
-        <span class="text-xs font-mono font-bold text-slate-500">
-          Total POB: <?= count($operasi['korban']) ?> Orang
-        </span>
+        <div class="flex flex-wrap items-center gap-2">
+          <div id="victim-status-badges" class="flex flex-wrap items-center gap-1.5 text-xs font-bold"></div>
+          <span class="text-xs font-mono font-bold text-slate-500">
+            Total POB: <?= count($operasi['korban']) ?> Orang
+          </span>
+        </div>
       </div>
 
       <div class="table-responsive rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">

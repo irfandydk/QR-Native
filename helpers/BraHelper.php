@@ -20,6 +20,91 @@ class BraHelper {
         return "{$mm}{$dd} {$hh}{$min}{$zoneSuffix}";
     }
 
+    public static function normalizeMilitaryTW(?string $input, string $defaultZone = 'H'): string {
+        if (empty($input)) {
+            return self::formatMilitaryTW(null, $defaultZone);
+        }
+        $clean = trim((string)$input);
+        // Hapus prefix TWU atau TWB jika ada
+        $clean = preg_replace('/^(?:TW[UB]\s*)+/i', '', $clean);
+        $clean = trim($clean);
+
+        // Jika sudah cocok format MMDD HHmm atau MMDD HHmm Z (termasuk 8 digit bersambung atau zona tanpa spasi)
+        if (preg_match('/^(\d{4})\s*(\d{4})\s*([A-Z])?$/i', $clean, $m)) {
+            $z = !empty($m[3]) ? strtoupper($m[3]) : $defaultZone;
+            return "{$m[1]} {$m[2]} {$z}";
+        }
+
+        // Coba parse timestamp dari string tanggal biasa
+        $ts = strtotime($clean);
+        if ($ts !== false) {
+            return self::formatMilitaryTW(date('Y-m-d H:i:s', $ts), $defaultZone);
+        }
+
+        return strtoupper($clean);
+    }
+
+    public static function normalizeCategory(?string $kategori): string {
+        $cat = strtoupper(trim((string)$kategori));
+        if ($cat === 'SAR_UMUM' || $cat === 'OPERASI_SAR') {
+            return 'OPERASI_SAR';
+        }
+        if ($cat === 'PERGERAKAN_KAPAL' || $cat === 'KAPAL') {
+            return 'PERGERAKAN_KAPAL';
+        }
+        return 'MAPEL';
+    }
+
+    public static function ensureEndsWithTtk(string $perihal): string {
+        $clean = trim($perihal);
+        if ($clean === '') return 'BERITA RADIO SAR TTK';
+        $clean = rtrim($clean, " .\t\n\r\0\x0B");
+        if (!preg_match('/\bTTK$/i', $clean)) {
+            $clean .= ' TTK';
+        }
+        return strtoupper($clean);
+    }
+
+    public static function sanitizeTelegramPunctuation(string $text): string {
+        if ($text === '') return '';
+
+        // 1. Ubah ke Uppercase
+        $formatted = mb_strtoupper($text, 'UTF-8');
+
+        // 2. Proteksi desimal angka koordinat (misal 03° 58' 30.0" S - 122° 35' 12.5" T)
+        $formatted = preg_replace_callback('/(\d+)\.(\d+)/', function($m) {
+            return $m[1] . '__DECIMAL_DOT__' . $m[2];
+        }, $formatted);
+
+        // Proteksi singkatan gelar seperti A.S., S.SOS., S.T., S.E., S.PD.
+        $formatted = preg_replace_callback('/\b([A-Z])\.([A-Z])\./i', function($m) {
+            return $m[1] . '__GELAR_DOT__' . $m[2] . '__GELAR_DOT__';
+        }, $formatted);
+
+        // 3. Konversi titik dua (:) menjadi TTK DUA
+        $formatted = preg_replace('/\s*:\s*/', ' TTK DUA ', $formatted);
+
+        // 4. Konversi koma (,) menjadi KMA
+        $formatted = preg_replace('/\s*,\s*/', ' KMA ', $formatted);
+
+        // 5. Konversi titik (.) menjadi TTK
+        $formatted = preg_replace('/\s*\.+\s*/', ' TTK ', $formatted);
+
+        // Kembalikan tanda titik desimal & gelar
+        $formatted = str_replace('__DECIMAL_DOT__', '.', $formatted);
+        $formatted = str_replace('__GELAR_DOT__', '.', $formatted);
+
+        // 6. Reduplikasi kata ulang (CIRI-CIRI -> CIRIS, KAPAL-KAPAL -> KAPALS)
+        $formatted = self::formatTelegramReduplication($formatted);
+
+        // 7. Bersihkan duplikasi TTK atau KMA yang menumpuk
+        $formatted = preg_replace('/\bTTK(?:\s+TTK)+\b/', 'TTK', $formatted);
+        $formatted = preg_replace('/\bKMA(?:\s+KMA)+\b/', 'KMA', $formatted);
+        $formatted = preg_replace('/\s+/', ' ', $formatted);
+
+        return trim($formatted);
+    }
+
     public static function getBulanTahunSuffix(?string $dateInput = null): string {
         $timestamp = $dateInput ? strtotime($dateInput) : time();
         if ($timestamp === false) $timestamp = time();
@@ -237,9 +322,163 @@ class BraHelper {
         ];
     }
 
+    /**
+     * Memformat kata pengulangan (reduplikasi) sesuai kaidah sandi baku telegram dinas:
+     * Dilarang menggunakan tanda hubung (-) atau angka 2, melainkan diubah menjadi sufiks 'S'
+     * Contoh: CIRI-CIRI -> CIRIS, KAPAL-KAPAL -> KAPALS, TANDA-TANDA -> TANDAS
+     */
+    public static function formatTelegramReduplication(string $text): string {
+        if ($text === '') {
+            return '';
+        }
+        // Ganti kata-kata pengulangan persis dengan sufiks 'S' (e.g. CIRI-CIRI -> CIRIS)
+        $formatted = preg_replace_callback('/\b([A-Za-z]+)-\1\b/ui', function($m) {
+            return strtoupper($m[1]) . 'S';
+        }, $text);
+
+        // Kamus kata ulang berimbuhan atau istilah khusus telegram
+        $specialMap = [
+            'TERAPUNG-APUNG' => 'TERAPUNG',
+            'BERPINTAL-PINTAL' => 'BERPINTAL',
+            'TEROMBANG-AMBING' => 'TEROMBANG AMBING',
+            'SAMBUNG-MENYAMBUNG' => 'SAMBUNG MENYAMBUNG',
+            'BOLAK-BALIK' => 'BOLAK BALIK',
+            'HILANG-KONTAK' => 'HILANG KONTAK'
+        ];
+        foreach ($specialMap as $from => $to) {
+            $formatted = preg_replace('/\b' . preg_quote($from, '/') . '\b/i', $to, $formatted);
+        }
+
+        return $formatted;
+    }
+
+    public static function buildSectionsFromMapel(?array $ops = null, array $customParams = []): array {
+        $twu = self::formatMilitaryTW();
+        $twLapor = !empty($ops['waktu_lapor']) 
+            ? self::formatMilitaryTW($ops['waktu_lapor']) 
+            : (!empty($customParams['tw_lapor']) ? $customParams['tw_lapor'] : self::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15 minutes'))));
+
+        $pelapor = !empty($customParams['pelapor']) 
+            ? strtoupper($customParams['pelapor']) 
+            : (!empty($ops['nama_pelapor']) ? strtoupper($ops['nama_pelapor']) : 'BPK SAHARUDDIN');
+        
+        $hub = !empty($customParams['hubungan_pelapor']) 
+            ? strtoupper($customParams['hubungan_pelapor']) 
+            : (!empty($ops['hubungan_pelapor']) ? strtoupper($ops['hubungan_pelapor']) : 'PEMILIK KAPAL / KELUARGA');
+        
+        $noHp = !empty($customParams['no_telp_pelapor']) 
+            ? $customParams['no_telp_pelapor'] 
+            : (!empty($ops['no_telp_pelapor']) ? $ops['no_telp_pelapor'] : '081327820103');
+        $infoPelapor = "{$pelapor} ({$hub}/HP {$noHp})";
+
+        $namaMusibah = !empty($customParams['nama_musibah']) 
+            ? strtoupper($customParams['nama_musibah']) 
+            : (!empty($ops['nama_operasi']) ? strtoupper($ops['nama_operasi']) : 'LONGBOAT MATI MESIN DAN HILANG KONTAK');
+
+        $pob = !empty($customParams['pob']) 
+            ? (int)$customParams['pob'] 
+            : (!empty($ops['jumlah_korban']) ? (int)$ops['jumlah_korban'] : (!empty($ops['korban']) && is_array($ops['korban']) ? count($ops['korban']) : 1));
+        $pobText = $pob > 0 ? " DENGAN POB {$pob} ORANG" : "";
+
+        $ciriKapal = !empty($customParams['ciri_kapal']) 
+            ? strtoupper($customParams['ciri_kapal']) 
+            : (!empty($ops['alut_palsar']) ? strtoupper(str_replace("\n", ' KMA ', $ops['alut_palsar'])) : 'LONGBOAT WARNA BIRU PUTIH MESIN TEMPEL 15 PK');
+        $ciriKapal = self::formatTelegramReduplication($ciriKapal);
+
+        $lokasi = !empty($customParams['lokasi']) 
+            ? strtoupper($customParams['lokasi']) 
+            : (!empty($ops['lokasi_kejadian']) ? strtoupper($ops['lokasi_kejadian']) : 'PERAIRAN SULAWESI TENGGARA');
+
+        $koordinat = !empty($customParams['koordinat']) 
+            ? strtoupper($customParams['koordinat']) 
+            : (!empty($ops['koordinat']) ? strtoupper($ops['koordinat']) : '03° 58\' 30" S - 122° 35\' 12" E');
+
+        // Hitung Hari Ke Operasi SAR jika merujuk pada Operasi SAR
+        $hariKe = 1;
+        if (!empty($ops)) {
+            // 1. Cek dari renops jika ada
+            if (!empty($ops['renops']) && is_array($ops['renops'])) {
+                foreach ($ops['renops'] as $rn) {
+                    if (!empty($rn['hari_ke'])) {
+                        if (preg_match('/(?:H\s*[\.\-]?\s*)?(\d+)/i', (string)$rn['hari_ke'], $m)) {
+                            $hariKe = max($hariKe, (int)$m[1]);
+                        }
+                    }
+                }
+            }
+            // 2. Cek dari laporan_harian (sitrep) jika ada
+            if (!empty($ops['laporan_harian']) && is_array($ops['laporan_harian'])) {
+                foreach ($ops['laporan_harian'] as $lp) {
+                    if (!empty($lp['hari_ke'])) {
+                        if (preg_match('/(?:H\s*[\.\-]?\s*)?(\d+)/i', (string)$lp['hari_ke'], $m)) {
+                            $hariKe = max($hariKe, (int)$m[1]);
+                        }
+                    }
+                }
+            }
+            // 3. Cek selisih hari dari tanggal_mulai atau waktu_lapor terhadap hari ini
+            if ($hariKe === 1) {
+                $startDateStr = !empty($ops['tanggal_mulai']) ? $ops['tanggal_mulai'] : (!empty($ops['waktu_lapor']) ? $ops['waktu_lapor'] : null);
+                if ($startDateStr) {
+                    $startTime = strtotime(substr($startDateStr, 0, 10));
+                    $nowTime = strtotime(date('Y-m-d'));
+                    if ($startTime && $nowTime >= $startTime) {
+                        $calcDay = (int)floor(($nowTime - $startTime) / 86400) + 1;
+                        $hariKe = max($hariKe, $calcDay);
+                    }
+                }
+            }
+        }
+        if (!empty($customParams['hari_ke'])) {
+            $hariKe = (int)$customParams['hari_ke'];
+        }
+
+        $kalimatHariKe = "";
+        if ($hariKe >= 2) {
+            $kalimatHariKe = " SAAT INI OPERASI SAR SEDANG BERJALAN MEMASUKI HARI KE-{$hariKe} (H.{$hariKe}) DENGAN HASIL KORBAN MASIH DALAM PENCARIAN TTK";
+        }
+
+        $kondisiTerakhir = !empty($customParams['kondisi_terakhir']) 
+            ? strtoupper($customParams['kondisi_terakhir']) 
+            : 'INFO TERAKHIR DARI KORBAN KAPAL TERAPUNG DAN MEMBUTUHKAN BANTUAN SAR';
+
+        // Seksi AAA baku telegram pemapelan (sandi resmi CIRIS tanpa tanda hubung, koordinat bersambung, klausul H.X bila >= 2)
+        $isiAaa = "PD TW {$twLapor} TERIMA INFO DARI {$infoPelapor} BAHWA TELAH TERJADI {$namaMusibah}{$pobText} POSISI SAAT INI DI SEKITAR {$lokasi} PADA KOORDINAT {$koordinat} TTK CIRIS KAPAL TTK DUA {$ciriKapal} TTK{$kalimatHariKe} {$kondisiTerakhir} TTK";
+        $isiAaa = self::formatTelegramReduplication(trim($isiAaa));
+
+        // Seksi BBB baku permintaan pemapelan maritim kepada kapal melintas (KAPALS)
+        $isiBbb = "TERKAIT INFO MUSIBAH TSB MHN BANTUAN PEMANTAUAN DAN PEMAPELAN KEPADA KAPALS YANG MELINTASI DI AREA TERSEBUT KMA APABILA MENEMUKAN TANDAS KEBERADAAN KAPAL TERSEBUT AGAR DAPAT MEMBERIKAN PERTOLONGAN PERTAMA SERTA MELAPORKAN KPD BASARNAS KENDARI TTK";
+
+        // Seksi CCC baku ucapan terima kasih telegram resmi
+        $isiCcc = "DEMIKIAN SEBAGAI LAPORAN ATAS KERJASAMANYA DIUCAPKAN TERIMAKASIH TTK KMA KAKANSAR KENDARI KRM TTK HBS";
+
+        $perihal = "PERMINTAAN PEMAPELAN DAN PEMANTAUAN TERHADAP " . self::formatTelegramReduplication($namaMusibah) . " TTK";
+
+        return [
+            'kategori' => 'MAPEL',
+            'perihal' => $perihal,
+            'derajat' => 'SGR',
+            'sifat' => 'SEGERA',
+            'hari_ke' => $hariKe,
+            'aksi' => $customParams['aksi'] ?? 'KA KSOP KENDARI KMA KA SROP KENDARI',
+            'info' => $customParams['info'] ?? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN',
+            'dari' => 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI',
+            'jabatan_smc' => 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI',
+            'sections' => [
+                ['kode' => 'AAA', 'isi' => $isiAaa],
+                ['kode' => 'BBB', 'isi' => $isiBbb],
+                ['kode' => 'CCC', 'isi' => $isiCcc],
+            ]
+        ];
+    }
+
     public static function getDefaultTemplate(string $kategori = 'MAPEL', string $noBra = '', int $nomorUrut = 1, string $satker = 'SAR-304', string $bulanTahun = ''): array {
         if ($kategori === 'PERGERAKAN_KAPAL') {
             return self::buildSectionsFromVesselMovement('KN_SAR_PACITAN', 'TOLAK');
+        }
+
+        if ($kategori === 'MAPEL') {
+            return self::buildSectionsFromMapel();
         }
 
         return [

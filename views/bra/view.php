@@ -48,7 +48,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
       <?php endif; ?>
 
       <span class="px-2.5 py-1 text-xs font-bold rounded-lg border uppercase tracking-wider <?= $bra['kategori'] === 'MAPEL' ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border-cyan-500/30' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30') ?>">
-        <?= $bra['kategori'] === 'MAPEL' ? '📡 BRA MAPEL' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? '🚢 BRA KAPAL' : '📋 BRA SAR OPERASI SAR') ?>
+        <?= $bra['kategori'] === 'MAPEL' ? '📡 BRA MAPEL' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? '🚢 BRA KAPAL' : '📋 BRA OPERASI SAR') ?>
       </span>
 
       <span class="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
@@ -316,17 +316,19 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
                           $textLines[] = '';
                           continue;
                       }
-                      if (mb_strlen($rLine) > 140 && preg_match('/\bTTK\b/i', $rLine)) {
-                          $parts = preg_split('/(\bTTK\b\s*)/i', $rLine, -1, PREG_SPLIT_DELIM_CAPTURE);
+                      if (mb_strlen($rLine) > 500 && preg_match('/\bTTK(?!\s+DUA)\b/i', $rLine)) {
+                          $parts = preg_split('/(\bTTK(?!\s+DUA)\b\s*)/i', $rLine, -1, PREG_SPLIT_DELIM_CAPTURE);
                           $currentChunk = '';
                           for ($i = 0; $i < count($parts); $i++) {
                               $currentChunk .= $parts[$i];
-                              if (strcasecmp(trim($parts[$i]), 'TTK') === 0 || $i === count($parts) - 1) {
-                                  $trimChunk = trim($currentChunk);
-                                  if ($trimChunk !== '') {
-                                      $textLines[] = $trimChunk;
+                              if (preg_match('/^TTK$/i', trim($parts[$i])) || $i === count($parts) - 1) {
+                                  if (mb_strlen($currentChunk) >= 250 || $i === count($parts) - 1) {
+                                      $trimChunk = trim($currentChunk);
+                                      if ($trimChunk !== '') {
+                                          $textLines[] = $trimChunk;
+                                      }
+                                      $currentChunk = '';
                                   }
-                                  $currentChunk = '';
                               }
                           }
                           if (trim($currentChunk) !== '') {
@@ -593,14 +595,25 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
       <?php if (!empty($bra['perihal'])): ?>
       txt += "<?= addslashes($bra['perihal']) ?>\n\n";
       <?php endif; ?>
-      <?php foreach ($sections as $s): ?>
-      txt += "<?= addslashes($s['kode'] ?? '') ?> : <?= addslashes(str_replace(["\r", "\n"], ["", " "], $s['isi'] ?? '')) ?>\n\n";
+      <?php foreach ($sections as $s): 
+          $isiRaw = trim((string)($s['isi'] ?? ''));
+          $lines = preg_split('/\r?\n/', $isiRaw);
+          $first = array_shift($lines);
+      ?>
+      txt += "<?= addslashes($s['kode'] ?? '') ?> : <?= addslashes((string)$first) ?>\n";
+      <?php foreach ($lines as $subLine): 
+          $subTrim = trim((string)$subLine);
+          if ($subTrim === '') continue;
+      ?>
+      txt += "      <?= addslashes($subTrim) ?>\n";
+      <?php endforeach; ?>
+      txt += "\n";
       <?php endforeach; ?>
       txt += "TWB : <?= addslashes($bra['twb'] ?? '') ?>\n";
       txt += "PENGIRIM : <?= addslashes($bra['pengirim'] ?? '') ?>\n";
-      txt += "Nama : <?= addslashes($bra['nama_smc'] ?? '') ?>\n";
-      txt += "Pangkat : <?= addslashes($bra['pangkat_smc'] ?? '') ?>\n";
-      txt += "Jabatan : <?= addslashes($bra['jabatan_smc'] ?? '') ?>\n";
+      txt += "NAMA     : <?= addslashes($bra['nama_smc'] ?? '') ?>\n";
+      txt += "PANGKAT  : <?= addslashes($bra['pangkat_smc'] ?? '') ?>\n";
+      txt += "JABATAN  : <?= addslashes($bra['jabatan_smc'] ?? '') ?>\n";
       txt += "LINK VERIFIKASI DIGITAL : " + verifyUrl + "\n";
 
       navigator.clipboard.writeText(txt).then(() => {
@@ -667,7 +680,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
 
     const cleanNo = noBra.replace(/[^a-zA-Z0-9_\-]/g, '_');
     const opt = {
-      margin: [15, 15, 15, 15],
+      margin: [5, 15, 15, 15],
       filename: `BRA-SAR-${cleanNo}.pdf`,
       image: { type: 'jpeg', quality: 0.85 },
       html2canvas: {
@@ -723,18 +736,32 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
   if (btnDlHtml && doc) {
     btnDlHtml.addEventListener('click', function() {
       const htmlContent = `<!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BRA SAR - ${noBra}</title>
-<link rel="stylesheet" href="${window.location.origin}/assets/css/style.css">
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f1f5f9; padding: 2rem; display: flex; justify-content: center; margin: 0; }
-  #braDocument { background: #fff; max-width: 850px; width: 100%; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 4px; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f1f5f9; padding: 2rem; display: flex; justify-content: center; margin: 0; color: #000; }
+  #braDocument { background: #fff; max-width: 850px; width: 100%; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 4px; padding: 1.5cm; }
+  .font-bold { font-weight: 700 !important; }
+  .uppercase { text-transform: uppercase !important; }
+  .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important; }
+  .text-black { color: #000 !important; }
+  .text-center { text-align: center !important; }
+  .flex { display: flex !important; }
+  .items-center { align-items: center !important; }
+  .items-start { align-items: flex-start !important; }
+  .justify-between { justify-content: space-between !important; }
+  .border-b-2 { border-bottom-width: 2px !important; }
+  .border-black { border-color: #000 !important; }
+  .border { border: 1px solid #000 !important; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #000; padding: 4px 6px; }
   @media print {
     body { padding: 0; background: #fff; }
-    #braDocument { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; }
+    #braDocument { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 1cm !important; }
   }
 </style>
 </head>
@@ -742,7 +769,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
 ${doc.outerHTML}
 </body>
 </html>`;
-      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'BRA_SAR_' + noBra.replace(/[\/\\]/g, '_') + '.html';

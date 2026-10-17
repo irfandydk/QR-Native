@@ -127,7 +127,7 @@ CREATE TABLE `BraSar` (
 
 LOCK TABLES `BraSar` WRITE;
 /*!40000 ALTER TABLE `BraSar` DISABLE KEYS */;
-INSERT INTO `BraSar` VALUES (1,'SAR_UMUM','191/SAR-304/0926',191,'SAR-304','0926',2,'LAPORAN AWAL OPERASI SAR KONDISI MEMBAHAYAKAN MANUSIA, 1 ORANG HILANG DI HUTAN KENDARI TTK','','','','SGR','','KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI','KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN','DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN','','','LAPORAN AWAL OPERASI SAR KONDISI MEMBAHAYAKAN MANUSIA, 1 ORANG HILANG DI HUTAN KENDARI TTK','23 September 2026','0923 1657 H','0923 1642 H','160 KATA','KANTOR PENCARIAN DAN PERTOLONGAN KENDARI','AMIRUDDIN AS., S.Sos.','PEMBINA (IV/a)','SMC','','','','','http://localhost:3000/?viewBra=1','/uploads/satker_logo_1791763778.png','2026-09-23T08:57:43.542Z');
+INSERT INTO `BraSar` VALUES (1,'OPERASI_SAR','191/SAR-304/0926',191,'SAR-304','0926',2,'LAPORAN AWAL OPERASI SAR KONDISI MEMBAHAYAKAN MANUSIA, 1 ORANG HILANG DI HUTAN KENDARI TTK','','','','SGR','','KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI','KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN','DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN','','','LAPORAN AWAL OPERASI SAR KONDISI MEMBAHAYAKAN MANUSIA, 1 ORANG HILANG DI HUTAN KENDARI TTK','23 September 2026','0923 1657 H','0923 1642 H','160 KATA','KANTOR PENCARIAN DAN PERTOLONGAN KENDARI','AMIRUDDIN AS., S.Sos.','PEMBINA (IV/a)','SMC','','','','','http://localhost:3000/?viewBra=1','/uploads/satker_logo_1791763778.png','2026-09-23T08:57:43.542Z');
 /*!40000 ALTER TABLE `BraSar` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -291,7 +291,8 @@ CREATE TABLE `GisPoint` (
   PRIMARY KEY (`id`),
   KEY `idx_point_type` (`pointType`),
   KEY `idx_point_cat` (`category`),
-  KEY `idx_point_operasi` (`id_operasi`)
+  KEY `idx_point_operasi` (`id_operasi`),
+  CONSTRAINT `GisPoint_id_operasi_fkey` FOREIGN KEY (`id_operasi`) REFERENCES `Operasi` (`id_operasi`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -328,7 +329,8 @@ CREATE TABLE `GisPolygon` (
   `boxHeightNm` double DEFAULT NULL,
   `areaNm2` double DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_poly_operasi` (`id_operasi`)
+  KEY `idx_poly_operasi` (`id_operasi`),
+  CONSTRAINT `GisPolygon_id_operasi_fkey` FOREIGN KEY (`id_operasi`) REFERENCES `Operasi` (`id_operasi`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -357,7 +359,7 @@ CREATE TABLE `GisPolygonPoint` (
   `label` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `GisPolygonPoint_polygonId_fkey` (`polygonId`),
-  CONSTRAINT `GisPolygonPoint_polygonId_fkey` FOREIGN KEY (`polygonId`) REFERENCES `GisPolygon` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT `GisPolygonPoint_polygonId_fkey` FOREIGN KEY (`polygonId`) REFERENCES `GisPolygon` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -388,7 +390,8 @@ CREATE TABLE `GisRoute` (
   `strokeOpacity` double NOT NULL,
   `createdAt` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_route_operasi` (`id_operasi`)
+  KEY `idx_route_operasi` (`id_operasi`),
+  CONSTRAINT `GisRoute_id_operasi_fkey` FOREIGN KEY (`id_operasi`) REFERENCES `Operasi` (`id_operasi`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -417,7 +420,7 @@ CREATE TABLE `GisRoutePoint` (
   `label` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `GisRoutePoint_routeId_fkey` (`routeId`),
-  CONSTRAINT `GisRoutePoint_routeId_fkey` FOREIGN KEY (`routeId`) REFERENCES `GisRoute` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT `GisRoutePoint_routeId_fkey` FOREIGN KEY (`routeId`) REFERENCES `GisRoute` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -455,7 +458,8 @@ CREATE TABLE `GisSearchPattern` (
   `totalDistanceNm` double NOT NULL,
   `createdAt` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_pattern_operasi` (`id_operasi`)
+  KEY `idx_pattern_operasi` (`id_operasi`),
+  CONSTRAINT `GisSearchPattern_id_operasi_fkey` FOREIGN KEY (`id_operasi`) REFERENCES `Operasi` (`id_operasi`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -484,7 +488,7 @@ CREATE TABLE `GisSearchPatternWaypoint` (
   `label` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   KEY `GisSearchPatternWaypoint_searchPatternId_fkey` (`searchPatternId`),
-  CONSTRAINT `GisSearchPatternWaypoint_searchPatternId_fkey` FOREIGN KEY (`searchPatternId`) REFERENCES `GisSearchPattern` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT `GisSearchPatternWaypoint_searchPatternId_fkey` FOREIGN KEY (`searchPatternId`) REFERENCES `GisSearchPattern` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -629,11 +633,11 @@ CREATE TABLE `Operasi` (
   `nama_pelapor` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `hubungan_pelapor` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `no_telp_pelapor` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `waktu_kejadian` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `waktu_lapor` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `waktu_berangkat` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `waktu_kejadian` datetime NOT NULL,
+  `waktu_lapor` datetime NOT NULL,
+  `waktu_berangkat` datetime NOT NULL,
   `tim_berangkat` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `eta_tiba` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `eta_tiba` datetime NOT NULL,
   `lokasi_kejadian` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `koordinat` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `jarak` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -648,12 +652,12 @@ CREATE TABLE `Operasi` (
   `gelombang` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `angin` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
   `status` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `waktu_selesai` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `waktu_selesai` datetime DEFAULT NULL,
   `waktu_reopen` datetime DEFAULT NULL,
   `catatan_reopen` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `hari_sebelum_reopen` int DEFAULT NULL,
   `full_text_wa` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `created_at` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id_operasi`),
   KEY `idx_ops_status` (`status`),
   KEY `idx_ops_waktu` (`waktu_kejadian`)

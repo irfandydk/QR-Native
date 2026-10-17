@@ -654,56 +654,20 @@ async function confirmAndRollbackOperasi(idOperasi) {
 }
 
 function printBerkas(type) {
+    const noOps = (typeof opsDetailCfg !== 'undefined' && opsDetailCfg.idOperasi) ? opsDetailCfg.idOperasi : '';
+    const baseUrl = window.BASE_URL || '';
     if (type === 'laporan_awal') {
-        const text = (document.getElementById('modal-wa-awal-text')?.textContent || '').trim();
-        const namaOps = opsDetailCfg.namaOperasi;
-        const noOps = opsDetailCfg.idOperasi;
-        const printWin = window.open('', '_blank');
-        if (printWin) {
-            printWin.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <title>Laporan Awal - ${escapeHtml(namaOps)}</title>
-                    <style>
-                        @page { size: A4 portrait; margin: 15mm; }
-                        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 20px; color: #0f172a; font-size: 11pt; line-height: 1.5; }
-                        .header { border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end; }
-                        .title { font-size: 14pt; font-weight: 800; color: #ea580c; text-transform: uppercase; }
-                        .meta { font-size: 9pt; color: #64748b; font-family: monospace; }
-                        pre { font-family: "Courier New", Courier, monospace; white-space: pre-wrap; word-break: break-word; font-size: 10pt; line-height: 1.6; background: #f8fafc; padding: 16px; border: 1px solid #cbd5e1; border-radius: 8px; }
-                        @media print { pre { border: none; background: transparent; padding: 0; font-size: 10pt; } }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <div>
-                            <div class="title">Laporan Awal Operasi SAR</div>
-                            <div style="font-weight:bold;margin-top:2px;">${escapeHtml(namaOps)}</div>
-                        </div>
-                        <div class="meta">OPS-#${noOps} &bull; BASARNAS KENDARI</div>
-                    </div>
-                    <pre>${escapeHtml(text)}</pre>
-                </body>
-                </html>
-            `);
-            printWin.document.close();
-            printWin.focus();
-            setTimeout(() => {
-                printWin.print();
-                printWin.close();
-            }, 300);
-            return;
-        } else {
-            openModal('modal-view-wa-awal');
-            setTimeout(() => window.print(), 300);
-            return;
-        }
+        window.open(baseUrl + '/operasi.php?action=print_laporan_awal&id=' + encodeURIComponent(noOps), '_blank');
+        return;
     } else if (type === 'renops') {
-        switchTab('renops');
-    } else if (type === 'penutupan') {
-        switchTab('sitrep');
+        window.open(baseUrl + '/operasi.php?action=print_renops&id=' + encodeURIComponent(noOps), '_blank');
+        return;
+    } else if (type === 'penutupan' || type === 'berita_acara') {
+        window.open(baseUrl + '/operasi.php?action=print_penutupan&id=' + encodeURIComponent(noOps), '_blank');
+        return;
+    } else if (type === 'sitrep') {
+        window.open(baseUrl + '/operasi.php?action=print_sitrep&id=' + encodeURIComponent(noOps), '_blank');
+        return;
     }
     setTimeout(() => window.print(), 300);
 }

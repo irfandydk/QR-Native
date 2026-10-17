@@ -93,22 +93,36 @@ $latDeg = '04'; $latMin = '02'; $latSec = '16'; $latDir = 'S';
 $lngDeg = '122'; $lngMin = '29'; $lngSec = '12'; $lngDir = 'E';
 
 if (!empty($rawCoord)) {
-    $parts = preg_split('/[-–—]/', $rawCoord);
-    if (count($parts) >= 2) {
-        if (preg_match('/(\d{1,3})[°\s]+(\d{1,2})[\'\s]+(\d{1,2}(?:\.\d+)?)["]?\s*([NSEWnsewLSluBTbt]{1,2})?/iu', trim($parts[0]), $m)) {
-            $latDeg = sprintf('%02d', (int)$m[1]);
-            $latMin = sprintf('%02d', (int)$m[2]);
-            $latSec = $m[3];
-            $d = strtoupper($m[4] ?? 'S');
-            $latDir = (str_contains($d, 'U') || str_contains($d, 'N')) ? 'N' : 'S';
-        }
-        if (preg_match('/(\d{1,3})[°\s]+(\d{1,2})[\'\s]+(\d{1,2}(?:\.\d+)?)["]?\s*([NSEWnsewLSluBTbt]{1,2})?/iu', trim($parts[1]), $m)) {
-            $lngDeg = sprintf('%03d', (int)$m[1]);
-            $lngMin = sprintf('%02d', (int)$m[2]);
-            $lngSec = $m[3];
-            $d = strtoupper($m[4] ?? 'E');
-            $lngDir = (str_contains($d, 'B') || str_contains($d, 'W')) && !str_contains($d, 'BT') ? 'W' : 'E';
-        }
+    $parsed = GeoHelper::parseCoordinates($rawCoord);
+    if ($parsed && isset($parsed['lat'], $parsed['lng'])) {
+        $cLat = (float)$parsed['lat'];
+        $cLng = (float)$parsed['lng'];
+
+        $latAbs = abs($cLat);
+        $dLat = (int)floor($latAbs);
+        $mLatFloat = ($latAbs - $dLat) * 60;
+        $mLat = (int)floor($mLatFloat);
+        $sLat = round(($mLatFloat - $mLat) * 60, 1);
+        if ($sLat >= 60.0) { $sLat = 0.0; $mLat++; }
+        if ($mLat >= 60) { $mLat = 0; $dLat++; }
+
+        $lngAbs = abs($cLng);
+        $dLng = (int)floor($lngAbs);
+        $mLngFloat = ($lngAbs - $dLng) * 60;
+        $mLng = (int)floor($mLngFloat);
+        $sLng = round(($mLngFloat - $mLng) * 60, 1);
+        if ($sLng >= 60.0) { $sLng = 0.0; $mLng++; }
+        if ($mLng >= 60) { $mLng = 0; $dLng++; }
+
+        $latDeg = sprintf('%02d', $dLat);
+        $latMin = sprintf('%02d', $mLat);
+        $latSec = ($sLat == floor($sLat)) ? sprintf('%02d', (int)$sLat) : (string)$sLat;
+        $latDir = $cLat < 0 ? 'S' : 'N';
+
+        $lngDeg = sprintf('%03d', $dLng);
+        $lngMin = sprintf('%02d', $mLng);
+        $lngSec = ($sLng == floor($sLng)) ? sprintf('%02d', (int)$sLng) : (string)$sLng;
+        $lngDir = $cLng < 0 ? 'W' : 'E';
     }
 }
 

@@ -168,6 +168,30 @@ if ($action === 'delete' && $method !== 'POST') {
     exit;
 }
 
+// Lembar Berkas Cetak Resmi Laporan Awal Operasi SAR
+if ($action === 'print_laporan_awal' || $action === 'cetak_laporan_awal') {
+    require __DIR__ . '/views/operasi/laporan_awal_print.php';
+    exit;
+}
+
+// Lembar Berkas Cetak Resmi Rencana Operasi SAR (RENOPS)
+if ($action === 'print_renops' || $action === 'cetak_renops') {
+    require __DIR__ . '/views/operasi/renops_print.php';
+    exit;
+}
+
+// Lembar Berkas Cetak Resmi Berita Acara Pengusulan Penutupan Operasi SAR
+if ($action === 'print_penutupan' || $action === 'cetak_penutupan' || $action === 'print_berita_acara' || $action === 'cetak_berita_acara') {
+    require __DIR__ . '/views/operasi/penutupan_print.php';
+    exit;
+}
+
+// Lembar Berkas Cetak Resmi Laporan Perkembangan (SITREP)
+if ($action === 'print_sitrep' || $action === 'cetak_sitrep') {
+    require __DIR__ . '/views/operasi/sitrep_print.php';
+    exit;
+}
+
 // Default: show list
 renderView('dashboard', [], [
     'title' => 'Daftar Operasi SAR',

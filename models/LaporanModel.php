@@ -27,6 +27,10 @@ class LaporanModel {
             } else {
                 $row['detail_alut'] = [];
             }
+
+            if (class_exists('TemplateHelper')) {
+                $row['nomor_laporan'] = TemplateHelper::generateNomorSitrep(['id_operasi' => $row['id_operasi']], $row);
+            }
         }
 
         return $rows;
@@ -53,6 +57,11 @@ class LaporanModel {
             $row['detail_alut'] = [];
         }
 
+        if (class_exists('TemplateHelper')) {
+            $ops = OperasiModel::getById((int)$row['id_operasi']) ?? ['id_operasi' => $row['id_operasi']];
+            $row['nomor_laporan'] = TemplateHelper::generateNomorSitrep($ops, $row);
+        }
+
         return $row;
     }
 
@@ -67,9 +76,36 @@ class LaporanModel {
                 throw new RuntimeException("Operasi SAR telah berstatus DITUTUP (CLOSED). Laporan Perkembangan baru tidak dapat ditambahkan kecuali operasi dibuka kembali.");
             }
 
+            // ISSUE-LAPBANG-01: Update status korban SEBELUM naskah WA digenerate agar WA memuat status terbaru
+            if (!empty($data['update_korban']) && is_array($data['update_korban'])) {
+                $stmtK = $db->prepare("UPDATE Korban SET status_korban = :st WHERE id_korban = :kid AND id_operasi = :oid");
+                foreach ($data['update_korban'] as $kid => $st) {
+                    $stUpper = strtoupper(trim((string)$st));
+                    $stmtK->execute([
+                        ':st' => $stUpper,
+                        ':kid' => (int)$kid,
+                        ':oid' => (int)$data['id_operasi']
+                    ]);
+                    // Update array memori $ops['korban']
+                    if (!empty($ops['korban']) && is_array($ops['korban'])) {
+                        foreach ($ops['korban'] as &$k) {
+                            if ((int)$k['id_korban'] === (int)$kid) {
+                                $k['status_korban'] = $stUpper;
+                            }
+                        }
+                        unset($k);
+                    }
+                }
+            }
+
             $isPenutupan = strtoupper($data['jenis_laporan'] ?? '') === 'PENUTUPAN';
             $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : ($ops['detail_unsur'] ?? []);
             $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : ($ops['detail_alut'] ?? []);
+            
+            // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
+            $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($ops['unsur_terlibat'] ?? ''));
+            $alutText = OperasiModel::formatAlutText($alut, $data['alut_text'] ?? ($ops['alut_palsar'] ?? ''));
+
             $fullTextWa = TemplateHelper::generateLapbangWA($ops, $data, $ops['korban'], $unsur, $alut, $isPenutupan);
 
             $stmt = $db->prepare("INSERT INTO LaporanHarian (
@@ -85,19 +121,25 @@ class LaporanModel {
             )");
 
             $now = date('Y-m-d H:i:s');
+            // ISSUE-RENOPS-04: Normalisasi format waktu DATETIME
+            $waktuDebrief = !empty($data['waktu_debrief'])
+                ? OperasiModel::normalizeDateTime($data['waktu_debrief'], true)
+                : ($isPenutupan ? $now : null);
+            $waktuLaporan = OperasiModel::normalizeDateTime($data['waktu_laporan'] ?? $now);
+
             $stmt->execute([
                 ':id_operasi' => (int)$data['id_operasi'],
                 ':hari_ke' => strtoupper($data['hari_ke'] ?? 'H.1'),
                 ':jenis_laporan' => $isPenutupan ? 'PENUTUPAN' : 'PERKEMBANGAN',
                 ':isi_laporan' => $data['isi_laporan'] ?? '',
-                ':waktu_debrief' => $data['waktu_debrief'] ?? ($isPenutupan ? $now : null),
+                ':waktu_debrief' => $waktuDebrief,
                 ':cuaca' => $data['cuaca'] ?? ($ops['cuaca'] ?: 'Cerah Berawan'),
-                ':unsur_text' => $data['unsur_text'] ?? ($ops['unsur_terlibat'] ?? ''),
-                ':alut_text' => $data['alut_text'] ?? ($ops['alut_palsar'] ?? ''),
+                ':unsur_text' => $unsurText,
+                ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
                 ':detail_alut' => json_encode($alut, JSON_UNESCAPED_UNICODE),
                 ':full_text_wa' => $fullTextWa,
-                ':waktu_laporan' => $data['waktu_laporan'] ?? $now
+                ':waktu_laporan' => $waktuLaporan
             ]);
 
             $idLaporan = (int)$db->lastInsertId();
@@ -107,20 +149,8 @@ class LaporanModel {
 
             // If this is a closing report, automatically close the operation
             if ($isPenutupan) {
-                $waktuSelesai = $data['waktu_debrief'] ?? $now;
+                $waktuSelesai = $waktuDebrief ?? $now;
                 OperasiModel::closeOperation((int)$data['id_operasi'], $waktuSelesai);
-            }
-
-            // If victim updates were submitted, update victim records
-            if (!empty($data['update_korban']) && is_array($data['update_korban'])) {
-                $stmtK = $db->prepare("UPDATE Korban SET status_korban = :st WHERE id_korban = :kid AND id_operasi = :oid");
-                foreach ($data['update_korban'] as $kid => $st) {
-                    $stmtK->execute([
-                        ':st' => strtoupper($st),
-                        ':kid' => (int)$kid,
-                        ':oid' => (int)$data['id_operasi']
-                    ]);
-                }
             }
 
             $db->commit();
@@ -140,13 +170,50 @@ class LaporanModel {
             if (!$lap) return false;
 
             $ops = OperasiModel::getById((int)$lap['id_operasi']);
-            if ($ops && $ops['status'] === 'CLOSED') {
+            $isExistingPenutupan = ($lap['jenis_laporan'] === 'PENUTUPAN');
+            $isPenutupan = strtoupper($data['jenis_laporan'] ?? $lap['jenis_laporan']) === 'PENUTUPAN';
+
+            // ISSUE-LAPBANG-02: Jika operasi sudah CLOSED, izinkan edit hanya jika yang diedit adalah laporan PENUTUPAN itu sendiri
+            if ($ops && $ops['status'] === 'CLOSED' && !$isExistingPenutupan) {
                 throw new RuntimeException("Operasi SAR telah berstatus DITUTUP (CLOSED). Laporan Perkembangan tidak dapat diubah kecuali operasi dibuka kembali.");
             }
-            $isPenutupan = strtoupper($data['jenis_laporan'] ?? $lap['jenis_laporan']) === 'PENUTUPAN';
+
+            // ISSUE-LAPBANG-01: Update status korban SEBELUM naskah WA digenerate
+            if (!empty($data['update_korban']) && is_array($data['update_korban'])) {
+                $stmtK = $db->prepare("UPDATE Korban SET status_korban = :st WHERE id_korban = :kid AND id_operasi = :oid");
+                foreach ($data['update_korban'] as $kid => $st) {
+                    $stUpper = strtoupper(trim((string)$st));
+                    $stmtK->execute([
+                        ':st' => $stUpper,
+                        ':kid' => (int)$kid,
+                        ':oid' => (int)$lap['id_operasi']
+                    ]);
+                    // Update array memori $ops['korban']
+                    if (!empty($ops['korban']) && is_array($ops['korban'])) {
+                        foreach ($ops['korban'] as &$k) {
+                            if ((int)$k['id_korban'] === (int)$kid) {
+                                $k['status_korban'] = $stUpper;
+                            }
+                        }
+                        unset($k);
+                    }
+                }
+            }
+
             $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : ($lap['detail_unsur'] ?: ($ops['detail_unsur'] ?? []));
             $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : ($lap['detail_alut'] ?: ($ops['detail_alut'] ?? []));
+
+            // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
+            $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($lap['unsur_text'] ?: ($ops['unsur_terlibat'] ?? '')));
+            $alutText = OperasiModel::formatAlutText($alut, $data['alut_text'] ?? ($lap['alut_text'] ?: ($ops['alut_palsar'] ?? '')));
+
             $fullTextWa = TemplateHelper::generateLapbangWA($ops, $data, $ops['korban'], $unsur, $alut, $isPenutupan);
+
+            // ISSUE-RENOPS-04: Normalisasi format waktu DATETIME
+            $waktuDebrief = !empty($data['waktu_debrief'])
+                ? OperasiModel::normalizeDateTime($data['waktu_debrief'], true)
+                : (!empty($lap['waktu_debrief']) ? OperasiModel::normalizeDateTime($lap['waktu_debrief'], true) : ($isPenutupan ? date('Y-m-d H:i:s') : null));
+            $waktuLaporan = OperasiModel::normalizeDateTime($data['waktu_laporan'] ?? $lap['waktu_laporan']);
 
             $stmt = $db->prepare("UPDATE LaporanHarian SET
                 hari_ke = :hari_ke,
@@ -167,33 +234,21 @@ class LaporanModel {
                 ':hari_ke' => strtoupper($data['hari_ke'] ?? $lap['hari_ke']),
                 ':jenis_laporan' => $isPenutupan ? 'PENUTUPAN' : 'PERKEMBANGAN',
                 ':isi_laporan' => $data['isi_laporan'] ?? $lap['isi_laporan'],
-                ':waktu_debrief' => $data['waktu_debrief'] ?? $lap['waktu_debrief'],
+                ':waktu_debrief' => $waktuDebrief,
                 ':cuaca' => $data['cuaca'] ?? ($lap['cuaca'] ?: ($ops['cuaca'] ?: 'Cerah Berawan')),
-                ':unsur_text' => $data['unsur_text'] ?? $lap['unsur_text'],
-                ':alut_text' => $data['alut_text'] ?? $lap['alut_text'],
+                ':unsur_text' => $unsurText,
+                ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
                 ':detail_alut' => json_encode($alut, JSON_UNESCAPED_UNICODE),
                 ':full_text_wa' => $fullTextWa,
-                ':waktu_laporan' => $data['waktu_laporan'] ?? $lap['waktu_laporan']
+                ':waktu_laporan' => $waktuLaporan
             ]);
 
             // Sync operational state
             OperasiModel::syncUnsurAlut((int)$lap['id_operasi'], $unsur, $alut);
 
             if ($isPenutupan) {
-                OperasiModel::closeOperation((int)$lap['id_operasi'], $data['waktu_debrief'] ?? date('Y-m-d H:i:s'));
-            }
-
-            // Update victim records if present
-            if (!empty($data['update_korban']) && is_array($data['update_korban'])) {
-                $stmtK = $db->prepare("UPDATE Korban SET status_korban = :st WHERE id_korban = :kid AND id_operasi = :oid");
-                foreach ($data['update_korban'] as $kid => $st) {
-                    $stmtK->execute([
-                        ':st' => strtoupper($st),
-                        ':kid' => (int)$kid,
-                        ':oid' => (int)$lap['id_operasi']
-                    ]);
-                }
+                OperasiModel::closeOperation((int)$lap['id_operasi'], $waktuDebrief ?? date('Y-m-d H:i:s'));
             }
 
             $db->commit();

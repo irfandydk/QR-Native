@@ -19,13 +19,16 @@ if (!defined('APP_NAME')) {
 }
 
 $kategoriFilter = strtoupper($_GET['kategori'] ?? 'SEMUA');
+if ($kategoriFilter !== 'SEMUA') {
+    $kategoriFilter = BraHelper::normalizeCategory($kategoriFilter);
+}
 $searchQuery = trim($_GET['q'] ?? '');
 
 // Counts for Summary Cards via single aggregated query
 $braStats = BraModel::getStats();
 $countAll = $braStats['total'];
 $countMapel = $braStats['mapel'];
-$countSarUmum = $braStats['sar_umum'];
+$countOperasiSar = $braStats['operasi_sar'] ?? $braStats['sar_umum'];
 $countKapal = $braStats['kapal'];
 
 // Fetch filtered list directly from database without N+1 section queries
@@ -81,7 +84,7 @@ $totalFiltered = count($braList);
           <span>+ BRA Mapel</span>
         </a>
 
-        <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=SAR_UMUM"
+        <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=OPERASI_SAR"
            class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
           <span>📋</span>
           <span>+ BRA SAR</span>
@@ -131,18 +134,18 @@ $totalFiltered = count($braList);
         </div>
       </a>
 
-      <!-- Card 3: SAR UMUM -->
-      <a href="<?= BASE_URL ?>/bra.php?kategori=SAR_UMUM<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="p-3.5 rounded-2xl border cursor-pointer transition-all <?= $kategoriFilter === 'SAR_UMUM'
+      <!-- Card 3: OPERASI SAR -->
+      <a href="<?= BASE_URL ?>/bra.php?kategori=OPERASI_SAR<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
+         class="p-3.5 rounded-2xl border cursor-pointer transition-all <?= $kategoriFilter === 'OPERASI_SAR'
            ? 'bg-amber-50/80 dark:bg-slate-800 border-amber-400 dark:border-amber-500 ring-2 ring-amber-400/40 dark:ring-amber-500/50 shadow-sm'
            : 'bg-slate-50/80 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
         <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-          <span>BRA SAR Operasi SAR</span>
+          <span>BRA Operasi SAR</span>
           <span class="text-sm">📋</span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
           <span class="text-2xl font-black text-amber-600 dark:text-amber-400">
-            <?= $countSarUmum ?>
+            <?= $countOperasiSar ?>
           </span>
           <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Dokumen</span>
         </div>
@@ -185,11 +188,11 @@ $totalFiltered = count($braList);
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
         📡 Mapel (<?= $countMapel ?>)
       </a>
-      <a href="<?= BASE_URL ?>/bra.php?kategori=SAR_UMUM<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'SAR_UMUM'
+      <a href="<?= BASE_URL ?>/bra.php?kategori=OPERASI_SAR<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
+         class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'OPERASI_SAR'
            ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
-        📋 Operasi SAR (<?= $countSarUmum ?>)
+        📋 Operasi SAR (<?= $countOperasiSar ?>)
       </a>
       <a href="<?= BASE_URL ?>/bra.php?kategori=PERGERAKAN_KAPAL<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
          class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'PERGERAKAN_KAPAL'

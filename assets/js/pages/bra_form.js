@@ -13,6 +13,7 @@ function initBraForm() {
   const pejabatSelect = document.getElementById('pejabatSelectControl');
   const kategoriRadios = document.querySelectorAll('.kategori-radio');
   const vesselPresets = document.getElementById('vesselPresetsContainer');
+  const mapelPresets = document.getElementById('mapelPresetsContainer');
   const opRecBar = document.getElementById('operasiRecommendationBar');
 
   // Preview elements
@@ -61,9 +62,9 @@ function initBraForm() {
   }
 
   function getSectionHint(idx, kat) {
-    if (idx === 0) return kat === 'PERGERAKAN_KAPAL' ? '(Dasar & Rencana Pelayaran / BKO)' : '(Kronologi / Informasi Awal)';
-    if (idx === 1) return kat === 'MAPEL' ? '(Permintaan Mapel / Pemantauan Kapal)' : (kat === 'PERGERAKAN_KAPAL' ? '(Data Kapal, Ren Layar, POB & Palsar)' : '(Unsur SAR Terlibat, Alut, Palsar & Cuaca)');
-    if (idx === 2) return kat === 'PERGERAKAN_KAPAL' ? '(Laporan Perkembangan Menyusul / Penutup)' : '(Penutup / Rencana Tindak Lanjut)';
+    if (idx === 0) return kat === 'MAPEL' ? '(Dasar Info, TW Terima, Kejadian/POB, Ciri Kapal, LKP & Kondisi)' : (kat === 'PERGERAKAN_KAPAL' ? '(Dasar & Rencana Pelayaran / BKO)' : '(Kronologi / Informasi Awal)');
+    if (idx === 1) return kat === 'MAPEL' ? '(Permintaan Bantuan Pemantauan & Pemapelan Kapal Melintas)' : (kat === 'PERGERAKAN_KAPAL' ? '(Data Kapal, Ren Layar, POB & Palsar)' : '(Unsur SAR Terlibat, Alut, Palsar & Cuaca)');
+    if (idx === 2) return kat === 'MAPEL' ? '(Penutup & Ucapan Terima Kasih Kakansar)' : (kat === 'PERGERAKAN_KAPAL' ? '(Laporan Perkembangan Menyusul / Penutup)' : '(Penutup / Rencana Tindak Lanjut)');
     return '(Bagian Tambahan)';
   }
 
@@ -283,15 +284,17 @@ function initBraForm() {
               textLines.push('');
               return;
             }
-            if (l.length > 140 && /\bTTK\b/i.test(l)) {
-              const parts = l.split(/(\bTTK\b\s*)/i);
+            if (l.length > 500 && /\bTTK(?!\s+DUA)\b/i.test(l)) {
+              const parts = l.split(/(\bTTK(?!\s+DUA)\b\s*)/i);
               let chunk = '';
               for (let i = 0; i < parts.length; i++) {
                 chunk += parts[i];
-                if (parts[i].trim().toUpperCase() === 'TTK' || i === parts.length - 1) {
-                  const t = chunk.trim();
-                  if (t) textLines.push(t);
-                  chunk = '';
+                if (/^TTK$/i.test(parts[i].trim()) || i === parts.length - 1) {
+                  if (chunk.length >= 250 || i === parts.length - 1) {
+                    const t = chunk.trim();
+                    if (t) textLines.push(t);
+                    chunk = '';
+                  }
                 }
               }
               if (chunk.trim()) textLines.push(chunk.trim());
@@ -350,10 +353,38 @@ function initBraForm() {
     syncLivePreview();
   });
 
-  // Track Auto vs Custom Nomor Naskah
+  // Track Auto vs Custom Nomor Naskah & Deteksi Tabrakan Nomor Unik
   const noBraInput = document.getElementById('noBraInput');
   const isAutoNoBra = document.getElementById('isAutoNoBra');
+  const noBraWarning = document.getElementById('noBraWarning');
+  const currentBraId = typeof braFormCfg !== 'undefined' && braFormCfg.idBra ? braFormCfg.idBra : 0;
   const initialNoBraPlaceholder = braFormCfg.noBraPlaceholder || '';
+  let checkNoBraTimeout = null;
+
+  function verifyNoBraAvailability(val) {
+    if (!noBraWarning) return;
+    if (!val || val === initialNoBraPlaceholder) {
+      noBraWarning.classList.add('hidden');
+      noBraWarning.textContent = '';
+      return;
+    }
+    const cleanVal = val.trim();
+    fetch(`${BASE_URL}/api/bra/check-number?no_bra=${encodeURIComponent(cleanVal)}&exclude_id=${currentBraId}`)
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && res.exists && res.data) {
+          noBraWarning.textContent = `⚠️ PERINGATAN: Nomor "${res.data.no_bra}" sudah digunakan pada dokumen #${res.data.id_bra} (${res.data.perihal}). Harap pastikan nomor urut tidak bertabrakan!`;
+          noBraWarning.classList.remove('hidden');
+        } else {
+          noBraWarning.classList.add('hidden');
+          noBraWarning.textContent = '';
+        }
+      })
+      .catch(() => {
+        noBraWarning.classList.add('hidden');
+      });
+  }
+
   if (noBraInput && isAutoNoBra) {
     noBraInput.addEventListener('input', function() {
       const val = this.value.trim().toUpperCase();
@@ -362,70 +393,191 @@ function initBraForm() {
       } else {
         isAutoNoBra.value = '0';
       }
+      clearTimeout(checkNoBraTimeout);
+      checkNoBraTimeout = setTimeout(() => {
+        verifyNoBraAvailability(val);
+      }, 500);
     });
   }
 
-  // Format Sandi Telegram (Kapital & TTK/KMA/TTK DUA)
+  // Telegram Reduplication Helper: replaces word-word with suffix S (e.g. CIRI-CIRI -> CIRIS, KAPAL-KAPAL -> KAPALS, TANDA-TANDA -> TANDAS)
+  function formatTelegramReduplication(text) {
+    if (!text) return '';
+    let res = text.replace(/\b([a-zA-Z]+)-\1\b/gi, (match, word) => {
+      return word.toUpperCase() + 'S';
+    });
+    const specialMap = {
+      'TERAPUNG-APUNG': 'TERAPUNG',
+      'BERPINTAL-PINTAL': 'BERPINTAL',
+      'TEROMBANG-AMBING': 'TEROMBANG AMBING',
+      'SAMBUNG-MENYAMBUNG': 'SAMBUNG MENYAMBUNG',
+      'BOLAK-BALIK': 'BOLAK BALIK',
+      'HILANG-KONTAK': 'HILANG KONTAK'
+    };
+    for (const [k, v] of Object.entries(specialMap)) {
+      res = res.replace(new RegExp('\\b' + k + '\\b', 'gi'), v);
+    }
+    return res;
+  }
+
+  // Sanitasi & Sandi Telegram Militer (Desimal aman, TTK/KMA/TTK DUA, Reduplikasi S)
+  function sanitizeTelegramText(text, isPerihal = false) {
+    if (!text) return '';
+    let str = text.trim();
+
+    // 1. Reduplikasi kata (e.g. CIRI-CIRI -> CIRIS)
+    str = formatTelegramReduplication(str);
+
+    // 2. Proteksi desimal koordinat / angka desimal
+    const decMap = [];
+    str = str.replace(/(\d+)[.,](\d+)/g, function(m, p1, p2) {
+      const ph = `__DEC_${decMap.length}__`;
+      decMap.push(`${p1}.${p2}`);
+      return ph;
+    });
+
+    // 3. Konversi tanda baca militer
+    str = str.replace(/:\s*/g, ' TTK DUA ');
+    str = str.replace(/,\s*/g, ' KMA ');
+    str = str.replace(/\.\s*/g, ' TTK ');
+
+    // 4. Pulihkan desimal koordinat
+    decMap.forEach((orig, idx) => {
+      str = str.replace(new RegExp(`__DEC_${idx}__`, 'g'), orig);
+    });
+
+    // 5. Bersihkan spasi ganda
+    str = str.replace(/\s+/g, ' ').trim();
+
+    // 6. Jika perihal, pastikan diakhiri TTK
+    if (isPerihal && str) {
+      if (!/\bTTK$/i.test(str)) {
+        str = str.replace(/[\s\.]+$/, '') + ' TTK';
+      }
+    }
+
+    return str.toUpperCase();
+  }
+
+  // Pastikan judul perihal selalu berakhiran TTK saat blur
+  const perihalInput = document.getElementById('perihalInput');
+  if (perihalInput) {
+    perihalInput.addEventListener('blur', function() {
+      if (this.value.trim()) {
+        this.value = sanitizeTelegramText(this.value, true);
+        syncLivePreview();
+      }
+    });
+  }
+
+  // Format Sandi Telegram (Kapital & TTK/KMA/TTK DUA & Reduplikasi S) Manual via Button
   document.getElementById('btnFormatTelegramPunctuation').addEventListener('click', function() {
     form.querySelectorAll('textarea, input[type="text"]').forEach(el => {
       if (['noBraInput','menbraInput','twuInput','twbInput','twtInput','twkInput','sistemInput','parafInput','panggilanInput','nrStnInput'].includes(el.id)) {
         el.value = el.value.toUpperCase();
         return;
       }
-      let val = el.value.toUpperCase();
-      val = val.replace(/\.\s+/g, ' TTK ').replace(/\,\s+/g, ' KMA ').replace(/\:\s+/g, ' TTK DUA ');
-      el.value = val;
+      el.value = sanitizeTelegramText(el.value, el.id === 'perihalInput');
     });
     syncLivePreview();
-    if (typeof showToast === 'function') showToast('Naskah berhasil diformat ke Huruf Kapital Baku Telegram!', 'success');
+    if (typeof showToast === 'function') showToast('Naskah berhasil diformat ke Sandi Baku Telegram!', 'success');
   });
 
-  // Category switch handler
+  // Centralized Category UI switch handler
+  function updateCategoryUI(kat) {
+    const menbraTitle = document.getElementById('labelMenbraTitle');
+    const menbraInput = document.getElementById('menbraInput');
+    const hintMenbra = document.getElementById('hintMenbraText');
+
+    if (kat === 'PERGERAKAN_KAPAL') {
+      if (mapelPresets) {
+        mapelPresets.classList.add('hidden');
+        mapelPresets.style.display = 'none';
+      }
+      if (vesselPresets) {
+        vesselPresets.classList.remove('hidden');
+        vesselPresets.style.display = 'block';
+      }
+      if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan Naskah Lalu)';
+      if (menbraInput) {
+        menbraInput.placeholder = 'Nomor naskah pergerakan kapal sebelumnya (opsional)';
+        if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
+      }
+      if (hintMenbra) hintMenbra.textContent = 'Nomor naskah telegram pergerakan kapal sebelumnya bila merupakan pergerakan lanjutan.';
+      const vesselSel = document.getElementById('selectVesselChoice');
+      const defaultCallSign = vesselSel ? (VESSEL_SPECS[vesselSel.value]?.callSign || 'YCSB') : 'YCSB';
+      const panggilEl = document.getElementById('panggilanInput');
+      if (panggilEl && (!panggilEl.value || panggilEl.value === '—' || panggilEl.value === '-')) {
+        panggilEl.value = defaultCallSign;
+      }
+    } else if (kat === 'MAPEL') {
+      if (vesselPresets) {
+        vesselPresets.classList.add('hidden');
+        vesselPresets.style.display = 'none';
+      }
+      if (mapelPresets) {
+        mapelPresets.classList.remove('hidden');
+        mapelPresets.style.display = 'block';
+      }
+      if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan BRA/MAPEL Lalu)';
+      if (menbraInput) {
+        menbraInput.placeholder = 'Nomor MAPEL/BRA rujukan sebelumnya (opsional)';
+        if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
+      }
+      if (hintMenbra) hintMenbra.textContent = 'Nomor naskah telegram/MAPEL sebelumnya yang menjadi dasar rujukan bila ada lanjutan.';
+
+      const jabatanSmcInput = document.getElementById('jabatanSmcInput');
+      if (jabatanSmcInput) {
+        jabatanSmcInput.value = 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
+      }
+      const aksiInput = document.getElementById('aksiInput');
+      if (aksiInput) {
+        if (!aksiInput.value.trim() || aksiInput.value.trim() === 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN') {
+          aksiInput.value = 'KA KSOP KENDARI KMA KA SROP KENDARI';
+        }
+        aksiInput.placeholder = 'KA KSOP KENDARI DAN KMA KA SROP KENDARI';
+      }
+      const infoInput = document.getElementById('infoInput');
+      if (infoInput) {
+        if (!infoInput.value.trim() || infoInput.value.includes('DEPUTI BIDANG OPERASI')) {
+          infoInput.value = 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
+        }
+        infoInput.placeholder = 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
+      }
+    } else {
+      if (vesselPresets) {
+        vesselPresets.classList.add('hidden');
+        vesselPresets.style.display = 'none';
+      }
+      if (mapelPresets) {
+        mapelPresets.classList.add('hidden');
+        mapelPresets.style.display = 'none';
+      }
+      if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan BRA Lalu)';
+      if (menbraInput) {
+        menbraInput.placeholder = (Math.max(1, (braFormCfg.nomorUrutPlaceholder || 1) - 1)) + '/' + (braFormCfg.satkerKode || 'SAR-304') + '/' + (braFormCfg.bulanTahunPlaceholder || '');
+        if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
+      }
+      if (hintMenbra) hintMenbra.textContent = 'Nomor naskah BRA sebelumnya yang menjadi dasar rujukan (bila ada).';
+      const jabatanSmcInput = document.getElementById('jabatanSmcInput');
+      if (jabatanSmcInput && opSelect && opSelect.value) {
+        jabatanSmcInput.value = 'SMC';
+      }
+    }
+
+    reindexSections();
+  }
+
+  // Bind radio events and initialize category state
   kategoriRadios.forEach(radio => {
     radio.addEventListener('change', function() {
-      const kat = this.value;
-      const menbraTitle = document.getElementById('labelMenbraTitle');
-      const menbraInput = document.getElementById('menbraInput');
-      const hintMenbra = document.getElementById('hintMenbraText');
-
-      if (kat === 'PERGERAKAN_KAPAL') {
-        vesselPresets.classList.remove('hidden');
-        if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan Naskah Lalu)';
-        if (menbraInput) {
-          menbraInput.placeholder = 'Nomor naskah pergerakan kapal sebelumnya (opsional)';
-          if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
-        }
-        if (hintMenbra) hintMenbra.textContent = 'Nomor naskah telegram pergerakan kapal sebelumnya bila merupakan pergerakan lanjutan.';
-        const vesselSel = document.getElementById('selectVesselChoice');
-        const defaultCallSign = vesselSel ? (VESSEL_SPECS[vesselSel.value]?.callSign || 'YCSB') : 'YCSB';
-        const panggilEl = document.getElementById('panggilanInput');
-        if (panggilEl && (!panggilEl.value || panggilEl.value === '—' || panggilEl.value === '-')) {
-          panggilEl.value = defaultCallSign;
-        }
-      } else if (kat === 'MAPEL') {
-        vesselPresets.classList.add('hidden');
-        if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan BRA/MAPEL Lalu)';
-        if (menbraInput) {
-          menbraInput.placeholder = 'Nomor MAPEL/BRA rujukan sebelumnya (opsional)';
-          if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
-        }
-        if (hintMenbra) hintMenbra.textContent = 'Nomor naskah telegram/MAPEL sebelumnya yang menjadi dasar rujukan bila ada lanjutan.';
-      } else {
-        vesselPresets.classList.add('hidden');
-        if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan BRA Lalu)';
-        if (menbraInput) {
-          menbraInput.placeholder = (Math.max(1, (braFormCfg.nomorUrutPlaceholder || 1) - 1)) + '/' + (braFormCfg.satkerKode || 'SAR-304') + '/' + (braFormCfg.bulanTahunPlaceholder || '');
-          if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
-        }
-        if (hintMenbra) hintMenbra.textContent = 'Nomor naskah BRA sebelumnya yang menjadi dasar rujukan (bila ada).';
-      }
-
-      reindexSections();
+      updateCategoryUI(this.value);
     });
   });
+  updateCategoryUI(getSelectedKategori());
 
   // Operasi Select handler
-  opSelect.addEventListener('change', function() {
+  opSelect.addEventListener('change', async function() {
     const opId = this.value;
     const opt = this.options[this.selectedIndex];
     const hiddenNamaOperasi = document.getElementById('hiddenNamaOperasi');
@@ -435,15 +587,22 @@ function initBraForm() {
         hiddenNamaOperasi.value = opt.getAttribute('data-nama') || opt.text.split(' • ')[1]?.split(' (Status')[0]?.trim() || '';
       }
       opRecBar.classList.remove('hidden');
-      document.getElementById('jabatanSmcInput').value = 'SMC';
-
-      // Otomatis aktifkan radio SAR_UMUM jika sebelumnya bukan kapal
       const currentKat = getSelectedKategori();
-      if (currentKat !== 'PERGERAKAN_KAPAL') {
-        const radSar = document.querySelector('input[name="kategori"][value="SAR_UMUM"]');
-        if (radSar && !radSar.checked) {
-          radSar.checked = true;
-          radSar.dispatchEvent(new Event('change'));
+      if (currentKat === 'MAPEL') {
+        document.getElementById('jabatanSmcInput').value = 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
+        const op = await loadOperasiData(opId);
+        if (op) {
+          applyMapelFromOperation(op);
+        }
+      } else {
+        document.getElementById('jabatanSmcInput').value = 'SMC';
+        // Otomatis aktifkan radio OPERASI_SAR hanya jika kategori saat ini bukan kapal dan bukan MAPEL
+        if (currentKat !== 'PERGERAKAN_KAPAL' && currentKat !== 'MAPEL') {
+          const radSar = document.querySelector('input[name="kategori"][value="OPERASI_SAR"]');
+          if (radSar && !radSar.checked) {
+            radSar.checked = true;
+            radSar.dispatchEvent(new Event('change'));
+          }
         }
       }
     } else {
@@ -501,6 +660,88 @@ function initBraForm() {
       sectionsContainer.appendChild(div);
     });
     reindexSections();
+  }
+
+  // Helper: Format dan Terapkan Naskah MAPEL dari data Operasi SAR
+  function applyMapelFromOperation(op, customParams = {}) {
+    const twb = document.getElementById('twbInput').value || getMilitaryTW(new Date(Date.now() - 15 * 60000));
+    const pelapor = (customParams.pelapor || op?.nama_pelapor || 'BPK SAHARUDDIN').toUpperCase();
+    const hubungan = (customParams.hubungan || op?.hubungan_pelapor || 'PEMILIK KAPAL / KELUARGA').toUpperCase();
+    const noHp = customParams.no_hp || (op?.no_telp_pelapor ? `HP ${op.no_telp_pelapor}` : 'HP. 081327820103');
+    const infoPelapor = `${pelapor} (${hubungan}/${noHp})`;
+    const rawMusibah = (customParams.nama_musibah || op?.nama_operasi || 'LONGBOAT MATI MESIN DAN HILANG KONTAK').toUpperCase();
+    const namaMusibah = formatTelegramReduplication(rawMusibah);
+    const pob = customParams.pob || op?.jumlah_korban || (op?.korban && op.korban.length) || 1;
+    const pobText = pob > 0 ? ` DENGAN POB ${pob} ORANG` : '';
+    const lokasi = (customParams.lokasi || op?.lokasi_kejadian || 'PERAIRAN SULAWESI TENGGARA').toUpperCase();
+    const koordinat = (customParams.koordinat || op?.koordinat || '03° 58\' 30" S - 122° 35\' 12" E').toUpperCase();
+    let ciriKapal = (customParams.ciri_kapal || (op?.alut_palsar ? op.alut_palsar.replace(/\n/g, ' KMA ') : 'LONGBOAT WARNA BIRU PUTIH MESIN TEMPEL 15 PK')).toUpperCase();
+    ciriKapal = formatTelegramReduplication(ciriKapal);
+
+    // Hitung Hari Ke Operasi SAR jika merujuk pada Operasi SAR
+    let hariKe = 1;
+    if (op) {
+      if (op.renops && Array.isArray(op.renops)) {
+        op.renops.forEach(rn => {
+          if (rn.hari_ke) {
+            const m = String(rn.hari_ke).match(/(?:H\s*[\.\-]?\s*)?(\d+)/i);
+            if (m) hariKe = Math.max(hariKe, parseInt(m[1], 10));
+          }
+        });
+      }
+      if (op.laporan_harian && Array.isArray(op.laporan_harian)) {
+        op.laporan_harian.forEach(lp => {
+          if (lp.hari_ke) {
+            const m = String(lp.hari_ke).match(/(?:H\s*[\.\-]?\s*)?(\d+)/i);
+            if (m) hariKe = Math.max(hariKe, parseInt(m[1], 10));
+          }
+        });
+      }
+      if (hariKe === 1) {
+        const startDateStr = op.tanggal_mulai || op.waktu_lapor || null;
+        if (startDateStr) {
+          const startDay = new Date(startDateStr.substring(0, 10));
+          const today = new Date();
+          const diffTime = today.setHours(0,0,0,0) - startDay.setHours(0,0,0,0);
+          if (diffTime >= 0) {
+            const calcDay = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            hariKe = Math.max(hariKe, calcDay);
+          }
+        }
+      }
+    }
+    if (customParams.hari_ke) hariKe = parseInt(customParams.hari_ke, 10);
+
+    let kalimatHariKe = '';
+    if (hariKe >= 2) {
+      kalimatHariKe = ` SAAT INI OPERASI SAR SEDANG BERJALAN MEMASUKI HARI KE-${hariKe} (H.${hariKe}) DENGAN HASIL KORBAN MASIH DALAM PENCARIAN TTK`;
+    }
+
+    const kondisiTerakhir = (customParams.kondisi_terakhir || 'INFO TERAKHIR DARI KORBAN KAPAL TERAPUNG DAN MEMBUTUHKAN BANTUAN SAR').toUpperCase();
+
+    // Seksi AAA baku telegram pemapelan (sandi resmi CIRIS tanpa tanda hubung, koordinat bersambung, klausul H.X bila >= 2)
+    let isiAaa = `PD TW ${twb} TERIMA INFO DARI ${infoPelapor} BAHWA TELAH TERJADI ${namaMusibah}${pobText} POSISI SAAT INI DI SEKITAR ${lokasi} PADA KOORDINAT ${koordinat} TTK CIRIS KAPAL TTK DUA ${ciriKapal} TTK${kalimatHariKe} ${kondisiTerakhir} TTK`;
+    isiAaa = formatTelegramReduplication(isiAaa.trim());
+
+    // Seksi BBB baku permintaan pemapelan maritim kepada kapal melintas (KAPALS)
+    const isiBbb = "TERKAIT INFO MUSIBAH TSB MHN BANTUAN PEMANTAUAN DAN PEMAPELAN KEPADA KAPALS YANG MELINTASI DI AREA TERSEBUT KMA APABILA MENEMUKAN TANDAS KEBERADAAN KAPAL TERSEBUT AGAR DAPAT MEMBERIKAN PERTOLONGAN PERTAMA SERTA MELAPORKAN KPD BASARNAS KENDARI TTK";
+
+    // Seksi CCC baku ucapan terima kasih telegram resmi
+    const isiCcc = "DEMIKIAN SEBAGAI LAPORAN ATAS KERJASAMANYA DIUCAPKAN TERIMAKASIH TTK KMA KAKANSAR KENDARI KRM TTK HBS";
+
+    const perihal = `PERMINTAAN PEMAPELAN DAN PEMANTAUAN TERHADAP ${namaMusibah} TTK`;
+
+    document.getElementById('perihalInput').value = perihal;
+    document.getElementById('aksiInput').value = customParams.aksi || 'KA KSOP KENDARI KMA KA SROP KENDARI';
+    document.getElementById('infoInput').value = customParams.info || 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
+    document.getElementById('derajatInput').value = 'SGR';
+    document.getElementById('jabatanSmcInput').value = 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
+
+    setSectionsContent([
+      { kode: 'AAA', isi: isiAaa },
+      { kode: 'BBB', isi: isiBbb },
+      { kode: 'CCC', isi: isiCcc }
+    ]);
   }
 
   // 1. Rekomendasi: Laporan Awal (Inisiasi)
@@ -636,7 +877,51 @@ function initBraForm() {
     if (typeof showToast === 'function') showToast('Rekomendasi Naskah Penutupan Operasi SAR berhasil dimuat!', 'success');
   });
 
-  // 5. Preset Alut Laut Resmi KPP Kendari (ISSUE-10): KN SAR Pacitan, Rescue Boat 210, Rescue Boat 307
+  // 5. Rekomendasi: Pemapelan Maritim (MAPEL) dari Operasi SAR
+  const btnAutoMapel = document.getElementById('btnAutoMapel');
+  if (btnAutoMapel) {
+    btnAutoMapel.addEventListener('click', async function() {
+      const opId = opSelect.value;
+      if (!opId) {
+        if (typeof showToast === 'function') showToast('Pilih Operasi SAR pada dropdown terlebih dahulu.', 'warning');
+        return;
+      }
+      const op = await loadOperasiData(opId);
+      if (!op) return;
+
+      const radMapel = document.querySelector('input[name="kategori"][value="MAPEL"]');
+      if (radMapel && !radMapel.checked) {
+        radMapel.checked = true;
+        radMapel.dispatchEvent(new Event('change'));
+      }
+
+      applyMapelFromOperation(op);
+      if (typeof showToast === 'function') showToast('Draf Naskah BRA Mapel dari Operasi berhasil dimuat!', 'success');
+    });
+  }
+
+  // 6. Aksi Cepat Mapel: 1. Longboat / Kapal Hilang Kontak
+  const btnPresetLongboat = document.getElementById('btnPresetLongboatHilangKontak');
+  if (btnPresetLongboat) {
+    btnPresetLongboat.addEventListener('click', async function() {
+      const opId = opSelect ? opSelect.value : '';
+      let op = null;
+      if (opId) {
+        op = await loadOperasiData(opId);
+      }
+
+      const radMapel = document.querySelector('input[name="kategori"][value="MAPEL"]');
+      if (radMapel && !radMapel.checked) {
+        radMapel.checked = true;
+        radMapel.dispatchEvent(new Event('change'));
+      }
+
+      applyMapelFromOperation(op, { nama_musibah: 'LONGBOAT MATI MESIN DAN HILANG KONTAK' });
+      if (typeof showToast === 'function') showToast('Preset Pemapelan Longboat / Kapal Hilang Kontak berhasil dimuat!', 'success');
+    });
+  }
+
+  // 7. Preset Alut Laut Resmi KPP Kendari (ISSUE-10): KN SAR Pacitan, Rescue Boat 210, Rescue Boat 307
   const VESSEL_SPECS = {
     'KN_SAR_PACITAN': {
       name: 'KN SAR PACITAN 102',
@@ -1029,7 +1314,7 @@ function initBraForm() {
     el.style.padding = '0 4px 0 0';
 
     const opt = {
-      margin: [15, 15, 15, 15],
+      margin: [5, 15, 15, 15],
       filename: filename,
       image: { type: 'jpeg', quality: 0.85 },
       html2canvas: {
@@ -1080,8 +1365,28 @@ function initBraForm() {
     });
   };
 
-  // Form submission validation
+  // Form submission validation & auto-formatting
   form.addEventListener('submit', function(e) {
+    // 1. Otomatis jadikan uppercase semua input dan textarea
+    form.querySelectorAll('input.upper, input.bra-control, textarea.bra-control').forEach(el => {
+      if (el.value) {
+        el.value = el.value.toUpperCase();
+      }
+    });
+
+    // 2. Otomatis sanitasi perihal dengan akhiran TTK
+    const perihalEl = document.getElementById('perihalInput');
+    if (perihalEl && perihalEl.value.trim()) {
+      perihalEl.value = sanitizeTelegramText(perihalEl.value, true);
+    }
+
+    // 3. Otomatis sanitasi seksi berita
+    sectionsContainer.querySelectorAll('.sec-content-textarea').forEach(ta => {
+      if (ta.value.trim()) {
+        ta.value = sanitizeTelegramText(ta.value, false);
+      }
+    });
+
     calculateWordCount();
     const noBra = document.getElementById('noBraInput').value.trim();
     if (!noBra) {

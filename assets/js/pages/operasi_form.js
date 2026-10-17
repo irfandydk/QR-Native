@@ -1791,8 +1791,20 @@ function previewWhatsApp() {
     kList.push(`${idx + 1}. Nama : ${kName}${statusLabel}\n   Umur : ${kUmur}\n   Jenis Kelamin : ${kJk}\n   Alamat : ${kAlamat}`);
   });
 
-  const totalKorban = korbanRows.length;
+  const pobInputVal = parseInt(document.getElementById('jumlah_pob')?.value || '0', 10);
+  const effectivePob = Math.max(isNaN(pobInputVal) ? 0 : pobInputVal, korbanRows.length);
+  const unrecordedCount = Math.max(0, effectivePob - korbanRows.length);
+
+  if (unrecordedCount > 0) {
+    dpCount += unrecordedCount;
+    kList.push(`${korbanRows.length + 1}. ${unrecordedCount} Orang Dalam Pencarian (Identitas Belum Terdata / Belum Diketahui)`);
+  }
+
+  const totalKorban = effectivePob;
   const identitasKorbanText = kList.length > 0 ? kList.join('\n\n') : '1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -';
+  const dataKorbanHeader = unrecordedCount > 0
+    ? `5. Data Korban: ${totalKorban} orang (POB: ${totalKorban} Org, Teridentifikasi: ${korbanRows.length} Org, Belum Terdata: ${unrecordedCount} Org)`
+    : `5. Data Korban: ${totalKorban} orang`;
 
   const preview = `FILE AKTIF
 ____
@@ -1828,7 +1840,7 @@ Pada Tanggal ${tglBerangkatStr} pukul ${jamBerangkatStr} Wita, ${tim} berangkat 
 4. Kronologi Kejadian
 ${kronologi}
 
-5. Data Korban: ${totalKorban} orang
+${dataKorbanHeader}
 • S : ${sCount} orang
 • MD : ${mdCount} orang
 • DP : ${dpCount} orang
@@ -2245,6 +2257,11 @@ document.addEventListener('DOMContentLoaded', function() {
   if (pobInput) {
     pobInput.addEventListener('input', function() {
       pobIsManuallyEdited = true;
+      if (typeof updateWaPreview === 'function') updateWaPreview();
+    });
+    pobInput.addEventListener('change', function() {
+      pobIsManuallyEdited = true;
+      if (typeof updateWaPreview === 'function') updateWaPreview();
     });
   }
 
@@ -2277,12 +2294,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Auto-save form inputs
+  // Auto-save form inputs & Pre-Submit Form Guard (ISSUE-LAPAWAL-05)
   const formEl = document.getElementById('form-inisiasi-ops');
   if (formEl) {
     formEl.addEventListener('input', saveLocalStorageDraft);
     formEl.addEventListener('change', saveLocalStorageDraft);
     formEl.addEventListener('submit', function() {
+      // 1. Force final synchronization of dynamic tables into hidden JSON inputs
+      if (typeof syncUnsurFields === 'function') syncUnsurFields();
+      if (typeof syncAlutFields === 'function') syncAlutFields();
+      if (typeof updateDmsCoordinate === 'function') updateDmsCoordinate();
+      if (typeof syncManualRouteToJson === 'function') syncManualRouteToJson();
+
+      // 2. Validate hidden JSON fields aren't accidentally empty if lists have data
+      const unsurJson = document.getElementById('detail_unsur_json');
+      if (unsurJson && (!unsurJson.value || unsurJson.value === '[]') && typeof currentUnsurList !== 'undefined' && currentUnsurList.length > 0) {
+        unsurJson.value = JSON.stringify(currentUnsurList);
+      }
+      const alutJson = document.getElementById('detail_alut_json');
+      if (alutJson && (!alutJson.value || alutJson.value === '[]') && typeof currentAlutList !== 'undefined' && currentAlutList.length > 0) {
+        alutJson.value = JSON.stringify(currentAlutList);
+      }
+
+      // 3. Clear local draft on submission
       localStorage.removeItem(DRAFT_KEY);
     });
   }

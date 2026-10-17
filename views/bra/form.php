@@ -26,28 +26,35 @@ $bra = $isEdit ? BraModel::getById($id) : null;
 $preselectedOpId = (int)($_GET['id_operasi'] ?? ($bra['id_operasi'] ?? 0));
 $fromModul = trim((string)($_GET['from'] ?? ''));
 
-// Jika ada kaitan dengan Operasi SAR atau modul turunan, arahkan kategori ke SAR_UMUM
-if (!empty($preselectedOpId) || !empty($fromModul)) {
-    $initialKategori = $_GET['kategori'] ?? ($bra['kategori'] ?? 'SAR_UMUM');
+// Tentukan kategori awal dengan prioritas query parameter
+$paramKategori = !empty($_GET['kategori']) ? BraHelper::normalizeCategory(trim((string)$_GET['kategori'])) : null;
+if ($paramKategori) {
+    $initialKategori = $paramKategori;
+} elseif (!empty($preselectedOpId) || !empty($fromModul)) {
+    $initialKategori = BraHelper::normalizeCategory($bra['kategori'] ?? 'OPERASI_SAR');
 } else {
-    $initialKategori = $_GET['kategori'] ?? ($bra['kategori'] ?? 'MAPEL');
+    $initialKategori = BraHelper::normalizeCategory($bra['kategori'] ?? 'MAPEL');
 }
 
-$currentKategori = strtoupper($bra['kategori'] ?? $initialKategori);
+$currentKategori = BraHelper::normalizeCategory($bra['kategori'] ?? $initialKategori);
 $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
 
-// Integrasi Pre-fill Data Otomatis saat membuat BRA dari halaman Detail Operasi
+// Integrasi Pre-fill Data Otomatis saat membuat BRA baru
 $selectedOps = null;
 if (!$isEdit && $preselectedOpId > 0) {
     $selectedOps = OperasiModel::getById($preselectedOpId);
     if ($selectedOps) {
-        $currentKategori = 'SAR_UMUM';
+        if (!$paramKategori) {
+            $currentKategori = 'OPERASI_SAR';
+        }
         if (!is_array($bra)) $bra = [];
         $bra['id_operasi'] = $preselectedOpId;
         $bra['nama_operasi'] = $selectedOps['nama_operasi'] ?? '';
 
         $autoTemplate = null;
-        if ($fromModul === 'renops') {
+        if ($currentKategori === 'MAPEL') {
+            $autoTemplate = BraHelper::buildSectionsFromMapel($selectedOps);
+        } elseif ($fromModul === 'renops') {
             $idRenops = (int)($_GET['id_renops'] ?? 0);
             $renopsTarget = null;
             if (!empty($selectedOps['renops'])) {
@@ -91,7 +98,25 @@ if (!$isEdit && $preselectedOpId > 0) {
             $bra['info'] = $autoTemplate['info'] ?? '';
             $bra['dari'] = $autoTemplate['dari'] ?? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
             $bra['sections'] = $autoTemplate['sections'] ?? [];
+            if (!empty($autoTemplate['jabatan_smc'])) {
+                $bra['jabatan_smc'] = $autoTemplate['jabatan_smc'];
+            }
+            if (!empty($autoTemplate['derajat'])) {
+                $bra['derajat'] = $autoTemplate['derajat'];
+            }
         }
+    }
+} elseif (!$isEdit && empty($bra['sections'])) {
+    if ($currentKategori === 'MAPEL') {
+        $defaultMapel = BraHelper::buildSectionsFromMapel();
+        if (!is_array($bra)) $bra = [];
+        $bra['perihal'] = $defaultMapel['perihal'];
+        $bra['aksi'] = $defaultMapel['aksi'];
+        $bra['info'] = $defaultMapel['info'];
+        $bra['dari'] = $defaultMapel['dari'];
+        $bra['sections'] = $defaultMapel['sections'];
+        $bra['jabatan_smc'] = $defaultMapel['jabatan_smc'];
+        $bra['derajat'] = $defaultMapel['derajat'];
     }
 }
 
@@ -613,7 +638,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   @media print {
     @page {
       size: A4 portrait;
-      margin: 15mm 15mm 15mm 15mm;
+      margin: 5mm 15mm 15mm 15mm;
     }
     body, html {
       background: #ffffff !important;
@@ -769,7 +794,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
         <input type="hidden" name="bulan_tahun" id="hiddenBulanTahun" value="<?= htmlspecialchars($bra['bulan_tahun'] ?? $bulanTahunPlaceholder) ?>">
         <input type="hidden" name="nomor_urut" id="hiddenNomorUrut" value="<?= htmlspecialchars((string)($bra['nomor_urut'] ?? $nomorUrutPlaceholder)) ?>">
         <input type="hidden" name="nama_operasi" id="hiddenNamaOperasi" value="<?= htmlspecialchars($bra['nama_operasi'] ?? ($selectedOps['nama_operasi'] ?? '')) ?>">
-        <input type="hidden" name="tanggal_waktu" id="hiddenTanggalWaktu" value="<?= htmlspecialchars($bra['tanggal_waktu'] ?? date('d F Y')) ?>">
+        <input type="hidden" name="tanggal_waktu" id="hiddenTanggalWaktu" value="<?= htmlspecialchars($bra['tanggal_waktu'] ?? TemplateHelper::formatTanggalIndo(date('Y-m-d'))) ?>">
         <input type="hidden" name="jumlah_kata" id="hiddenJumlahKata" value="<?= htmlspecialchars($bra['jumlah_kata'] ?? '0 KATA') ?>">
         <input type="hidden" name="logo_url" value="<?= htmlspecialchars($customLogo) ?>">
 
@@ -805,14 +830,14 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               </div>
             </label>
 
-            <!-- 2. SAR UMUM -->
+            <!-- 2. OPERASI SAR -->
             <label class="kat-tab-label">
-              <input type="radio" name="kategori" value="SAR_UMUM" <?= $currentKategori === 'SAR_UMUM' ? 'checked' : '' ?> class="kategori-radio">
+              <input type="radio" name="kategori" value="OPERASI_SAR" <?= $currentKategori === 'OPERASI_SAR' ? 'checked' : '' ?> class="kategori-radio">
               <div class="kat-tab-box">
                 <div class="kat-icon-wrap">📋</div>
                 <div style="flex:1;">
                   <div class="kat-tab-header">
-                    <span class="kat-tab-title">2. BRA SAR Operasi SAR</span>
+                    <span class="kat-tab-title">2. BRA Operasi SAR</span>
                     <span class="kat-tab-pill">Operasi SAR Harian</span>
                   </div>
                   <div class="kat-tab-desc">Berita Radio perkembangan Operasi SAR kepada Kabasarnas, Pimti, Polairud, TNI AL terkait laporan awal / renops / sitrep.</div>
@@ -836,8 +861,28 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             </label>
           </div>
 
+          <!-- Quick MAPEL Presets Bar (Muncul Khusus MAPEL) -->
+          <div id="mapelPresetsContainer" class="bra-preset-banner mb-4 <?= $currentKategori === 'MAPEL' ? '' : 'hidden' ?>" style="border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.08); display: <?= $currentKategori === 'MAPEL' ? 'block' : 'none' ?>;">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pb-2.5 border-b border-blue-500/20">
+              <div class="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-300">
+                <span class="text-base">📡</span>
+                <div>
+                  <span class="tracking-wide">Format Telegram Pemapelan Resmi (Senkom KPP Kendari)</span>
+                  <span class="block text-[11px] font-normal text-muted dark:text-blue-200/70">Pemberitahuan resmi kepada KSOP, SROP, dan kapal-kapal yang melintas di sekitar LKP:</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <span class="text-[11px] font-semibold text-blue-900 dark:text-blue-200">Aksi Cepat:</span>
+              <button type="button" id="btnPresetLongboatHilangKontak" class="preset-btn flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white border-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition" title="Muat draf telegram pemapelan resmi: 1. Longboat / Kapal Hilang Kontak">
+                <span>🚤</span> <span>1. Longboat / Kapal Hilang Kontak</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Quick Vessel Presets Bar (Muncul Khusus PERGERAKAN_KAPAL) (ISSUE-10) -->
-          <div id="vesselPresetsContainer" class="bra-preset-banner mb-4 <?= $currentKategori === 'PERGERAKAN_KAPAL' ? '' : 'hidden' ?>" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.08);">
+          <div id="vesselPresetsContainer" class="bra-preset-banner mb-4 <?= $currentKategori === 'PERGERAKAN_KAPAL' ? '' : 'hidden' ?>" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.08); display: <?= $currentKategori === 'PERGERAKAN_KAPAL' ? 'block' : 'none' ?>;">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pb-2.5 border-b border-cyan-500/20">
               <div class="flex items-center gap-2 text-xs font-bold text-cyan-800 dark:text-cyan-300">
                 <span class="text-base">🚢</span>
@@ -919,6 +964,9 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               <button type="button" id="btnAutoPenutupan" class="preset-btn" title="Muat naskah Penutupan Operasi SAR">
                 🔒 Penutupan Operasi
               </button>
+              <button type="button" id="btnAutoMapel" class="preset-btn" title="Muat naskah Pemapelan Maritim dari data Operasi SAR">
+                📡 Pemapelan (Mapel)
+              </button>
             </div>
           </div>
         </div>
@@ -947,6 +995,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               <input type="text" name="no_bra" id="noBraInput" value="<?= htmlspecialchars(!empty($bra['no_bra']) ? $bra['no_bra'] : $noBraPlaceholder) ?>" placeholder="<?= $noBraPlaceholder ?>" class="bra-control mono bold upper" required>
               <input type="hidden" name="is_auto_no_bra" id="isAutoNoBra" value="<?= $isEdit ? '0' : '1' ?>">
               <span class="bra-hint">Format resmi: <code>[Nomor Urut]/<?= htmlspecialchars($satkerKode) ?>/[BulanTahun]</code></span>
+              <div id="noBraWarning" class="hidden mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded px-2 py-1"></div>
             </div>
 
             <!-- Derajat -->
@@ -1061,12 +1110,12 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
 
             <div class="bra-field">
               <label class="bra-label">AKSI (Alamat Tujuan Utama Tindak Lanjut) <span class="req">*</span></label>
-              <textarea name="aksi" id="aksiInput" rows="2" class="bra-control upper font-semibold" placeholder="KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN" required><?= htmlspecialchars($bra['aksi'] ?? '') ?></textarea>
+              <textarea name="aksi" id="aksiInput" rows="2" class="bra-control upper font-semibold" placeholder="<?= $currentKategori === 'MAPEL' ? 'KA KSOP KENDARI DAN KMA KA SROP KENDARI' : 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN' ?>" required><?= htmlspecialchars($bra['aksi'] ?? ($currentKategori === 'MAPEL' ? 'KA KSOP KENDARI KMA KA SROP KENDARI' : '')) ?></textarea>
             </div>
 
             <div class="bra-field">
               <label class="bra-label">INFO (Tembusan Informasi)</label>
-              <textarea name="info" id="infoInput" rows="2" class="bra-control upper" placeholder="DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN"><?= htmlspecialchars($bra['info'] ?? '') ?></textarea>
+              <textarea name="info" id="infoInput" rows="2" class="bra-control upper" placeholder="KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN"><?= htmlspecialchars($bra['info'] ?? ($currentKategori === 'MAPEL' ? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN' : '')) ?></textarea>
             </div>
 
             <div class="bra-field">
@@ -1184,7 +1233,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             </div>
             <div class="bra-field">
               <label class="bra-label">Nama Lengkap Pejabat / SMC <span class="req">*</span></label>
-              <input type="text" name="nama_smc" id="namaSmcInput" value="<?= htmlspecialchars($bra['nama_smc'] ?? 'AMIRUDDIN AS, S.Sos.') ?>" class="bra-control bold upper" required>
+              <input type="text" name="nama_smc" id="namaSmcInput" value="<?= htmlspecialchars($bra['nama_smc'] ?? 'AMIRUDDIN A.S., S.Sos.') ?>" class="bra-control bold upper" required>
             </div>
           </div>
 
@@ -1195,7 +1244,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             </div>
             <div class="bra-field">
               <label class="bra-label">Jabatan Kedinasan <span class="req">*</span></label>
-              <input type="text" name="jabatan_smc" id="jabatanSmcInput" value="<?= htmlspecialchars($bra['jabatan_smc'] ?? ($currentOpId ? 'SMC' : 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI')) ?>" class="bra-control bold upper" required>
+              <input type="text" name="jabatan_smc" id="jabatanSmcInput" value="<?= htmlspecialchars($bra['jabatan_smc'] ?? ($currentKategori === 'MAPEL' || !$currentOpId ? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI' : 'SMC')) ?>" class="bra-control bold upper" required>
             </div>
           </div>
 
@@ -1420,7 +1469,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
                     <div class="flex">
                       <span class="w-20 font-bold uppercase shrink-0 text-black">Nama</span>
                       <span class="mr-1">:</span>
-                      <span id="pvNamaSmc" class="font-bold uppercase text-[11px] sm:text-xs text-black"><?= htmlspecialchars($bra['nama_smc'] ?? 'AMIRUDDIN AS, S.Sos.') ?></span>
+                      <span id="pvNamaSmc" class="font-bold uppercase text-[11px] sm:text-xs text-black"><?= htmlspecialchars($bra['nama_smc'] ?? 'AMIRUDDIN A.S., S.Sos.') ?></span>
                     </div>
                     <div class="flex">
                       <span class="w-20 font-bold uppercase shrink-0 text-black">Pangkat</span>
@@ -1430,7 +1479,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
                     <div class="flex">
                       <span class="w-20 font-bold uppercase shrink-0 text-black">Jabatan</span>
                       <span class="mr-1">:</span>
-                      <span id="pvJabatanSmc" class="font-bold uppercase text-[11px] sm:text-xs text-black"><?= htmlspecialchars($bra['jabatan_smc'] ?? 'SMC') ?></span>
+                      <span id="pvJabatanSmc" class="font-bold uppercase text-[11px] sm:text-xs text-black"><?= htmlspecialchars($bra['jabatan_smc'] ?? ($currentKategori === 'MAPEL' || !$currentOpId ? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI' : 'SMC')) ?></span>
                     </div>
                   </div>
                 </div>

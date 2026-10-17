@@ -520,7 +520,7 @@ function previewSitrepWa() {
   let sCount = 0, mdCount = 0, dpCount = 0, hCount = 0;
   const kList = [];
   korbanList.forEach((k, idx) => {
-    const rowSelect = document.querySelector(`select[name="update_korban[${k.id_korban}][status_korban]"]`);
+    const rowSelect = document.querySelector(`select[name="update_korban[${k.id_korban}]"]`) || document.querySelector(`select[name="update_korban[${k.id_korban}][status_korban]"]`);
     const st = (rowSelect ? rowSelect.value : (k.status_korban || 'DP')).toUpperCase();
     if (st === 'S') sCount++;
     else if (st === 'MD') mdCount++;
@@ -716,6 +716,43 @@ function recalculateSitrepHariKe() {
   inputHari.value = 'H.' + dayNum;
 }
 
+function updateVictimStatusBadges() {
+  const selects = document.querySelectorAll('select[name^="update_korban"]');
+  if (selects.length === 0) return;
+  let s = 0, md = 0, dp = 0, h = 0;
+  selects.forEach(sel => {
+    const val = (sel.value || 'DP').toUpperCase();
+    if (val === 'S') s++;
+    else if (val === 'MD') md++;
+    else if (val === 'DP') dp++;
+    else if (val === 'H') h++;
+    else dp++;
+  });
+  const badgeContainer = document.getElementById('victim-status-badges');
+  if (badgeContainer) {
+    badgeContainer.innerHTML = `
+      <span class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">🟢 Selamat: ${s}</span>
+      <span class="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">🔴 MD: ${md}</span>
+      <span class="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">🟡 DP: ${dp}</span>
+      ${h > 0 ? `<span class="px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/30">⚪ Hilang: ${h}</span>` : ''}
+    `;
+  }
+}
+
+function initVictimStatusListeners() {
+  const selects = document.querySelectorAll('select[name^="update_korban"]');
+  selects.forEach(sel => {
+    sel.addEventListener('change', () => {
+      updateVictimStatusBadges();
+      const previewModal = document.getElementById('modal-preview-wa-sitrep');
+      if (previewModal && !previewModal.classList.contains('hidden')) {
+        previewSitrepWA();
+      }
+    });
+  });
+  updateVictimStatusBadges();
+}
+
 document.getElementById('sitrep_waktu_laporan')?.addEventListener('input', recalculateSitrepHariKe);
 document.getElementById('sitrep_waktu_laporan')?.addEventListener('change', recalculateSitrepHariKe);
 
@@ -723,6 +760,7 @@ document.addEventListener('DOMContentLoaded', () => {
   recalculateSitrepHariKe();
   renderUnsurList();
   renderAlutList();
+  initVictimStatusListeners();
   restoreSitrepDraft();
   recalculateSitrepHariKe();
 });

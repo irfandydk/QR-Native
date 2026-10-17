@@ -57,6 +57,33 @@ class TemplateHelper {
         return "{$tgl} {$bln} {$thn}";
     }
 
+    public static function getNamaHariIndo(string|int|null $input): string {
+        if ($input === null || $input === '') return 'Minggu';
+        if (is_numeric($input)) {
+            $w = (int)$input % 7;
+            return self::HARI_INDO[$w] ?? 'Minggu';
+        }
+        $str = trim((string)$input);
+        $map = [
+            'sunday' => 'Minggu', 'sun' => 'Minggu',
+            'monday' => 'Senin', 'mon' => 'Senin',
+            'tuesday' => 'Selasa', 'tue' => 'Selasa',
+            'wednesday' => 'Rabu', 'wed' => 'Rabu',
+            'thursday' => 'Kamis', 'thu' => 'Kamis',
+            'friday' => 'Jumat', 'fri' => 'Jumat',
+            'saturday' => 'Sabtu', 'sat' => 'Sabtu'
+        ];
+        $lower = strtolower($str);
+        if (isset($map[$lower])) {
+            return $map[$lower];
+        }
+        $ts = self::parseToTimestamp($str);
+        if ($ts !== null) {
+            return self::HARI_INDO[(int)date('w', $ts)];
+        }
+        return in_array($str, self::HARI_INDO, true) ? $str : 'Minggu';
+    }
+
     public static function formatJamWITA(?string $dateInput): string {
         $timestamp = self::parseToTimestamp($dateInput);
         if ($timestamp === null) return '00:00';
@@ -431,8 +458,22 @@ class TemplateHelper {
     }
 
 
-    public static function hitungStatistikKorban(array $korbanList): array {
-        $stats = ['total' => count($korbanList), 's' => 0, 'md' => 0, 'dp' => 0, 'h' => 0];
+    public static function hitungStatistikKorban(array $korbanList, ?int $totalPob = null): array {
+        $countIdentified = count($korbanList);
+        $pob = ($totalPob !== null && $totalPob > 0) ? max($totalPob, $countIdentified) : $countIdentified;
+        $unrecorded = max(0, $pob - $countIdentified);
+
+        $stats = [
+            'total' => $pob,
+            'identified' => $countIdentified,
+            'unrecorded_dp' => $unrecorded,
+            'pob' => $pob,
+            's' => 0,
+            'md' => 0,
+            'dp' => $unrecorded,
+            'h' => 0
+        ];
+
         foreach ($korbanList as $k) {
             $status = strtoupper((string)($k['status_korban'] ?? 'DP'));
             if ($status === 'S' || $status === 'SELAMAT') $stats['s']++;
@@ -441,6 +482,14 @@ class TemplateHelper {
             elseif ($status === 'H' || $status === 'HILANG / NIHIL') $stats['h']++;
             else $stats['dp']++;
         }
+
+        // Alias penamaan ramah template untuk mencegah undefined index notice
+        $stats['total_pob'] = $pob;
+        $stats['selamat'] = $stats['s'];
+        $stats['meninggal'] = $stats['md'];
+        $stats['dalam_pencarian'] = $stats['dp'];
+        $stats['hilang'] = $stats['h'];
+
         return $stats;
     }
 
@@ -494,6 +543,81 @@ class TemplateHelper {
         $satkerKode = strtoupper(trim((string)$satkerKode)) ?: 'SAR-304';
 
         return "LA-{$tgl}-{$urut}/OPS-SAR/{$satkerKode}/{$blnthn}";
+    }
+
+    public static function generateNomorRenops(array $ops, array $renops, ?string $satkerKode = null): string {
+        $waktu = $renops['waktu_briefing'] ?? ($renops['tanggal_laporan'] ?? ($ops['waktu_berangkat'] ?? null));
+        $ts = self::parseToTimestamp($waktu) ?? time();
+
+        $tgl = date('dmy', $ts);
+        $blnthn = date('my', $ts);
+        $hariKe = strtoupper(str_replace(['.', ' ', '-'], '', (string)($renops['hari_ke'] ?? 'H1')));
+        if ($hariKe === '') $hariKe = 'H1';
+
+        if (!$satkerKode) {
+            if (class_exists('SettingsModel')) {
+                $st = SettingsModel::get();
+                $satkerKode = $st['satker_kode'] ?? 'SAR-304';
+            } else {
+                $satkerKode = 'SAR-304';
+            }
+        }
+        $satkerKode = strtoupper(trim((string)$satkerKode)) ?: 'SAR-304';
+
+        return "RENOPS-{$tgl}-{$hariKe}/OPS-SAR/{$satkerKode}/{$blnthn}";
+    }
+
+    public static function generateNomorSitrep(array $ops, array $laporan, ?string $satkerKode = null): string {
+        $waktu = $laporan['waktu_debrief'] ?? ($laporan['waktu_laporan'] ?? null);
+        $ts = self::parseToTimestamp($waktu) ?? time();
+
+        $tgl = date('dmy', $ts);
+        $blnthn = date('my', $ts);
+        $hariKe = strtoupper(str_replace(['.', ' ', '-'], '', (string)($laporan['hari_ke'] ?? 'H1')));
+        if ($hariKe === '') $hariKe = 'H1';
+
+        if (!$satkerKode) {
+            if (class_exists('SettingsModel')) {
+                $st = SettingsModel::get();
+                $satkerKode = $st['satker_kode'] ?? 'SAR-304';
+            } else {
+                $satkerKode = 'SAR-304';
+            }
+        }
+        $satkerKode = strtoupper(trim((string)$satkerKode)) ?: 'SAR-304';
+
+        return "SITREP-{$tgl}-{$hariKe}/OPS-SAR/{$satkerKode}/{$blnthn}";
+    }
+
+    public static function formatNomorRenops(array $renops, array $ops = [], ?string $satkerKode = null): string {
+        return self::generateNomorRenops($ops, $renops, $satkerKode);
+    }
+
+    public static function formatNomorSitrep(array $laporan, array $ops = [], ?string $satkerKode = null): string {
+        return self::generateNomorSitrep($ops, $laporan, $satkerKode);
+    }
+
+    public static function generateNomorBeritaAcara(array $ops, array $laporan = [], ?string $satkerKode = null): string {
+        $waktu = $laporan['waktu_debrief'] ?? ($ops['waktu_selesai'] ?? null);
+        $ts = self::parseToTimestamp($waktu) ?? time();
+
+        $tgl = date('dmy', $ts);
+        $blnthn = date('my', $ts);
+        $urutNum = (int)($ops['id_operasi'] ?? 1);
+        if ($urutNum <= 0) $urutNum = 1;
+        $urut = str_pad((string)$urutNum, 3, '0', STR_PAD_LEFT);
+
+        if (!$satkerKode) {
+            if (class_exists('SettingsModel')) {
+                $st = SettingsModel::get();
+                $satkerKode = $st['satker_kode'] ?? 'SAR-304';
+            } else {
+                $satkerKode = 'SAR-304';
+            }
+        }
+        $satkerKode = strtoupper(trim((string)$satkerKode)) ?: 'SAR-304';
+
+        return "BA-TUTUP-{$tgl}-{$urut}/OPS-SAR/{$satkerKode}/{$blnthn}";
     }
 
     public static function getHeaderWA(string $judulLaporan, string $namaOperasi, ?string $waktu = null, ?string $nomor = null): string {
@@ -558,13 +682,12 @@ FOOTER;
         $tglEta = self::formatTanggalSimple($waktuEta);
         $jamEta = self::formatJamWITA($waktuEta);
 
-        $stats = self::hitungStatistikKorban($korban);
+        $pobTotal = max((int)($ops['jumlah_pob'] ?? 0), count($korban));
+        $stats = self::hitungStatistikKorban($korban, $pobTotal);
 
         // Identitas korban text
-        if (empty($korban)) {
-            $identitasText = "1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -";
-        } else {
-            $kList = [];
+        $kList = [];
+        if (!empty($korban)) {
             foreach ($korban as $idx => $k) {
                 $num = $idx + 1;
                 $statusK = $k['status_korban'] ?? $k['status'] ?? 'DP';
@@ -575,6 +698,16 @@ FOOTER;
                 $alamatKorban = !empty($k['alamat']) ? $k['alamat'] : '-';
                 $kList[] = "{$num}. Nama : {$namaKorban}{$label}\n   Umur : {$umurKorban}\n   Jenis Kelamin : {$jkKorban}\n   Alamat : {$alamatKorban}";
             }
+        }
+
+        if ($stats['unrecorded_dp'] > 0) {
+            $nextNum = count($kList) + 1;
+            $kList[] = "{$nextNum}. {$stats['unrecorded_dp']} Orang Dalam Pencarian (Identitas Belum Terdata / Belum Diketahui)";
+        }
+
+        if (empty($kList)) {
+            $identitasText = "1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -";
+        } else {
             $identitasText = implode("\n\n", $kList);
         }
 
@@ -620,6 +753,11 @@ FOOTER;
         $gelombangOps = ($ops['gelombang'] ?? '') ?: '0.5 - 1.25 M';
         $anginOps = ($ops['angin'] ?? '') ?: 'Barat Daya 5 - 15 Knots';
 
+        $dataKorbanHeader = "5. Data Korban: {$stats['total']} orang";
+        if ($stats['unrecorded_dp'] > 0) {
+            $dataKorbanHeader .= " (POB: {$stats['total']} Org, Teridentifikasi: {$stats['identified']} Org, Belum Terdata: {$stats['unrecorded_dp']} Org)";
+        }
+
         $body = <<<BODY
 1. Sumber Info kejadian :
 {$pelapor} ({$hub} / No. HP {$hp})
@@ -637,7 +775,7 @@ Pada Tanggal {$tglBerangkat} pukul {$jamBerangkat} Wita, {$tim} berangkat ke LKP
 4. Kronologi Kejadian
 {$kronologi}
 
-5. Data Korban: {$stats['total']} orang
+{$dataKorbanHeader}
 • S : {$stats['s']} orang
 • MD : {$stats['md']} orang
 • DP : {$stats['dp']} orang
@@ -795,17 +933,30 @@ BODY;
             $klausulPenutupan = "\n\n• Pada tanggal {$tglDebrief} Pukul {$jamDebrief} WITA, Tim SAR Gabungan melakukan debriefing penutupan Ops SAR terhadap {$namaOps}, selanjutnya operasi SAR diusulkan ditutup dan unsur SAR yang terlibat kembali ke kesatuannya masing-masing dengan ucapan terima kasih.";
         }
 
-        $stats = self::hitungStatistikKorban($korban);
+        $pobTotal = max((int)($ops['jumlah_pob'] ?? 0), count($korban));
+        $stats = self::hitungStatistikKorban($korban, $pobTotal);
 
-        if (empty($korban)) {
-            $identitasText = "1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -";
-        } else {
-            $kList = [];
+        $kList = [];
+        if (!empty($korban)) {
             foreach ($korban as $idx => $k) {
                 $num = $idx + 1;
-                $label = self::getLabelStatusKorban($k['status_korban']);
-                $kList[] = "{$num}. Nama : {$k['nama_korban']} [Status: {$label}]\n   Umur : " . ($k['umur'] ?: '-') . "\n   Jenis Kelamin : " . ($k['jk'] ?: '-') . "\n   Alamat : " . ($k['alamat'] ?: '-');
+                $label = self::getLabelStatusKorban($k['status_korban'] ?? '');
+                $namaK = !empty($k['nama_korban']) ? (string)$k['nama_korban'] : '-';
+                $umurK = !empty($k['umur']) ? (string)$k['umur'] : '-';
+                $jkK = !empty($k['jk']) ? (string)$k['jk'] : (!empty($k['jenis_kelamin']) ? (string)$k['jenis_kelamin'] : '-');
+                $alamatK = !empty($k['alamat']) ? (string)$k['alamat'] : '-';
+                $kList[] = "{$num}. Nama : {$namaK} [Status: {$label}]\n   Umur : {$umurK}\n   Jenis Kelamin : {$jkK}\n   Alamat : {$alamatK}";
             }
+        }
+
+        if ($stats['unrecorded_dp'] > 0) {
+            $nextNum = count($kList) + 1;
+            $kList[] = "{$nextNum}. {$stats['unrecorded_dp']} Orang Dalam Pencarian (Identitas Belum Terdata / Belum Diketahui)";
+        }
+
+        if (empty($kList)) {
+            $identitasText = "1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -";
+        } else {
             $identitasText = implode("\n\n", $kList);
         }
 
@@ -832,12 +983,17 @@ BODY;
 
         $isi = !empty($laporan['isi_laporan']) ? $laporan['isi_laporan'] : 'Pencarian telah dilaksanakan oleh Tim SAR Gabungan sesuai Renops.';
 
+        $dataKorbanHeader = "1. Data Korban: {$stats['total']} Orang";
+        if ($stats['unrecorded_dp'] > 0) {
+            $dataKorbanHeader .= " (POB: {$stats['total']} Org, Teridentifikasi: {$stats['identified']} Org, Belum Terdata: {$stats['unrecorded_dp']} Org)";
+        }
+
         $body = <<<BODY
 Hasil Ops SAR {$hariKe}:
 
 {$isi}{$klausulPenutupan}
 
-1. Data Korban: {$stats['total']} Orang
+{$dataKorbanHeader}
 • S : {$stats['s']} ORANG
 • MD : {$stats['md']} ORANG
 • DP : {$stats['dp']} ORANG

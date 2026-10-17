@@ -1260,7 +1260,7 @@ input[type="datetime-local"] {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 15mm 15mm 15mm 15mm;
+    margin: 5mm 15mm 15mm 15mm;
   }
 
   html, body {

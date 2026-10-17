@@ -14,13 +14,10 @@ class BraModel {
             FROM BraSar b WHERE 1=1";
         
         $params = [];
-        if ($kategori && in_array(strtoupper($kategori), ['MAPEL', 'SAR_UMUM', 'OPERASI_SAR', 'PERGERAKAN_KAPAL'])) {
-            if (in_array(strtoupper($kategori), ['SAR_UMUM', 'OPERASI_SAR'])) {
-                $sql .= " AND b.kategori IN ('SAR_UMUM', 'OPERASI_SAR')";
-            } else {
-                $sql .= " AND b.kategori = :kategori";
-                $params[':kategori'] = strtoupper($kategori);
-            }
+        if ($kategori) {
+            $cat = BraHelper::normalizeCategory($kategori);
+            $sql .= " AND (b.kategori = :kategori" . ($cat === 'OPERASI_SAR' ? " OR b.kategori = 'SAR_UMUM'" : "") . ")";
+            $params[':kategori'] = $cat;
         }
 
         if (!empty($search)) {
@@ -72,7 +69,7 @@ class BraModel {
             SELECT 
                 COUNT(*) as total,
                 COALESCE(SUM(CASE WHEN kategori = 'MAPEL' THEN 1 ELSE 0 END), 0) as mapel,
-                COALESCE(SUM(CASE WHEN kategori IN ('SAR_UMUM', 'OPERASI_SAR') THEN 1 ELSE 0 END), 0) as sar_umum,
+                COALESCE(SUM(CASE WHEN kategori IN ('OPERASI_SAR', 'SAR_UMUM') THEN 1 ELSE 0 END), 0) as operasi_sar,
                 COALESCE(SUM(CASE WHEN kategori = 'PERGERAKAN_KAPAL' THEN 1 ELSE 0 END), 0) as kapal
             FROM BraSar
         ")->fetch();
@@ -80,7 +77,8 @@ class BraModel {
         return [
             'total' => (int)($row['total'] ?? 0),
             'mapel' => (int)($row['mapel'] ?? 0),
-            'sar_umum' => (int)($row['sar_umum'] ?? 0),
+            'operasi_sar' => (int)($row['operasi_sar'] ?? 0),
+            'sar_umum' => (int)($row['operasi_sar'] ?? 0), // kompatibilitas ke belakang
             'kapal' => (int)($row['kapal'] ?? 0)
         ];
     }
@@ -111,7 +109,7 @@ class BraModel {
         $db->beginTransaction();
 
         try {
-            $kategori = strtoupper($data['kategori'] ?? 'MAPEL');
+            $kategori = BraHelper::normalizeCategory($data['kategori'] ?? 'MAPEL');
             $satkerKode = $data['satker_kode'] ?? DEFAULT_SATKER_KODE;
             $isAuto = !isset($data['is_auto_no_bra']) || $data['is_auto_no_bra'] === '1' || $data['is_auto_no_bra'] === 1 || $data['is_auto_no_bra'] === true;
 
@@ -140,17 +138,43 @@ class BraModel {
                 }
             }
 
-            $sections = $data['sections'] ?? [];
-            $perihal = trim((string)($data['perihal'] ?? ''));
+            // Sanitasi ketat huruf kapital baku telegram dan tanda baca militer
+            $rawPerihal = trim((string)($data['perihal'] ?? ''));
+            $perihal = BraHelper::ensureEndsWithTtk(BraHelper::sanitizeTelegramPunctuation($rawPerihal));
+
+            $rawSections = $data['sections'] ?? [];
+            $sanitizedSections = [];
+            foreach ($rawSections as $sec) {
+                $isi = trim((string)($sec['isi'] ?? ''));
+                if ($isi === '') continue;
+                $sanitizedSections[] = [
+                    'id' => !empty($sec['id']) ? (int)$sec['id'] : null,
+                    'kode' => strtoupper(trim((string)($sec['kode'] ?? 'AAA'))),
+                    'isi' => BraHelper::sanitizeTelegramPunctuation($isi)
+                ];
+            }
+            $sections = $sanitizedSections;
+
             $wordCount = !empty($data['jumlah_kata']) ? $data['jumlah_kata'] : (BraHelper::countBraWords($sections, $perihal) . ' KATA');
 
             $idOps = !empty($data['id_operasi']) ? (int)$data['id_operasi'] : null;
-            $namaOps = trim((string)($data['nama_operasi'] ?? ''));
+            $namaOps = mb_strtoupper(trim((string)($data['nama_operasi'] ?? '')), 'UTF-8');
             if ($idOps && empty($namaOps)) {
                 $stmtOps = $db->prepare("SELECT nama_operasi FROM Operasi WHERE id_operasi = :id LIMIT 1");
                 $stmtOps->execute([':id' => $idOps]);
-                $namaOps = (string)($stmtOps->fetchColumn() ?: '');
+                $namaOps = mb_strtoupper((string)($stmtOps->fetchColumn() ?: ''), 'UTF-8');
             }
+
+            $dari = mb_strtoupper(trim((string)($data['dari'] ?? 'KANSAR KENDARI')), 'UTF-8');
+            $aksi = mb_strtoupper(trim((string)($data['aksi'] ?? ($kategori === 'MAPEL' ? 'KA KSOP KENDARI KMA KA SROP KENDARI' : 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN'))), 'UTF-8');
+            $info = mb_strtoupper(trim((string)($data['info'] ?? ($kategori === 'MAPEL' ? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN' : 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN'))), 'UTF-8');
+            $pengirim = mb_strtoupper(trim((string)($data['pengirim'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN KENDARI')), 'UTF-8');
+            $namaSmc = mb_strtoupper(trim((string)($data['nama_smc'] ?? 'AMIRUDDIN A.S., S.Sos.')), 'UTF-8');
+            $pangkatSmc = mb_strtoupper(trim((string)($data['pangkat_smc'] ?? 'PEMBINA (IV/a)')), 'UTF-8');
+            $jabatanSmc = mb_strtoupper(trim((string)($data['jabatan_smc'] ?? ($kategori === 'MAPEL' ? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI' : 'SMC'))), 'UTF-8');
+
+            $twu = BraHelper::normalizeMilitaryTW($data['twu'] ?? null);
+            $twb = BraHelper::normalizeMilitaryTW($data['twb'] ?? null);
 
             $stmt = $db->prepare("INSERT INTO BraSar (
                 kategori, no_bra, nomor_urut, satker_kode, bulan_tahun,
@@ -169,6 +193,7 @@ class BraModel {
             )");
 
             $now = date('Y-m-d H:i:s');
+            $tanggalWaktu = !empty($data['tanggal_waktu']) ? trim((string)$data['tanggal_waktu']) : TemplateHelper::formatTanggalIndo(date('Y-m-d'));
 
             $stmt->execute([
                 ':kategori' => $kategori,
@@ -178,29 +203,29 @@ class BraModel {
                 ':bulan_tahun' => $bulanTahun,
                 ':id_operasi' => $idOps,
                 ':nama_operasi' => $namaOps,
-                ':panggilan' => $data['panggilan'] ?? '',
-                ':jenis' => $data['jenis'] ?? '',
-                ':nr_stn' => $data['nr_stn'] ?? '',
-                ':derajat' => $data['derajat'] ?? 'SGR',
-                ':instruksi_penerusan' => $data['instruksi_penerusan'] ?? '',
-                ':dari' => $data['dari'] ?? 'KANSAR KENDARI',
-                ':aksi' => $data['aksi'] ?? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN',
-                ':info' => $data['info'] ?? 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN',
-                ':sifat' => $data['sifat'] ?? '',
-                ':menbra' => (strtoupper(trim((string)($data['menbra'] ?? ''))) === 'SEGERA' || trim((string)($data['menbra'] ?? '')) === '-') ? '' : trim((string)($data['menbra'] ?? '')),
-                ':perihal' => $data['perihal'] ?? '',
-                ':tanggal_waktu' => $data['tanggal_waktu'] ?? '',
-                ':twu' => $data['twu'] ?? BraHelper::formatMilitaryTW(),
-                ':twb' => $data['twb'] ?? BraHelper::formatMilitaryTW(),
+                ':panggilan' => strtoupper(trim((string)($data['panggilan'] ?? ''))),
+                ':jenis' => strtoupper(trim((string)($data['jenis'] ?? 'SAR'))),
+                ':nr_stn' => strtoupper(trim((string)($data['nr_stn'] ?? ''))),
+                ':derajat' => strtoupper(trim((string)($data['derajat'] ?? 'SGR'))),
+                ':instruksi_penerusan' => strtoupper(trim((string)($data['instruksi_penerusan'] ?? ''))),
+                ':dari' => $dari,
+                ':aksi' => $aksi,
+                ':info' => $info,
+                ':sifat' => strtoupper(trim((string)($data['sifat'] ?? ''))),
+                ':menbra' => (strtoupper(trim((string)($data['menbra'] ?? ''))) === 'SEGERA' || trim((string)($data['menbra'] ?? '')) === '-') ? '' : strtoupper(trim((string)($data['menbra'] ?? ''))),
+                ':perihal' => $perihal,
+                ':tanggal_waktu' => $tanggalWaktu,
+                ':twu' => $twu,
+                ':twb' => $twb,
                 ':jumlah_kata' => $wordCount,
-                ':pengirim' => $data['pengirim'] ?? 'KANSAR KENDARI',
-                ':nama_smc' => $data['nama_smc'] ?? 'AMIRUDDIN A.S., S.Sos.',
-                ':pangkat_smc' => $data['pangkat_smc'] ?? 'PEMBINA (IV/a)',
-                ':jabatan_smc' => $data['jabatan_smc'] ?? 'KEPALA KANTOR / SMC',
-                ':twt' => $data['twt'] ?? '',
-                ':twk' => $data['twk'] ?? '',
-                ':sistem' => $data['sistem'] ?? '',
-                ':paraf' => $data['paraf'] ?? '',
+                ':pengirim' => $pengirim,
+                ':nama_smc' => $namaSmc,
+                ':pangkat_smc' => $pangkatSmc,
+                ':jabatan_smc' => $jabatanSmc,
+                ':twt' => strtoupper(trim((string)($data['twt'] ?? ''))),
+                ':twk' => strtoupper(trim((string)($data['twk'] ?? ''))),
+                ':sistem' => strtoupper(trim((string)($data['sistem'] ?? ''))),
+                ':paraf' => strtoupper(trim((string)($data['paraf'] ?? ''))),
                 ':barcode_data' => $data['barcode_data'] ?? '',
                 ':logo_url' => $data['logo_url'] ?? '',
                 ':created_at' => $now
@@ -215,7 +240,7 @@ class BraModel {
                     if (empty($sec['isi'])) continue;
                     $stmtSec->execute([
                         ':id_bra' => $idBra,
-                        ':kode' => strtoupper($sec['kode'] ?? 'AAA'),
+                        ':kode' => $sec['kode'],
                         ':isi' => $sec['isi']
                     ]);
                 }
@@ -226,10 +251,10 @@ class BraModel {
                 $verifyUrl = self::generateVerifyUrl([
                     'id_bra' => $idBra,
                     'no_bra' => $noBra,
-                    'twu' => $data['twu'] ?? '',
-                    'nama_smc' => $data['nama_smc'] ?? 'AMIRUDDIN A.S., S.Sos.',
-                    'pangkat_smc' => $data['pangkat_smc'] ?? 'PEMBINA (IV/a)',
-                    'perihal' => $data['perihal'] ?? '',
+                    'twu' => $twu,
+                    'nama_smc' => $namaSmc,
+                    'pangkat_smc' => $pangkatSmc,
+                    'perihal' => $perihal,
                     'sections' => $sections
                 ]);
                 $db->prepare("UPDATE BraSar SET barcode_data = :bc WHERE id_bra = :id")->execute([
@@ -256,16 +281,33 @@ class BraModel {
         $db->beginTransaction();
 
         try {
-            $sections = $data['sections'] ?? [];
-            $perihal = trim((string)($data['perihal'] ?? ''));
+            $kategori = BraHelper::normalizeCategory($data['kategori'] ?? 'OPERASI_SAR');
+
+            // Sanitasi ketat huruf kapital baku telegram dan tanda baca militer
+            $rawPerihal = trim((string)($data['perihal'] ?? ''));
+            $perihal = BraHelper::ensureEndsWithTtk(BraHelper::sanitizeTelegramPunctuation($rawPerihal));
+
+            $rawSections = $data['sections'] ?? [];
+            $sanitizedSections = [];
+            foreach ($rawSections as $sec) {
+                $isi = trim((string)($sec['isi'] ?? ''));
+                if ($isi === '') continue;
+                $sanitizedSections[] = [
+                    'id' => !empty($sec['id']) ? (int)$sec['id'] : null,
+                    'kode' => strtoupper(trim((string)($sec['kode'] ?? 'AAA'))),
+                    'isi' => BraHelper::sanitizeTelegramPunctuation($isi)
+                ];
+            }
+            $sections = $sanitizedSections;
+
             $wordCount = !empty($data['jumlah_kata']) ? $data['jumlah_kata'] : (BraHelper::countBraWords($sections, $perihal) . ' KATA');
 
             $idOps = !empty($data['id_operasi']) ? (int)$data['id_operasi'] : null;
-            $namaOps = trim((string)($data['nama_operasi'] ?? ''));
+            $namaOps = mb_strtoupper(trim((string)($data['nama_operasi'] ?? '')), 'UTF-8');
             if ($idOps && empty($namaOps)) {
                 $stmtOps = $db->prepare("SELECT nama_operasi FROM Operasi WHERE id_operasi = :id LIMIT 1");
                 $stmtOps->execute([':id' => $idOps]);
-                $namaOps = (string)($stmtOps->fetchColumn() ?: '');
+                $namaOps = mb_strtoupper((string)($stmtOps->fetchColumn() ?: ''), 'UTF-8');
             }
 
             $parsed = BraHelper::parseNoBra($data['no_bra'] ?? '', $data['satker_kode'] ?? DEFAULT_SATKER_KODE);
@@ -273,6 +315,17 @@ class BraModel {
             $satkerKode = $parsed['satker_kode'];
             $bulanTahun = $parsed['bulan_tahun'];
             $noBra = $parsed['no_bra'];
+
+            $dari = mb_strtoupper(trim((string)($data['dari'] ?? 'KANSAR KENDARI')), 'UTF-8');
+            $aksi = mb_strtoupper(trim((string)($data['aksi'] ?? ($kategori === 'MAPEL' ? 'KA KSOP KENDARI KMA KA SROP KENDARI' : 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN'))), 'UTF-8');
+            $info = mb_strtoupper(trim((string)($data['info'] ?? ($kategori === 'MAPEL' ? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN' : 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN'))), 'UTF-8');
+            $pengirim = mb_strtoupper(trim((string)($data['pengirim'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN KENDARI')), 'UTF-8');
+            $namaSmc = mb_strtoupper(trim((string)($data['nama_smc'] ?? 'AMIRUDDIN A.S., S.Sos.')), 'UTF-8');
+            $pangkatSmc = mb_strtoupper(trim((string)($data['pangkat_smc'] ?? 'PEMBINA (IV/a)')), 'UTF-8');
+            $jabatanSmc = mb_strtoupper(trim((string)($data['jabatan_smc'] ?? ($kategori === 'MAPEL' ? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI' : 'SMC'))), 'UTF-8');
+
+            $twu = BraHelper::normalizeMilitaryTW($data['twu'] ?? null);
+            $twb = BraHelper::normalizeMilitaryTW($data['twb'] ?? null);
 
             $stmt = $db->prepare("UPDATE BraSar SET
                 kategori = :kategori,
@@ -309,36 +362,36 @@ class BraModel {
 
             $stmt->execute([
                 ':id' => $id,
-                ':kategori' => strtoupper($data['kategori'] ?? 'MAPEL'),
+                ':kategori' => $kategori,
                 ':no_bra' => $noBra,
                 ':nomor_urut' => $nomorUrut,
                 ':satker_kode' => $satkerKode,
                 ':bulan_tahun' => $bulanTahun,
                 ':id_operasi' => $idOps,
                 ':nama_operasi' => $namaOps ?: ($perihal ?: ''),
-                ':panggilan' => $data['panggilan'] ?? '',
-                ':jenis' => $data['jenis'] ?? '',
-                ':nr_stn' => $data['nr_stn'] ?? '',
-                ':derajat' => $data['derajat'] ?? 'SGR',
-                ':instruksi_penerusan' => $data['instruksi_penerusan'] ?? '',
-                ':dari' => $data['dari'] ?? 'KANSAR KENDARI',
-                ':aksi' => $data['aksi'] ?? '',
-                ':info' => $data['info'] ?? '',
-                ':sifat' => $data['sifat'] ?? '',
-                ':menbra' => (strtoupper(trim((string)($data['menbra'] ?? ''))) === 'SEGERA' || trim((string)($data['menbra'] ?? '')) === '-') ? '' : trim((string)($data['menbra'] ?? '')),
-                ':perihal' => $data['perihal'] ?? '',
-                ':tanggal_waktu' => $data['tanggal_waktu'] ?? '',
-                ':twu' => $data['twu'] ?? '',
-                ':twb' => $data['twb'] ?? '',
+                ':panggilan' => strtoupper(trim((string)($data['panggilan'] ?? ''))),
+                ':jenis' => strtoupper(trim((string)($data['jenis'] ?? 'SAR'))),
+                ':nr_stn' => strtoupper(trim((string)($data['nr_stn'] ?? ''))),
+                ':derajat' => strtoupper(trim((string)($data['derajat'] ?? 'SGR'))),
+                ':instruksi_penerusan' => strtoupper(trim((string)($data['instruksi_penerusan'] ?? ''))),
+                ':dari' => $dari,
+                ':aksi' => $aksi,
+                ':info' => $info,
+                ':sifat' => strtoupper(trim((string)($data['sifat'] ?? ''))),
+                ':menbra' => (strtoupper(trim((string)($data['menbra'] ?? ''))) === 'SEGERA' || trim((string)($data['menbra'] ?? '')) === '-') ? '' : strtoupper(trim((string)($data['menbra'] ?? ''))),
+                ':perihal' => $perihal,
+                ':tanggal_waktu' => !empty($data['tanggal_waktu']) ? trim((string)$data['tanggal_waktu']) : TemplateHelper::formatTanggalIndo(date('Y-m-d')),
+                ':twu' => $twu,
+                ':twb' => $twb,
                 ':jumlah_kata' => $wordCount,
-                ':pengirim' => $data['pengirim'] ?? '',
-                ':nama_smc' => $data['nama_smc'] ?? '',
-                ':pangkat_smc' => $data['pangkat_smc'] ?? '',
-                ':jabatan_smc' => $data['jabatan_smc'] ?? '',
-                ':twt' => $data['twt'] ?? '',
-                ':twk' => $data['twk'] ?? '',
-                ':sistem' => $data['sistem'] ?? '',
-                ':paraf' => $data['paraf'] ?? ''
+                ':pengirim' => $pengirim,
+                ':nama_smc' => $namaSmc,
+                ':pangkat_smc' => $pangkatSmc,
+                ':jabatan_smc' => $jabatanSmc,
+                ':twt' => strtoupper(trim((string)($data['twt'] ?? ''))),
+                ':twk' => strtoupper(trim((string)($data['twk'] ?? ''))),
+                ':sistem' => strtoupper(trim((string)($data['sistem'] ?? ''))),
+                ':paraf' => strtoupper(trim((string)($data['paraf'] ?? '')))
             ]);
 
             // Differential update for sections to prevent ID escalation in BraSection
@@ -402,10 +455,10 @@ class BraModel {
             $verifyUrl = self::generateVerifyUrl([
                 'id_bra' => $id,
                 'no_bra' => $noBra,
-                'twu' => $data['twu'] ?? '',
-                'nama_smc' => $data['nama_smc'] ?? '',
-                'pangkat_smc' => $data['pangkat_smc'] ?? '',
-                'perihal' => $data['perihal'] ?? '',
+                'twu' => $twu,
+                'nama_smc' => $namaSmc,
+                'pangkat_smc' => $pangkatSmc,
+                'perihal' => $perihal,
                 'sections' => $sections
             ]);
             $db->prepare("UPDATE BraSar SET barcode_data = :bc WHERE id_bra = :id")->execute([
@@ -485,9 +538,52 @@ class BraModel {
 
     /**
      * Menghasilkan tanda tangan digital / token verifikasi kriptografis resmi BRA SAR
-     * Memakai HMAC-SHA256 yang memvalidasi integritas penuh: ID, No BRA, TWU, SMC, Perihal, dan Checksum Seksi (AAA-ZZZ)
+     * Memakai HMAC-SHA256 yang memvalidasi integritas penuh: ID, No BRA, TWU, SMC ter-standarisasi, Perihal, dan Checksum Seksi (AAA-ZZZ)
      */
     public static function generateVerifyToken(array $bra): string {
+        $id = (string)($bra['id_bra'] ?? '');
+        $noBra = strtoupper(trim((string)($bra['no_bra'] ?? '')));
+        $twu = strtoupper(trim((string)($bra['twu'] ?? '')));
+        // Normalisasi nama dan pangkat SMC agar tahan terhadap variasi tanda titik/spasi gelar
+        $smc = preg_replace('/[^A-Z0-9]/', '', strtoupper(trim((string)($bra['nama_smc'] ?? ''))));
+        $pangkat = preg_replace('/[^A-Z0-9]/', '', strtoupper(trim((string)($bra['pangkat_smc'] ?? ''))));
+        $perihal = strtoupper(trim((string)($bra['perihal'] ?? '')));
+
+        // Checksum isi seluruh seksi berita (AAA-ZZZ)
+        $sections = $bra['sections'] ?? [];
+        if (empty($sections) && !empty($id) && is_numeric($id)) {
+            try {
+                $db = getDB();
+                $stmtSec = $db->prepare("SELECT kode, isi FROM BraSection WHERE id_bra = :id ORDER BY id ASC");
+                $stmtSec->execute([':id' => (int)$id]);
+                $sections = $stmtSec->fetchAll();
+            } catch (Throwable) {
+                $sections = [];
+            }
+        }
+
+        $secSignatures = [];
+        if (is_array($sections)) {
+            foreach ($sections as $s) {
+                $k = strtoupper(trim((string)($s['kode'] ?? '')));
+                $i = trim((string)($s['isi'] ?? ''));
+                if ($k !== '' || $i !== '') {
+                    $normalizedIsi = preg_replace('/\s+/', ' ', $i);
+                    $secSignatures[] = "{$k}=" . md5($normalizedIsi);
+                }
+            }
+        }
+        $sectionsHash = implode(';', $secSignatures);
+
+        $salt = defined('APP_KEY') ? APP_KEY : 'BASARNAS_KENDARI_BRA_SECRET_SALT_2026';
+        $payload = "BASARNAS_BRA:{$id}:{$noBra}:{$twu}:{$smc}:{$pangkat}:" . md5($perihal) . ":{$sectionsHash}";
+        return strtoupper(substr(hash_hmac('sha256', $payload, $salt), 0, 16));
+    }
+
+    /**
+     * Menghasilkan token dengan payload mentah (unnormalized SMC) untuk backward compatibility
+     */
+    public static function generateVerifyTokenRaw(array $bra): string {
         $id = (string)($bra['id_bra'] ?? '');
         $noBra = strtoupper(trim((string)($bra['no_bra'] ?? '')));
         $twu = strtoupper(trim((string)($bra['twu'] ?? '')));
@@ -495,7 +591,6 @@ class BraModel {
         $pangkat = strtoupper(trim((string)($bra['pangkat_smc'] ?? '')));
         $perihal = strtoupper(trim((string)($bra['perihal'] ?? '')));
 
-        // Checksum isi seluruh seksi berita (AAA-ZZZ)
         $sections = $bra['sections'] ?? [];
         if (empty($sections) && !empty($id) && is_numeric($id)) {
             try {
@@ -539,7 +634,7 @@ class BraModel {
     }
 
     /**
-     * Validasi tanda tangan digital / token verifikasi BRA SAR
+     * Validasi tanda tangan digital / token verifikasi BRA SAR (Multi-tier resilient check)
      */
     public static function verifyToken(array $bra, ?string $token): bool {
         if ($token === null || trim($token) === '') {
@@ -547,13 +642,19 @@ class BraModel {
         }
         $cleanToken = strtoupper(trim($token));
 
-        // 1. Cek kecocokan token modern (dengan proteksi isi seksi & pejabat SMC)
+        // 1. Cek kecocokan token modern ternormalisasi (resilient terhadap format nama/gelar)
         $expectedModern = self::generateVerifyToken($bra);
         if (hash_equals($expectedModern, $cleanToken)) {
             return true;
         }
 
-        // 2. Fallback verifikasi token legacy (untuk dokumen yang telah dicetak sebelumnya)
+        // 2. Fallback verifikasi token modern unnormalized (dibuat sebelum standardisasi gelar)
+        $expectedRaw = self::generateVerifyTokenRaw($bra);
+        if (hash_equals($expectedRaw, $cleanToken)) {
+            return true;
+        }
+
+        // 3. Fallback verifikasi token legacy (untuk dokumen yang telah dicetak paling awal)
         $expectedLegacy = self::generateLegacyVerifyToken($bra);
         return hash_equals($expectedLegacy, $cleanToken);
     }

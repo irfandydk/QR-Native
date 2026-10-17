@@ -65,6 +65,10 @@ class RenopsModel {
             } else {
                 $r['detail_alut'] = [];
             }
+
+            if (class_exists('TemplateHelper')) {
+                $r['nomor_renops'] = TemplateHelper::generateNomorRenops(['id_operasi' => $r['id_operasi']], $r);
+            }
         }
 
         return $list;
@@ -96,6 +100,11 @@ class RenopsModel {
             $renops['detail_alut'] = [];
         }
 
+        if (class_exists('TemplateHelper')) {
+            $ops = OperasiModel::getById((int)$renops['id_operasi']) ?? ['id_operasi' => $renops['id_operasi']];
+            $renops['nomor_renops'] = TemplateHelper::generateNomorRenops($ops, $renops);
+        }
+
         return $renops;
     }
 
@@ -114,6 +123,11 @@ class RenopsModel {
             $srus = $data['srus'] ?? [];
             $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : ($ops['detail_unsur'] ?? []);
             $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : ($ops['detail_alut'] ?? []);
+            
+            // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
+            $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($ops['unsur_terlibat'] ?? ''));
+            $alutText = OperasiModel::formatAlutText($alut, $data['alut_text'] ?? ($ops['alut_palsar'] ?? ''));
+
             $fullTextWa = TemplateHelper::generateRenopsWA($ops, $data, $srus, $ops['korban'], $unsur, $alut);
 
             $stmt = $db->prepare("INSERT INTO Renops (
@@ -129,15 +143,20 @@ class RenopsModel {
             )");
 
             $now = date('Y-m-d H:i:s');
+            // ISSUE-RENOPS-04: Normalisasi format tanggal dan waktu
+            $tglLaporan = !empty($data['tanggal_laporan']) ? substr($data['tanggal_laporan'], 0, 10) : date('Y-m-d');
+            $waktuBriefing = OperasiModel::normalizeDateTime($data['waktu_briefing'] ?? $now);
+            $waktuMulaiOps = OperasiModel::normalizeDateTime($data['waktu_mulai_ops'] ?? $now);
+
             $stmt->execute([
                 ':id_operasi' => (int)$data['id_operasi'],
                 ':hari_ke' => strtoupper($data['hari_ke'] ?? 'H.1'),
-                ':tanggal_laporan' => $data['tanggal_laporan'] ?? date('Y-m-d'),
-                ':waktu_briefing' => $data['waktu_briefing'] ?? $now,
-                ':waktu_mulai_ops' => $data['waktu_mulai_ops'] ?? $now,
+                ':tanggal_laporan' => $tglLaporan,
+                ':waktu_briefing' => $waktuBriefing,
+                ':waktu_mulai_ops' => $waktuMulaiOps,
                 ':cuaca' => $data['cuaca'] ?? ($ops['cuaca'] ?: 'Cerah Berawan'),
-                ':unsur_text' => $data['unsur_text'] ?? ($ops['unsur_terlibat'] ?? ''),
-                ':alut_text' => $data['alut_text'] ?? ($ops['alut_palsar'] ?? ''),
+                ':unsur_text' => $unsurText,
+                ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
                 ':detail_alut' => json_encode($alut, JSON_UNESCAPED_UNICODE),
                 ':full_text_wa' => $fullTextWa,
@@ -190,7 +209,17 @@ class RenopsModel {
             $srus = $data['srus'] ?? $renops['srus'];
             $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : ($renops['detail_unsur'] ?: ($ops['detail_unsur'] ?? []));
             $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : ($renops['detail_alut'] ?: ($ops['detail_alut'] ?? []));
+
+            // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
+            $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($renops['unsur_text'] ?: ($ops['unsur_terlibat'] ?? '')));
+            $alutText = OperasiModel::formatAlutText($alut, $data['alut_text'] ?? ($renops['alut_text'] ?: ($ops['alut_palsar'] ?? '')));
+
             $fullTextWa = TemplateHelper::generateRenopsWA($ops, $data, $srus, $ops['korban'], $unsur, $alut);
+
+            // ISSUE-RENOPS-04: Normalisasi format tanggal dan waktu
+            $tglLaporan = !empty($data['tanggal_laporan']) ? substr($data['tanggal_laporan'], 0, 10) : ($renops['tanggal_laporan'] ?? date('Y-m-d'));
+            $waktuBriefing = OperasiModel::normalizeDateTime($data['waktu_briefing'] ?? $renops['waktu_briefing']);
+            $waktuMulaiOps = OperasiModel::normalizeDateTime($data['waktu_mulai_ops'] ?? $renops['waktu_mulai_ops']);
 
             $stmt = $db->prepare("UPDATE Renops SET
                 hari_ke = :hari_ke,
@@ -208,12 +237,12 @@ class RenopsModel {
             $stmt->execute([
                 ':id' => $id,
                 ':hari_ke' => strtoupper($data['hari_ke'] ?? $renops['hari_ke']),
-                ':tanggal_laporan' => $data['tanggal_laporan'] ?? $renops['tanggal_laporan'],
-                ':waktu_briefing' => $data['waktu_briefing'] ?? $renops['waktu_briefing'],
-                ':waktu_mulai_ops' => $data['waktu_mulai_ops'] ?? $renops['waktu_mulai_ops'],
+                ':tanggal_laporan' => $tglLaporan,
+                ':waktu_briefing' => $waktuBriefing,
+                ':waktu_mulai_ops' => $waktuMulaiOps,
                 ':cuaca' => $data['cuaca'] ?? $renops['cuaca'],
-                ':unsur_text' => $data['unsur_text'] ?? $renops['unsur_text'],
-                ':alut_text' => $data['alut_text'] ?? $renops['alut_text'],
+                ':unsur_text' => $unsurText,
+                ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
                 ':detail_alut' => json_encode($alut, JSON_UNESCAPED_UNICODE),
                 ':full_text_wa' => $fullTextWa

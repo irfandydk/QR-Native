@@ -765,7 +765,11 @@ function getPolygonCoordsText(poly) {
   return pts.map((pt, idx) => {
     const lat = pt.lat !== undefined ? pt.lat : (Array.isArray(pt) ? pt[0] : 0);
     const lng = pt.lng !== undefined ? pt.lng : (Array.isArray(pt) ? pt[1] : 0);
-    const lbl = pt.label || `Titik ${String.fromCharCode(65 + idx)}`;
+    let lbl = pt.label ? String(pt.label).trim() : '';
+    if (!lbl || lbl.toLowerCase().startsWith('titik')) {
+      lbl = String.fromCharCode(65 + (idx % 26));
+      if (idx >= 26) lbl += (Math.floor(idx / 26) + 1);
+    }
     return `${lbl}: ${formatDmsPair(lat, lng)}`;
   }).join('\n');
 }
@@ -1142,7 +1146,8 @@ function importAllPolygonsToSrus() {
       koordinat_area: taskText,
       luas_area: area,
       pola_pencarian: patInfo.pola,
-      total_sapuan: patInfo.totalSapuan
+      total_sapuan: patInfo.totalSapuan,
+      track_spacing: patInfo.spacing
     };
   });
   
@@ -1172,6 +1177,7 @@ function importPolygonToSru(polyId, targetIdx) {
   currentSrus[targetIdx].luas_area = area;
   currentSrus[targetIdx].pola_pencarian = patInfo.pola;
   currentSrus[targetIdx].total_sapuan = patInfo.totalSapuan;
+  currentSrus[targetIdx].track_spacing = patInfo.spacing;
   currentSrus[targetIdx].koordinat_area = `Sektor: ${name}${area ? ` (${area})` : ''}` + (coordsText ? `\nBatas Koordinat:\n${coordsText}` : '');
   
   renderSruList();
@@ -1198,7 +1204,8 @@ function importPolygonToNewSru(polyId) {
     koordinat_area: `Sektor: ${name}${area ? ` (${area})` : ''}` + (coordsText ? `\nBatas Koordinat:\n${coordsText}` : ''),
     luas_area: area,
     pola_pencarian: patInfo.pola,
-    total_sapuan: patInfo.totalSapuan
+    total_sapuan: patInfo.totalSapuan,
+    track_spacing: patInfo.spacing
   });
   
   renderSruList();

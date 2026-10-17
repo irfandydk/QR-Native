@@ -143,7 +143,7 @@ class OperasiModel {
         $ops['bra_sar'] = $bras;
 
         // Calculate stats
-        $ops['stats_korban'] = TemplateHelper::hitungStatistikKorban($ops['korban']);
+        $ops['stats_korban'] = TemplateHelper::hitungStatistikKorban($ops['korban'], (int)($ops['jumlah_pob'] ?? 0));
 
         return $ops;
     }
@@ -193,12 +193,35 @@ class OperasiModel {
             $nextId = (int)$stmtMax->fetchColumn();
             if ($nextId < 1) $nextId = 1;
 
-            // Build full_text_wa
+            // Build full_text_wa & SSOT plain text representations
             $korbanData = $data['korban'] ?? [];
             $unsurData = $data['detail_unsur'] ?? [];
             $alutData = $data['detail_alut'] ?? [];
 
-            $fullTextWa = TemplateHelper::generateLaporanAwalWA($data, $korbanData, $unsurData, $alutData);
+            // ISSUE-LAPAWAL-01: SSOT Generator for plain text columns from relational detail arrays
+            $unsurText = self::formatUnsurText($unsurData, $data['unsur_terlibat'] ?? '');
+            $alutText = self::formatAlutText($alutData, $data['alut_palsar'] ?? '');
+
+            // ISSUE-LAPAWAL-02: Ensure jumlah_pob is at least count(korbanData)
+            $effectivePob = max((int)($data['jumlah_pob'] ?? 0), count($korbanData));
+
+            $now = date('Y-m-d H:i:s');
+            // ISSUE-LAPAWAL-03: Temporal Normalization (DATETIME standard Y-m-d H:i:s)
+            $wKejadian = self::normalizeDateTime($data['waktu_kejadian'] ?? $now);
+            $wLapor = self::normalizeDateTime($data['waktu_lapor'] ?? $now);
+            $wBerangkat = self::normalizeDateTime($data['waktu_berangkat'] ?? $now);
+            $wEta = self::normalizeDateTime($data['eta_tiba'] ?? $now);
+
+            $opsDataForWa = array_merge($data, [
+                'waktu_kejadian' => $wKejadian,
+                'waktu_lapor' => $wLapor,
+                'waktu_berangkat' => $wBerangkat,
+                'eta_tiba' => $wEta,
+                'unsur_terlibat' => $unsurText,
+                'alut_palsar' => $alutText,
+                'jumlah_pob' => $effectivePob
+            ]);
+            $fullTextWa = TemplateHelper::generateLaporanAwalWA($opsDataForWa, $korbanData, $unsurData, $alutData);
 
             $stmt = $db->prepare("INSERT INTO Operasi (
                 id_operasi,
@@ -216,27 +239,26 @@ class OperasiModel {
                 'OPEN', :full_text_wa, :created_at
             )");
 
-            $now = date('Y-m-d H:i:s');
             $stmt->execute([
                 ':id_operasi' => $nextId,
                 ':nama_operasi' => $data['nama_operasi'],
                 ':nama_pelapor' => $data['nama_pelapor'] ?? '',
                 ':hubungan_pelapor' => $data['hubungan_pelapor'] ?? '',
                 ':no_telp_pelapor' => $data['no_telp_pelapor'] ?? '',
-                ':waktu_kejadian' => $data['waktu_kejadian'] ?? $now,
-                ':waktu_lapor' => $data['waktu_lapor'] ?? $now,
-                ':waktu_berangkat' => $data['waktu_berangkat'] ?? $now,
+                ':waktu_kejadian' => $wKejadian,
+                ':waktu_lapor' => $wLapor,
+                ':waktu_berangkat' => $wBerangkat,
                 ':tim_berangkat' => $data['tim_berangkat'] ?? 'Tim Rescue Kansar Kendari',
-                ':eta_tiba' => $data['eta_tiba'] ?? $now,
+                ':eta_tiba' => $wEta,
                 ':lokasi_kejadian' => $data['lokasi_kejadian'] ?? '',
                 ':koordinat' => $data['koordinat'] ?? '',
                 ':jarak' => $data['jarak'] ?? '',
                 ':radial' => $data['radial'] ?? '',
                 ':eta_lokasi' => $data['eta_lokasi'] ?? '',
                 ':kronologi' => $data['kronologi'] ?? '',
-                ':jumlah_pob' => (int)($data['jumlah_pob'] ?? count($korbanData)),
-                ':unsur_terlibat' => $data['unsur_terlibat'] ?? '',
-                ':alut_palsar' => $data['alut_palsar'] ?? '',
+                ':jumlah_pob' => $effectivePob,
+                ':unsur_terlibat' => $unsurText,
+                ':alut_palsar' => $alutText,
                 ':faktor_penghambat' => $data['faktor_penghambat'] ?? 'Nihil',
                 ':cuaca' => $data['cuaca'] ?? 'Cerah Berawan',
                 ':gelombang' => $data['gelombang'] ?? '0.5 - 1.25 M',
@@ -359,7 +381,28 @@ class OperasiModel {
             $unsurData = $data['detail_unsur'] ?? $ops['detail_unsur'];
             $alutData = $data['detail_alut'] ?? $ops['detail_alut'];
 
-            $mergedOps = array_merge($ops, $data);
+            // ISSUE-LAPAWAL-01: SSOT Generator for plain text columns from relational detail arrays
+            $unsurText = self::formatUnsurText($unsurData, $data['unsur_terlibat'] ?? $ops['unsur_terlibat']);
+            $alutText = self::formatAlutText($alutData, $data['alut_palsar'] ?? $ops['alut_palsar']);
+
+            // ISSUE-LAPAWAL-02: Effective POB
+            $effectivePob = max(isset($data['jumlah_pob']) ? (int)$data['jumlah_pob'] : (int)$ops['jumlah_pob'], count($korbanData));
+
+            // ISSUE-LAPAWAL-03: Temporal Normalization (DATETIME standard Y-m-d H:i:s)
+            $wKejadian = self::normalizeDateTime($data['waktu_kejadian'] ?? $ops['waktu_kejadian']);
+            $wLapor = self::normalizeDateTime($data['waktu_lapor'] ?? $ops['waktu_lapor']);
+            $wBerangkat = self::normalizeDateTime($data['waktu_berangkat'] ?? $ops['waktu_berangkat']);
+            $wEta = self::normalizeDateTime($data['eta_tiba'] ?? $ops['eta_tiba']);
+
+            $mergedOps = array_merge($ops, $data, [
+                'waktu_kejadian' => $wKejadian,
+                'waktu_lapor' => $wLapor,
+                'waktu_berangkat' => $wBerangkat,
+                'eta_tiba' => $wEta,
+                'unsur_terlibat' => $unsurText,
+                'alut_palsar' => $alutText,
+                'jumlah_pob' => $effectivePob
+            ]);
             $fullTextWa = TemplateHelper::generateLaporanAwalWA($mergedOps, $korbanData, $unsurData, $alutData);
 
             $stmt = $db->prepare("UPDATE Operasi SET
@@ -394,20 +437,20 @@ class OperasiModel {
                 ':nama_pelapor' => $data['nama_pelapor'] ?? $ops['nama_pelapor'],
                 ':hubungan_pelapor' => $data['hubungan_pelapor'] ?? $ops['hubungan_pelapor'],
                 ':no_telp_pelapor' => $data['no_telp_pelapor'] ?? $ops['no_telp_pelapor'],
-                ':waktu_kejadian' => $data['waktu_kejadian'] ?? $ops['waktu_kejadian'],
-                ':waktu_lapor' => $data['waktu_lapor'] ?? $ops['waktu_lapor'],
-                ':waktu_berangkat' => $data['waktu_berangkat'] ?? $ops['waktu_berangkat'],
+                ':waktu_kejadian' => $wKejadian,
+                ':waktu_lapor' => $wLapor,
+                ':waktu_berangkat' => $wBerangkat,
                 ':tim_berangkat' => $data['tim_berangkat'] ?? $ops['tim_berangkat'],
-                ':eta_tiba' => $data['eta_tiba'] ?? $ops['eta_tiba'],
+                ':eta_tiba' => $wEta,
                 ':lokasi_kejadian' => $data['lokasi_kejadian'] ?? $ops['lokasi_kejadian'],
                 ':koordinat' => $data['koordinat'] ?? $ops['koordinat'],
                 ':jarak' => $data['jarak'] ?? $ops['jarak'],
                 ':radial' => $data['radial'] ?? ($ops['radial'] ?? ''),
                 ':eta_lokasi' => $data['eta_lokasi'] ?? $ops['eta_lokasi'],
                 ':kronologi' => $data['kronologi'] ?? $ops['kronologi'],
-                ':jumlah_pob' => isset($data['jumlah_pob']) ? (int)$data['jumlah_pob'] : (int)$ops['jumlah_pob'],
-                ':unsur_terlibat' => $data['unsur_terlibat'] ?? $ops['unsur_terlibat'],
-                ':alut_palsar' => $data['alut_palsar'] ?? $ops['alut_palsar'],
+                ':jumlah_pob' => $effectivePob,
+                ':unsur_terlibat' => $unsurText,
+                ':alut_palsar' => $alutText,
                 ':faktor_penghambat' => $data['faktor_penghambat'] ?? $ops['faktor_penghambat'],
                 ':cuaca' => $data['cuaca'] ?? $ops['cuaca'],
                 ':gelombang' => $data['gelombang'] ?? $ops['gelombang'],
@@ -575,9 +618,9 @@ class OperasiModel {
             $db->prepare("DELETE FROM GisRoutePoint WHERE routeId IN (SELECT id FROM GisRoute WHERE id_operasi = :id)")->execute([':id' => $id]);
             $db->prepare("DELETE FROM GisSearchPatternWaypoint WHERE searchPatternId IN (SELECT id FROM GisSearchPattern WHERE id_operasi = :id)")->execute([':id' => $id]);
 
-            $db->prepare("DELETE FROM GisPoint WHERE id_operasi = :id")->execute([':id' => $id]);
+            $db->prepare("DELETE FROM GisPoint WHERE id_operasi = :id OR id = :pt_id")->execute([':id' => $id, ':pt_id' => "pt-lkp-op-{$id}"]);
             $db->prepare("DELETE FROM GisPolygon WHERE id_operasi = :id")->execute([':id' => $id]);
-            $db->prepare("DELETE FROM GisRoute WHERE id_operasi = :id")->execute([':id' => $id]);
+            $db->prepare("DELETE FROM GisRoute WHERE id_operasi = :id OR id = :rt_id")->execute([':id' => $id, ':rt_id' => "route-op-{$id}"]);
             $db->prepare("DELETE FROM GisSearchPattern WHERE id_operasi = :id")->execute([':id' => $id]);
 
             // 8. Finally delete the Operasi record
@@ -603,16 +646,46 @@ class OperasiModel {
         }
     }
 
-    private static function normalizeDateTime(?string $raw): string {
+    public static function formatUnsurText(array $unsurList, string $fallback = ''): string {
+        $uLines = [];
+        foreach ($unsurList as $u) {
+            $namaU = trim((string)($u['nama_unsur'] ?? ''));
+            if ($namaU === '') continue;
+            $jmlU = (int)($u['jumlah_personil'] ?? 1);
+            $uLines[] = "• {$namaU} : {$jmlU} Org";
+        }
+        return !empty($uLines) ? implode("\n", $uLines) : trim($fallback);
+    }
+
+    public static function formatAlutText(array $alutList, string $fallback = ''): string {
+        $aLines = [];
+        foreach ($alutList as $a) {
+            $namaA = trim((string)($a['nama_alut'] ?? ''));
+            if ($namaA === '') continue;
+            $jmlA = (int)($a['jumlah_alut'] ?? 1);
+            $satA = trim((string)($a['satuan'] ?? 'Unit')) ?: 'Unit';
+            $aLines[] = "• {$jmlA} {$satA} {$namaA}";
+        }
+        return !empty($aLines) ? implode("\n", $aLines) : trim($fallback);
+    }
+
+    public static function normalizeDateTime(?string $raw, bool $allowNull = false): ?string {
         if ($raw === null || trim($raw) === '') {
-            return date('Y-m-d H:i:s');
+            return $allowNull ? null : date('Y-m-d H:i:s');
         }
         $clean = trim($raw);
+        $clean = str_replace('T', ' ', $clean);
+        if (str_ends_with($clean, 'Z')) {
+            $clean = substr($clean, 0, -1);
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}$/', $clean)) {
+            $clean .= ':00';
+        }
         $ts = class_exists('TemplateHelper')
             ? TemplateHelper::parseToTimestamp($clean)
-            : strtotime(str_replace('T', ' ', $clean));
+            : strtotime($clean);
         if ($ts === false || $ts <= 0) {
-            return date('Y-m-d H:i:s');
+            return $allowNull ? null : date('Y-m-d H:i:s');
         }
         return date('Y-m-d H:i:s', $ts);
     }
@@ -625,11 +698,16 @@ class OperasiModel {
         if (!$ops) {
             throw new RuntimeException('Operasi SAR tidak ditemukan.');
         }
+        $waktu = self::normalizeDateTime($waktuSelesai);
         if (($ops['status'] ?? '') === 'CLOSED') {
-            throw new RuntimeException('Operasi SAR ini sudah berstatus DITUTUP (CLOSED).');
+            // Bersifat idempoten: Jika sudah CLOSED, update waktu_selesai jika diberikan tanpa melempar exception
+            if ($waktu) {
+                $stmt = $db->prepare("UPDATE Operasi SET waktu_selesai = :waktu WHERE id_operasi = :id");
+                $stmt->execute([':waktu' => $waktu, ':id' => $id]);
+            }
+            return true;
         }
 
-        $waktu = self::normalizeDateTime($waktuSelesai);
         $stmt = $db->prepare("UPDATE Operasi SET status = 'CLOSED', waktu_selesai = :waktu WHERE id_operasi = :id");
         $res = $stmt->execute([':waktu' => $waktu, ':id' => $id]);
         if ($res && class_exists('AuditHelper')) {
@@ -661,6 +739,23 @@ class OperasiModel {
                 if (empty($cols)) {
                     $db->exec($alterSql);
                 }
+            }
+
+            // ISSUE-LAPAWAL-03: Automate temporal column conversion from VARCHAR to DATETIME
+            $colWaktu = $db->query("SHOW COLUMNS FROM Operasi LIKE 'waktu_kejadian'")->fetch();
+            if ($colWaktu && stripos((string)($colWaktu['Type'] ?? ''), 'varchar') !== false) {
+                $db->exec("UPDATE Operasi SET waktu_kejadian = STR_TO_DATE(LEFT(REPLACE(waktu_kejadian, 'T', ' '), 19), '%Y-%m-%d %H:%i:%s') WHERE waktu_kejadian IS NOT NULL AND waktu_kejadian != ''");
+                $db->exec("UPDATE Operasi SET waktu_lapor = STR_TO_DATE(LEFT(REPLACE(waktu_lapor, 'T', ' '), 19), '%Y-%m-%d %H:%i:%s') WHERE waktu_lapor IS NOT NULL AND waktu_lapor != ''");
+                $db->exec("UPDATE Operasi SET waktu_berangkat = STR_TO_DATE(LEFT(REPLACE(waktu_berangkat, 'T', ' '), 19), '%Y-%m-%d %H:%i:%s') WHERE waktu_berangkat IS NOT NULL AND waktu_berangkat != ''");
+                $db->exec("UPDATE Operasi SET eta_tiba = STR_TO_DATE(LEFT(REPLACE(eta_tiba, 'T', ' '), 19), '%Y-%m-%d %H:%i:%s') WHERE eta_tiba IS NOT NULL AND eta_tiba != ''");
+                $db->exec("UPDATE Operasi SET waktu_selesai = NULL WHERE waktu_selesai IS NOT NULL AND TRIM(waktu_selesai) IN ('', '0000-00-00 00:00:00', 'null', 'NULL')");
+                $db->exec("UPDATE Operasi SET waktu_selesai = STR_TO_DATE(LEFT(REPLACE(waktu_selesai, 'T', ' '), 19), '%Y-%m-%d %H:%i:%s') WHERE waktu_selesai IS NOT NULL AND waktu_selesai != ''");
+                $db->exec("ALTER TABLE Operasi 
+                    MODIFY COLUMN waktu_kejadian DATETIME NOT NULL,
+                    MODIFY COLUMN waktu_lapor DATETIME NOT NULL,
+                    MODIFY COLUMN waktu_berangkat DATETIME NOT NULL,
+                    MODIFY COLUMN eta_tiba DATETIME NOT NULL,
+                    MODIFY COLUMN waktu_selesai DATETIME NULL DEFAULT NULL");
             }
         } catch (Throwable $e) {
             error_log("[OperasiModel Schema Check] " . $e->getMessage());
