@@ -86,8 +86,8 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
 }
 ?>
 
-<!-- JSZip for KMZ export (Local Offline) -->
-<script src="<?= BASE_URL ?>/assets/js/jszip.min.js?v=<?= APP_VERSION ?>"></script>
+<!-- JSZip for KMZ export (Local Offline Vendor) -->
+<script src="<?= BASE_URL ?>/assets/vendor/jszip/jszip.min.js?v=<?= APP_VERSION ?>"></script>
 
 <style>
   /* Tactical GIS Custom Styling & Animations */

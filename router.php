@@ -10,8 +10,8 @@ $uri = urldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH));
 
 // Block sensitive directories, schemas, dumps, and environment files
 if (
-    preg_match('#^/(database|config|models|helpers|views|storage)/#i', $uri) ||
-    preg_match('#\.(sql|sqlite|db|env|log|md|htaccess)$#i', $uri)
+    preg_match('#^/(database|config|models|helpers|views|storage|tests|cli|scratch)/#i', $uri) ||
+    preg_match('#\.(sql|sqlite|db|env|log|md|htaccess|sample)$#i', $uri)
 ) {
     http_response_code(403);
     header('Content-Type: text/plain; charset=UTF-8');

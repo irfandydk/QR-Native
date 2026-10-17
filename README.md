@@ -28,60 +28,110 @@ Aplikasi ini mereplikasi 100% workflow, struktur data, format laporan dinas Basa
 
 ```text
 QR-SAR/
-├── config/
-│   ├── app.php              # Bootstrap aplikasi, session, CSRF, WITA timezone, BASE_URL
-│   └── database.php         # PDO Database Singleton connection & auto fallback
-├── helpers/
-│   ├── AuthHelper.php       # Role guard (ADMIN/USER), session management & izin aksi
-│   ├── TemplateHelper.php   # Generator teks format WhatsApp resmi FILE AKTIF Basarnas
+├── public/                  # DocumentRoot produksi resmi (Front Controller)
+│   ├── .htaccess            # Apache hardening & rewrite rule ke index.php
+│   ├── index.php            # Entrypoint utama sistem publik (bootstrap & dispatch)
+│   ├── router.php           # Local CLI dev router (php -S 127.0.0.1:8000 -t public public/router.php)
+│   └── assets -> ../assets  # Symlink aset publik untuk performa statis cepat
+├── config/                  # Konfigurasi aplikasi & database
+│   ├── app.php              # Bootstrap inti, session, CSRF guard, autoloader, zona waktu WITA
+│   └── database.php         # PDO Database Singleton connection & auto-reconnect
+├── helpers/                 # Utility & business logic helpers
+│   ├── AuthHelper.php       # Role guard (ADMIN/USER), session management & perizinan aksi
+│   ├── ViewHelper.php       # Centralized View Helper (renderView & domain view resolution)
+│   ├── Router.php           # Central router, clean URLs dispatcher, asset server & security barrier
+│   ├── TemplateHelper.php   # Generator naskah WhatsApp resmi FILE AKTIF & kalkulator hari SAR
 │   ├── BraHelper.php        # Nomor urut atomik telegram ([urut]/SAR-304/[MMYY]), kalkulasi kata
 │   ├── GeoHelper.php        # DMS <-> Decimal, Haversine NM/Km, Azimuth/Bearing, Waypoint math
-│   └── AiHelper.php         # Integrasi asisten AI Gemini & generator laporan operasi
-├── models/
-│   ├── OperasiModel.php     # CRUD Operasi, penutupan operasi, statistik KPI & relasi data
+│   └── AiHelper.php         # Integrasi asisten AI Gemini & generator narasi resmi
+├── models/                  # Domain Data Layer (Prepared Statements PDO)
+│   ├── OperasiModel.php     # CRUD Operasi, penutupan operasi, rollback, statistik KPI
 │   ├── RenopsModel.php      # Rencana Operasi harian (H.1, H.2, dst.) & pembagian sektor SRU
-│   ├── LaporanModel.php     # SITREP harian, status korban (S/MD/DP/H), penutupan ops
-│   ├── BraModel.php         # Dokumen naskah telegram radio, nomor urut atomik & seksi AAA-ZZZ
-│   ├── MasterModel.php      # Master Alut/Palsar, Tim Potensi SAR, SarUnit, Pejabat SMC
+│   ├── LaporanModel.php     # SITREP harian, status korban (S/MD/DP/H), timeline lapangan
+│   ├── BraModel.php         # Dokumen naskah telegram radio, nomor atomik & validasi token QR
+│   ├── SarUnitModel.php     # Domain model Pos SAR, Unit Siaga, & KN SAR Kendari
+│   ├── PejabatModel.php     # Domain model Pejabat penandatangan, Kansar & Kepala Seksi
+│   ├── MasterModel.php      # Facade model backward-compatible untuk armada, tim, & alut
 │   ├── GisModel.php         # Data titik taktis, poligon pencarian, rute & pola IAMSAR
-│   └── SettingsModel.php    # Profil Satker, Pejabat, ganti password, export SQL & backup JSON
-├── views/
-│   ├── layout/
-│   │   ├── header.php       # HTML5 head, SEO meta, token CSRF, Google Fonts, Tailwind/CSS
-│   │   ├── sidebar.php      # Navigasi utama sidebar responsif dengan badge status
-│   │   ├── navbar.php       # Top header, indikator satker SAR-304, dark mode switcher, profil
-│   │   └── footer.php       # Footer kedinasan, modal umum, script global
-│   ├── dashboard.php        # Beranda ringkasan operasi aktif, KPI cards, filter status
-│   ├── operasi_form.php     # Form inisiasi laporan awal operasi & kalkulator koordinat
-│   ├── operasi_detail.php   # Tabbed Hub (Ringkasan, Renops, Sitrep, BRA Terkait, GIS, Cetak)
-│   ├── bra_list.php         # Arsip dokumen BRA (MAPEL, SAR UMUM, PERGERAKAN KAPAL)
-│   ├── bra_form.php         # Form builder telegram Senkom, auto-rekomendasi & word counter
-│   ├── bra_view.php         # Lembar fisik resmi telegram Basarnas (Kop, Senkom, Barcode QR)
-│   ├── gis.php              # Antarmuka GIS maritim taktis & pola pencarian IAMSAR
-│   ├── master_settings.php  # Tab alut, tim, pejabat, satker, keamanan, backup & restore
-│   └── login.php            # Portal login otentikasi petugas SAR
-├── api/
-│   └── index.php            # RESTful JSON Router untuk AJAX frontend & integrasi eksternal
-├── database/
-│   ├── db_sar_qr.sql        # Standalone dump MySQL lengkap DDL + data siap import
-│   └── seed.sql             # Skrip SQL data awal lengkap
-├── assets/
-│   ├── css/style.css        # Desain sistem Basarnas, dark/light theme, komponen & cetak
-│   ├── js/app.js            # Inisialisasi theme, toast alert, modal & utility
-│   ├── js/bra.js            # Handler seksi telegram dinamis, kalkulator kata & barcode canvas
-│   ├── js/gis.js            # Engine Leaflet taktis maritim & kalkulator IAMSAR
-│   └── images/
-│       └── logo_basarnas.svg # Lambang resmi vektor SVG Basarnas
-├── index.php                # Controller root (Dashboard)
-├── operasi.php              # Controller CRUD Operasi SAR
-├── operasi_detail.php       # Controller detail tabbed hub operasi
-├── operasi_form.php         # Controller form inisiasi operasi
-├── bra.php                  # Controller arsip & penerbitan dokumen BRA
-├── gis.php                  # Controller Tactical GIS & map plotting
-├── settings.php             # Controller pengaturan & master data
-├── master.php               # Forwarder master data
-├── login.php                # Controller login petugas
-└── logout.php               # Controller logout
+│   ├── UserModel.php        # Manajemen akun, otentikasi login, hashing password & audit
+│   └── SettingsModel.php    # Profil Satker SAR-304, backup JSON & ekspor SQL
+├── views/                   # Presentation Layer (Template Berbasis Domain)
+│   ├── operasi/             # Modul Operasi SAR
+│   │   ├── form.php         # Form inisiasi laporan awal operasi & kalkulator koordinat
+│   │   ├── detail.php       # Tabbed Hub (Ringkasan, Renops, Sitrep, BRA, GIS, Ekspor)
+│   │   ├── renops_form.php  # Form Rencana Operasi SAR & pembagian sektor SRU
+│   │   └── sitrep_form.php  # Form Laporan Perkembangan harian SITREP/LAPBANG
+│   ├── bra/                 # Modul Berita Radio SAR
+│   │   ├── form.php         # Form builder telegram Senkom & word counter dinamis
+│   │   ├── list.php         # Arsip dokumen BRA (MAPEL, SAR UMUM, PERGERAKAN KAPAL)
+│   │   ├── view.php         # Lembar cetak fisik telegram Basarnas & verifikasi QR
+│   │   └── verify_invalid.php # Tampilan respon dokumen manipulatif / token tidak sah
+│   ├── master/              # Modul Master Data
+│   │   ├── index.php        # Manajemen armada kapal, alut darat, palsar & potensi SAR
+│   │   └── settings.php     # Pengaturan instansi, profil Satker, backup & restore
+│   ├── admin/               # Modul Administrasi
+│   │   └── index.php        # Manajemen hak akses, user accounts, & log aktivitas
+│   ├── auth/                # Modul Otentikasi
+│   │   └── login.php        # Portal login otentikasi petugas SAR
+│   ├── layout/              # Template Tata Letak Bersama
+│   │   ├── header.php       # HTML5 head, meta security, conditional CSS loader
+│   │   ├── sidebar.php      # Navigasi utama sidebar responsif dengan badge satker
+│   │   ├── navbar.php       # Header atas, dark mode switch, info user aktif
+│   │   ├── footer.php       # Footer kedinasan, conditional JS loader, modal dialogs
+│   │   ├── public_header.php # Header khusus portal verifikasi publik mandiri
+│   │   └── public_footer.php # Footer portal publik
+│   ├── errors/              # Halaman Error HTTP Terstandarisasi
+│   │   ├── 403.php          # Akses Ditolak
+│   │   ├── 404.php          # Berkas / Rute Tidak Ditemukan
+│   │   └── 500.php          # Kesalahan Internal Server
+│   ├── dashboard.php        # Beranda ringkasan operasi aktif & KPI real-time
+│   └── gis.php              # Antarmuka GIS maritim taktis & pola pencarian IAMSAR
+├── api/                     # RESTful JSON API Backend
+│   ├── controllers/         # Controller API Modular Berbasis Domain
+│   │   ├── BaseApiController.php     # Abstraksi respon JSON, error handling, session guard
+│   │   ├── AuthApiController.php     # Endpoint otentikasi & session checking
+│   │   ├── OperasiApiController.php  # Endpoint data operasi & kalkulasi jarak/heading
+│   │   ├── RenopsApiController.php   # Endpoint dokumen renops & pembagian sru
+│   │   ├── SitrepApiController.php   # Endpoint laporan perkembangan & status korban
+│   │   ├── BraApiController.php      # Endpoint telegram radio, preview & nomor atomik
+│   │   ├── MasterApiController.php   # Endpoint alut, tim potensi, pangkalan SAR & pejabat
+│   │   ├── SettingsApiController.php # Endpoint konfigurasi & profil satker
+│   │   ├── AiApiController.php       # Endpoint integrasi asisten AI Gemini
+│   │   └── GisApiController.php      # Endpoint sinkronisasi bundle peta taktis
+│   └── index.php            # API Front Controller & request dispatcher
+├── assets/                  # Static Web Assets (CSS, JS, Fonts, Images)
+│   ├── vendor/              # Third-Party Libraries Terisolasi
+│   │   ├── leaflet/         # Leaflet CSS, JS, dan marker assets
+│   │   ├── sweetalert2/     # SweetAlert2 alert engine & CSS
+│   │   ├── qrcode/          # QRCode.js engine
+│   │   ├── tailwind/        # Tailwind CSS offline runtime
+│   │   └── jszip/           # JSZip file compressor
+│   ├── js/                  # Application JavaScript
+│   │   ├── pages/           # Extracted Browser-Cacheable Page Scripts
+│   │   │   ├── renops_form.js    # Logic pembagian SRU & kalkulator sektor
+│   │   │   ├── operasi_form.js   # Logic inisiasi operasi & kalkulator koordinat
+│   │   │   ├── bra_form.js       # Logic format Senkom, word count & barcode
+│   │   │   ├── operasi_detail.js # Tab switching, rollback modal & detail GIS
+│   │   │   └── sitrep_form.js    # Logic input sitrep & kalkulasi korban
+│   │   ├── app.js           # Theme switcher, CSRF header hook, modal system
+│   │   ├── bra.js           # Telegram section handler & word counter
+│   │   ├── gis.js           # TacticalGisMap class & rendering engine Leaflet
+│   │   └── gis_master.js    # Full GIS workstation mapping interface
+│   ├── css/
+│   │   └── style.css        # Basarnas Design System, Glassmorphism, Print CSS
+│   └── images/              # Assets gambar resmi & icon instansi
+├── database/                # Skrip Migrasi & Basis Data
+│   ├── migrate.php          # CLI Database Migration Runner (Zero runtime locking)
+│   ├── db_sar_qr.sql        # Standalone dump MySQL lengkap DDL + data siap pakai
+│   └── seed.sql             # SQL data awal pejabat, user, dan pangkalan SAR
+├── storage/                 # Penyimpanan Internal Terproteksi (.htaccess blocked)
+│   ├── logs/                # Berkas log aplikasi & audit trail
+│   ├── backups/             # Berkas cadangan dump SQL & JSON
+│   └── cache/               # Cache sementara sistem
+└── tests/                   # Automated Regression Test Suites (CLI Only)
+    ├── test_phase2_architecture.php    # Uji verifikasi arsitektur backend & database
+    ├── test_phase3_frontend_assets.php  # Uji verifikasi aset vendor & ekstraksi JS
+    └── test_phase4_standardization.php  # Uji verifikasi webroot, routing & modular view
 ```
 
 ---

@@ -320,6 +320,15 @@ class OperasiModel {
 
             $db->commit();
 
+            // Synchronize GIS LKP Point & Tactical Nautical Route
+            try {
+                require_once __DIR__ . '/GisModel.php';
+                GisModel::syncOperasiLkpPoint($idOperasi, $data);
+                GisModel::syncOperasiRoute($idOperasi, $data);
+            } catch (Throwable $gisEx) {
+                error_log("GIS sync error on create Operasi {$idOperasi}: " . $gisEx->getMessage());
+            }
+
             if (class_exists('AuditHelper')) {
                 AuditHelper::log('CREATE_OPERASI', "Operasi SAR dibuka: {$data['nama_operasi']}", 'OPERASI', "OPS-{$idOperasi}");
             }
@@ -491,6 +500,16 @@ class OperasiModel {
             if ($delUnsur) self::syncChildAutoIncrements('DetailUnsur');
             if ($delAlut) self::syncChildAutoIncrements('DetailAlut');
             if ($delTim) self::syncChildAutoIncrements('DetailTimBerangkat');
+
+            // Synchronize GIS LKP Point & Tactical Nautical Route
+            try {
+                require_once __DIR__ . '/GisModel.php';
+                $syncData = array_merge($ops, $data);
+                GisModel::syncOperasiLkpPoint($id, $syncData);
+                GisModel::syncOperasiRoute($id, $syncData);
+            } catch (Throwable $gisEx) {
+                error_log("GIS sync error on update Operasi {$id}: " . $gisEx->getMessage());
+            }
 
             if (class_exists('AuditHelper')) {
                 $namaUpdated = $data['nama_operasi'] ?? $ops['nama_operasi'];

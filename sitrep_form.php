@@ -115,11 +115,11 @@ if ($editMode) {
 }
 
 $pageTitle = ($editMode ? "Edit SITREP {$hariKe}" : "Penerbitan SITREP {$hariKe}") . " - {$operasi['nama_operasi']}";
-$currentRoute = 'operasi_detail';
 $navbarTitle = $editMode ? "Edit Laporan Perkembangan ({$hariKe})" : "Penerbitan Laporan Perkembangan ({$hariKe})";
 
-require_once VIEWS_DIR . '/layout/header.php';
-require_once VIEWS_DIR . '/layout/sidebar.php';
-require_once VIEWS_DIR . '/layout/navbar.php';
-require_once VIEWS_DIR . '/sitrep_form.php';
-require_once VIEWS_DIR . '/layout/footer.php';
+renderView('sitrep_form', get_defined_vars(), [
+    'title' => $pageTitle,
+    'route' => 'operasi_detail',
+    'navbarTitle' => $navbarTitle
+]);
+

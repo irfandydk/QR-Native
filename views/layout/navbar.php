@@ -12,7 +12,7 @@ $headerTitle = $navbarTitle ?? $pageTitle ?? 'DASHBOARD OPERASI SAR';
 $headerTitle = preg_replace('/\s*-\s*QR SAR.*$/i', '', (string)$headerTitle);
 $headerSubtitle = $navbarSubtitle ?? 'KANTOR PENCARIAN DAN PERTOLONGAN (KPP) KELAS A KENDARI • BASARNAS';
 ?>
-<header class="sticky top-0 z-30 backdrop-blur-md border-b transition-colors duration-200 bg-white/95 dark:bg-slate-900/90 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 shadow-xs">
+<header class="print:hidden navbar top-navbar no-print sticky top-0 z-30 backdrop-blur-md border-b transition-colors duration-200 bg-white/95 dark:bg-slate-900/90 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 shadow-xs">
     <div class="w-full px-4 sm:px-6">
         <div class="flex items-center justify-between h-14 gap-3">
             <!-- Left: Mobile Drawer Trigger & View Title -->

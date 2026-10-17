@@ -204,10 +204,12 @@ define('MODELS_DIR', ROOT_DIR . '/models');
 define('HELPERS_DIR', ROOT_DIR . '/helpers');
 define('VIEWS_DIR', ROOT_DIR . '/views');
 define('UPLOADS_DIR', ROOT_DIR . '/uploads');
+define('STORAGE_DIR', ROOT_DIR . '/storage');
 define('ASSETS_DIR', ROOT_DIR . '/assets');
 define('PUBLIC_DIR', ROOT_DIR . '/public');
+define('API_CONTROLLERS_DIR', ROOT_DIR . '/api/controllers');
 
-// Autoload Models & Helpers
+// Autoload Models, Helpers & API Controllers
 require_once CONFIG_DIR . '/database.php';
 
 spl_autoload_register(function ($class) {
@@ -221,7 +223,14 @@ spl_autoload_register(function ($class) {
         require_once $helperFile;
         return;
     }
+    $apiCtrlFile = API_CONTROLLERS_DIR . '/' . $class . '.php';
+    if (file_exists($apiCtrlFile)) {
+        require_once $apiCtrlFile;
+        return;
+    }
 });
+
+require_once HELPERS_DIR . '/ViewHelper.php';
 
 // Flash messages helpers
 function setFlash(string $type, string $message): void {

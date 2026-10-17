@@ -167,18 +167,18 @@ if (in_array($action, ['delete_alut', 'delete_tim', 'delete_pejabat', 'toggle_sm
     exit;
 }
 
-// Render Master Data View
-$pageTitle = 'Master Data Operasional SAR';
-$currentRoute = 'master';
-$navbarTitle = 'Database Master Operasional SAR';
-$navbarSubtitle = 'Peralatan Alut, Potensi Tim SAR, serta Pejabat Penandatangan & SMC';
-
 $masterAlut = MasterModel::getAlut();
 $masterTim = MasterModel::getTim();
 $pejabatList = MasterModel::getPejabat();
 
-require_once VIEWS_DIR . '/layout/header.php';
-require_once VIEWS_DIR . '/layout/sidebar.php';
-require_once VIEWS_DIR . '/layout/navbar.php';
-require_once VIEWS_DIR . '/master.php';
-require_once VIEWS_DIR . '/layout/footer.php';
+renderView('master', [
+    'masterAlut' => $masterAlut,
+    'masterTim' => $masterTim,
+    'pejabatList' => $pejabatList
+], [
+    'title' => 'Master Data Operasional SAR',
+    'route' => 'master',
+    'navbarTitle' => 'Database Master Operasional SAR',
+    'navbarSubtitle' => 'Peralatan Alut, Potensi Tim SAR, serta Pejabat Penandatangan & SMC'
+]);
+

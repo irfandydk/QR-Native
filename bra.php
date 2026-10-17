@@ -12,6 +12,11 @@ $action = $_GET['action'] ?? null;
 $viewId = $_GET['view'] ?? ($action === 'view' ? ($_GET['id'] ?? null) : null);
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
+// If 'id' is supplied without explicit 'action' and not in view mode, default to edit form
+if (!$action && isset($_GET['id']) && $viewId === null && $method === 'GET') {
+    $action = 'edit';
+}
+
 // View single BRA document sheet / Public QR Verification Portal
 if ($viewId !== null) {
     $pageTitle = 'Verifikasi Dokumen Resmi Berita Radio SAR';
@@ -58,27 +63,34 @@ if ($viewId !== null) {
         $invalidRef = htmlspecialchars($rawView, ENT_QUOTES, 'UTF-8');
         $invalidToken = $rawToken !== null ? htmlspecialchars($rawToken, ENT_QUOTES, 'UTF-8') : null;
         
-        require_once VIEWS_DIR . '/layout/public_header.php';
-        require_once VIEWS_DIR . '/bra_verify_invalid.php';
-        require_once VIEWS_DIR . '/layout/public_footer.php';
+        renderView('bra_verify_invalid', [
+            'invalidRef' => $invalidRef,
+            'invalidToken' => $invalidToken,
+            'verificationStatus' => $verificationStatus
+        ], [
+            'layout' => 'public',
+            'title' => 'Verifikasi Dokumen Tidak Sah'
+        ]);
         exit;
     }
 
     // 5. Dokumen Sah: Render Portal Khusus Publik jika Guest
     if ($isGuest) {
         // Portal Verifikasi Publik Terisolasi (Bebas dari sidebar/navbar internal & DOM mismatch)
-        require_once VIEWS_DIR . '/layout/public_header.php';
-        require_once VIEWS_DIR . '/bra_view.php';
-        require_once VIEWS_DIR . '/layout/public_footer.php';
+        renderView('bra_view', get_defined_vars(), [
+            'layout' => 'public',
+            'title' => 'Verifikasi Berita Radio SAR'
+        ]);
         exit;
     }
 
     // 6. Dokumen Sah: Render Layout Lengkap Internal jika Pengguna Sudah Login
-    require_once VIEWS_DIR . '/layout/header.php';
-    require_once VIEWS_DIR . '/layout/sidebar.php';
-    require_once VIEWS_DIR . '/layout/navbar.php';
-    require_once VIEWS_DIR . '/bra_view.php';
-    require_once VIEWS_DIR . '/layout/footer.php';
+    renderView('bra_view', get_defined_vars(), [
+        'layout' => 'default',
+        'route' => 'bra',
+        'title' => 'Naskah Berita Radio SAR',
+        'navbarTitle' => 'LEMBAR DOKUMEN BERITA RADIO SAR (BRA)'
+    ]);
     exit;
 }
 
@@ -148,26 +160,22 @@ if ($action === 'create' || $action === 'edit') {
     AuthHelper::requireLogin();
 
     $pageTitle = $action === 'edit' ? 'Edit Naskah BRA' : 'Buat Naskah BRA Baru';
-    $currentRoute = 'bra';
     $navbarTitle = $pageTitle;
 
-    require_once VIEWS_DIR . '/layout/header.php';
-    require_once VIEWS_DIR . '/layout/sidebar.php';
-    require_once VIEWS_DIR . '/layout/navbar.php';
-    require_once VIEWS_DIR . '/bra_form.php';
-    require_once VIEWS_DIR . '/layout/footer.php';
+    renderView('bra_form', get_defined_vars(), [
+        'title' => $pageTitle,
+        'route' => 'bra',
+        'navbarTitle' => $navbarTitle
+    ]);
     exit;
 }
 
 // Default: List Archive
 AuthHelper::requireLogin();
 
-$pageTitle = 'Arsip Berita Radio SAR (BRA)';
-$currentRoute = 'bra';
-$navbarTitle = 'Arsip Berita Radio SAR KPP Kendari';
+renderView('bra_list', get_defined_vars(), [
+    'title' => 'Arsip Berita Radio SAR (BRA)',
+    'route' => 'bra',
+    'navbarTitle' => 'Arsip Berita Radio SAR KPP Kendari'
+]);
 
-require_once VIEWS_DIR . '/layout/header.php';
-require_once VIEWS_DIR . '/layout/sidebar.php';
-require_once VIEWS_DIR . '/layout/navbar.php';
-require_once VIEWS_DIR . '/bra_list.php';
-require_once VIEWS_DIR . '/layout/footer.php';

@@ -28,13 +28,14 @@ if (!$operasi) {
 
 $gisBundle = GisModel::getOperationBundle($id, true);
 
-$pageTitle = 'Operasi: ' . htmlspecialchars($operasi['nama_operasi']);
-$currentRoute = 'operasi';
-$navbarTitle = 'PUSAT KENDALI OPERASI SAR';
-$navbarSubtitle = 'KANTOR PENCARIAN DAN PERTOLONGAN (KPP) KELAS A KENDARI - BASARNAS';
+renderView('operasi_detail', [
+    'id' => $id,
+    'operasi' => $operasi,
+    'gisBundle' => $gisBundle
+], [
+    'title' => 'Operasi: ' . htmlspecialchars($operasi['nama_operasi']),
+    'route' => 'operasi',
+    'navbarTitle' => 'PUSAT KENDALI OPERASI SAR',
+    'navbarSubtitle' => 'KANTOR PENCARIAN DAN PERTOLONGAN (KPP) KELAS A KENDARI - BASARNAS'
+]);
 
-require_once VIEWS_DIR . '/layout/header.php';
-require_once VIEWS_DIR . '/layout/sidebar.php';
-require_once VIEWS_DIR . '/layout/navbar.php';
-require_once VIEWS_DIR . '/operasi_detail.php';
-require_once VIEWS_DIR . '/layout/footer.php';

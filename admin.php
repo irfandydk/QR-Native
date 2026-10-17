@@ -366,13 +366,10 @@ if ($tab === 'logs') {
     $totalPages = max(1, (int)ceil($totalLogs / $logLimit));
 }
 
-$pageTitle = 'Pengaturan Admin & Satker';
-$currentRoute = 'admin';
-$navbarTitle = 'Pengaturan Administrator & Satker';
-$navbarSubtitle = 'Konfigurasi Akun, Sandi, Identitas Pangkalan SAR, serta Cadangan Database';
+renderView('admin', get_defined_vars(), [
+    'title' => 'Pengaturan Admin & Satker',
+    'route' => 'admin',
+    'navbarTitle' => 'Pengaturan Administrator & Satker',
+    'navbarSubtitle' => 'Konfigurasi Akun, Sandi, Identitas Pangkalan SAR, serta Cadangan Database'
+]);
 
-require_once VIEWS_DIR . '/layout/header.php';
-require_once VIEWS_DIR . '/layout/sidebar.php';
-require_once VIEWS_DIR . '/layout/navbar.php';
-require_once VIEWS_DIR . '/admin.php';
-require_once VIEWS_DIR . '/layout/footer.php';

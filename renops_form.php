@@ -211,11 +211,11 @@ if ($editMode) {
 }
 
 $pageTitle = ($editMode ? "Edit RENOPS {$hariKe}" : "Buat RENOPS {$hariKe}") . " - {$operasi['nama_operasi']}";
-$currentRoute = 'operasi_detail';
 $navbarTitle = $editMode ? "Edit Rencana Operasi ({$hariKe})" : "Penerbitan Rencana Operasi ({$hariKe})";
 
-require_once VIEWS_DIR . '/layout/header.php';
-require_once VIEWS_DIR . '/layout/sidebar.php';
-require_once VIEWS_DIR . '/layout/navbar.php';
-require_once VIEWS_DIR . '/renops_form.php';
-require_once VIEWS_DIR . '/layout/footer.php';
+renderView('renops_form', get_defined_vars(), [
+    'title' => $pageTitle,
+    'route' => 'operasi_detail',
+    'navbarTitle' => $navbarTitle
+]);
+

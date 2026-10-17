@@ -24,6 +24,8 @@ class Router {
         '/sitrep/create' => 'sitrep_form.php',
         '/bra' => 'bra.php',
         '/bra/create' => 'bra.php',
+        '/bra/edit' => 'bra.php',
+        '/bra/form' => 'bra.php',
         '/bra/view' => 'bra.php',
         '/gis' => 'gis.php',
         '/master' => 'master.php',
@@ -56,12 +58,21 @@ class Router {
 
         // 1. Block access to protected directories & sensitive file extensions
         if (
-            preg_match('#^/(database|config|models|helpers|views|storage)/#i', $path) ||
+            preg_match('#^/(database|config|models|helpers|views|storage|tests|cli|scratch)/#i', $path) ||
             preg_match('#\.(sql|sqlite|db|env|log|md|htaccess|sample)$#i', $path)
         ) {
             http_response_code(403);
             header('Content-Type: text/plain; charset=UTF-8');
             echo 'Akses Ditolak: Berkas atau direktori sistem dilindungi.';
+            exit;
+        }
+
+        // Special 301 Redirect for legacy /bra_form.php
+        if ($path === '/bra_form.php') {
+            $query = $_SERVER['QUERY_STRING'] ?? '';
+            $targetAction = isset($_GET['id']) ? 'edit' : 'create';
+            $targetUrl = BASE_URL . "/bra.php?action={$targetAction}" . ($query ? '&' . $query : '');
+            header("Location: {$targetUrl}", true, 301);
             exit;
         }
 
@@ -92,6 +103,10 @@ class Router {
             // Special sub-path query handling
             if ($path === '/bra/create') {
                 $_GET['action'] = 'create';
+            } elseif ($path === '/bra/edit') {
+                $_GET['action'] = 'edit';
+            } elseif ($path === '/bra/form') {
+                $_GET['action'] = isset($_GET['id']) ? 'edit' : 'create';
             }
             $target = ROOT_DIR . '/' . $controller;
             if (file_exists($target)) {

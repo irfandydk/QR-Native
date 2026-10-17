@@ -359,6 +359,7 @@ function openModal(id) {
     if (m.style.display === 'none' || !m.style.display) {
         m.style.display = 'flex';
     }
+    document.body.style.overflow = 'hidden';
 }
 
 function closeModal(id) {
@@ -367,6 +368,24 @@ function closeModal(id) {
     m.classList.remove('open');
     m.classList.add('hidden');
     m.style.display = 'none';
+
+    // If specific custom close callback exists for bra paper preview
+    if ((m.id === 'modalFullBraPreview' || m.classList.contains('bra-modal-overlay')) && typeof window.closeModalPaperPreview === 'function') {
+        window.closeModalPaperPreview();
+    }
+
+    // Check if any modal is still actively open
+    const openModals = document.querySelectorAll('.modal-overlay.open, .bra-modal-overlay.open, [id^="modal-"]:not(.hidden)');
+    let stillOpen = false;
+    openModals.forEach(el => {
+        if (el !== m && (el.classList.contains('open') || (el.style.display !== 'none' && !el.classList.contains('hidden')))) {
+            stillOpen = true;
+        }
+    });
+
+    if (!stillOpen) {
+        document.body.style.overflow = '';
+    }
 }
 
 window.openModal = openModal;

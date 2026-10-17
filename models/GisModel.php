@@ -148,6 +148,64 @@ class GisModel {
         return $db->query("SELECT * FROM GisPoint ORDER BY id DESC")->fetchAll();
     }
 
+    /**
+     * Mengambil Titik Pangkalan / Pos SAR Master (Kantor SAR, POS SAR, Unit Siaga SAR, Dermaga, dll)
+     * yang diinput oleh user pada halaman Plot Peta (GisPoint dengan id_operasi IS NULL).
+     * Titik ini menjadi master data default untuk titik awal pemberangkatan operasi SAR.
+     */
+    public static function getMasterBases(): array {
+        self::ensureSchemaUpdated();
+        $db = getDB();
+        
+        $sql = "
+            SELECT * FROM GisPoint 
+            WHERE id_operasi IS NULL 
+              AND (
+                  category IN ('Kantor SAR', 'POS SAR', 'Unit Siaga SAR', 'Posko', 'Dermaga')
+                  OR (category != 'LKP' AND pointType != 'lkp' AND (label LIKE '%SAR%' OR label LIKE '%Kansar%' OR label LIKE '%Pos%' OR label LIKE '%Dermaga%'))
+              )
+            ORDER BY 
+              CASE 
+                WHEN (id = 'pt-kansar' OR label LIKE '%Kantor SAR Kendari%') THEN 1
+                WHEN category = 'Kantor SAR' THEN 2
+                WHEN category = 'POS SAR' THEN 3
+                WHEN category = 'Unit Siaga SAR' THEN 4
+                ELSE 5
+              END ASC,
+              label ASC
+        ";
+        $rows = $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        
+        $bases = [];
+        foreach ($rows as $r) {
+            $lat = (float)$r['lat'];
+            $lng = (float)$r['lng'];
+            $dms = class_exists('GeoHelper') ? GeoHelper::decimalToDms($lat, $lng) : "{$lat}, {$lng}";
+            $isDefault = ($r['id'] === 'pt-kansar' || stripos($r['label'], 'Kantor SAR Kendari') !== false);
+            
+            $bases[] = [
+                'id' => $r['id'],
+                'id_unit' => $r['id'],
+                'nama_unit' => $r['label'],
+                'label' => $r['label'],
+                'category' => $r['category'] ?: 'POS SAR',
+                'jenis_unit' => strtoupper(str_replace(' ', '_', $r['category'] ?: 'POS_SAR')),
+                'wilayah' => $r['description'] ?: ($r['category'] ?? ''),
+                'latitude' => $lat,
+                'longitude' => $lng,
+                'lat' => $lat,
+                'lng' => $lng,
+                'koordinat_dms' => $dms,
+                'pointType' => $r['pointType'] ?: 'custom_upload',
+                'customIconUrl' => $r['customIconUrl'] ?: '',
+                'alphabetChar' => $r['alphabetChar'] ?: 'A',
+                'is_default' => $isDefault ? 1 : 0
+            ];
+        }
+        
+        return $bases;
+    }
+
     public static function savePoint(array $data): string {
         self::ensureSchemaUpdated();
         $db = getDB();
@@ -702,5 +760,149 @@ class GisModel {
             'routes' => self::getRoutes($idOperasi, $includeBaseMap),
             'searchPatterns' => self::getSearchPatterns($idOperasi, $includeBaseMap)
         ];
+    }
+
+    /**
+     * Synchronize and upsert LKP point for a given SAR operation into GisPoint.
+     * Generates a persistent GisPoint with category 'LKP', type 'lkp', and formatted coordinates.
+     */
+    public static function syncOperasiLkpPoint(int $idOperasi, array $data): ?string {
+        if ($idOperasi <= 0) return null;
+
+        $lat = null;
+        $lng = null;
+
+        // 1. Direct decimal coordinates if provided
+        if (isset($data['lkp_lat'], $data['lkp_lng']) && $data['lkp_lat'] !== '' && $data['lkp_lng'] !== '') {
+            $cLat = (float)$data['lkp_lat'];
+            $cLng = (float)$data['lkp_lng'];
+            if ($cLat >= -90.0 && $cLat <= 90.0 && $cLng >= -180.0 && $cLng <= 180.0 && ($cLat != 0.0 || $cLng != 0.0)) {
+                $lat = $cLat;
+                $lng = $cLng;
+            }
+        }
+
+        // 2. Fallback: Parse from DMS string in koordinat
+        if (($lat === null || $lng === null) && !empty($data['koordinat'])) {
+            require_once dirname(__DIR__) . '/helpers/GeoHelper.php';
+            $parsed = GeoHelper::parseCoordinates((string)$data['koordinat']);
+            if ($parsed && isset($parsed['lat'], $parsed['lng'])) {
+                $lat = (float)$parsed['lat'];
+                $lng = (float)$parsed['lng'];
+            }
+        }
+
+        if ($lat === null || $lng === null) {
+            return null;
+        }
+
+        require_once dirname(__DIR__) . '/helpers/GeoHelper.php';
+        $dmsStr = GeoHelper::decimalToDms($lat, $lng);
+        $namaOperasi = trim((string)($data['nama_operasi'] ?? 'Operasi SAR'));
+        $lokasiKejadian = trim((string)($data['lokasi_kejadian'] ?? ''));
+        $jarak = trim((string)($data['jarak'] ?? ''));
+        $radial = trim((string)($data['radial'] ?? ''));
+
+        $desc = "📍 LKP (Last Known Position)\n" .
+                "Operasi: {$namaOperasi}\n" .
+                "Lokasi: " . ($lokasiKejadian ?: 'Perairan/Wilayah Kejadian') . "\n" .
+                "Koordinat: {$dmsStr}\n" .
+                ($jarak ? "Jarak: {$jarak}\n" : '') .
+                ($radial ? "Radial: {$radial}°" : '');
+
+        $pointId = "pt-lkp-op-{$idOperasi}";
+
+        return self::savePoint([
+            'id' => $pointId,
+            'id_operasi' => $idOperasi,
+            'lat' => $lat,
+            'lng' => $lng,
+            'label' => "🚨 LKP - " . (mb_strlen($namaOperasi) > 30 ? mb_substr($namaOperasi, 0, 27) . '...' : $namaOperasi),
+            'pointType' => 'lkp',
+            'customIconUrl' => null,
+            'description' => trim($desc),
+            'category' => 'LKP',
+            'alphabetChar' => '🚨'
+        ]);
+    }
+
+    /**
+     * Synchronize and upsert nautical route for a given SAR operation into GisRoute & GisRoutePoint.
+     * Supports manual route waypoints (JSON) or direct departure route (Origin Base -> LKP).
+     */
+    public static function syncOperasiRoute(int $idOperasi, array $data): ?string {
+        if ($idOperasi <= 0) return null;
+
+        $points = [];
+
+        // 1. Check if manual_route_json is provided (from the manual route plotter)
+        if (!empty($data['manual_route_json'])) {
+            $decoded = is_string($data['manual_route_json']) ? json_decode($data['manual_route_json'], true) : $data['manual_route_json'];
+            if (is_array($decoded) && count($decoded) >= 2) {
+                foreach ($decoded as $idx => $p) {
+                    if (isset($p['lat'], $p['lng'])) {
+                        $pLat = (float)$p['lat'];
+                        $pLng = (float)$p['lng'];
+                        if ($pLat >= -90.0 && $pLat <= 90.0 && $pLng >= -180.0 && $pLng <= 180.0) {
+                            $label = !empty($p['label']) ? (string)$p['label'] : ($idx === 0 ? 'Pangkalan Asal' : ($idx === count($decoded) - 1 ? 'LKP' : "WP-{$idx}"));
+                            $points[] = [
+                                'lat' => $pLat,
+                                'lng' => $pLng,
+                                'label' => $label
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback: If no manual route, but origin base and LKP exist, create direct route
+        if (count($points) < 2) {
+            $originLat = isset($data['origin_lat']) && $data['origin_lat'] !== '' ? (float)$data['origin_lat'] : null;
+            $originLng = isset($data['origin_lng']) && $data['origin_lng'] !== '' ? (float)$data['origin_lng'] : null;
+            $originName = !empty($data['origin_name']) ? (string)$data['origin_name'] : 'Pangkalan Asal';
+
+            $lkpLat = isset($data['lkp_lat']) && $data['lkp_lat'] !== '' ? (float)$data['lkp_lat'] : null;
+            $lkpLng = isset($data['lkp_lng']) && $data['lkp_lng'] !== '' ? (float)$data['lkp_lng'] : null;
+
+            if (($lkpLat === null || $lkpLng === null) && !empty($data['koordinat'])) {
+                require_once dirname(__DIR__) . '/helpers/GeoHelper.php';
+                $parsed = GeoHelper::parseCoordinates((string)$data['koordinat']);
+                if ($parsed) {
+                    $lkpLat = (float)$parsed['lat'];
+                    $lkpLng = (float)$parsed['lng'];
+                }
+            }
+
+            if ($originLat !== null && $originLng !== null && $lkpLat !== null && $lkpLng !== null && ($originLat != 0.0 || $originLng != 0.0) && ($lkpLat != 0.0 || $lkpLng != 0.0)) {
+                $points = [
+                    ['lat' => $originLat, 'lng' => $originLng, 'label' => $originName],
+                    ['lat' => $lkpLat, 'lng' => $lkpLng, 'label' => 'Titik LKP']
+                ];
+            }
+        }
+
+        if (count($points) < 2) {
+            return null;
+        }
+
+        $namaOperasi = trim((string)($data['nama_operasi'] ?? 'Operasi SAR'));
+        $speed = isset($data['vessel_speed_knots']) && (float)$data['vessel_speed_knots'] > 0
+            ? (float)$data['vessel_speed_knots']
+            : (isset($data['vesselSpeedKnots']) ? (float)$data['vesselSpeedKnots'] : 25.0);
+
+        $routeId = "route-op-{$idOperasi}";
+
+        return self::saveRoute([
+            'id' => $routeId,
+            'id_operasi' => $idOperasi,
+            'name' => "Rute Pelayaran - " . (mb_strlen($namaOperasi) > 30 ? mb_substr($namaOperasi, 0, 27) . '...' : $namaOperasi),
+            'vesselSpeedKnots' => $speed,
+            'strokeColor' => '#ea580c',
+            'strokeWeight' => 3.5,
+            'strokeOpacity' => 0.9,
+            'createdAt' => date('Y-m-d H:i') . ' WITA',
+            'points' => $points
+        ]);
     }
 }

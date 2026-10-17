@@ -8,6 +8,12 @@
 
 declare(strict_types=1);
 
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    header('Content-Type: text/plain; charset=UTF-8');
+    exit('Akses Ditolak: Skrip migrasi pangkalan data hanya dapat dijalankan melalui antarmuka konsol/terminal (CLI).' . PHP_EOL);
+}
+
 require_once dirname(__DIR__) . '/config/app.php';
 
 echo "=== [QR-SAR] Database Migration Runner ===\n";
@@ -40,8 +46,8 @@ try {
     // 2. Run UserModel table migration
     if (class_exists('UserModel')) {
         echo "[RUN] Checking Users table...\n";
-        UserModel::ensureTableExists();
-        UserModel::syncFromAppSettings();
+        UserModel::ensureTableExists(true);
+        UserModel::syncFromAppSettings(true);
         echo "[OK] Users table validated.\n";
     }
 

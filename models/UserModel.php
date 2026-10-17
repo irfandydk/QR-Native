@@ -10,9 +10,11 @@ class UserModel {
     private static bool $tableChecked = false;
 
     /**
-     * Ensures Users table exists in database with strict indexes
+     * Ensures Users table exists in database with strict indexes.
+     * Controlled via $force = true to isolate DDL strictly to database/migrate.php.
      */
-    public static function ensureTableExists(): void {
+    public static function ensureTableExists(bool $force = false): void {
+        if (!$force) return;
         if (self::$tableChecked) return;
 
         try {
@@ -47,8 +49,9 @@ class UserModel {
     /**
      * Syncs users from legacy AppSettings row if Users table is empty or missing them
      */
-    public static function syncFromAppSettings(): void {
-        self::ensureTableExists();
+    public static function syncFromAppSettings(bool $force = false): void {
+        if (!$force) return;
+        self::ensureTableExists(true);
 
         try {
             $db = getDB();
@@ -118,14 +121,12 @@ class UserModel {
     }
 
     public static function getAll(): array {
-        self::ensureTableExists();
         $db = getDB();
         $stmt = $db->query("SELECT id, username, nama, nip, pangkat, jabatan, email, no_hp, role, is_active, last_login_at, created_at, updated_at FROM `Users` ORDER BY role ASC, nama ASC");
         return $stmt->fetchAll();
     }
 
     public static function getById(string $id): ?array {
-        self::ensureTableExists();
         $db = getDB();
         $stmt = $db->prepare("SELECT * FROM `Users` WHERE id = :id LIMIT 1");
         $stmt->execute([':id' => $id]);
@@ -133,7 +134,6 @@ class UserModel {
     }
 
     public static function getByUsername(string $username): ?array {
-        self::ensureTableExists();
         $db = getDB();
         $stmt = $db->prepare("SELECT * FROM `Users` WHERE LOWER(username) = LOWER(:u) LIMIT 1");
         $stmt->execute([':u' => trim($username)]);
@@ -141,7 +141,6 @@ class UserModel {
     }
 
     public static function updateLastLogin(string $id): void {
-        self::ensureTableExists();
         try {
             $db = getDB();
             $stmt = $db->prepare("UPDATE `Users` SET last_login_at = :now WHERE id = :id");
@@ -150,7 +149,6 @@ class UserModel {
     }
 
     public static function updatePassword(string $id, string $newPassword): bool {
-        self::ensureTableExists();
         $db = getDB();
         $hash = password_hash(trim($newPassword), PASSWORD_DEFAULT);
         $stmt = $db->prepare("UPDATE `Users` SET password_hash = :p, updated_at = :u WHERE id = :id");

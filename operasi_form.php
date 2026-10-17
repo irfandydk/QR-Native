@@ -24,12 +24,11 @@ if ($oldInput && is_array($oldInput)) {
     }
 }
 
-$pageTitle = $operasi ? "Edit Operasi - {$operasi['nama_operasi']}" : "Inisiasi Laporan Awal Operasi SAR";
-$currentRoute = 'operasi_form';
-$navbarTitle = $operasi ? "Edit Operasi SAR" : "Inisiasi Laporan Awal";
+renderView('operasi_form', [
+    'operasi' => $operasi
+], [
+    'title' => $operasi ? "Edit Operasi - {$operasi['nama_operasi']}" : "Inisiasi Laporan Awal Operasi SAR",
+    'route' => 'operasi_form',
+    'navbarTitle' => $operasi ? "Edit Operasi SAR" : "Inisiasi Laporan Awal"
+]);
 
-require_once VIEWS_DIR . '/layout/header.php';
-require_once VIEWS_DIR . '/layout/sidebar.php';
-require_once VIEWS_DIR . '/layout/navbar.php';
-require_once VIEWS_DIR . '/operasi_form.php';
-require_once VIEWS_DIR . '/layout/footer.php';

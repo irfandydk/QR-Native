@@ -14,7 +14,7 @@ Options -Indexes
 </FilesMatch>
 
 # 2. Block direct HTTP access to core application folders
-RedirectMatch 403 ^/(database|config|models|helpers|views|storage)/.*$
+RedirectMatch 403 ^/(database|config|models|helpers|views|storage|tests|cli|scratch)/.*$
 
 # 3. Clean URLs & Front Controller Routing (Supports /operasi, /admin, /gis, /api, etc.)
 <IfModule mod_rewrite.c>

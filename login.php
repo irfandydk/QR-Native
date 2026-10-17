@@ -44,4 +44,5 @@ if ($method === 'POST') {
 }
 
 // GET: render login view
-require_once VIEWS_DIR . '/login.php';
+renderView('login', [], ['layout' => 'none']);
+

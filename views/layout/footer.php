@@ -5,6 +5,9 @@
  */
 
 $flash = getFlash();
+$requiresGis = !empty($useGis) || in_array($currentRoute ?? '', ['gis', 'operasi', 'operasi_detail', 'operasi_form'], true);
+$requiresQr  = !empty($useQr) || in_array($currentRoute ?? '', ['bra', 'bra_view', 'bra_list', 'bra_form'], true);
+$requiresBra = !empty($useBra) || in_array($currentRoute ?? '', ['bra', 'bra_view', 'bra_list', 'bra_form'], true);
 ?>
 </main> <!-- end page-body -->
 
@@ -15,19 +18,39 @@ $flash = getFlash();
 </div> <!-- end main-content -->
 </div> <!-- end app-container -->
 
-<!-- Leaflet JS (Local Offline Bundle) -->
-<script src="<?= BASE_URL ?>/assets/js/leaflet.min.js?v=<?= APP_VERSION ?>"></script>
+<!-- Core Vendor Scripts (Global) -->
+<script src="<?= BASE_URL ?>/assets/vendor/sweetalert2/sweetalert2.all.min.js?v=<?= APP_VERSION ?>"></script>
 
-<!-- SweetAlert2 JS (Local Offline Bundle) -->
-<script src="<?= BASE_URL ?>/assets/js/sweetalert2.all.min.js?v=<?= APP_VERSION ?>"></script>
+<!-- Conditional Vendor Scripts -->
+<?php if ($requiresGis): ?>
+<script src="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.min.js?v=<?= APP_VERSION ?>"></script>
+<?php endif; ?>
 
-<!-- QRCode.js (Local Offline Engine) -->
-<script src="<?= BASE_URL ?>/assets/js/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
+<?php if ($requiresQr): ?>
+<script src="<?= BASE_URL ?>/assets/vendor/qrcode/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
+<?php endif; ?>
 
 <!-- Core App Scripts -->
 <script src="<?= BASE_URL ?>/assets/js/app.js?v=<?= APP_VERSION ?>"></script>
+
+<!-- Conditional Feature Scripts -->
+<?php if ($requiresBra): ?>
 <script src="<?= BASE_URL ?>/assets/js/bra.js?v=<?= APP_VERSION ?>"></script>
+<?php endif; ?>
+
+<?php if ($requiresGis): ?>
 <script src="<?= BASE_URL ?>/assets/js/gis.js?v=<?= APP_VERSION ?>"></script>
+<?php endif; ?>
+
+<!-- Dedicated Page-Specific Scripts -->
+<?php if (!empty($pageScript)): ?>
+<script src="<?= BASE_URL ?>/assets/js/<?= ltrim($pageScript, '/') ?>?v=<?= APP_VERSION ?>"></script>
+<?php endif; ?>
+<?php if (!empty($pageScripts) && is_array($pageScripts)): ?>
+    <?php foreach ($pageScripts as $script): ?>
+<script src="<?= BASE_URL ?>/assets/js/<?= ltrim($script, '/') ?>?v=<?= APP_VERSION ?>"></script>
+    <?php endforeach; ?>
+<?php endif; ?>
 
 <?php if ($flash): ?>
 <script>
@@ -39,3 +62,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+

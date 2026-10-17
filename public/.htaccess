@@ -1,6 +1,16 @@
-# QR-SAR - Modern Public Directory Apache Configuration
 # Prevent directory listing and allow symlinks traversal (public/assets -> ../assets)
 Options -Indexes +FollowSymLinks +SymLinksIfOwnerMatch
+
+# Block access to hidden, environment, and sensitive files
+<FilesMatch "^\.(env|git|gitignore|htaccess)|(\.sql|\.sqlite|\.log|\.md|\.sample)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
 
 <IfModule mod_rewrite.c>
     RewriteEngine On

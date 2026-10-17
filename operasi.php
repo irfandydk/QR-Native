@@ -169,12 +169,9 @@ if ($action === 'delete' && $method !== 'POST') {
 }
 
 // Default: show list
-$pageTitle = 'Daftar Operasi SAR';
-$currentRoute = 'operasi';
-$navbarTitle = 'Daftar Operasi SAR Kendari';
+renderView('dashboard', [], [
+    'title' => 'Daftar Operasi SAR',
+    'route' => 'operasi',
+    'navbarTitle' => 'Daftar Operasi SAR Kendari'
+]);
 
-require_once VIEWS_DIR . '/layout/header.php';
-require_once VIEWS_DIR . '/layout/sidebar.php';
-require_once VIEWS_DIR . '/layout/navbar.php';
-require_once VIEWS_DIR . '/dashboard.php';
-require_once VIEWS_DIR . '/layout/footer.php';

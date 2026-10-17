@@ -89,17 +89,19 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     
-    <!-- Leaflet CSS (Offline Local) -->
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/leaflet.min.css?v=<?= APP_VERSION ?>">
+    <!-- Conditional Leaflet CSS (Only on GIS / Map-enabled views) -->
+    <?php if (!empty($useGis) || in_array($currentRoute ?? '', ['gis', 'operasi', 'operasi_detail', 'operasi_form'], true)): ?>
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.min.css?v=<?= APP_VERSION ?>">
+    <?php endif; ?>
     
-    <!-- SweetAlert2 CSS (Offline Local) -->
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/sweetalert2.min.css?v=<?= APP_VERSION ?>">
+    <!-- SweetAlert2 CSS (Offline Local Vendor) -->
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/vendor/sweetalert2/sweetalert2.min.css?v=<?= APP_VERSION ?>">
     
     <!-- App Design System Stylesheet -->
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css?v=<?= APP_VERSION ?>">
     
     <!-- Tailwind CSS (Offline Local Engine) -->
-    <script src="<?= BASE_URL ?>/assets/js/tailwind.min.js?v=<?= APP_VERSION ?>"></script>
+    <script src="<?= BASE_URL ?>/assets/vendor/tailwind/tailwind.min.js?v=<?= APP_VERSION ?>"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -123,8 +125,6 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
             }
         };
     </script>
-    <!-- QRCode.js (Local Offline Engine) -->
-    <script src="<?= BASE_URL ?>/assets/js/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
 </head>
 <body class="<?= isset($currentRoute) ? 'route-' . e($currentRoute) : '' ?> bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen transition-colors">
 <div class="app-container">

@@ -37,8 +37,8 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - Verifikasi Resmi Basarnas" : "V
     <!-- App Design System Stylesheet -->
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css?v=<?= APP_VERSION ?>">
 
-    <!-- Tailwind CSS (Offline Local Engine) -->
-    <script src="<?= BASE_URL ?>/assets/js/tailwind.min.js?v=<?= APP_VERSION ?>"></script>
+    <!-- Tailwind CSS (Offline Local Vendor) -->
+    <script src="<?= BASE_URL ?>/assets/vendor/tailwind/tailwind.min.js?v=<?= APP_VERSION ?>"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -63,12 +63,12 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - Verifikasi Resmi Basarnas" : "V
         };
     </script>
     
-    <!-- QRCode.js (Local Offline Engine) -->
-    <script src="<?= BASE_URL ?>/assets/js/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
+    <!-- QRCode.js (Offline Local Vendor) -->
+    <script src="<?= BASE_URL ?>/assets/vendor/qrcode/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
 
-    <!-- SweetAlert2 (Local Offline Engine) -->
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/sweetalert2.min.css?v=<?= APP_VERSION ?>">
-    <script src="<?= BASE_URL ?>/assets/js/sweetalert2.all.min.js?v=<?= APP_VERSION ?>"></script>
+    <!-- SweetAlert2 (Offline Local Vendor) -->
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/vendor/sweetalert2/sweetalert2.min.css?v=<?= APP_VERSION ?>">
+    <script src="<?= BASE_URL ?>/assets/vendor/sweetalert2/sweetalert2.all.min.js?v=<?= APP_VERSION ?>"></script>
 
     <script>
         window.BASE_URL = <?= jsonSafe(BASE_URL) ?>;
