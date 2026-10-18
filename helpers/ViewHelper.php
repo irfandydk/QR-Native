@@ -25,6 +25,11 @@ class ViewHelper
     /**
      * Resolve view file path with support for both modular subdirectories and legacy flat aliases
      */
+    public static function resolve(string $view): string
+    {
+        return self::resolveViewFile($view);
+    }
+
     public static function resolveViewFile(string $view): string
     {
         if (!str_ends_with($view, '.php')) {
@@ -47,7 +52,7 @@ class ViewHelper
             'bra_view.php'           => 'bra/view.php',
             'bra_verify_invalid.php' => 'bra/verify_invalid.php',
             'master.php'             => 'master/index.php',
-            'master_settings.php'    => 'master/settings.php',
+            'master_settings.php'    => 'admin/index.php',
             'admin.php'              => 'admin/index.php',
             'login.php'              => 'auth/login.php',
         ];
@@ -63,15 +68,6 @@ class ViewHelper
         $direct = VIEWS_DIR . '/' . $clean;
         if (file_exists($direct)) {
             return $direct;
-        }
-
-        // 3. Reverse alias mapping (e.g. 'operasi/detail.php' -> 'views/operasi_detail.php')
-        $reverseMap = array_flip($aliasMap);
-        if (isset($reverseMap[$clean])) {
-            $rev = VIEWS_DIR . '/' . $reverseMap[$clean];
-            if (file_exists($rev)) {
-                return $rev;
-            }
         }
 
         throw new RuntimeException("Berkas view tidak ditemukan: {$direct}");

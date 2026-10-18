@@ -43,23 +43,26 @@ function initBraForm() {
   const pvParaf = document.getElementById('pvParaf');
 
   // Military TW Format Helper
-  function getMilitaryTW(dateObj) {
-    const d = dateObj || new Date();
-    // Compute in WITA (UTC+8)
-    const utc = d.getTime() + d.getTimezoneOffset() * 60000;
-    const wita = new Date(utc + 8 * 3600000);
-    const mm = String(wita.getMonth() + 1).padStart(2, '0');
-    const dd = String(wita.getDate()).padStart(2, '0');
-    const hh = String(wita.getHours()).padStart(2, '0');
-    const min = String(wita.getMinutes()).padStart(2, '0');
-    return `${mm}${dd} ${hh}${min} H`;
-  }
+  const getMilitaryTW = (typeof window !== 'undefined' && window.QrSarUtils && window.QrSarUtils.Bra && typeof window.QrSarUtils.Bra.getMilitaryTW === 'function')
+    ? window.QrSarUtils.Bra.getMilitaryTW
+    : function (dateObj) {
+        const d = dateObj || new Date();
+        const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+        const wita = new Date(utc + 8 * 3600000);
+        const mm = String(wita.getMonth() + 1).padStart(2, '0');
+        const dd = String(wita.getDate()).padStart(2, '0');
+        const hh = String(wita.getHours()).padStart(2, '0');
+        const min = String(wita.getMinutes()).padStart(2, '0');
+        return `${mm}${dd} ${hh}${min} H`;
+      };
 
   // Section letter helper (0 -> AAA, 1 -> BBB, ...)
-  function getSectionLetter(idx) {
-    const char = String.fromCharCode(65 + (idx % 26));
-    return char.repeat(3);
-  }
+  const getSectionLetter = (typeof window !== 'undefined' && window.QrSarUtils && window.QrSarUtils.Bra && typeof window.QrSarUtils.Bra.getSectionLetter === 'function')
+    ? window.QrSarUtils.Bra.getSectionLetter
+    : function (idx) {
+        const char = String.fromCharCode(65 + (idx % 26));
+        return char.repeat(3);
+      };
 
   function getSectionHint(idx, kat) {
     if (idx === 0) return kat === 'MAPEL' ? '(Dasar Info, TW Terima, Kejadian/POB, Ciri Kapal, LKP & Kondisi)' : (kat === 'PERGERAKAN_KAPAL' ? '(Dasar & Rencana Pelayaran / BKO)' : '(Kronologi / Informasi Awal)');
@@ -330,11 +333,12 @@ function initBraForm() {
     if (pvParaf) pvParaf.textContent = document.getElementById('parafInput').value.trim() || '—';
   }
 
-  function escapeHtml(text) {
+  const escapeHtml = (window.QrSarUtils && window.QrSarUtils.escapeHtml) || function(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
-  }
+  };
 
   // Bind live sync to all form inputs
   const liveSyncInputs = form.querySelectorAll('input, textarea, select');

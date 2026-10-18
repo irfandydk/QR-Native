@@ -75,7 +75,6 @@ class RenopsModel {
     }
 
     public static function getById(int $id): ?array {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $stmt = $db->prepare("SELECT * FROM Renops WHERE id_renops = :id LIMIT 1");
         $stmt->execute([':id' => $id]);
@@ -109,7 +108,6 @@ class RenopsModel {
     }
 
     public static function create(array $data): int {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
 
@@ -148,9 +146,12 @@ class RenopsModel {
             $waktuBriefing = OperasiModel::normalizeDateTime($data['waktu_briefing'] ?? $now);
             $waktuMulaiOps = OperasiModel::normalizeDateTime($data['waktu_mulai_ops'] ?? $now);
 
+            $rawHari = trim((string)($data['hari_ke'] ?? 'H.1'));
+            $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
+
             $stmt->execute([
                 ':id_operasi' => (int)$data['id_operasi'],
-                ':hari_ke' => strtoupper($data['hari_ke'] ?? 'H.1'),
+                ':hari_ke' => $hariKe,
                 ':tanggal_laporan' => $tglLaporan,
                 ':waktu_briefing' => $waktuBriefing,
                 ':waktu_mulai_ops' => $waktuMulaiOps,
@@ -234,9 +235,12 @@ class RenopsModel {
                 full_text_wa = :full_text_wa
                 WHERE id_renops = :id");
 
+            $rawHari = trim((string)($data['hari_ke'] ?? $renops['hari_ke']));
+            $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
+
             $stmt->execute([
                 ':id' => $id,
-                ':hari_ke' => strtoupper($data['hari_ke'] ?? $renops['hari_ke']),
+                ':hari_ke' => $hariKe,
                 ':tanggal_laporan' => $tglLaporan,
                 ':waktu_briefing' => $waktuBriefing,
                 ':waktu_mulai_ops' => $waktuMulaiOps,

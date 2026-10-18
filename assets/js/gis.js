@@ -337,8 +337,11 @@ class TacticalGisMap {
         this.map.fitBounds(polyline.getBounds(), { padding: [40, 40] });
     }
 
-    // Math Helpers
+    // Math Helpers (Unified with QrSarGis.Geodesy SSOT)
     getDistanceKm(lat1, lon1, lat2, lon2) {
+        if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.calculateDistanceHaversine === 'function') {
+            return window.QrSarGis.Geodesy.calculateDistanceHaversine(lat1, lon1, lat2, lon2).km;
+        }
         const R = 6371;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -349,6 +352,10 @@ class TacticalGisMap {
     }
 
     getBearing(lat1, lon1, lat2, lon2) {
+        if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.calculateDistanceHaversine === 'function') {
+            const res = window.QrSarGis.Geodesy.calculateDistanceHaversine(lat1, lon1, lat2, lon2);
+            return { deg: Math.round(res.bearing), cardinal: res.headingName };
+        }
         const y = Math.sin((lon2 - lon1) * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180);
         const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
                   Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos((lon2 - lon1) * Math.PI / 180);
@@ -360,6 +367,9 @@ class TacticalGisMap {
 
     // DMS Formatter Helper
     formatDms(lat, lng) {
+        if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.decimalToDms === 'function') {
+            return window.QrSarGis.Geodesy.decimalToDms(lat, lng);
+        }
         function toDms(val, isLat) {
             const dir = isLat ? (val >= 0 ? 'U' : 'S') : (val >= 0 ? 'T' : 'B');
             const abs = Math.abs(val);
@@ -659,18 +669,29 @@ class TacticalGisMap {
                     </div>
                 ` : '';
 
-                const markerHtml = `
-                    <div class="sar-point-marker" style="position:relative;width:34px;height:42px;user-select:none;cursor:pointer;">
-                        ${labelBadge}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="34" height="42" viewBox="0 0 34 42" style="display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45));">
-                            <path d="M17 41 C15 35, 3 22, 3 15 A14 14 0 1 1 31 15 C31 22, 19 35, 17 41 Z" fill="${markerColor}" stroke="#ffffff" stroke-width="2"/>
-                            <circle cx="17" cy="15" r="10" fill="#ffffff"/>
-                        </svg>
-                        <div style="position:absolute;top:5px;left:7px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;">
-                            ${innerVisual}
+                let markerHtml = '';
+                if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createMarkerHtml === 'function') {
+                    markerHtml = window.QrSarGis.Markers.createMarkerHtml({
+                        pointType: pType,
+                        customColor: markerColor,
+                        label: safeLabel,
+                        customIconUrl: safeIconUrl,
+                        alphabetChar: safeAlpha
+                    });
+                } else {
+                    markerHtml = `
+                        <div class="sar-point-marker" style="position:relative;width:34px;height:42px;user-select:none;cursor:pointer;">
+                            ${labelBadge}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="34" height="42" viewBox="0 0 34 42" style="display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45));">
+                                <path d="M17 41 C15 35, 3 22, 3 15 A14 14 0 1 1 31 15 C31 22, 19 35, 17 41 Z" fill="${markerColor}" stroke="#ffffff" stroke-width="2"/>
+                                <circle cx="17" cy="15" r="10" fill="#ffffff"/>
+                            </svg>
+                            <div style="position:absolute;top:5px;left:7px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;">
+                                ${innerVisual}
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                }
 
                 const ptLat = Number(pt.lat) || 0;
                 const ptLng = Number(pt.lng) || 0;

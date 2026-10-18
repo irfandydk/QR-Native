@@ -15,6 +15,44 @@ class GisApiController extends BaseApiController {
         }
 
         // 2. GIS Bundle / All Layers
+        if (self::handleBundleRoute($path, $method)) {
+            return true;
+        }
+
+        // 3. GIS Points
+        if (self::handlePointsRoute($path, $method, $input)) {
+            return true;
+        }
+
+        // 4. Custom Icon Upload & Gallery
+        if (self::handleCustomIconsRoute($path, $method, $input)) {
+            return true;
+        }
+
+        // 5. GIS Polygons
+        if (self::handlePolygonsRoute($path, $method, $input)) {
+            return true;
+        }
+
+        // 6. GIS Search Patterns
+        if (self::handlePatternsRoute($path, $method, $input)) {
+            return true;
+        }
+
+        // 7. GIS Routes
+        if (self::handleRoutesRoute($path, $method, $input)) {
+            return true;
+        }
+
+        // 8. OSRM Directions & Route Calculation
+        if (self::handleRoutingDirectionsRoute($path, $method, $input)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static function handleBundleRoute(string $path, string $method): bool {
         if (($path === '/gis/data' || $path === '/gis/bundle') && $method === 'GET') {
             self::requireAuth();
             $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
@@ -50,8 +88,10 @@ class GisApiController extends BaseApiController {
             ]);
             return true;
         }
+        return false;
+    }
 
-        // 3. GIS Points
+    private static function handlePointsRoute(string $path, string $method, array $input): bool {
         if (($path === '/gis/point' || $path === '/gis/points') && $method === 'GET') {
             self::requireAuth();
             $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
@@ -84,7 +124,10 @@ class GisApiController extends BaseApiController {
             return true;
         }
 
-        // 4. Custom Icon Upload & Gallery
+        return false;
+    }
+
+    private static function handleCustomIconsRoute(string $path, string $method, array $input): bool {
         if ($path === '/gis/upload-icon' && $method === 'POST') {
             self::requireAuth();
             self::handleUploadIcon();
@@ -103,7 +146,10 @@ class GisApiController extends BaseApiController {
             return true;
         }
 
-        // 5. GIS Polygons
+        return false;
+    }
+
+    private static function handlePolygonsRoute(string $path, string $method, array $input): bool {
         if (($path === '/gis/polygon' || $path === '/gis/polygons') && $method === 'GET') {
             self::requireAuth();
             $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
@@ -136,7 +182,10 @@ class GisApiController extends BaseApiController {
             return true;
         }
 
-        // 6. GIS Search Patterns
+        return false;
+    }
+
+    private static function handlePatternsRoute(string $path, string $method, array $input): bool {
         if (($path === '/gis/pattern' || $path === '/gis/patterns' || $path === '/gis/search-patterns') && $method === 'GET') {
             self::requireAuth();
             $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
@@ -169,7 +218,10 @@ class GisApiController extends BaseApiController {
             return true;
         }
 
-        // 7. GIS Routes
+        return false;
+    }
+
+    private static function handleRoutesRoute(string $path, string $method, array $input): bool {
         if (($path === '/gis/route' || $path === '/gis/routes') && $method === 'GET') {
             self::requireAuth();
             $idOperasi = isset($_GET['id_operasi']) && $_GET['id_operasi'] !== '' ? (int)$_GET['id_operasi'] : null;
@@ -194,14 +246,16 @@ class GisApiController extends BaseApiController {
             return true;
         }
 
-        // 8. OSRM Directions
+        return false;
+    }
+
+    private static function handleRoutingDirectionsRoute(string $path, string $method, array $input): bool {
         if ($path === '/gis/directions' && $method === 'POST') {
             self::requireAuth();
             self::handleDirections($input);
             return true;
         }
 
-        // 9. Maps Calculate Route
         if ($path === '/maps/calculate-route' && $method === 'POST') {
             self::requireAuth();
             self::handleCalculateRoute($input);

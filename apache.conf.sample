@@ -1,0 +1,53 @@
+# ==============================================================================
+# QR-SAR - Production Apache VirtualHost Configuration Guide
+# Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
+# Arsitektur PHP Native Modern dengan Dual-Mode Deployment (Public / Root Docroot)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# OPSI A (SANGAT DIREKOMENDASIKAN): Modern Architecture (Public Document Root)
+# Direktori privat (config, models, controllers, services, helpers, views, database)
+# berada 100% di luar DocRoot web server.
+# ------------------------------------------------------------------------------
+<VirtualHost *:80>
+    ServerName qrsar.basarnas.go.id
+    ServerAdmin admin@basarnas.go.id
+
+    # Document Root mengarah langsung ke folder /public
+    DocumentRoot "/var/www/html/QR-SAR/public"
+
+    <Directory "/var/www/html/QR-SAR/public">
+        Options -Indexes +FollowSymLinks +SymLinksIfOwnerMatch
+        AllowOverride All
+        Require all granted
+
+        <IfModule mod_rewrite.c>
+            RewriteEngine On
+
+            # Handle Authorization Header
+            RewriteCond %{HTTP:Authorization} .
+            RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+            # Redirect Trailing Slashes If Not A Folder...
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteCond %{REQUEST_URI} (.+)/$
+            RewriteRule ^ %1 [L,R=301]
+
+            # Send Requests To Front Controller...
+            RewriteCond %{REQUEST_FILENAME} !-d
+            RewriteCond %{REQUEST_FILENAME} !-f
+            RewriteRule ^ index.php [L,QSA]
+        </IfModule>
+    </Directory>
+
+    # Keamanan Direktori Uploads (Cegah Eksekusi Skrip PHP)
+    <Directory "/var/www/html/QR-SAR/uploads">
+        <FilesMatch "\.php$">
+            Require all denied
+        </FilesMatch>
+    </Directory>
+
+    # Log Server
+    ErrorLog ${APACHE_LOG_DIR}/qrsar_error.log
+    CustomLog ${APACHE_LOG_DIR}/qrsar_access.log combined
+</VirtualHost>

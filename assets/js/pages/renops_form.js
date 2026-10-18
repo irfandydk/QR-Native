@@ -12,11 +12,11 @@ const OPERASI_REOPEN_DATE = renopsCfg.operasiReopenDate || null;
 const OPERASI_BASE_HARI_REOPEN = renopsCfg.operasiBaseHariReopen || 0;
 const defaultKoordinat = renopsCfg.koordinat || '-';
 
-// Escape HTML utility
-function escapeHtml(str) {
+// Escape HTML utility (Unified with QrSarUtils)
+const escapeHtml = (window.QrSarUtils && window.QrSarUtils.escapeHtml) || function(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+};
 
 // ── SRU Sector Manager ──
 function renderSruList() {
@@ -693,6 +693,9 @@ async function refreshGisBundle(showToastAlert = false) {
 }
 
 function formatDmsCoordPart(val, isLat) {
+  if (window.QrSarUtils) {
+    return window.QrSarUtils.formatDmsPart(val, isLat);
+  }
   const abs = Math.abs(val);
   let deg = Math.floor(abs);
   const minFloat = (abs - deg) * 60;
@@ -713,6 +716,9 @@ function formatDmsCoordPart(val, isLat) {
 }
 
 function formatDmsPair(lat, lng) {
+  if (window.QrSarUtils) {
+    return window.QrSarUtils.formatDmsPair(lat, lng);
+  }
   return `${formatDmsCoordPart(lat, true)} - ${formatDmsCoordPart(lng, false)}`;
 }
 
@@ -776,18 +782,14 @@ function getPolygonCoordsText(poly) {
 
 function copyGisDmsText(encodedText, label) {
   const text = decodeURIComponent(encodedText);
-  if (navigator.clipboard) {
+  if (window.QrSarUtils) {
+    window.QrSarUtils.copyToClipboard(text, `Koordinat ${label} berhasil disalin!`);
+  } else if (typeof copyToClipboard === 'function') {
+    copyToClipboard(text, `Koordinat ${label} berhasil disalin!`);
+  } else if (navigator.clipboard) {
     navigator.clipboard.writeText(text).then(() => {
       if (typeof showToast === 'function') showToast(`Koordinat ${label} berhasil disalin!`, 'success');
     });
-  } else {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    if (typeof showToast === 'function') showToast(`Koordinat ${label} berhasil disalin!`, 'success');
   }
 }
 

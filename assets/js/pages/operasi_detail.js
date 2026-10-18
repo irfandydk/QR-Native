@@ -7,6 +7,9 @@ let detailOpsGisBundle = opsDetailCfg.gisBundle || {};
 let activeHistoryFilter = 'all';
 
 function formatDetailDms(lat, lng) {
+    if (window.QrSarUtils) {
+        return window.QrSarUtils.formatDmsPair(lat, lng);
+    }
     function toDms(val, isLat) {
         const dir = isLat ? (val >= 0 ? 'U' : 'S') : (val >= 0 ? 'T' : 'B');
         const abs = Math.abs(val);
@@ -371,7 +374,7 @@ function switchTab(tabName) {
     window.history.replaceState({}, '', url);
 
     if (resolvedTab === 'gis') {
-        setTimeout(initDetailMap, 200);
+        setTimeout(initDetailMap, 100);
     }
 }
 
@@ -393,15 +396,30 @@ function navigateToDoc(tab, docId) {
 }
 
 function initDetailMap() {
-    if (detailOpsMap) {
-        detailOpsMap.map.invalidateSize();
+    // 1. Dependency Guard: Tunggu sampai Leaflet (L) dan TacticalGisMap siap
+    if (typeof TacticalGisMap === 'undefined' || typeof L === 'undefined') {
+        setTimeout(initDetailMap, 100);
         return;
     }
 
-    const lat = opsDetailCfg.lkpLat;
-    const lng = opsDetailCfg.lkpLng;
-    const hasLkp = opsDetailCfg.hasLkpCoords;
-    const lkpTitle = opsDetailCfg.namaOperasi;
+    const container = document.getElementById('map-detail-ops');
+    if (!container) return;
+
+    if (detailOpsMap && detailOpsMap.map) {
+        detailOpsMap.map.invalidateSize();
+        setTimeout(() => {
+            if (detailOpsMap && detailOpsMap.map) {
+                detailOpsMap.map.invalidateSize();
+                detailOpsMap.fitAllComponents();
+            }
+        }, 150);
+        return;
+    }
+
+    const lat = Number(opsDetailCfg.lkpLat) || -4.037694;
+    const lng = Number(opsDetailCfg.lkpLng) || 122.486694;
+    const hasLkp = Boolean(opsDetailCfg.hasLkpCoords);
+    const lkpTitle = opsDetailCfg.namaOperasi || 'Lokasi Kejadian (LKP)';
 
     detailOpsMap = new TacticalGisMap('map-detail-ops', {
         center: [lat, lng],
@@ -418,12 +436,13 @@ function initDetailMap() {
     renderDetailGisHistoryList();
     updateDetailGisStats();
 
+    // Invalidate size dan fit components setelah browser selesai reflow layout
     setTimeout(() => {
         if (detailOpsMap && detailOpsMap.map) {
             detailOpsMap.map.invalidateSize();
             detailOpsMap.fitAllComponents();
         }
-    }, 300);
+    }, 200);
 }
 
 function refreshDetailGis(showFeedback = false) {
@@ -463,8 +482,10 @@ function refreshDetailGis(showFeedback = false) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (opsDetailCfg.activeTab === 'gis') {
-        setTimeout(initDetailMap, 250);
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeTab = urlParams.get('tab') || opsDetailCfg.activeTab;
+    if (activeTab === 'gis') {
+        setTimeout(initDetailMap, 200);
     }
 });
 
@@ -478,7 +499,7 @@ function copyTextToClipboard(text, msg) {
     copyToClipboard(text, msg);
 }
 
-function escapeHtml(text) {
+const escapeHtml = (window.QrSarUtils && window.QrSarUtils.escapeHtml) || function(text) {
     if (text === null || text === undefined) return '';
     return String(text)
         .replace(/&/g, '&amp;')
@@ -486,7 +507,7 @@ function escapeHtml(text) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
-}
+};
 
 async function deleteRenops(id) {
     if (!OPS_DATA.can_delete) {

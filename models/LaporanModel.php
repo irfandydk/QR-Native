@@ -127,9 +127,12 @@ class LaporanModel {
                 : ($isPenutupan ? $now : null);
             $waktuLaporan = OperasiModel::normalizeDateTime($data['waktu_laporan'] ?? $now);
 
+            $rawHari = trim((string)($data['hari_ke'] ?? 'H.1'));
+            $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
+
             $stmt->execute([
                 ':id_operasi' => (int)$data['id_operasi'],
-                ':hari_ke' => strtoupper($data['hari_ke'] ?? 'H.1'),
+                ':hari_ke' => $hariKe,
                 ':jenis_laporan' => $isPenutupan ? 'PENUTUPAN' : 'PERKEMBANGAN',
                 ':isi_laporan' => $data['isi_laporan'] ?? '',
                 ':waktu_debrief' => $waktuDebrief,
@@ -229,9 +232,12 @@ class LaporanModel {
                 waktu_laporan = :waktu_laporan
                 WHERE id_laporan = :id");
 
+            $rawHari = trim((string)($data['hari_ke'] ?? $lap['hari_ke']));
+            $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
+
             $stmt->execute([
                 ':id' => $id,
-                ':hari_ke' => strtoupper($data['hari_ke'] ?? $lap['hari_ke']),
+                ':hari_ke' => $hariKe,
                 ':jenis_laporan' => $isPenutupan ? 'PENUTUPAN' : 'PERKEMBANGAN',
                 ':isi_laporan' => $data['isi_laporan'] ?? $lap['isi_laporan'],
                 ':waktu_debrief' => $waktuDebrief,

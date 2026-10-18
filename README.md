@@ -67,10 +67,9 @@ QR-SAR/
 │   │   ├── view.php         # Lembar cetak fisik telegram Basarnas & verifikasi QR
 │   │   └── verify_invalid.php # Tampilan respon dokumen manipulatif / token tidak sah
 │   ├── master/              # Modul Master Data
-│   │   ├── index.php        # Manajemen armada kapal, alut darat, palsar & potensi SAR
-│   │   └── settings.php     # Pengaturan instansi, profil Satker, backup & restore
-│   ├── admin/               # Modul Administrasi
-│   │   └── index.php        # Manajemen hak akses, user accounts, & log aktivitas
+│   │   └── index.php        # Manajemen armada kapal, alut darat, palsar, potensi SAR & SMC
+│   ├── admin/               # Modul Administrasi & Pengaturan Satker
+│   │   └── index.php        # Manajemen hak akses, user, profil satker, backup database & audit log
 │   ├── auth/                # Modul Otentikasi
 │   │   └── login.php        # Portal login otentikasi petugas SAR
 │   ├── layout/              # Template Tata Letak Bersama

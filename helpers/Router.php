@@ -58,7 +58,7 @@ class Router {
 
         // 1. Block access to protected directories & sensitive file extensions
         if (
-            preg_match('#^/(database|config|models|helpers|views|storage|tests|cli|scratch)/#i', $path) ||
+            preg_match('#^/(database|config|models|controllers|services|helpers|views|storage|tests|cli|scratch)/#i', $path) ||
             preg_match('#\.(sql|sqlite|db|env|log|md|htaccess|sample)$#i', $path)
         ) {
             http_response_code(403);
@@ -72,6 +72,19 @@ class Router {
             $query = $_SERVER['QUERY_STRING'] ?? '';
             $targetAction = isset($_GET['id']) ? 'edit' : 'create';
             $targetUrl = BASE_URL . "/bra.php?action={$targetAction}" . ($query ? '&' . $query : '');
+            header("Location: {$targetUrl}", true, 301);
+            exit;
+        }
+
+        // Special 301 Redirect for legacy /settings or /settings.php
+        if ($path === '/settings' || $path === '/settings.php') {
+            $tab = $_GET['tab'] ?? '';
+            if (in_array($tab, ['satker', 'keamanan', 'backup', 'admin', 'user', 'logs'], true)) {
+                $targetTab = ($tab === 'keamanan') ? 'admin' : $tab;
+                $targetUrl = BASE_URL . "/admin.php?tab=" . urlencode($targetTab);
+            } else {
+                $targetUrl = BASE_URL . "/master.php?tab=" . urlencode($tab ?: 'alut');
+            }
             header("Location: {$targetUrl}", true, 301);
             exit;
         }

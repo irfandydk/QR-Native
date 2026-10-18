@@ -47,6 +47,9 @@ if (!function_exists('qr_sar_exception_handler')) {
         error_log("[QR-SAR EXCEPTION 500] " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
 
         try {
+            if (class_exists('LogService')) {
+                LogService::logException($e, 'UNCAUGHT_EXCEPTION_500');
+            }
             if (class_exists('AuditHelper')) {
                 AuditHelper::log('SYSTEM_ERROR_500', substr($e->getMessage(), 0, 200), 'EXCEPTION', basename($e->getFile()) . ':' . $e->getLine());
             }
@@ -197,10 +200,11 @@ if (!empty($_SESSION['user_id'])) {
     }
 }
 
-// Directory Constants
 define('ROOT_DIR', dirname(__DIR__));
 define('CONFIG_DIR', ROOT_DIR . '/config');
 define('MODELS_DIR', ROOT_DIR . '/models');
+define('SERVICES_DIR', ROOT_DIR . '/services');
+define('CONTROLLERS_DIR', ROOT_DIR . '/controllers');
 define('HELPERS_DIR', ROOT_DIR . '/helpers');
 define('VIEWS_DIR', ROOT_DIR . '/views');
 define('UPLOADS_DIR', ROOT_DIR . '/uploads');
@@ -209,13 +213,23 @@ define('ASSETS_DIR', ROOT_DIR . '/assets');
 define('PUBLIC_DIR', ROOT_DIR . '/public');
 define('API_CONTROLLERS_DIR', ROOT_DIR . '/api/controllers');
 
-// Autoload Models, Helpers & API Controllers
+// Autoload Models, Services, Controllers, Helpers & API Controllers
 require_once CONFIG_DIR . '/database.php';
 
 spl_autoload_register(function ($class) {
     $modelFile = MODELS_DIR . '/' . $class . '.php';
     if (file_exists($modelFile)) {
         require_once $modelFile;
+        return;
+    }
+    $serviceFile = SERVICES_DIR . '/' . $class . '.php';
+    if (file_exists($serviceFile)) {
+        require_once $serviceFile;
+        return;
+    }
+    $ctrlFile = CONTROLLERS_DIR . '/' . $class . '.php';
+    if (file_exists($ctrlFile)) {
+        require_once $ctrlFile;
         return;
     }
     $helperFile = HELPERS_DIR . '/' . $class . '.php';

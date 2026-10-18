@@ -907,7 +907,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                     <span class="text-[11px] text-slate-400 font-mono"><?= $tglKejadian ?></span>
                 </div>
                 <div class="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 text-xs leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-sans">
-                    <?= e($operasi['kronologi'] ?: 'Kronologi belum diinput.') ?>
+                    <?= e(($operasi['kronologi'] ?? '') ?: 'Kronologi belum diinput.') ?>
                 </div>
             </div>
 
@@ -921,28 +921,28 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <div class="grid grid-cols-2 gap-2.5 text-xs">
                     <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                         <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Pelapor</span>
-                        <strong class="text-slate-900 dark:text-white block truncate"><?= e($operasi['nama_pelapor'] ?: '-') ?></strong>
-                        <span class="text-[10px] text-slate-500">(<?= e($operasi['hubungan_pelapor'] ?: '-') ?>)</span>
+                        <strong class="text-slate-900 dark:text-white block truncate"><?= e(($operasi['nama_pelapor'] ?? '') ?: '-') ?></strong>
+                        <span class="text-[10px] text-slate-500">(<?= e(($operasi['hubungan_pelapor'] ?? '') ?: '-') ?>)</span>
                     </div>
                     <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                         <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Kontak Pelapor</span>
-                        <strong class="text-slate-900 dark:text-white font-mono block truncate"><?= e($operasi['no_telp_pelapor'] ?: '-') ?></strong>
+                        <strong class="text-slate-900 dark:text-white font-mono block truncate"><?= e(($operasi['no_telp_pelapor'] ?? '') ?: '-') ?></strong>
                     </div>
                     <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                         <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Kondisi Cuaca</span>
-                        <strong class="text-slate-900 dark:text-white block truncate"><?= e($operasi['cuaca'] ?: '-') ?></strong>
+                        <strong class="text-slate-900 dark:text-white block truncate"><?= e(($operasi['cuaca'] ?? '') ?: '-') ?></strong>
                     </div>
                     <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                         <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Tinggi Gelombang</span>
-                        <strong class="text-slate-900 dark:text-white block truncate"><?= e($operasi['gelombang'] ?: '-') ?></strong>
+                        <strong class="text-slate-900 dark:text-white block truncate"><?= e(($operasi['gelombang'] ?? '') ?: '-') ?></strong>
                     </div>
                     <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                         <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Angin</span>
-                        <strong class="text-slate-900 dark:text-white block truncate"><?= e($operasi['angin'] ?: '-') ?></strong>
+                        <strong class="text-slate-900 dark:text-white block truncate"><?= e(($operasi['angin'] ?? '') ?: '-') ?></strong>
                     </div>
                     <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
                         <span class="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Faktor Penghambat</span>
-                        <strong class="text-slate-900 dark:text-white block truncate"><?= e($operasi['faktor_penghambat'] ?: 'Nihil') ?></strong>
+                        <strong class="text-slate-900 dark:text-white block truncate"><?= e(($operasi['faktor_penghambat'] ?? '') ?: 'Nihil') ?></strong>
                     </div>
                 </div>
             </div>
@@ -992,7 +992,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             </div>
             <?php else: ?>
             <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 whitespace-pre-line leading-relaxed">
-                <?= e($operasi['unsur_terlibat'] ?: '• Tim Rescue KPP Kendari') ?>
+                <?= e(($operasi['unsur_terlibat'] ?? '') ?: '• Tim Rescue KPP Kendari') ?>
             </div>
             <?php endif; ?>
         </div>
@@ -1028,7 +1028,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
             </div>
             <?php else: ?>
             <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 whitespace-pre-line leading-relaxed">
-                <?= e($operasi['alut_palsar'] ?: "• 1 Unit Rescue Car\n• 1 Unit Rubber Boat + Mopel") ?>
+                <?= e(($operasi['alut_palsar'] ?? '') ?: "• 1 Unit Rescue Car\n• 1 Unit Rubber Boat + Mopel") ?>
             </div>
             <?php endif; ?>
         </div>
@@ -1480,8 +1480,8 @@ window.__OPS_DETAIL_CONFIG__ = <?= jsonSafe([
         'detail_korban' => $operasi['korban'] ?? [],
         'detail_unsur' => $operasi['detail_unsur'] ?? [],
         'detail_alut' => $operasi['detail_alut'] ?? [],
-        'renops' => $renopsList,
-        'laporan' => $laporanList
+        'renops' => $operasi['renops'] ?? [],
+        'laporan' => $operasi['laporan_harian'] ?? []
     ]
 ]) ?>;
 </script>

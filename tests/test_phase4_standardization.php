@@ -59,7 +59,6 @@ $domainViews = [
     'views/bra/view.php',
     'views/bra/verify_invalid.php',
     'views/master/index.php',
-    'views/master/settings.php',
     'views/admin/index.php',
     'views/auth/login.php',
 ];
@@ -70,6 +69,10 @@ foreach ($domainViews as $relPath) {
         return file_exists($fullPath) && filesize($fullPath) > 500;
     });
 }
+
+runTest("Dead view views/master/settings.php telah dibersihkan secara tuntas", function() {
+    return !file_exists(ROOT_DIR . '/views/master/settings.php');
+});
 
 // ---------------------------------------------------------------------
 // Group 2: ViewHelper Dual-Path Resolution (STR-ARC-04)

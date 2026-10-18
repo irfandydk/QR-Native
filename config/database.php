@@ -60,6 +60,18 @@ class Database {
                     }
                 }
                 error_log("[QR-SAR DB Error] " . $e->getMessage());
+                if (class_exists('LogService')) {
+                    try {
+                        LogService::critical("Gagal terhubung ke basis data MySQL: " . $e->getMessage(), [
+                            'file' => $e->getFile(),
+                            'line' => $e->getLine(),
+                            'host' => $host,
+                            'database' => $dbname
+                        ]);
+                    } catch (Throwable) {
+                        // Safe fallback
+                    }
+                }
                 if (defined('APP_DEBUG') && APP_DEBUG) {
                     throw new RuntimeException("Gagal terhubung ke basis data MySQL: " . $e->getMessage());
                 }

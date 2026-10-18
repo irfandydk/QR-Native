@@ -23,7 +23,7 @@ $errTrace = isset($exception) && $exception instanceof Throwable ? $exception->g
     <title>500 - Gangguan Sistem Internal | QR-SAR Basarnas Kendari</title>
     <link rel="icon" type="image/png" href="<?= BASE_URL ?>/favicon.png">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
-    <script src="<?= BASE_URL ?>/assets/js/tailwind.min.js"></script>
+    <script src="<?= BASE_URL ?>/assets/vendor/tailwind/tailwind.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;

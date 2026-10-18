@@ -492,6 +492,9 @@
   // ==========================================
 
   function decimalToDms(lat, lng) {
+    if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.decimalToDms === 'function') {
+      return window.QrSarGis.Geodesy.decimalToDms(lat, lng);
+    }
     function formatDmsPart(val, isLat) {
       const dir = isLat ? (val < 0 ? 'S' : 'N') : (val < 0 ? 'W' : 'E');
       const absVal = Math.abs(val);
@@ -514,6 +517,9 @@
   }
 
   function parseCoordinatesString(text) {
+    if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.parseCoordinatesString === 'function') {
+      return window.QrSarGis.Geodesy.parseCoordinatesString(text);
+    }
     if (!text || typeof text !== 'string') return null;
     const clean = text.trim();
     if (!clean) return null;
@@ -579,6 +585,9 @@
   }
 
   function calculateDistanceHaversine(lat1, lon1, lat2, lon2) {
+    if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.calculateDistanceHaversine === 'function') {
+      return window.QrSarGis.Geodesy.calculateDistanceHaversine(lat1, lon1, lat2, lon2);
+    }
     const R = 6371; // Earth radius in km
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -611,6 +620,9 @@
   }
 
   function calculatePolygonSphericalArea(coordsOrPoly, shapeType, radiusNm, boxWidthNm, boxHeightNm) {
+    if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.calculatePolygonSphericalArea === 'function') {
+      return window.QrSarGis.Geodesy.calculatePolygonSphericalArea(coordsOrPoly, shapeType, radiusNm, boxWidthNm, boxHeightNm);
+    }
     let coords = coordsOrPoly;
     if (coordsOrPoly && typeof coordsOrPoly === 'object' && !Array.isArray(coordsOrPoly)) {
       if (coordsOrPoly.points) {
@@ -724,6 +736,9 @@
   // ==========================================
 
   function createPointSvgHtml(type, color, isEditing, customUrl, labelNumber) {
+    if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createPointSvgHtml === 'function') {
+      return window.QrSarGis.Markers.createPointSvgHtml(type, color, isEditing, customUrl, labelNumber);
+    }
     const width = isEditing ? 46 : 38;
     const height = isEditing ? 54 : 46;
     const cx = width / 2;
@@ -786,6 +801,9 @@
   }
 
   function createMarkerHtml(point, isEditing = false) {
+    if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createMarkerHtml === 'function') {
+      return window.QrSarGis.Markers.createMarkerHtml(point, isEditing);
+    }
     const pType = point.pointType || point.type || 'pin_umum';
     const preset = PRESET_ICONS.find((p) => p.type === pType);
     const color = point.customColor || (preset ? preset.color : '#ea580c');
@@ -830,6 +848,9 @@
   }
 
   function createVertexBadgeHtml(letter, color = '#ea580c', isDragging = false) {
+    if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createVertexBadgeHtml === 'function') {
+      return window.QrSarGis.Markers.createVertexBadgeHtml(letter, color, isDragging);
+    }
     const size = isDragging ? 36 : 30;
     return `
       <div style="display: block; width: ${size}px; height: ${size}px; user-select: none;">
@@ -842,6 +863,9 @@
   }
 
   function createPatternCornerHtml(type, color = '#0284c7', customLetter = '') {
+    if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createPatternCornerHtml === 'function') {
+      return window.QrSarGis.Markers.createPatternCornerHtml(type, color, customLetter);
+    }
     const isStart = type === 'start';
     const isEnd = type === 'end';
     const fillColor = isStart ? '#16a34a' : isEnd ? '#dc2626' : color;
@@ -3330,6 +3354,9 @@
   }
 
   function generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount) {
+    if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.generateFittedPatternInsidePolygon === 'function') {
+      return window.QrSarGis.Patterns.generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount);
+    }
     const cleanPoints = (polygonPoints || []).map((p) => ({
       lat: parseFloat(p.lat),
       lng: parseFloat(p.lng),
@@ -3516,6 +3543,9 @@
   }
 
   function generateDatumPattern(type, center, spacingNm, legsCount) {
+    if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.generateDatumPattern === 'function') {
+      return window.QrSarGis.Patterns.generateDatumPattern(type, center, spacingNm, legsCount);
+    }
     let c = center;
     if (!c || typeof c.lat !== 'number' || isNaN(c.lat)) {
       const lkpPoint = savedPoints.find((p) => p.category === 'LKP' || p.pointType === 'lkp');
@@ -3541,6 +3571,9 @@
   }
 
   function getPatternPolylineCoords(type, waypoints) {
+    if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.getPatternPolylineCoords === 'function') {
+      return window.QrSarGis.Patterns.getPatternPolylineCoords(type, waypoints);
+    }
     if (!waypoints || waypoints.length < 2) return [];
     if (type === 'sector_search' || type === 'e_sar') {
       const segments = [];
@@ -4797,6 +4830,15 @@
   // ==========================================
 
   function generateKmlDocument() {
+    if (window.QrSarGis && window.QrSarGis.Export && typeof window.QrSarGis.Export.generateKmlDocument === 'function') {
+      return window.QrSarGis.Export.generateKmlDocument({
+        operasiName: currentOperasi ? currentOperasi.nama_operasi : 'Plotting Operasi SAR Kendari',
+        points: savedPoints,
+        polygons: savedPolygons,
+        patterns: savedPatterns,
+        routes: savedRoutes
+      });
+    }
     let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>${escapeXml(currentOperasi ? currentOperasi.nama_operasi : 'Plotting Operasi SAR Kendari')}</name>\n`;
 
     // Folder 1: Points
@@ -4836,6 +4878,16 @@
   }
 
   function downloadKmlFile() {
+    if (window.QrSarGis && window.QrSarGis.Export && typeof window.QrSarGis.Export.downloadKml === 'function') {
+      window.QrSarGis.Export.downloadKml({
+        operasiName: currentOperasi ? currentOperasi.nama_operasi : 'Plotting Operasi SAR Kendari',
+        points: savedPoints,
+        polygons: savedPolygons,
+        patterns: savedPatterns,
+        routes: savedRoutes
+      });
+      return;
+    }
     const kml = generateKmlDocument();
     const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
     const url = URL.createObjectURL(blob);
@@ -4847,6 +4899,16 @@
   }
 
   async function downloadKmzFile() {
+    if (window.QrSarGis && window.QrSarGis.Export && typeof window.QrSarGis.Export.downloadKmz === 'function') {
+      await window.QrSarGis.Export.downloadKmz({
+        operasiName: currentOperasi ? currentOperasi.nama_operasi : 'Plotting Operasi SAR Kendari',
+        points: savedPoints,
+        polygons: savedPolygons,
+        patterns: savedPatterns,
+        routes: savedRoutes
+      });
+      return;
+    }
     if (typeof JSZip === 'undefined') {
       downloadKmlFile();
       return;
@@ -4864,6 +4926,15 @@
   }
 
   function downloadGeoJsonFile() {
+    if (window.QrSarGis && window.QrSarGis.Export && typeof window.QrSarGis.Export.downloadGeoJson === 'function') {
+      window.QrSarGis.Export.downloadGeoJson({
+        points: savedPoints,
+        polygons: savedPolygons,
+        patterns: savedPatterns,
+        routes: savedRoutes
+      });
+      return;
+    }
     const features = [];
 
     savedPoints.forEach((p) => {
@@ -5327,7 +5398,7 @@
       <html>
         <head>
           <title>LEMBAR OPERASIONAL SAR KENDARI</title>
-          <link rel="stylesheet" href="/assets/css/leaflet.min.css"/>
+          <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.min.css"/>
           <style>
             @page { size: A4 portrait; margin: 8mm; }
             body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #0f172a; background: #fff; margin: 0; padding: 0; }
@@ -5896,6 +5967,10 @@
   // ==========================================
 
   function bootstrapApp() {
+    if (typeof L === 'undefined') {
+      setTimeout(bootstrapApp, 50);
+      return;
+    }
     initLeafletMap();
     initLocationSearchBar();
     initPointCreatorUI();

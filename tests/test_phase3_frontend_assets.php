@@ -96,23 +96,23 @@ foreach ($pageScripts as $scriptFile => $minSize) {
 echo "\n--- 3. Testing View Config Injection and Script Tags ---\n";
 
 $viewChecks = [
-    'views/renops_form.php' => [
+    'views/operasi/renops_form.php' => [
         'config' => 'window.__RENOPS_PAGE_CONFIG__',
         'script' => 'assets/js/pages/renops_form.js'
     ],
-    'views/operasi_form.php' => [
+    'views/operasi/form.php' => [
         'config' => 'window.__OPS_FORM_CONFIG__',
         'script' => 'assets/js/pages/operasi_form.js'
     ],
-    'views/bra_form.php' => [
+    'views/bra/form.php' => [
         'config' => 'window.__BRA_FORM_CONFIG__',
         'script' => 'assets/js/pages/bra_form.js'
     ],
-    'views/operasi_detail.php' => [
+    'views/operasi/detail.php' => [
         'config' => 'window.__OPS_DETAIL_CONFIG__',
         'script' => 'assets/js/pages/operasi_detail.js'
     ],
-    'views/sitrep_form.php' => [
+    'views/operasi/sitrep_form.php' => [
         'config' => 'window.__SITREP_FORM_CONFIG__',
         'script' => 'assets/js/pages/sitrep_form.js'
     ],
@@ -170,11 +170,11 @@ runTest("ViewHelper supports conditional asset options (useGis, useQr, useBra, p
 echo "\n--- 5. Checking PHP Syntax for Modified Views ---\n";
 
 $viewsToLint = [
-    'views/renops_form.php',
-    'views/operasi_form.php',
-    'views/bra_form.php',
-    'views/operasi_detail.php',
-    'views/sitrep_form.php',
+    'views/operasi/renops_form.php',
+    'views/operasi/form.php',
+    'views/bra/form.php',
+    'views/operasi/detail.php',
+    'views/operasi/sitrep_form.php',
     'views/layout/header.php',
     'views/layout/footer.php',
     'views/layout/public_header.php',

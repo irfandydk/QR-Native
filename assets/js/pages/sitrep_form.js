@@ -12,11 +12,11 @@ const OPERASI_BASE_HARI_REOPEN = sitrepFormCfg.operasiBaseHariReopen || 0;
 let currentUnsurList = sitrepFormCfg.initialUnsurData || [];
 let currentAlutList = sitrepFormCfg.initialAlutData || [];
 
-// Escape HTML utility
-function escapeHtml(str) {
+// Escape HTML utility (Unified with QrSarUtils)
+const escapeHtml = (window.QrSarUtils && window.QrSarUtils.escapeHtml) || function(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+};
 
 // ── Toggle Perkembangan vs Penutupan ──
 function handleJenisLaporanChange(val) {

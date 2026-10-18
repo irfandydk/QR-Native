@@ -60,77 +60,22 @@ class GisModel {
 
     /**
      * Compute exact geodesic / spherical polygon area in Nautical Miles squared (Nm²)
+     * Delegates to GeoHelper::calculatePolygonAreaNm2 SSOT
      */
     public static function calculatePolygonAreaNm2(array $points, ?string $shapeType = null, ?float $radiusNm = null, ?float $boxWidthNm = null, ?float $boxHeightNm = null): float {
-        if ($shapeType === 'circle' && $radiusNm !== null && $radiusNm > 0) {
-            return round(M_PI * $radiusNm * $radiusNm, 2);
-        }
-        if ($shapeType === 'box' && $boxWidthNm !== null && $boxHeightNm !== null && $boxWidthNm > 0 && $boxHeightNm > 0) {
-            return round($boxWidthNm * $boxHeightNm, 2);
-        }
-        if (empty($points) || count($points) < 3) {
-            return 0.0;
-        }
-
-        // Centroid / mean latitude for local nautical miles projection
-        $sumLat = 0.0;
-        foreach ($points as $p) {
-            $sumLat += (float)($p['lat'] ?? 0);
-        }
-        $meanLatRad = deg2rad($sumLat / count($points));
-        $cosMeanLat = cos($meanLatRad);
-
-        // Convert lat/lng to local nautical miles (x, y)
-        // 1 deg latitude = 60 Nm, 1 deg longitude = 60 * cos(lat) Nm
-        $n = count($points);
-        $areaSum = 0.0;
-        for ($i = 0; $i < $n; $i++) {
-            $j = ($i + 1) % $n;
-            $x1 = (float)($points[$i]['lng'] ?? 0) * 60.0 * $cosMeanLat;
-            $y1 = (float)($points[$i]['lat'] ?? 0) * 60.0;
-            $x2 = (float)($points[$j]['lng'] ?? 0) * 60.0 * $cosMeanLat;
-            $y2 = (float)($points[$j]['lat'] ?? 0) * 60.0;
-            $areaSum += ($x1 * $y2) - ($x2 * $y1);
-        }
-
-        $areaNm2 = abs($areaSum) / 2.0;
-        return round($areaNm2, 2);
+        return GeoHelper::calculatePolygonAreaNm2($points, $shapeType, $radiusNm, $boxWidthNm, $boxHeightNm);
     }
 
     /**
      * Calculate Haversine distance and bearing between two coordinates.
      * Returns ['km' => float, 'nm' => float, 'bearing' => int, 'headingName' => string]
+     * Delegates to GeoHelper::calculateDistanceHaversine SSOT
      */
     public static function calculateDistanceHaversine(float $lat1, float $lon1, float $lat2, float $lon2): array {
-        $earthRadiusKm = 6371.0;
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLon = deg2rad($lon2 - $lon1);
-
-        $a = sin($dLat / 2) * sin($dLat / 2) +
-             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-             sin($dLon / 2) * sin($dLon / 2);
-        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
-        $km = $earthRadiusKm * $c;
-        $nm = $km * 0.539957;
-
-        $y = sin($dLon) * cos(deg2rad($lat2));
-        $x = cos(deg2rad($lat1)) * sin(deg2rad($lat2)) -
-             sin(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos($dLon);
-        $brng = fmod(rad2deg(atan2($y, $x)) + 360, 360);
-
-        $headings = ['Utara', 'Timur Laut', 'Timur', 'Tenggara', 'Selatan', 'Barat Daya', 'Barat', 'Barat Laut'];
-        $headingIdx = (int)round($brng / 45) % 8;
-
-        return [
-            'km' => round($km, 2),
-            'nm' => round($nm, 2),
-            'bearing' => (int)round($brng),
-            'headingName' => $headings[$headingIdx]
-        ];
+        return GeoHelper::calculateDistanceHaversine($lat1, $lon1, $lat2, $lon2);
     }
 
     public static function getPoints(?int $idOperasi = null, bool $includeGlobal = true): array {
-        self::ensureSchemaUpdated();
         $db = getDB();
         if ($idOperasi !== null && $idOperasi > 0) {
             if ($includeGlobal) {
@@ -154,7 +99,6 @@ class GisModel {
      * Titik ini menjadi master data default untuk titik awal pemberangkatan operasi SAR.
      */
     public static function getMasterBases(): array {
-        self::ensureSchemaUpdated();
         $db = getDB();
         
         $sql = "
@@ -207,7 +151,6 @@ class GisModel {
     }
 
     public static function savePoint(array $data): string {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $id = $data['id'] ?? ('pt-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
         $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
@@ -242,14 +185,12 @@ class GisModel {
     }
 
     public static function deletePoint(string $id): bool {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $stmt = $db->prepare("DELETE FROM GisPoint WHERE id = :id");
         return $stmt->execute([':id' => $id]);
     }
 
     public static function getPolygons(?int $idOperasi = null, bool $includeGlobal = true): array {
-        self::ensureSchemaUpdated();
         $db = getDB();
         if ($idOperasi !== null && $idOperasi > 0) {
             if ($includeGlobal) {
@@ -300,7 +241,6 @@ class GisModel {
     }
 
     public static function savePolygon(array $data): string {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {
@@ -394,7 +334,6 @@ class GisModel {
     }
 
     public static function deletePolygon(string $id): bool {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {
@@ -414,7 +353,6 @@ class GisModel {
     }
 
     public static function getRoutes(?int $idOperasi = null, bool $includeGlobal = true): array {
-        self::ensureSchemaUpdated();
         $db = getDB();
         if ($idOperasi !== null && $idOperasi > 0) {
             if ($includeGlobal) {
@@ -460,7 +398,6 @@ class GisModel {
     }
 
     public static function saveRoute(array $data): string {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {
@@ -544,7 +481,6 @@ class GisModel {
     }
 
     public static function deleteRoute(string $id): bool {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {
@@ -564,7 +500,6 @@ class GisModel {
     }
 
     public static function getSearchPatterns(?int $idOperasi = null, bool $includeGlobal = true): array {
-        self::ensureSchemaUpdated();
         $db = getDB();
         if ($idOperasi !== null && $idOperasi > 0) {
             if ($includeGlobal) {
@@ -607,7 +542,6 @@ class GisModel {
     }
 
     public static function saveSearchPattern(array $data): string {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {
@@ -694,7 +628,6 @@ class GisModel {
     }
 
     public static function deleteSearchPattern(string $id): bool {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $db->beginTransaction();
         try {

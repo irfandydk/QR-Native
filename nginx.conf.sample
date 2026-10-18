@@ -84,7 +84,7 @@ server {
 #         return 404;
 #     }
 #
-#     location ~ ^/(database|config|models|helpers|views|storage|tests|cli|scratch)/ {
+#     location ~ ^/(database|config|models|controllers|services|helpers|views|storage|tests|cli|scratch)/ {
 #         deny all;
 #         return 404;
 #     }

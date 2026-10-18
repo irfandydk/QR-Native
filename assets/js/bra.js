@@ -4,10 +4,12 @@
  */
 
 // Generate letter code AAA, BBB, CCC...
-function getSectionLetter(index) {
-    const char = String.fromCharCode(65 + (index % 26));
-    return char.repeat(3);
-}
+const getSectionLetter = (typeof window !== 'undefined' && window.QrSarUtils && window.QrSarUtils.Bra && typeof window.QrSarUtils.Bra.getSectionLetter === 'function')
+    ? window.QrSarUtils.Bra.getSectionLetter
+    : function (index) {
+        const char = String.fromCharCode(65 + (index % 26));
+        return char.repeat(3);
+    };
 
 // Re-index all section labels on the form
 function reindexSections() {

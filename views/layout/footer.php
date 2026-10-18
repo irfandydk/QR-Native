@@ -31,6 +31,7 @@ $requiresBra = !empty($useBra) || in_array($currentRoute ?? '', ['bra', 'bra_vie
 <?php endif; ?>
 
 <!-- Core App Scripts -->
+<script src="<?= BASE_URL ?>/assets/js/utils/common.js?v=<?= APP_VERSION ?>"></script>
 <script src="<?= BASE_URL ?>/assets/js/app.js?v=<?= APP_VERSION ?>"></script>
 
 <!-- Conditional Feature Scripts -->
@@ -39,6 +40,10 @@ $requiresBra = !empty($useBra) || in_array($currentRoute ?? '', ['bra', 'bra_vie
 <?php endif; ?>
 
 <?php if ($requiresGis): ?>
+<script src="<?= BASE_URL ?>/assets/js/gis/geodesy.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= BASE_URL ?>/assets/js/gis/markers.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= BASE_URL ?>/assets/js/gis/patterns.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= BASE_URL ?>/assets/js/gis/export.js?v=<?= APP_VERSION ?>"></script>
 <script src="<?= BASE_URL ?>/assets/js/gis.js?v=<?= APP_VERSION ?>"></script>
 <?php endif; ?>
 

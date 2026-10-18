@@ -16,11 +16,100 @@ if (php_sapi_name() !== 'cli') {
 
 require_once dirname(__DIR__) . '/config/app.php';
 
+/**
+ * Safely parse and execute a multi-statement SQL migration file.
+ */
+function executeSqlMigrationFile(PDO $db, string $filePath): void {
+    $sqlContent = file_get_contents($filePath);
+    if ($sqlContent === false || trim($sqlContent) === '') {
+        return;
+    }
+
+    $lines = explode("\n", $sqlContent);
+    $currentStmt = '';
+    $statements = [];
+
+    foreach ($lines as $line) {
+        $trimmed = trim($line);
+        if ($trimmed === '' || str_starts_with($trimmed, '--') || str_starts_with($trimmed, '/*')) {
+            continue;
+        }
+        $currentStmt .= $line . "\n";
+        if (str_ends_with(rtrim($trimmed), ';')) {
+            $statements[] = trim($currentStmt);
+            $currentStmt = '';
+        }
+    }
+    if (trim($currentStmt) !== '') {
+        $statements[] = trim($currentStmt);
+    }
+
+    foreach ($statements as $stmt) {
+        if ($stmt === '') continue;
+        try {
+            $db->exec($stmt);
+        } catch (PDOException $e) {
+            $msg = $e->getMessage();
+            // Ignore benign duplicate indexes, columns, or non-existent index drops
+            if (
+                str_contains($msg, '1061 Duplicate key name') ||
+                str_contains($msg, '1060 Duplicate column name') ||
+                str_contains($msg, "1091 Can't DROP")
+            ) {
+                continue;
+            }
+            throw $e;
+        }
+    }
+}
+
 echo "=== [QR-SAR] Database Migration Runner ===\n";
 
 try {
     $db = Database::getConnection();
     echo "[OK] Connected to database.\n";
+
+    // 0. Ensure Automated Migrations Tracker Table Exists
+    echo "[RUN] Checking migrations table...\n";
+    $db->exec("CREATE TABLE IF NOT EXISTS `migrations` (
+        `id` INT AUTO_INCREMENT PRIMARY KEY,
+        `migration` VARCHAR(255) NOT NULL UNIQUE,
+        `batch` INT NOT NULL DEFAULT 1,
+        `applied_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $appliedRows = $db->query("SELECT `migration` FROM `migrations`")->fetchAll(PDO::FETCH_COLUMN);
+    $appliedSet = array_flip($appliedRows);
+
+    $currentBatch = (int)$db->query("SELECT COALESCE(MAX(batch), 0) FROM `migrations`")->fetchColumn();
+    $nextBatch = $currentBatch + 1;
+
+    // Scan database/migrations/ for pending .sql files
+    $migrationsDir = __DIR__ . '/migrations';
+    $sqlFiles = glob($migrationsDir . '/*.sql') ?: [];
+    sort($sqlFiles);
+
+    $appliedCount = 0;
+    foreach ($sqlFiles as $filePath) {
+        $fileName = basename($filePath);
+        if (isset($appliedSet[$fileName])) {
+            continue; // Already tracked and applied
+        }
+
+        echo "[RUN] Applying SQL migration: {$fileName}...\n";
+        executeSqlMigrationFile($db, $filePath);
+
+        $stmtIns = $db->prepare("INSERT INTO `migrations` (`migration`, `batch`, `applied_at`) VALUES (:mig, :batch, NOW())");
+        $stmtIns->execute([':mig' => $fileName, ':batch' => $nextBatch]);
+        echo "[OK] Applied: {$fileName} (Batch {$nextBatch})\n";
+        $appliedCount++;
+    }
+
+    if ($appliedCount === 0) {
+        echo "[INFO] No pending SQL migration files found (schema up-to-date).\n";
+    } else {
+        echo "[OK] {$appliedCount} SQL migration(s) successfully executed.\n";
+    }
 
     // 1. Run GisModel forced migration
     if (class_exists('GisModel')) {
@@ -42,6 +131,23 @@ try {
         RenopsModel::ensureSchemaUpdated(true);
         echo "[OK] Renops schema validated.\n";
     }
+
+    // 1d. Validate and Apply Composite Indexes for High Performance
+    echo "[RUN] Checking Composite Indexes (Korban, Operasi, Renops, LaporanHarian)...\n";
+    $compositeIndexes = [
+        ['table' => 'Korban', 'name' => 'idx_korban_ops_status', 'sql' => 'ALTER TABLE Korban ADD INDEX idx_korban_ops_status (id_operasi, status_korban)'],
+        ['table' => 'Operasi', 'name' => 'idx_ops_status_selesai', 'sql' => 'ALTER TABLE Operasi ADD INDEX idx_ops_status_selesai (status, waktu_selesai)'],
+        ['table' => 'Renops', 'name' => 'idx_renops_ops_hari', 'sql' => 'ALTER TABLE Renops ADD INDEX idx_renops_ops_hari (id_operasi, hari_ke)'],
+        ['table' => 'LaporanHarian', 'name' => 'idx_lap_ops_hari', 'sql' => 'ALTER TABLE LaporanHarian ADD INDEX idx_lap_ops_hari (id_operasi, hari_ke)']
+    ];
+    foreach ($compositeIndexes as $cIdx) {
+        $check = $db->query("SHOW INDEX FROM {$cIdx['table']} WHERE Key_name = '{$cIdx['name']}'")->fetchAll();
+        if (empty($check)) {
+            $db->exec($cIdx['sql']);
+            echo "[OK] Index {$cIdx['name']} created on {$cIdx['table']}.\n";
+        }
+    }
+    echo "[OK] Composite indexes validated.\n";
 
     // 2. Run UserModel table migration
     if (class_exists('UserModel')) {

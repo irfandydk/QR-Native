@@ -387,11 +387,11 @@ function syncAlutFields() {
 // Data Injections from Backend
 // sarUnits and satkerKode initialized above from opsFormCfg
 
-// Helper escapeHtml
-function escapeHtml(str) {
+// Helper escapeHtml (Unified with QrSarUtils)
+const escapeHtml = (window.QrSarUtils && window.QrSarUtils.escapeHtml) || function(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+};
 
 // ── Tactical LKP & Nautical Route Planner Engine ──
 const tacticalState = {
