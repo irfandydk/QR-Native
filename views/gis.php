@@ -1403,4 +1403,10 @@ window.SAR_INITIAL_GIS_DATA = {
 <script src="<?= BASE_URL ?>/assets/js/gis/markers.js?v=<?= APP_VERSION ?>"></script>
 <script src="<?= BASE_URL ?>/assets/js/gis/patterns.js?v=<?= APP_VERSION ?>"></script>
 <script src="<?= BASE_URL ?>/assets/js/gis/export.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= BASE_URL ?>/assets/js/gis/layers.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= BASE_URL ?>/assets/js/gis/ui_search.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= BASE_URL ?>/assets/js/gis/ui_points.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= BASE_URL ?>/assets/js/gis/ui_polygons.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= BASE_URL ?>/assets/js/gis/ui_patterns.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= BASE_URL ?>/assets/js/gis/ui_routes.js?v=<?= APP_VERSION ?>"></script>
 <script src="<?= BASE_URL ?>/assets/js/gis_master.js?v=<?= APP_VERSION ?>.<?= file_exists(ROOT_DIR . '/assets/js/gis_master.js') ? filemtime(ROOT_DIR . '/assets/js/gis_master.js') : time() ?>"></script>

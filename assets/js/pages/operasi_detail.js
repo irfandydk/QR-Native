@@ -490,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function copyDetailWA() {
-    const el = document.getElementById('modal-wa-awal-text') || document.getElementById('detail-wa-text');
+    const el = document.getElementById('wa-awal-modal-text') || document.getElementById('modal-wa-awal-text') || document.getElementById('detail-wa-text');
     const text = el ? (el.value || el.textContent || '').trim() : '';
     copyToClipboard(text, 'Naskah Laporan Awal WhatsApp Berhasil Disalin!');
 }

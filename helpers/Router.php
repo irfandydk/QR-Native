@@ -164,10 +164,27 @@ class Router {
     }
 
     /**
-     * Generates a clean URL with BASE_URL prefix
+     * Generates a clean URL with BASE_URL prefix and optional query parameters
+     *
+     * @param string $path Relative path or clean route (e.g. 'operasi/detail' or '/bra.php')
+     * @param array<string, mixed> $query Optional query parameters
      */
-    public static function url(string $path = ''): string {
-        return rtrim(BASE_URL, '/') . '/' . ltrim($path, '/');
+    public static function url(string $path = '', array $query = []): string {
+        $baseUrl = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            $url = $path;
+        } else {
+            $cleanPath = ltrim($path, '/');
+            $url = $cleanPath !== '' ? "{$baseUrl}/{$cleanPath}" : $baseUrl;
+        }
+
+        if (!empty($query)) {
+            $queryString = http_build_query($query);
+            $url .= (str_contains($url, '?') ? '&' : '?') . $queryString;
+        }
+
+        return $url;
     }
 
     /**
@@ -238,5 +255,14 @@ class Router {
         header('Content-Length: ' . (string)filesize($realPath));
         readfile($realPath);
         return true;
+    }
+}
+
+/**
+ * Global procedural shortcut for Router::url
+ */
+if (!function_exists('url')) {
+    function url(string $path = '', array $query = []): string {
+        return Router::url($path, $query);
     }
 }

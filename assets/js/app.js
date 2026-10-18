@@ -204,18 +204,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Modal close triggers
+    // Modal close triggers (Strict modal overlay selector)
     document.querySelectorAll('[data-close-modal]').forEach(btn => {
         btn.addEventListener('click', () => {
-            const modal = btn.closest('.modal-overlay') || btn.closest('[id^="modal-"]');
+            const modal = btn.closest('.modal-overlay, .bra-modal-overlay');
             if (modal) closeModal(modal);
         });
     });
 
-    // Close modal on Escape key
+    // Close modal on Escape key (Target only top-level modal overlays, never inner child elements)
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            document.querySelectorAll('.modal-overlay.open, [id^="modal-"]:not(.hidden)').forEach(modal => {
+            document.querySelectorAll('.modal-overlay.open, .bra-modal-overlay.open').forEach(modal => {
                 if (modal.classList.contains('open') || (!modal.classList.contains('hidden') && modal.style.display !== 'none')) {
                     closeModal(modal);
                 }
@@ -350,10 +350,29 @@ async function copyToClipboard(text, successMsg = 'Teks Berhasil Disalin ke Clip
     }
 }
 
-// Modal helper
+// Defensive body scroll restoration helper
+function ensureBodyScrollUnlocked() {
+    const activeModals = document.querySelectorAll('.modal-overlay.open, .bra-modal-overlay.open');
+    let stillOpen = false;
+    activeModals.forEach(el => {
+        if (el.classList.contains('open') && !el.classList.contains('hidden') && el.style.display !== 'none') {
+            stillOpen = true;
+        }
+    });
+    if (!stillOpen) {
+        document.body.style.overflow = '';
+    }
+}
+window.ensureBodyScrollUnlocked = ensureBodyScrollUnlocked;
+
+// Modal helper (Single Source of Truth)
 function openModal(id) {
     const m = typeof id === 'string' ? document.getElementById(id) : id;
     if (!m) return;
+
+    // Track active element to restore focus on close
+    m.__prevActiveElement = document.activeElement;
+
     m.classList.remove('hidden');
     m.classList.add('open');
     if (m.style.display === 'none' || !m.style.display) {
@@ -374,11 +393,16 @@ function closeModal(id) {
         window.closeModalPaperPreview();
     }
 
-    // Check if any modal is still actively open
-    const openModals = document.querySelectorAll('.modal-overlay.open, .bra-modal-overlay.open, [id^="modal-"]:not(.hidden)');
+    // Restore focus if previously tracked
+    if (m.__prevActiveElement && typeof m.__prevActiveElement.focus === 'function') {
+        try { m.__prevActiveElement.focus(); } catch (e) {}
+    }
+
+    // Check if any modal overlay is still actively open (Strict selector: only real modal overlay containers)
+    const activeModals = document.querySelectorAll('.modal-overlay.open, .bra-modal-overlay.open');
     let stillOpen = false;
-    openModals.forEach(el => {
-        if (el !== m && (el.classList.contains('open') || (el.style.display !== 'none' && !el.classList.contains('hidden')))) {
+    activeModals.forEach(el => {
+        if (el !== m && el.classList.contains('open') && !el.classList.contains('hidden') && el.style.display !== 'none') {
             stillOpen = true;
         }
     });

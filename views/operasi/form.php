@@ -1281,7 +1281,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <div>
           <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
             <span>Peta Taktis LKP & Plotting Jalur Tempuh SAR (Fullscreen)</span>
-            <span id="modal-route-mode-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+            <span id="map-modal-route-mode-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
               GARIS LURUS
             </span>
           </h3>
@@ -1313,22 +1313,22 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-bold uppercase tracking-wider text-orange-400">Mode Rute:</span>
             <div class="inline-flex p-0.5 rounded-lg bg-slate-800 border border-slate-700">
-              <button type="button" id="modal-btn-mode-direct" onclick="setRoutingMode('direct')" class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-orange-600 text-white cursor-pointer">
+              <button type="button" id="map-modal-btn-mode-direct" onclick="setRoutingMode('direct')" class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-orange-600 text-white cursor-pointer">
                 Direct
               </button>
-              <button type="button" id="modal-btn-mode-manual" onclick="setRoutingMode('manual')" class="px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-300 hover:text-white cursor-pointer">
+              <button type="button" id="map-modal-btn-mode-manual" onclick="setRoutingMode('manual')" class="px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-300 hover:text-white cursor-pointer">
                 Manual Waypoints
               </button>
             </div>
           </div>
-          <div id="modal-manual-actions" class="hidden flex items-center gap-1.5 pt-1 border-t border-white/10">
+          <div id="map-modal-manual-actions" class="hidden flex items-center gap-1.5 pt-1 border-t border-white/10">
             <button type="button" onclick="undoLastWaypoint()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-white border border-amber-500/30 transition cursor-pointer">
               ↩️ Undo Titik
             </button>
             <button type="button" onclick="clearManualRouteWaypoints()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/30 transition cursor-pointer">
               🗑️ Reset Jalur
             </button>
-            <span id="modal-waypoint-count-pill" class="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">
+            <span id="map-modal-waypoint-count-pill" class="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">
               0 WP
             </span>
           </div>
@@ -1342,16 +1342,16 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <div class="absolute bottom-4 left-4 z-[1000] p-3 rounded-2xl bg-slate-900/90 backdrop-blur-md border border-white/20 shadow-xl text-white flex items-center gap-4 pointer-events-auto">
         <div>
           <span class="text-[10px] text-slate-400 block">Jarak Total:</span>
-          <strong id="modal-tactical-dist" class="font-mono text-sm text-orange-400 font-bold">0.0 NM</strong>
-          <span id="modal-tactical-km" class="text-[11px] text-slate-400 font-mono">(0.0 KM)</span>
+          <strong id="map-modal-tactical-dist" class="font-mono text-sm text-orange-400 font-bold">0.0 NM</strong>
+          <span id="map-modal-tactical-km" class="text-[11px] text-slate-400 font-mono">(0.0 KM)</span>
         </div>
         <div class="border-l border-white/15 pl-3">
           <span class="text-[10px] text-slate-400 block">Radial / Heading:</span>
-          <strong id="modal-tactical-radial" class="font-mono text-sm text-slate-200 font-bold">000°</strong>
+          <strong id="map-modal-tactical-radial" class="font-mono text-sm text-slate-200 font-bold">000°</strong>
         </div>
         <div class="border-l border-white/15 pl-3">
           <span class="text-[10px] text-slate-400 block">Estimasi ETA:</span>
-          <strong id="modal-tactical-eta" class="font-mono text-sm text-emerald-400 font-bold">-</strong>
+          <strong id="map-modal-tactical-eta" class="font-mono text-sm text-emerald-400 font-bold">-</strong>
         </div>
       </div>
     </div>
@@ -1381,4 +1381,5 @@ window.__OPS_FORM_CONFIG__ = <?= jsonSafe([
     'initialCoord' => !empty($operasi['koordinat']) ? $operasi['koordinat'] : '04° 02\' 16" S - 122° 29\' 12" E'
 ]) ?>;
 </script>
+<script src="<?= BASE_URL ?>/assets/js/pages/operasi_form_map.js?v=<?= APP_VERSION ?>"></script>
 <script src="<?= BASE_URL ?>/assets/js/pages/operasi_form.js?v=<?= APP_VERSION ?>"></script>

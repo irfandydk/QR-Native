@@ -163,6 +163,8 @@ class MasterController extends BaseController {
         $pejabatList = MasterModel::getPejabat();
 
         $this->render('master/index', [
+            'tab' => $tab,
+            'activeTab' => $tab,
             'masterAlut' => $masterAlut,
             'masterTim' => $masterTim,
             'pejabatList' => $pejabatList

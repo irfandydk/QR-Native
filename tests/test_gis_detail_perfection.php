@@ -32,8 +32,10 @@ assertCondition("Controller memuat route => 'operasi_detail'", str_contains($con
 assertCondition("Controller memanggil GisModel::getOperationBundle()", str_contains($controllerContent, 'GisModel::getOperationBundle'));
 
 // 2. Uji Integritas View Detail Operasi (Bebas PHP Warning & Valid JSON Config)
-echo "\n2. Memeriksa views/operasi/detail.php (Sanitasi Variabel & JSON Safe):\n";
 $detailViewContent = file_get_contents(__DIR__ . '/../views/operasi/detail.php');
+foreach (glob(__DIR__ . '/../views/operasi/partials/*.php') as $p) {
+    $detailViewContent .= "\n" . file_get_contents($p);
+}
 assertCondition("Tidak ada referensi undefined \$renopsList", !str_contains($detailViewContent, '$renopsList'));
 assertCondition("Tidak ada referensi undefined \$laporanList", !str_contains($detailViewContent, '$laporanList'));
 assertCondition("Menggunakan \$operasi['renops'] ?? []", str_contains($detailViewContent, "'renops' => \$operasi['renops'] ?? []"));

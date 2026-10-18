@@ -130,9 +130,41 @@ class ViewHelper
                 require $viewFile;
                 break;
 
-            default:
-                throw new InvalidArgumentException("Tata letak (layout) tidak dikenal: {$layout}");
         }
+    }
+
+    public static function resolvePartialFile(string $partial): string
+    {
+        if (!str_ends_with($partial, '.php')) {
+            $partial .= '.php';
+        }
+
+        $clean = ltrim($partial, '/');
+        if (str_starts_with($clean, 'views/')) {
+            $clean = substr($clean, 6);
+        }
+
+        $direct = VIEWS_DIR . '/' . $clean;
+        if (file_exists($direct)) {
+            return $direct;
+        }
+
+        throw new RuntimeException("Berkas partial view tidak ditemukan: {$direct}");
+    }
+
+    /**
+     * Render an isolated partial view without polluting caller scope
+     *
+     * @param string $partial Relative path under views/ (e.g. 'operasi/partials/tab_hierarchy')
+     * @param array<string, mixed> $data Variables to extract into the partial's scope
+     */
+    public static function partial(string $partial, array $data = []): void
+    {
+        $file = self::resolvePartialFile($partial);
+        (static function (string $__partialFile, array $__data): void {
+            extract($__data, EXTR_OVERWRITE);
+            require $__partialFile;
+        })($file, $data);
     }
 }
 
@@ -143,5 +175,15 @@ if (!function_exists('renderView')) {
     function renderView(string $view, array $data = [], array $options = []): void
     {
         ViewHelper::render($view, $data, $options);
+    }
+}
+
+/**
+ * Global procedural shortcut for ViewHelper::partial
+ */
+if (!function_exists('renderPartial')) {
+    function renderPartial(string $partial, array $data = []): void
+    {
+        ViewHelper::partial($partial, $data);
     }
 }

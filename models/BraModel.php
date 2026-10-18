@@ -10,8 +10,14 @@ class BraModel {
     public static function getAll(?string $kategori = null, ?string $search = null, bool $withSections = false): array {
         $db = getDB();
         $sql = "SELECT b.*,
-            (SELECT COUNT(*) FROM BraSection s WHERE s.id_bra = b.id_bra) as total_sections
-            FROM BraSar b WHERE 1=1";
+            COALESCE(s.total_sections, 0) AS total_sections
+            FROM BraSar b
+            LEFT JOIN (
+                SELECT id_bra, COUNT(*) AS total_sections
+                FROM BraSection
+                GROUP BY id_bra
+            ) s ON s.id_bra = b.id_bra
+            WHERE 1=1";
         
         $params = [];
         if ($kategori) {

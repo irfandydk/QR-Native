@@ -59,7 +59,12 @@ $preferredOrder = [
     'test_phase5_gis_modular.php',
     'test_phase6_decoupled_services.php',
     'test_phase7_migrations_cleanup.php',
-    'test_phase8_relations_logger.php'
+    'test_phase8_relations_logger.php',
+    'test_phase9_view_partials.php',
+    'test_phase10_js_modular.php',
+    'test_phase11_sql_and_router.php',
+    'test_modal_scroll_integrity.php',
+    'test_master_data_integrity.php'
 ];
 
 $allFiles = glob($testsDir . '/test_*.php') ?: [];

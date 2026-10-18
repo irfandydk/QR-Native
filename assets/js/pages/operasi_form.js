@@ -1012,11 +1012,11 @@ function setRoutingMode(mode, updateState = true) {
   const modeBadge = document.getElementById('route-mode-badge');
   const instructionText = document.getElementById('map-instruction-text');
 
-  // Buttons state in modal
-  const modalBtnDirect = document.getElementById('modal-btn-mode-direct');
-  const modalBtnManual = document.getElementById('modal-btn-mode-manual');
-  const modalManualActions = document.getElementById('modal-manual-actions');
-  const modalModeBadge = document.getElementById('modal-route-mode-badge');
+  // Buttons state in modal (supports both new map-modal-* and legacy modal-*)
+  const modalBtnDirect = document.getElementById('map-modal-btn-mode-direct') || document.getElementById('modal-btn-mode-direct');
+  const modalBtnManual = document.getElementById('map-modal-btn-mode-manual') || document.getElementById('modal-btn-mode-manual');
+  const modalManualActions = document.getElementById('map-modal-manual-actions') || document.getElementById('modal-manual-actions');
+  const modalModeBadge = document.getElementById('map-modal-route-mode-badge') || document.getElementById('modal-route-mode-badge');
 
   if (mode === 'manual') {
     if (btnDirect) {
@@ -1122,7 +1122,7 @@ function clearManualRouteWaypoints() {
 // ── Redraw Route Polyline & Waypoints on Active Maps ──
 function redrawTacticalRoute() {
   const wpCountPill = document.getElementById('waypoint-count-pill');
-  const modalWpCountPill = document.getElementById('modal-waypoint-count-pill');
+  const modalWpCountPill = document.getElementById('map-modal-waypoint-count-pill') || document.getElementById('modal-waypoint-count-pill');
   const countText = `${tacticalState.manualWaypoints.length} Waypoint`;
   if (wpCountPill) wpCountPill.textContent = countText;
   if (modalWpCountPill) modalWpCountPill.textContent = countText;
@@ -1358,11 +1358,11 @@ function recalculateTacticalMetrics(autoApply = false) {
     }
   }
 
-  // Update Modal Summary Elements
-  const mDistEl = document.getElementById('modal-tactical-dist');
-  const mKmEl = document.getElementById('modal-tactical-km');
-  const mRadEl = document.getElementById('modal-tactical-radial');
-  const mEtaEl = document.getElementById('modal-tactical-eta');
+  // Update Modal Summary Elements (supports both new map-modal-* and legacy modal-*)
+  const mDistEl = document.getElementById('map-modal-tactical-dist') || document.getElementById('modal-tactical-dist');
+  const mKmEl = document.getElementById('map-modal-tactical-km') || document.getElementById('modal-tactical-km');
+  const mRadEl = document.getElementById('map-modal-tactical-radial') || document.getElementById('modal-tactical-radial');
+  const mEtaEl = document.getElementById('map-modal-tactical-eta') || document.getElementById('modal-tactical-eta');
 
   if (mDistEl) mDistEl.textContent = `${totalNm.toFixed(1)} NM`;
   if (mKmEl) mKmEl.textContent = `(${totalKm.toFixed(1)} KM)`;
@@ -1522,10 +1522,16 @@ function openFullscreenMapModal() {
 
 function closeFullscreenMapModal() {
   closeModal('modal-fullscreen-map');
+  if (typeof window.ensureBodyScrollUnlocked === 'function') {
+    window.ensureBodyScrollUnlocked();
+  }
   setTimeout(function() {
     if (tacticalState.inlineMap) {
       tacticalState.inlineMap.invalidateSize();
       redrawTacticalRoute();
+    }
+    if (typeof window.ensureBodyScrollUnlocked === 'function') {
+      window.ensureBodyScrollUnlocked();
     }
   }, 100);
 }
@@ -1533,6 +1539,9 @@ function closeFullscreenMapModal() {
 function applyAndCloseFullscreenMapModal() {
   applyTacticalRouteToForm();
   closeFullscreenMapModal();
+  if (typeof window.ensureBodyScrollUnlocked === 'function') {
+    window.ensureBodyScrollUnlocked();
+  }
 }
 
 // ── Backward Compatibility Wrapper ──
@@ -1711,21 +1720,35 @@ function removeKorbanRow(btn) {
   }
 }
 
-// Modal Helper Delegation
+// Modal Helper Delegation (Unified with app.js central modal engine)
 function openModal(id) {
+  if (typeof window.openModal === 'function' && window.openModal !== openModal) {
+    return window.openModal(id);
+  }
   const m = typeof id === 'string' ? document.getElementById(id) : id;
   if (!m) return;
+  m.__prevActiveElement = document.activeElement;
   m.classList.remove('hidden');
   m.classList.add('open');
   m.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
 }
 
 function closeModal(id) {
+  if (typeof window.closeModal === 'function' && window.closeModal !== closeModal) {
+    return window.closeModal(id);
+  }
   const m = typeof id === 'string' ? document.getElementById(id) : id;
   if (!m) return;
   m.classList.remove('open');
   m.classList.add('hidden');
   m.style.display = 'none';
+
+  if (typeof window.ensureBodyScrollUnlocked === 'function') {
+    window.ensureBodyScrollUnlocked();
+  } else {
+    document.body.style.overflow = '';
+  }
 }
 window.openModal = openModal;
 window.closeModal = closeModal;
@@ -2327,3 +2350,27 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch((window.BASE_URL || '') + '/api/auth/ping', { method: 'GET' }).catch(() => {});
   }, 300000);
 });
+
+// Standardized QRSAR Global Namespace
+window.QRSAR = window.QRSAR || {};
+window.QRSAR.OperasiForm = {
+  renderUnsurList,
+  handleSelectTimBerangkat,
+  pickMasterTim,
+  quickAddTimPreset,
+  handleAddTimClick,
+  moveUnsurRow,
+  removeUnsurRow,
+  updateUnsurItem,
+  syncUnsurFields,
+  renderAlutList,
+  pickMasterAlut,
+  quickAddAlutPreset,
+  handleAddAlutClick,
+  moveAlutRow,
+  removeAlutRow,
+  updateAlutItem,
+  syncAlutFields,
+  addKorbanRow,
+  removeKorbanRow
+};

@@ -620,18 +620,34 @@ function copySitrepWa() {
 }
 
 function openModal(id) {
-  const el = document.getElementById(id);
+  if (typeof window.openModal === 'function' && window.openModal !== openModal) {
+    window.openModal(id);
+    return;
+  }
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
   if (el) {
     el.classList.remove('hidden');
-    el.style.display = 'flex';
+    el.classList.add('open');
+    if (el.style.display === 'none' || !el.style.display) el.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
   }
 }
 
 function closeModal(id) {
-  const el = document.getElementById(id);
+  if (typeof window.closeModal === 'function' && window.closeModal !== closeModal) {
+    window.closeModal(id);
+    return;
+  }
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
   if (el) {
     el.classList.add('hidden');
+    el.classList.remove('open');
     el.style.display = 'none';
+  }
+  if (typeof window.ensureBodyScrollUnlocked === 'function') {
+    window.ensureBodyScrollUnlocked();
+  } else {
+    document.body.style.overflow = '';
   }
 }
 

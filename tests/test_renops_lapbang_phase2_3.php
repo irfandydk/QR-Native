@@ -100,8 +100,11 @@ assertTest(strpos($operasiPhp, "print_renops") !== false, "Route 'print_renops' 
 assertTest(strpos($operasiPhp, "print_penutupan") !== false, "Route 'print_penutupan' terdaftar di operasi.php");
 assertTest(strpos($operasiPhp, "print_sitrep") !== false, "Route 'print_sitrep' terdaftar di operasi.php");
 
-// --- 4. Tombol & Trigger di views/operasi/detail.php ---
+// --- 4. Tombol & Trigger di views/operasi/detail.php & Partials ---
 $detailPhp = file_get_contents(__DIR__ . '/../views/operasi/detail.php');
+foreach (glob(__DIR__ . '/../views/operasi/partials/*.php') as $partialFile) {
+    $detailPhp .= "\n" . file_get_contents($partialFile);
+}
 assertTest(strpos($detailPhp, "operasi.php?action=print_renops") !== false, "detail.php memiliki link/aksi cetak RENOPS");
 assertTest(strpos($detailPhp, "operasi.php?action=print_sitrep") !== false, "detail.php memiliki link/aksi cetak SITREP");
 assertTest(strpos($detailPhp, "operasi.php?action=print_penutupan") !== false, "detail.php memiliki link/aksi cetak Berita Acara Penutupan");

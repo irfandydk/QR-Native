@@ -5816,6 +5816,10 @@
     clearRoute: () => clearMeasureVisual()
   };
 
+  window.QRSAR = window.QRSAR || {};
+  window.QRSAR.GIS = window.QRSAR.GIS || {};
+  window.QRSAR.GIS.Facade = window.SAR_GIS;
+
   function initOperasiSelector() {
     const sel = document.getElementById('selectGisOperasi');
     const checkIncludeBase = document.getElementById('checkIncludeBase');
