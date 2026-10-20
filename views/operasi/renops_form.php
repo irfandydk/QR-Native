@@ -41,6 +41,8 @@ $masterAlut = $masterAlut ?? [];
 $initialUnsurData = $initialUnsurData ?? [];
 $initialAlutData = $initialAlutData ?? [];
 $initialSrus = $initialSrus ?? [];
+$renops = $renops ?? [];
+$satuanJarak = !empty($renops['satuan_jarak']) ? $renops['satuan_jarak'] : 'NM';
 $gisBundle = $gisBundle ?? ['points' => [], 'polygons' => [], 'routes' => [], 'searchPatterns' => []];
 $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchPatterns'] ?? []) + count($gisBundle['routes'] ?? []) + count($gisBundle['points'] ?? []);
 ?>
@@ -182,7 +184,7 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
 
     <!-- POIN 2: Pembagian Sektor & Search and Rescue Unit (SRU) -->
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
-      <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+      <div class="flex flex-col xl:flex-row xl:items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 gap-3">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs">
             02
@@ -195,6 +197,26 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+          <!-- Master Satuan Jarak Switcher -->
+          <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-950/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+            <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase px-1.5 flex items-center gap-1">
+              <span>📏</span>
+              <span class="hidden sm:inline">Satuan:</span>
+            </span>
+            <div id="renopsUnitSwitcher" class="inline-flex rounded-lg p-0.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-[11px] font-bold">
+              <button type="button" data-renops-unit="NM" class="renops-unit-btn px-2.5 py-1 rounded-md transition cursor-pointer font-bold bg-orange-500 text-white shadow-xs" title="Nautical Miles / NM² (Standar Operasi Laut / Maritim)">
+                NM
+              </button>
+              <button type="button" data-renops-unit="KM" class="renops-unit-btn px-2.5 py-1 rounded-md transition cursor-pointer font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white" title="Kilometer / KM² (Standar Operasi Darat / Gunung Hutan)">
+                KM
+              </button>
+              <button type="button" data-renops-unit="M" class="renops-unit-btn px-2.5 py-1 rounded-md transition cursor-pointer font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white" title="Meter / m² (Presisi Tinggi Sempit / Urban SAR)">
+                M
+              </button>
+            </div>
+            <input type="hidden" name="satuan_jarak" id="renops_satuan_jarak" value="<?= e($satuanJarak) ?>">
+          </div>
+
           <button type="button" onclick="openGisImportModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-white shadow-xs transition cursor-pointer" title="Ambil Search Area, Pola Pencarian, Jalur dan Titik Taktis dari Peta Plotting">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
             <span>Ambil Data dari Peta Plotting</span>
@@ -203,6 +225,10 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
           <button type="button" id="btn-quick-refresh-gis" onclick="refreshGisBundle(true)" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-2xs transition cursor-pointer" title="Refresh / Sinkronkan data plotting peta terbaru">
             <svg id="icon-quick-refresh-gis" class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
             <span class="hidden sm:inline">Refresh Data</span>
+          </button>
+          <button type="button" id="btn-sync-all-gis-srus" onclick="syncAllPlottingSectorsToSru()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition cursor-pointer" title="Otomatis buat pembagian unit SRU berdasarkan seluruh sektor Search Area di GIS plotting">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <span>⚡ Sinkronkan Sektor Plotting ke SRU</span>
           </button>
           <button type="button" onclick="addSruRow()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-xs transition cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -418,6 +444,9 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
             <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
               Operasi & Base Map
             </span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+              Satuan: <strong class="text-orange-600 dark:text-orange-400 renops-active-unit-label font-bold"><?= e($satuanJarak) ?></strong>
+            </span>
           </h3>
           <p class="text-[11px] text-slate-500 dark:text-slate-400">
             Pilih Search Area, Pola Pencarian SAR, Jalur, atau Titik Taktis untuk dimasukkan langsung ke lembar RENOPS.
@@ -507,6 +536,7 @@ window.__RENOPS_PAGE_CONFIG__ = <?= jsonSafe([
     'operasiStartDate' => date('Y-m-d', strtotime(TemplateHelper::getWaktuMulaiAwal($operasi))),
     'operasiReopenDate' => !empty($operasi['waktu_reopen']) ? date('Y-m-d', strtotime((string)$operasi['waktu_reopen'])) : null,
     'operasiBaseHariReopen' => (int)TemplateHelper::getBaseHariSebelumReopen($operasi),
+    'satuanJarak' => $satuanJarak,
 ]) ?>;
 </script>
 <script src="<?= BASE_URL ?>/assets/js/pages/renops_form.js?v=<?= APP_VERSION ?>"></script>

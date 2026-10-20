@@ -239,7 +239,9 @@ BODY;
         // SRUs
         if (empty($srus)) {
             $koorOps = $ops['koordinat'] ?: '03° 58\' 30" S - 122° 35\' 12" E';
-            $sruText = "*SRU 1 Tim Rescue Kansar Kendari* melakukan penyisiran dgn koordinat :\nA: {$koorOps}\nLuas area pencarian : 10 Nm²\nPola pencarian : Parallel Track Search";
+            $unit = strtoupper(trim((string)($renops['satuan_jarak'] ?? 'NM')));
+            $defaultArea = $unit === 'KM' ? '34.30 KM² (10.00 NM²)' : ($unit === 'M' ? '34.299.040 m² (10.00 NM²)' : '10.00 NM² (34.30 KM²)');
+            $sruText = "*SRU 1 Tim Rescue Kansar Kendari* melakukan penyisiran dgn koordinat :\nA: {$koorOps}\nLuas area pencarian : {$defaultArea}\nPola pencarian : Parallel Track Search";
         } else {
             $sList = [];
             foreach ($srus as $s) {

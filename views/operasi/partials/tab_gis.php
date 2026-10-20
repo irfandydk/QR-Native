@@ -47,6 +47,11 @@
                     <span>Segarkan</span>
                 </button>
 
+
+                <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base=1&capture_doc=LAPORAN_AWAL" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition shadow-xs no-underline" title="Buka Studio Capture Peta 16:9 untuk Dokumen Cetak Resmi">
+                    <span>📸 Capture Peta Dokumen (16:9)</span>
+                </a>
+
                 <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base=1" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-500/30 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold text-xs transition shadow-xs" title="Buka Halaman Plotting GIS Penuh dengan fitur Menggambar Search Area & Pola SAR">
                     <span>✏️ Buka Plotting GIS</span>
                     <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>

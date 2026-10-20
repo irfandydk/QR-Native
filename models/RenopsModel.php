@@ -23,6 +23,10 @@ class RenopsModel {
             if (empty($colsTs)) {
                 $db->exec("ALTER TABLE RenopsSRU ADD COLUMN track_spacing VARCHAR(191) NULL DEFAULT NULL");
             }
+            $colsSj = $db->query("SHOW COLUMNS FROM Renops LIKE 'satuan_jarak'")->fetchAll();
+            if (empty($colsSj)) {
+                $db->exec("ALTER TABLE Renops ADD COLUMN satuan_jarak VARCHAR(20) NULL DEFAULT 'NM'");
+            }
         } catch (Throwable $e) {
             error_log("[RenopsModel Schema Check] " . $e->getMessage());
         }
@@ -128,17 +132,37 @@ class RenopsModel {
 
             $fullTextWa = TemplateHelper::generateRenopsWA($ops, $data, $srus, $ops['korban'], $unsur, $alut);
 
-            $stmt = $db->prepare("INSERT INTO Renops (
-                id_operasi, hari_ke, tanggal_laporan, waktu_briefing,
-                waktu_mulai_ops, cuaca, unsur_text, alut_text,
-                detail_unsur, detail_alut,
-                full_text_wa, created_at
-            ) VALUES (
-                :id_operasi, :hari_ke, :tanggal_laporan, :waktu_briefing,
-                :waktu_mulai_ops, :cuaca, :unsur_text, :alut_text,
-                :detail_unsur, :detail_alut,
-                :full_text_wa, :created_at
-            )");
+            $satuanJarak = in_array(strtoupper(trim((string)($data['satuan_jarak'] ?? 'NM'))), ['KM', 'M', 'NM']) ? strtoupper(trim((string)$data['satuan_jarak'])) : 'NM';
+            $hasSatuanCol = false;
+            try {
+                $hasSatuanCol = !empty($db->query("SHOW COLUMNS FROM Renops LIKE 'satuan_jarak'")->fetchAll());
+            } catch (Throwable $e) {}
+
+            if ($hasSatuanCol) {
+                $stmt = $db->prepare("INSERT INTO Renops (
+                    id_operasi, hari_ke, tanggal_laporan, waktu_briefing,
+                    waktu_mulai_ops, cuaca, satuan_jarak, unsur_text, alut_text,
+                    detail_unsur, detail_alut,
+                    full_text_wa, created_at
+                ) VALUES (
+                    :id_operasi, :hari_ke, :tanggal_laporan, :waktu_briefing,
+                    :waktu_mulai_ops, :cuaca, :satuan_jarak, :unsur_text, :alut_text,
+                    :detail_unsur, :detail_alut,
+                    :full_text_wa, :created_at
+                )");
+            } else {
+                $stmt = $db->prepare("INSERT INTO Renops (
+                    id_operasi, hari_ke, tanggal_laporan, waktu_briefing,
+                    waktu_mulai_ops, cuaca, unsur_text, alut_text,
+                    detail_unsur, detail_alut,
+                    full_text_wa, created_at
+                ) VALUES (
+                    :id_operasi, :hari_ke, :tanggal_laporan, :waktu_briefing,
+                    :waktu_mulai_ops, :cuaca, :unsur_text, :alut_text,
+                    :detail_unsur, :detail_alut,
+                    :full_text_wa, :created_at
+                )");
+            }
 
             $now = date('Y-m-d H:i:s');
             // ISSUE-RENOPS-04: Normalisasi format tanggal dan waktu
@@ -149,7 +173,7 @@ class RenopsModel {
             $rawHari = trim((string)($data['hari_ke'] ?? 'H.1'));
             $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
 
-            $stmt->execute([
+            $params = [
                 ':id_operasi' => (int)$data['id_operasi'],
                 ':hari_ke' => $hariKe,
                 ':tanggal_laporan' => $tglLaporan,
@@ -162,7 +186,12 @@ class RenopsModel {
                 ':detail_alut' => json_encode($alut, JSON_UNESCAPED_UNICODE),
                 ':full_text_wa' => $fullTextWa,
                 ':created_at' => $now
-            ]);
+            ];
+            if ($hasSatuanCol) {
+                $params[':satuan_jarak'] = $satuanJarak;
+            }
+
+            $stmt->execute($params);
 
             $idRenops = (int)$db->lastInsertId();
 
@@ -222,23 +251,45 @@ class RenopsModel {
             $waktuBriefing = OperasiModel::normalizeDateTime($data['waktu_briefing'] ?? $renops['waktu_briefing']);
             $waktuMulaiOps = OperasiModel::normalizeDateTime($data['waktu_mulai_ops'] ?? $renops['waktu_mulai_ops']);
 
-            $stmt = $db->prepare("UPDATE Renops SET
-                hari_ke = :hari_ke,
-                tanggal_laporan = :tanggal_laporan,
-                waktu_briefing = :waktu_briefing,
-                waktu_mulai_ops = :waktu_mulai_ops,
-                cuaca = :cuaca,
-                unsur_text = :unsur_text,
-                alut_text = :alut_text,
-                detail_unsur = :detail_unsur,
-                detail_alut = :detail_alut,
-                full_text_wa = :full_text_wa
-                WHERE id_renops = :id");
+            $satuanJarak = in_array(strtoupper(trim((string)($data['satuan_jarak'] ?? ($renops['satuan_jarak'] ?? 'NM')))), ['KM', 'M', 'NM']) ? strtoupper(trim((string)($data['satuan_jarak'] ?? ($renops['satuan_jarak'] ?? 'NM')))) : 'NM';
+            $hasSatuanCol = false;
+            try {
+                $hasSatuanCol = !empty($db->query("SHOW COLUMNS FROM Renops LIKE 'satuan_jarak'")->fetchAll());
+            } catch (Throwable $e) {}
+
+            if ($hasSatuanCol) {
+                $stmt = $db->prepare("UPDATE Renops SET
+                    hari_ke = :hari_ke,
+                    tanggal_laporan = :tanggal_laporan,
+                    waktu_briefing = :waktu_briefing,
+                    waktu_mulai_ops = :waktu_mulai_ops,
+                    cuaca = :cuaca,
+                    satuan_jarak = :satuan_jarak,
+                    unsur_text = :unsur_text,
+                    alut_text = :alut_text,
+                    detail_unsur = :detail_unsur,
+                    detail_alut = :detail_alut,
+                    full_text_wa = :full_text_wa
+                    WHERE id_renops = :id");
+            } else {
+                $stmt = $db->prepare("UPDATE Renops SET
+                    hari_ke = :hari_ke,
+                    tanggal_laporan = :tanggal_laporan,
+                    waktu_briefing = :waktu_briefing,
+                    waktu_mulai_ops = :waktu_mulai_ops,
+                    cuaca = :cuaca,
+                    unsur_text = :unsur_text,
+                    alut_text = :alut_text,
+                    detail_unsur = :detail_unsur,
+                    detail_alut = :detail_alut,
+                    full_text_wa = :full_text_wa
+                    WHERE id_renops = :id");
+            }
 
             $rawHari = trim((string)($data['hari_ke'] ?? $renops['hari_ke']));
             $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
 
-            $stmt->execute([
+            $updateParams = [
                 ':id' => $id,
                 ':hari_ke' => $hariKe,
                 ':tanggal_laporan' => $tglLaporan,
@@ -250,7 +301,12 @@ class RenopsModel {
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
                 ':detail_alut' => json_encode($alut, JSON_UNESCAPED_UNICODE),
                 ':full_text_wa' => $fullTextWa
-            ]);
+            ];
+            if ($hasSatuanCol) {
+                $updateParams[':satuan_jarak'] = $satuanJarak;
+            }
+
+            $stmt->execute($updateParams);
 
             if (isset($data['srus'])) {
                 $stmtExisting = $db->prepare("SELECT id_sru, nama_sru FROM RenopsSRU WHERE id_renops = :id ORDER BY id_sru ASC");

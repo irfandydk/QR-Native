@@ -132,6 +132,13 @@ try {
         echo "[OK] Renops schema validated.\n";
     }
 
+    // 1c-2. Run DokumenPetaSnapshotModel forced migration
+    if (class_exists('DokumenPetaSnapshotModel')) {
+        echo "[RUN] Checking DokumenPetaSnapshot table...\n";
+        DokumenPetaSnapshotModel::ensureSchemaUpdated(true);
+        echo "[OK] DokumenPetaSnapshot schema validated.\n";
+    }
+
     // 1d. Validate and Apply Composite Indexes for High Performance
     echo "[RUN] Checking Composite Indexes (Korban, Operasi, Renops, LaporanHarian)...\n";
     $compositeIndexes = [

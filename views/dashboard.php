@@ -21,7 +21,7 @@ $currentUser = AuthHelper::getCurrentUser();
 $isAdmin = AuthHelper::isAdmin();
 $initialStatus = isset($_GET['status']) && in_array(strtoupper((string)$_GET['status']), ['ALL', 'OPEN', 'CLOSED'], true)
     ? strtoupper((string)$_GET['status'])
-    : 'ALL';
+    : 'OPEN';
 
 // Overall Metrics
 $totalOpen = (int)($stats['operasi_aktif'] ?? 0);
@@ -33,11 +33,6 @@ $latestBraNumber = $latestBra['no_bra'] ?? '-';
 $latestBraSubtext = $latestBra
     ? ($latestBra['kategori'] . ' • ' . ($latestBra['twu'] ?: (!empty($latestBra['created_at']) ? TemplateHelper::formatJamWITA($latestBra['created_at']) . ' WITA' : 'Tercatat')))
     : 'Belum ada dokumen BRA terbit';
-
-$totalSelamat = (int)($stats['korban_selamat'] ?? 0);
-$totalMeninggal = (int)($stats['korban_meninggal'] ?? 0);
-$totalHilang = (int)($stats['korban_dalam_pencarian'] ?? 0) + (int)($stats['korban_hilang'] ?? 0);
-$totalKorban = (int)($stats['total_korban'] ?? 0);
 
 // Extract distinct list of months from operasis
 $monthNamesId = [
@@ -149,36 +144,6 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
 
   </div>
 
-  <!-- ============================================================== -->
-  <!-- SITUATIONAL KORBAN SUMMARY PILL BAR                            -->
-  <!-- ============================================================== -->
-  <div class="px-4 py-2.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">
-    <div class="flex items-center gap-2">
-      <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <span class="font-bold text-[11px] uppercase tracking-wider text-slate-400">Rekap Korban &amp; POB:</span>
-    </div>
-    <div class="flex items-center gap-3 sm:gap-4 flex-wrap text-xs">
-      <span class="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
-        <span>Selamat:</span>
-        <strong class="font-mono"><?= $totalSelamat ?></strong>
-      </span>
-      <span class="text-slate-400">•</span>
-      <span class="inline-flex items-center gap-1 font-semibold text-red-600 dark:text-red-400">
-        <span>Meninggal:</span>
-        <strong class="font-mono"><?= $totalMeninggal ?></strong>
-      </span>
-      <span class="text-slate-400">•</span>
-      <span class="inline-flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400">
-        <span>Hilang / DP:</span>
-        <strong class="font-mono"><?= $totalHilang ?></strong>
-      </span>
-      <span class="text-slate-400">•</span>
-      <span class="inline-flex items-center gap-1 font-bold text-slate-700 dark:text-slate-200">
-        <span>Total POB:</span>
-        <strong class="font-mono"><?= $totalKorban ?></strong>
-      </span>
-    </div>
-  </div>
 
   <!-- ============================================================== -->
   <!-- FILTER AND SEARCH BAR (MATCHING DashboardList.tsx)              -->
@@ -237,10 +202,10 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           type="button"
           id="tab-status-ALL"
           onclick="setStatusFilter('ALL')"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm cursor-pointer"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'ALL' ? 'font-bold bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
         >
           <span>Semua</span>
-          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/20 text-white font-bold">
+          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono <?= $initialStatus === 'ALL' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
             <?= count($operasis) ?>
           </span>
         </button>
@@ -248,11 +213,11 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           type="button"
           id="tab-status-OPEN"
           onclick="setStatusFilter('OPEN')"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'OPEN' ? 'font-bold bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
         >
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>OPEN</span>
-          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
+          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono <?= $initialStatus === 'OPEN' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
             <?= $totalOpen ?>
           </span>
         </button>
@@ -260,11 +225,11 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           type="button"
           id="tab-status-CLOSED"
           onclick="setStatusFilter('CLOSED')"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'CLOSED' ? 'font-bold bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
         >
           <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
           <span>CLOSED</span>
-          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold">
+          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono <?= $initialStatus === 'CLOSED' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
             <?= $totalClosed ?>
           </span>
         </button>
@@ -310,7 +275,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
 
       <span id="chipStatus" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 hidden">
         <span id="chipStatusText">Status</span>
-        <button type="button" onclick="setStatusFilter('ALL')" class="hover:text-blue-800 dark:hover:text-blue-200 ml-0.5 cursor-pointer">✕</button>
+        <button type="button" onclick="setStatusFilter('OPEN')" class="hover:text-blue-800 dark:hover:text-blue-200 ml-0.5 cursor-pointer">✕</button>
       </span>
 
       <span id="chipSearch" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/30 hidden">
@@ -337,15 +302,26 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
   <!-- ============================================================== -->
   <div id="operationsListContainer" class="space-y-3">
     
+    <?php
+    $initialVisibleCount = 0;
+    foreach ($operasis as $opCheck) {
+        $checkStatus = $opCheck['status'] ?? 'OPEN';
+        if ($initialStatus === 'ALL' || $checkStatus === $initialStatus) {
+            $initialVisibleCount++;
+        }
+    }
+    ?>
     <!-- Tactical Empty State Container -->
-    <div id="operationsEmptyState" class="p-10 sm:p-12 text-center rounded-2xl border space-y-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-xs <?= empty($operasis) ? '' : 'hidden' ?>">
+    <div id="operationsEmptyState" class="p-10 sm:p-12 text-center rounded-2xl border space-y-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-xs <?= $initialVisibleCount === 0 ? '' : 'hidden' ?>">
       <div class="w-14 h-14 mx-auto rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center border border-orange-500/20 radar-sweep-tactical">
         <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
       </div>
       <div class="max-w-md mx-auto">
-        <h3 id="emptyStateTitle" class="text-sm font-bold text-slate-900 dark:text-white">Tidak ada data operasi ditemukan</h3>
+        <h3 id="emptyStateTitle" class="text-sm font-bold text-slate-900 dark:text-white">
+          <?= $initialStatus === 'OPEN' ? 'Tidak ada operasi SAR aktif' : 'Tidak ada data operasi ditemukan' ?>
+        </h3>
         <p id="emptyStateSubtitle" class="text-xs mt-1 text-slate-500 dark:text-slate-400">
-          Belum ada operasi SAR yang diinisiasi
+          <?= $initialStatus === 'OPEN' ? 'Saat ini tidak ada operasi SAR yang berstatus OPEN' : 'Belum ada operasi SAR yang diinisiasi' ?>
         </p>
       </div>
       <div id="emptyStateActions" class="flex flex-wrap items-center justify-center gap-2 pt-1">
@@ -371,6 +347,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
     <?php foreach ($operasis as $op): 
       $isOpen = ($op['status'] ?? 'OPEN') === 'OPEN';
       $isReopened = !empty($op['waktu_reopen']);
+      $isInitialMatch = ($initialStatus === 'ALL') || (($op['status'] ?? 'OPEN') === $initialStatus);
       $pelaksanaan = TemplateHelper::hitungPelaksanaanOperasi($op);
       $resp = TemplateHelper::hitungResponseTime($op['waktu_lapor'], $op['waktu_berangkat']);
       
@@ -395,7 +372,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
       $totalLapbang = (int)($op['total_laporan'] ?? 0);
     ?>
     <div
-      class="operation-item-card group relative rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50/95 dark:hover:bg-slate-800/90 border-slate-200/90 dark:border-slate-800 hover:border-orange-500/40 dark:hover:border-orange-500/40 shadow-sm hover:shadow-lg hover:shadow-orange-500/5 <?= $isOpen ? ($isReopened ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-emerald-500') : 'border-l-4 border-l-slate-400 dark:border-l-slate-600' ?>"
+      class="operation-item-card group relative rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50/95 dark:hover:bg-slate-800/90 border-slate-200/90 dark:border-slate-800 hover:border-orange-500/40 dark:hover:border-orange-500/40 shadow-sm hover:shadow-lg hover:shadow-orange-500/5 <?= $isOpen ? ($isReopened ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-emerald-500') : 'border-l-4 border-l-slate-400 dark:border-l-slate-600' ?> <?= $isInitialMatch ? '' : 'hidden' ?>"
       data-id="<?= $op['id_operasi'] ?>"
       data-status="<?= e($op['status']) ?>"
       data-month="<?= e($monthKey) ?>"
@@ -747,7 +724,7 @@ function setStatusFilter(status) {
 function resetAllFilters() {
   clearDashSearch();
   resetMonthFilter();
-  setStatusFilter('ALL');
+  setStatusFilter('OPEN');
 }
 
 function applyDashFilters() {
@@ -790,15 +767,15 @@ function applyDashFilters() {
       const title = document.getElementById('emptyStateTitle');
       const subtitle = document.getElementById('emptyStateSubtitle');
       const resetBtn = document.getElementById('emptyStateResetBtn');
-      const isFiltered = currentSearchQuery || currentMonthFilter !== 'ALL' || currentStatusFilter !== 'ALL';
+      const isFiltered = currentSearchQuery || currentMonthFilter !== 'ALL' || currentStatusFilter !== 'OPEN';
 
       if (title && subtitle) {
         if (isFiltered) {
           title.textContent = 'Tidak ada data operasi sesuai filter';
-          subtitle.textContent = 'Coba ubah atau reset kata kunci dan filter bulan Anda';
+          subtitle.textContent = 'Coba ubah atau reset kata kunci dan filter pencarian Anda';
         } else {
-          title.textContent = 'Tidak ada data operasi ditemukan';
-          subtitle.textContent = 'Belum ada operasi SAR yang diinisiasi';
+          title.textContent = 'Tidak ada operasi SAR aktif';
+          subtitle.textContent = 'Saat ini tidak ada operasi SAR yang berstatus OPEN';
         }
       }
 
@@ -815,7 +792,10 @@ function applyDashFilters() {
   }
 
   // Active info bar handling
-  const isFilterActive = currentStatusFilter !== 'ALL' || currentMonthFilter !== 'ALL' || currentSearchQuery;
+  const isNonDefaultStatus = currentStatusFilter !== 'OPEN';
+  const hasQueryOrMonth = Boolean(currentSearchQuery || currentMonthFilter !== 'ALL');
+  const isFilterActive = hasQueryOrMonth || isNonDefaultStatus;
+
   if (infoBar) {
     if (isFilterActive) {
       infoBar.classList.remove('hidden');
@@ -830,8 +810,8 @@ function applyDashFilters() {
         chipMonth.classList.add('hidden');
       }
 
-      if (currentStatusFilter !== 'ALL') {
-        chipStatusText.textContent = 'Status: ' + currentStatusFilter;
+      if (currentStatusFilter !== 'OPEN') {
+        chipStatusText.textContent = 'Status: ' + (currentStatusFilter === 'ALL' ? 'Semua Operasi' : currentStatusFilter);
         chipStatus.classList.remove('hidden');
       } else {
         chipStatus.classList.add('hidden');
@@ -955,8 +935,6 @@ async function deleteOpsHandler(e, id, name) {
   }
 }
 
-// Initial filter if passed via URL parameter
-if (currentStatusFilter !== 'ALL') {
-  setStatusFilter(currentStatusFilter);
-}
+// Initial filter activation
+setStatusFilter(currentStatusFilter);
 </script>

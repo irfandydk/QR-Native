@@ -71,6 +71,23 @@ class BraHelper {
         // 1. Ubah ke Uppercase
         $formatted = mb_strtoupper($text, 'UTF-8');
 
+        // 1.5. Konversi kebocoran format tanggal ISO YYYY-MM-DD HH:ii:ss atau YYYY-MM-DD ke sandi militer MMDD HHMM H
+        $formatted = preg_replace_callback(
+            '/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/i',
+            function($m) {
+                return "TW {$m[2]}{$m[3]} {$m[4]}{$m[5]} H";
+            },
+            $formatted
+        );
+        $formatted = preg_replace_callback(
+            '/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})\b/i',
+            function($m) {
+                return "TW {$m[2]}{$m[3]} 0000 H";
+            },
+            $formatted
+        );
+        $formatted = preg_replace('/\bTW\s+TW\b/i', 'TW', $formatted);
+
         // 2. Proteksi desimal angka koordinat (misal 03° 58' 30.0" S - 122° 35' 12.5" T)
         $formatted = preg_replace_callback('/(\d+)\.(\d+)/', function($m) {
             return $m[1] . '__DECIMAL_DOT__' . $m[2];

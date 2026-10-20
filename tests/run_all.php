@@ -64,7 +64,12 @@ $preferredOrder = [
     'test_phase10_js_modular.php',
     'test_phase11_sql_and_router.php',
     'test_modal_scroll_integrity.php',
-    'test_master_data_integrity.php'
+    'test_master_data_integrity.php',
+    'test_gis_advanced_and_bra_dtg.php',
+    'test_gis_units_esar_and_renops_sync.php',
+    'test_gis_consistency_and_esar_arrows.php',
+    'test_gis_dynamic_units_and_badges.php',
+    'test_document_map_snapshot.php'
 ];
 
 $allFiles = glob($testsDir . '/test_*.php') ?: [];

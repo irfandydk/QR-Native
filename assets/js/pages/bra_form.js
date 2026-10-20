@@ -424,10 +424,36 @@ function initBraForm() {
     return res;
   }
 
+  function formatDateToMilitary(val) {
+    if (!val) return '';
+    const str = String(val).trim();
+    if (/^\d{4}\s+\d{4}\s+[A-Z]$/i.test(str)) {
+      return str.toUpperCase();
+    }
+    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (m) {
+      const mm = m[2];
+      const dd = m[3];
+      const hh = m[4] || '00';
+      const min = m[5] || '00';
+      return `${mm}${dd} ${hh}${min} H`;
+    }
+    return getMilitaryTW(str);
+  }
+
   // Sanitasi & Sandi Telegram Militer (Desimal aman, TTK/KMA/TTK DUA, Reduplikasi S)
   function sanitizeTelegramText(text, isPerihal = false) {
     if (!text) return '';
     let str = text.trim();
+
+    // 0. Konversi kebocoran format tanggal ISO YYYY-MM-DD HH:mm:ss ke sandi militer MMDD HHMM H
+    str = str.replace(/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::\d{2})?/gi, function(match, y, m, d, h, min) {
+      return `TW ${m}${d} ${h}${min} H`;
+    });
+    str = str.replace(/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})\b/gi, function(match, y, m, d) {
+      return `TW ${m}${d} 0000 H`;
+    });
+    str = str.replace(/\bTW\s+TW\b/gi, 'TW');
 
     // 1. Reduplikasi kata (e.g. CIRI-CIRI -> CIRIS)
     str = formatTelegramReduplication(str);
@@ -808,8 +834,11 @@ function initBraForm() {
       sruText = `* SRU 1: PENYISIRAN PARALLEL TRACK SEARCH DISEPUTARAN LKP\n* SRU 2: PENYISIRAN PESISIR PANTAI`;
     }
 
+    const twBriefing = formatDateToMilitary(r.waktu_briefing) || document.getElementById('twbInput').value;
+    const twMulai = formatDateToMilitary(r.waktu_mulai_ops) || document.getElementById('twuInput').value;
+
     setSectionsContent([
-      { kode: 'AAA', isi: `PADA TW ${r.waktu_briefing || document.getElementById('twbInput').value} TIM SAR GABUNGAN MELAKSANAKAN BRIEFING PEMBAGIAN SEKTOR PENCARIAN RENCANA OPERASI SAR ${hariKe} TERHADAP ${namaOps} DENGAN WAKTU MULAI PERGERAKAN TW ${r.waktu_mulai_ops || document.getElementById('twuInput').value} TTK` },
+      { kode: 'AAA', isi: `PADA TW ${twBriefing} TIM SAR GABUNGAN MELAKSANAKAN BRIEFING PEMBAGIAN SEKTOR PENCARIAN RENCANA OPERASI SAR ${hariKe} TERHADAP ${namaOps} DENGAN WAKTU MULAI PERGERAKAN TW ${twMulai} TTK` },
       { kode: 'BBB', isi: `RENCANA PEMBAGIAN SRU TTK DUA\n${sruText}\n\nKONDISI METEOROLOGI / CUACA TTK DUA\n• CUACA : ${(r.cuaca || op.cuaca || 'CERAH BERAWAN').toUpperCase()}` },
       { kode: 'CCC', isi: `UNSUR SAR TERLIBAT TTK DUA\n${(r.unsur_text || op.unsur_terlibat || '* RESCUER KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG').toUpperCase()}\n\nALUT DAN PALSAR TTK DUA\n${(r.alut_text || op.alut_palsar || '• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT').toUpperCase()}` },
       { kode: 'DDD', isi: `DMKN SBG RENCANA OPERASI ${hariKe} KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS` }
@@ -840,8 +869,10 @@ function initBraForm() {
     let mdCount = victims.filter(k => (k.status_korban || '').toUpperCase() === 'MD').length;
     let dpCount = victims.filter(k => !['S', 'MD'].includes((k.status_korban || '').toUpperCase())).length;
 
+    const twLaporan = formatDateToMilitary(sit.waktu_laporan) || document.getElementById('twuInput').value;
+
     setSectionsContent([
-      { kode: 'AAA', isi: `PADA TW ${sit.waktu_laporan || document.getElementById('twuInput').value} TERIMA INFO DARI OSC TIM SAR GABUNGAN BAHWA ${(sit.isi_laporan || 'PENCARIAN TELAH DILAKSANAKAN SESUAI RENOPS DENGAN HASIL KORBAN BELUM DITEMUKAN (NIHIL)').toUpperCase()} TTK` },
+      { kode: 'AAA', isi: `PADA TW ${twLaporan} TERIMA INFO DARI OSC TIM SAR GABUNGAN BAHWA ${(sit.isi_laporan || 'PENCARIAN TELAH DILAKSANAKAN SESUAI RENOPS DENGAN HASIL KORBAN BELUM DITEMUKAN (NIHIL)').toUpperCase()} TTK` },
       { kode: 'BBB', isi: `ALUT DAN PALSAR DIKERAHKAN TTK DUA\n${(sit.alut_text || op.alut_palsar || '• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT').toUpperCase()}` },
       { kode: 'CCC', isi: `UNSUR SAR TERLIBAT TTK DUA\n${(sit.unsur_text || op.unsur_terlibat || '* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG').toUpperCase()}` },
       { kode: 'DDD', isi: `DATA REKAPITULASI KORBAN TTK DUA\n* KORBAN SELAMAT : ${sCount} ORANG\n* KORBAN MENINGGAL DUNIA : ${mdCount} ORANG\n* KORBAN DALAM PENCARIAN (DP) : ${dpCount} ORANG\n* TOTAL POB : ${op.jumlah_pob || (sCount + mdCount + dpCount)} ORANG` },
@@ -869,9 +900,10 @@ function initBraForm() {
     let dpCount = victims.filter(k => !['S', 'MD'].includes((k.status_korban || '').toUpperCase())).length;
 
     const latestSit = (op.laporan_harian && op.laporan_harian.length > 0) ? op.laporan_harian[op.laporan_harian.length - 1] : null;
+    const twDebrief = formatDateToMilitary(latestSit?.waktu_debrief) || document.getElementById('twuInput').value;
 
     setSectionsContent([
-      { kode: 'AAA', isi: `PADA TW ${latestSit?.waktu_debrief || document.getElementById('twuInput').value} TIM SAR GABUNGAN MELAKSANAKAN DEBRIEFING DAN EVALUASI PENUTUPAN OPERASI SAR TERHADAP ${namaOps} KMA HASIL AKHIR ${(latestSit?.isi_laporan || 'SELURUH KORBAN TELAH BERHASIL DIEVAKUASI DAN OPERASI SAR DINYATAKAN SELESAI').toUpperCase()} TTK` },
+      { kode: 'AAA', isi: `PADA TW ${twDebrief} TIM SAR GABUNGAN MELAKSANAKAN DEBRIEFING DAN EVALUASI PENUTUPAN OPERASI SAR TERHADAP ${namaOps} KMA HASIL AKHIR ${(latestSit?.isi_laporan || 'SELURUH KORBAN TELAH BERHASIL DIEVAKUASI DAN OPERASI SAR DINYATAKAN SELESAI').toUpperCase()} TTK` },
       { kode: 'BBB', isi: `ALUT DAN PALSAR DIKEMBALIKAN KE PANGKALAN TTK DUA\n${(latestSit?.alut_text || op.alut_palsar || '• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT').toUpperCase()}` },
       { kode: 'CCC', isi: `UNSUR SAR TERLIBAT DIKEMBALIKAN KE KESATUAN MASING-MASING TTK DUA\n${(latestSit?.unsur_text || op.unsur_terlibat || '* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG').toUpperCase()}` },
       { kode: 'DDD', isi: `DATA REKAPITULASI KORBAN AKHIR TTK DUA\n* KORBAN SELAMAT : ${sCount} ORANG\n* KORBAN MENINGGAL DUNIA : ${mdCount} ORANG\n* KORBAN DALAM PENCARIAN (DP) : ${dpCount} ORANG\n* TOTAL POB : ${op.jumlah_pob || (sCount + mdCount + dpCount)} ORANG` },

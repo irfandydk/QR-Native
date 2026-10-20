@@ -69,7 +69,7 @@ $jsContent = file_get_contents(__DIR__ . '/../assets/js/pages/operasi_form.js');
 assertTest(strpos($jsContent, 'const tacticalState =') !== false, "operasi_form.js defines centralized tacticalState object");
 assertTest(strpos($jsContent, 'function initLkpTacticalMap()') !== false, "operasi_form.js implements initLkpTacticalMap()");
 assertTest(strpos($jsContent, 'function toggleTacticalMapMinimize(') !== false, "operasi_form.js implements toggleTacticalMapMinimize()");
-assertTest(strpos($jsContent, 'mt1.google.com/vt/lyrs=y') !== false, "operasi_form.js uses Google Hybrid tile layer (Zero API Key)");
+assertTest(strpos($jsContent, 'google.com/vt/lyrs=y') !== false, "operasi_form.js uses Google Hybrid tile layer (Zero API Key)");
 assertTest(strpos($jsContent, 'tile.openstreetmap.org') !== false, "operasi_form.js uses OpenStreetMap tile layer (Zero API Key)");
 assertTest(strpos($jsContent, 'basemaps.cartocdn.com') === false, "operasi_form.js completely removed restricted CartoCDN layer");
 assertTest(strpos($jsContent, 'function createLkpDivIcon()') !== false, "operasi_form.js creates pulsing red SVG beacon icon for LKP");

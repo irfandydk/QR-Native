@@ -102,7 +102,10 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
     <style>
         @page {
             size: A4 portrait;
-            margin: 10mm 15mm 12mm 15mm;
+            margin: 15mm 15mm 12mm 15mm;
+        }
+        @page :first {
+            margin-top: 10mm;
         }
         @media print {
             html, body {
@@ -141,19 +144,41 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
             width: 210mm;
             min-height: 297mm;
             margin: 1rem auto;
-            padding: 15mm 18mm;
+            padding: 12mm 16mm 14mm 16mm;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
             border-radius: 2px;
             box-sizing: border-box;
             transition: transform 0.2s ease-in-out;
+            overflow-x: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .page-sheet *, .page-sheet *::before, .page-sheet *::after {
+            box-sizing: border-box !important;
+            max-width: 100%;
+        }
+        .page-sheet table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
         }
         .table-borderless td {
             padding: 2px 4px;
             vertical-align: top;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
         }
         .table-dinas th, .table-dinas td {
             border: 1px solid #000000;
             padding: 4px 6px;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            word-break: break-word !important;
+        }
+        .text-justify {
+            text-align: justify !important;
+            text-justify: inter-word;
         }
     </style>
 </head>
@@ -187,6 +212,17 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                 <button type="button" onclick="copyWaText()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition" title="Salin Naskah WhatsApp SITREP">
                     <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                     <span class="hidden sm:inline">Salin WA</span>
+                </button>
+
+                <?php if (strtoupper(trim((string)($laporan['jenis_laporan'] ?? ''))) === 'PENUTUPAN'): ?>
+                    <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=PENUTUPAN" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-950/60 hover:bg-orange-900/70 border border-orange-700/60 text-xs font-semibold text-orange-300 transition" title="Capture / Perbarui Area Peta 16:9 untuk Laporan Perkembangan Sekaligus Penutupan (1x)">
+                        <span>📸 Capture Peta 16:9</span>
+                    </a>
+                <?php endif; ?>
+
+                <button type="button" id="btnDownloadPdf" data-pdf-filename="SITREP_<?= e($hariKe ?? 'HARIAN') ?>_OPS_<?= (int)$id ?>_<?= e($operasi['nama_operasi']) ?>" onclick="downloadOfficialPdf(null, this)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="Download Dokumen Elektronik PDF (Ukuran Optimal A4 Portrait)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    <span>Download PDF</span>
                 </button>
 
                 <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-sm cursor-pointer">
@@ -293,12 +329,12 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                     <table class="w-full table-dinas text-[8pt] border-collapse">
                         <thead>
                             <tr class="bg-slate-100 text-center font-bold">
-                                <th class="w-8">NO</th>
-                                <th>NAMA LENGKAP KORBAN</th>
-                                <th class="w-16">UMUR</th>
-                                <th class="w-16">L/P</th>
-                                <th>ALAMAT / ASAL</th>
-                                <th class="w-28">STATUS TERAKHIR</th>
+                                <th class="text-center" style="width: 6%;">NO</th>
+                                <th style="width: 26%;">NAMA LENGKAP KORBAN</th>
+                                <th class="text-center" style="width: 10%;">UMUR</th>
+                                <th class="text-center" style="width: 8%;">L/P</th>
+                                <th style="width: 30%;">ALAMAT / ASAL</th>
+                                <th class="text-center" style="width: 20%;">STATUS TERAKHIR</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -322,13 +358,24 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
             </div>
 
             <!-- BAGIAN III: HASIL OPERASI PENCARIAN HARI INI -->
-            <div class="mb-3 break-inside-avoid">
-                <div class="bg-slate-100 border-l-4 border-orange-600 px-2 py-0.5 font-bold uppercase text-[9pt] mb-1">
+            <div class="mb-3" style="page-break-inside: auto; break-inside: auto;">
+                <div class="bg-slate-100 border-l-4 border-orange-600 px-2 py-0.5 font-bold uppercase text-[9pt] mb-1" style="page-break-after: avoid; break-after: avoid;">
                     III. HASIL PELAKSANAAN OPERASI HARI INI
                 </div>
-                <div class="border border-slate-300 p-2 text-[8.5pt] leading-relaxed bg-slate-50">
+                <div class="border border-slate-300 p-2 text-[8.5pt] leading-relaxed bg-slate-50 text-justify" style="page-break-inside: auto; break-inside: auto;">
                     <?= nl2br(e($laporan['isi_laporan'] ?: 'Pencarian telah dilaksanakan oleh Tim SAR Gabungan sesuai Rencana Operasi.')) ?>
                 </div>
+
+                <?php
+                // Sesuai aturan: Laporan Perkembangan biasa TIDAK menggunakan capturan peta.
+                // Hanya Laporan Perkembangan Sekaligus Penutupan (jenis_laporan === 'PENUTUPAN') yang menampilkan 1x capturan peta.
+                if (strtoupper(trim((string)($laporan['jenis_laporan'] ?? ''))) === 'PENUTUPAN') {
+                    require_once __DIR__ . '/../../models/DokumenPetaSnapshotModel.php';
+                    $mapSnapshot = DokumenPetaSnapshotModel::getSnapshot((int)$id, 'PENUTUPAN');
+                    $mapSnapshotSectionTitle = 'VISUALISASI PETA HASIL PENCARIAN & PENUTUPAN OPERASI SAR (RASIO 16:9)';
+                    include __DIR__ . '/partials/print_map_snapshot_block.php';
+                }
+                ?>
             </div>
 
             <!-- BAGIAN IV: ALUT DAN UNSUR TERLIBAT -->
@@ -344,7 +391,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                             <?php endforeach; ?>
                         </ul>
                     <?php else: ?>
-                        <p class="italic text-slate-600"><?= nl2br(e($laporan['alut_text'] ?: ($operasi['alut_palsar'] ?: '-'))) ?></p>
+                        <p class="italic text-slate-600 text-justify"><?= nl2br(e($laporan['alut_text'] ?: ($operasi['alut_palsar'] ?: '-'))) ?></p>
                     <?php endif; ?>
                 </div>
 
@@ -359,7 +406,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                             <?php endforeach; ?>
                         </ul>
                     <?php else: ?>
-                        <p class="italic text-slate-600"><?= nl2br(e($laporan['unsur_text'] ?: ($operasi['unsur_terlibat'] ?: '-'))) ?></p>
+                        <p class="italic text-slate-600 text-justify"><?= nl2br(e($laporan['unsur_text'] ?: ($operasi['unsur_terlibat'] ?: '-'))) ?></p>
                     <?php endif; ?>
                 </div>
             </div>
@@ -413,8 +460,10 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
     <!-- Hidden Raw WA text container for copying -->
     <div id="raw-wa-text-holder" class="hidden"><?= htmlspecialchars($fullWaText) ?></div>
 
-    <!-- QR Code Script -->
+    <!-- QR Code & PDF Exporter Scripts -->
     <script src="<?= BASE_URL ?>/assets/vendor/qrcode/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
+    <script src="<?= BASE_URL ?>/assets/vendor/html2pdf/html2pdf.bundle.min.js?v=<?= APP_VERSION ?>"></script>
+    <script src="<?= BASE_URL ?>/assets/js/pdf_document_exporter.js?v=<?= APP_VERSION ?>_<?= @filemtime(dirname(__DIR__, 2) . '/assets/js/pdf_document_exporter.js') ?: time() ?>"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const verifyUrl = <?= jsonSafe($verifyUrl) ?>;

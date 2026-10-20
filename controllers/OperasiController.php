@@ -332,6 +332,9 @@ class OperasiController extends BaseController {
             }
             $_POST['srus'] = $srus;
 
+            $satuanJarak = in_array(strtoupper(trim((string)($_POST['satuan_jarak'] ?? 'NM'))), ['KM', 'M', 'NM']) ? strtoupper(trim((string)$_POST['satuan_jarak'])) : 'NM';
+            $_POST['satuan_jarak'] = $satuanJarak;
+
             $tglInput = $_POST['tanggal_laporan'] ?? date('Y-m-d');
             $_POST['hari_ke'] = TemplateHelper::hitungHariKe($operasi, $tglInput);
 
@@ -386,19 +389,45 @@ class OperasiController extends BaseController {
                 foreach ($plottingPolys as $poly) {
                     $idx++;
                     $name = !empty($poly['name']) ? $poly['name'] : ("Sektor " . chr(64 + $idx));
-                    $areaNm2 = !empty($poly['areaNm2']) ? (float)$poly['areaNm2'] : GisModel::calculatePolygonAreaNm2($poly['points'] ?? []);
-                    $areaFormatted = $areaNm2 > 0 ? (number_format($areaNm2, 2, '.', '') . ' Nm²') : '';
+                    $shapeType = $poly['shapeType'] ?? 'polygon';
+                    $areaNm2 = 0.0;
+                    $coordsText = '';
 
-                    // Format coordinates in Basarnas DMS
-                    $coordLines = [];
-                    if (!empty($poly['points']) && is_array($poly['points'])) {
-                        foreach ($poly['points'] as $pIdx => $pt) {
-                            $lbl = !empty($pt['label']) ? $pt['label'] : ("Titik " . chr(65 + $pIdx));
-                            $dms = TemplateHelper::formatDmsPair($pt['lat'] ?? 0, $pt['lng'] ?? 0);
-                            $coordLines[] = "{$lbl}: {$dms}";
+                    if ($shapeType === 'circle' && !empty($poly['radiusNm'])) {
+                        $r = (float)$poly['radiusNm'];
+                        $areaNm2 = M_PI * $r * $r;
+                        $cLat = isset($poly['centerLat']) ? (float)$poly['centerLat'] : (float)($poly['points'][0]['lat'] ?? 0);
+                        $cLng = isset($poly['centerLng']) ? (float)$poly['centerLng'] : (float)($poly['points'][0]['lng'] ?? 0);
+                        $dmsCenter = TemplateHelper::formatDmsPair($cLat, $cLng);
+                        $rKm = number_format($r * 1.852, 2, '.', '');
+                        $coordsText = "Pusat Datum (LKP): {$dmsCenter}\nRadius Sektor: {$r} NM ({$rKm} km)\nLuas Area: " . number_format($areaNm2, 2, '.', '') . " Nm²";
+                    } elseif (($shapeType === 'rectangle' || $shapeType === 'box') && !empty($poly['boxWidthNm']) && !empty($poly['boxHeightNm'])) {
+                        $w = (float)$poly['boxWidthNm'];
+                        $h = (float)$poly['boxHeightNm'];
+                        $areaNm2 = $w * $h;
+                        $coordLines = [];
+                        if (!empty($poly['points']) && is_array($poly['points'])) {
+                            foreach ($poly['points'] as $pIdx => $pt) {
+                                $lbl = !empty($pt['label']) ? $pt['label'] : ("Titik " . chr(65 + $pIdx));
+                                $dms = TemplateHelper::formatDmsPair($pt['lat'] ?? 0, $pt['lng'] ?? 0);
+                                $coordLines[] = "{$lbl}: {$dms}";
+                            }
                         }
+                        $coordsText = implode("\n", $coordLines);
+                    } else {
+                        $areaNm2 = !empty($poly['areaNm2']) ? (float)$poly['areaNm2'] : GisModel::calculatePolygonAreaNm2($poly['points'] ?? []);
+                        $coordLines = [];
+                        if (!empty($poly['points']) && is_array($poly['points'])) {
+                            foreach ($poly['points'] as $pIdx => $pt) {
+                                $lbl = !empty($pt['label']) ? $pt['label'] : ("Titik " . chr(65 + $pIdx));
+                                $dms = TemplateHelper::formatDmsPair($pt['lat'] ?? 0, $pt['lng'] ?? 0);
+                                $coordLines[] = "{$lbl}: {$dms}";
+                            }
+                        }
+                        $coordsText = implode("\n", $coordLines);
                     }
-                    $coordsText = implode("\n", $coordLines);
+
+                    $areaFormatted = $areaNm2 > 0 ? (number_format($areaNm2, 2, '.', '') . ' Nm²') : '';
 
                     // Match pattern
                     $matchedPattern = null;
@@ -414,7 +443,6 @@ class OperasiController extends BaseController {
                     if ($matchedPattern) {
                         $ptType = $matchedPattern['patternType'] ?? 'parallel_track';
                         if ($ptType === 'creeping_line') $pola = 'Creeping Line Search';
-                        elseif ($ptType === 'expanding_square') $pola = 'Expanding Square Search';
                         elseif ($ptType === 'e_sar' || $ptType === 'sector_search') $pola = 'Pola Pencarian E-SAR';
                         elseif ($ptType === 'track_line') $pola = 'Track Line Search';
                         else $pola = 'Parallel Track Search';

@@ -102,7 +102,10 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
     <style>
         @page {
             size: A4 portrait;
-            margin: 10mm 15mm 12mm 15mm;
+            margin: 15mm 15mm 12mm 15mm;
+        }
+        @page :first {
+            margin-top: 10mm;
         }
         @media print {
             html, body {
@@ -141,19 +144,41 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
             width: 210mm;
             min-height: 297mm;
             margin: 1rem auto;
-            padding: 15mm 18mm;
+            padding: 12mm 16mm 14mm 16mm;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
             border-radius: 2px;
             box-sizing: border-box;
             transition: transform 0.2s ease-in-out;
+            overflow-x: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .page-sheet *, .page-sheet *::before, .page-sheet *::after {
+            box-sizing: border-box !important;
+            max-width: 100%;
+        }
+        .page-sheet table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
         }
         .table-dinas th, .table-dinas td {
             border: 1px solid #000000;
             padding: 4px 6px;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            word-break: break-word !important;
         }
         .table-borderless td {
             padding: 2px 4px;
             vertical-align: top;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+        .text-justify {
+            text-align: justify !important;
+            text-justify: inter-word;
         }
     </style>
 </head>
@@ -184,9 +209,18 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
                     </button>
                 </div>
 
+                <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=RENOPS&capture_ref=<?= (int)($renops['id_renops'] ?? 0) ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-xs font-bold text-white transition no-underline" title="Ambil atau Perbarui Capture Peta 16:9 untuk RENOPS Hari ke-<?= e($hariKe) ?> ini">
+                    <span>📸 Capture Peta 16:9</span>
+                </a>
+
                 <button type="button" onclick="copyWaText()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition" title="Salin Naskah WhatsApp RENOPS">
                     <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                     <span class="hidden sm:inline">Salin WA</span>
+                </button>
+
+                <button type="button" id="btnDownloadPdf" data-pdf-filename="RENOPS_H.<?= e($hariKe) ?>_OPS_<?= (int)$id ?>_<?= e($operasi['nama_operasi']) ?>" onclick="downloadOfficialPdf(null, this)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="Download Dokumen Elektronik PDF (Ukuran Optimal A4 Portrait)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    <span>Download PDF</span>
                 </button>
 
                 <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-sm cursor-pointer">
@@ -286,26 +320,42 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
                 </table>
             </div>
 
-            <!-- BAGIAN II: PEMBAGIAN SEKTOR PENCARIAN (SRU) -->
-            <div class="mb-3 break-inside-avoid">
-                <div class="bg-slate-100 border-l-4 border-orange-600 px-2 py-0.5 font-bold uppercase text-[9.5pt] mb-1.5 flex justify-between items-center">
-                    <span>II. PEMBAGIAN SATUAN TUGAS (SEARCH AND RESCUE UNIT / SRU)</span>
-                    <span class="text-[8pt] font-mono font-normal">Total: <?= count($srus) ?> SRU</span>
+            <!-- BAGIAN II: PETA RENCANA OPERASI, PEMBAGIAN SRU, DAN LEGENDA PETA -->
+            <div class="mb-3" style="page-break-inside: auto; break-inside: auto;">
+                <div class="bg-slate-100 border-l-4 border-orange-600 px-2 py-0.5 font-bold uppercase text-[9.5pt] mb-1.5 flex justify-between items-center" style="page-break-after: avoid; break-after: avoid;">
+                    <span>II. PETA RENCANA OPERASI, PEMBAGIAN SATUAN TUGAS (SRU) &amp; LEGENDA PETA</span>
+                    <span class="text-[8pt] font-mono font-normal">
+                        <?= !empty($renops['satuan_jarak']) ? 'Satuan: ' . e($renops['satuan_jarak']) . ' | ' : '' ?>Total: <?= count($srus) ?> SRU
+                    </span>
                 </div>
 
+                <?php
+                require_once dirname(__DIR__, 2) . '/models/DokumenPetaSnapshotModel.php';
+                $mapSnapshot = DokumenPetaSnapshotModel::getSnapshot((int)$id, 'RENOPS', !empty($renops['id_renops']) ? (int)$renops['id_renops'] : null);
+
+                // 1. TAMPILKAN PETA TERLEBIH DAHULU (16:9)
+                $mapBlockTitle = '1. PETA RENCANA OPERASI HARI KE-' . $hariKe . ' (SEKTOR SEARCH AREA & POLA PENCARIAN - 16:9)';
+                $mapRenderMode = 'IMAGE_ONLY';
+                include __DIR__ . '/partials/print_map_snapshot_block.php';
+                ?>
+
+                <!-- 2. LALU TABEL PEMBAGIAN SRU -->
+                <div style="font-weight: bold; font-size: 9pt; text-transform: uppercase; margin-top: 6px; margin-bottom: 4px; color: #000; page-break-after: avoid; break-after: avoid;">
+                    <?= !empty($mapSnapshot) ? '2. TABEL PEMBAGIAN SATUAN TUGAS (SEARCH AND RESCUE UNIT / SRU)' : 'TABEL PEMBAGIAN SATUAN TUGAS (SEARCH AND RESCUE UNIT / SRU)' ?>
+                </div>
                 <?php if (empty($srus)): ?>
                     <p class="text-[9pt] italic text-slate-600 p-2 border border-slate-300">Belum ada pembagian sektor SRU yang tercatat.</p>
                 <?php else: ?>
                     <table class="w-full table-dinas text-[8.5pt] border-collapse">
                         <thead>
                             <tr class="bg-slate-100 text-center font-bold">
-                                <th class="w-8">NO</th>
-                                <th class="w-24">SRU</th>
-                                <th>WILAYAH / SEKTOR PENCARIAN (KOORDINAT AREA)</th>
-                                <th class="w-16">LUAS</th>
-                                <th class="w-32">POLA PENCARIAN</th>
-                                <th class="w-16">SPACING</th>
-                                <th class="w-16">SAPUAN</th>
+                                <th class="text-center" style="width: 5%;">NO</th>
+                                <th style="width: 14%;">SRU</th>
+                                <th style="width: 33%;">WILAYAH / SEKTOR PENCARIAN (KOORDINAT AREA)</th>
+                                <th class="text-center" style="width: 11%;">LUAS</th>
+                                <th style="width: 17%;">POLA PENCARIAN</th>
+                                <th class="text-center" style="width: 10%;">SPACING</th>
+                                <th class="text-center" style="width: 10%;">SAPUAN</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -325,6 +375,13 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
                         </tbody>
                     </table>
                 <?php endif; ?>
+
+                <?php
+                // 3. DAN TERAKHIR LEGENDA PETA (KETERANGAN KOMPONEN PETA)
+                $mapLegendTitle = '3. LEGENDA & KETERANGAN KOMPONEN PETA RENCANA OPERASI (H.' . $hariKe . ')';
+                $mapRenderMode = 'LEGEND_ONLY';
+                include __DIR__ . '/partials/print_map_snapshot_block.php';
+                ?>
             </div>
 
             <!-- BAGIAN III: ALUT DAN SARANA PENCARIAN -->
@@ -339,7 +396,7 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
                         <?php endforeach; ?>
                     </div>
                 <?php else: ?>
-                    <p class="text-[9pt] italic text-slate-600"><?= nl2br(e($renops['alut_text'] ?: ($operasi['alut_palsar'] ?: '-'))) ?></p>
+                    <p class="text-[9pt] italic text-slate-600 text-justify"><?= nl2br(e($renops['alut_text'] ?: ($operasi['alut_palsar'] ?: '-'))) ?></p>
                 <?php endif; ?>
             </div>
 
@@ -355,7 +412,7 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
                         <?php endforeach; ?>
                     </div>
                 <?php else: ?>
-                    <p class="text-[9pt] italic text-slate-600"><?= nl2br(e($renops['unsur_text'] ?: ($operasi['unsur_terlibat'] ?: '-'))) ?></p>
+                    <p class="text-[9pt] italic text-slate-600 text-justify"><?= nl2br(e($renops['unsur_text'] ?: ($operasi['unsur_terlibat'] ?: '-'))) ?></p>
                 <?php endif; ?>
             </div>
 
@@ -368,22 +425,22 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
                     <tr>
                         <td class="w-32 font-bold">&bull; <?= $jamBriefing ?> WITA</td>
                         <td class="w-2">:</td>
-                        <td>Pelaksanaan Briefing Awal Tim SAR Gabungan, pembagian lembar tugas SRU, serta pengecekan kelaikan Alut dan APD.</td>
+                        <td class="text-justify">Pelaksanaan Briefing Awal Tim SAR Gabungan, pembagian lembar tugas SRU, serta pengecekan kelaikan Alut dan APD.</td>
                     </tr>
                     <tr>
                         <td class="font-bold">&bull; <?= $jamMulai ?> WITA</td>
                         <td class="w-2">:</td>
-                        <td>Seluruh SRU bergerak menuju sektor pencarian masing-masing dan melaksanakan penyisiran sesuai pola sapuan yang telah ditetapkan.</td>
+                        <td class="text-justify">Seluruh SRU bergerak menuju sektor pencarian masing-masing dan melaksanakan penyisiran sesuai pola sapuan yang telah ditetapkan.</td>
                     </tr>
                     <tr>
                         <td class="font-bold">&bull; Setiap 60 Menit</td>
                         <td class="w-2">:</td>
-                        <td>Komandan SRU wajib melaporkan posisi koordinat, kondisi cuaca riil di sektor, dan perkembangan pencarian kepada Posko SAR Kendari.</td>
+                        <td class="text-justify">Komandan SRU wajib melaporkan posisi koordinat, kondisi cuaca riil di sektor, dan perkembangan pencarian kepada Posko SAR Kendari.</td>
                     </tr>
                     <tr>
                         <td class="font-bold">&bull; 17:30 WITA</td>
                         <td class="w-2">:</td>
-                        <td>Pencarian hari ini dihentikan sementara dan seluruh SRU ditarik kembali ke pangkalan/Posko untuk pelaksanaan Debriefing dan evaluasi harian.</td>
+                        <td class="text-justify">Pencarian hari ini dihentikan sementara dan seluruh SRU ditarik kembali ke pangkalan/Posko untuk pelaksanaan Debriefing dan evaluasi harian.</td>
                     </tr>
                 </table>
             </div>
@@ -437,8 +494,10 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
     <!-- Hidden Raw WA text container for copying -->
     <div id="raw-wa-text-holder" class="hidden"><?= htmlspecialchars($fullWaText) ?></div>
 
-    <!-- QR Code Script -->
+    <!-- QR Code & PDF Exporter Scripts -->
     <script src="<?= BASE_URL ?>/assets/vendor/qrcode/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
+    <script src="<?= BASE_URL ?>/assets/vendor/html2pdf/html2pdf.bundle.min.js?v=<?= APP_VERSION ?>"></script>
+    <script src="<?= BASE_URL ?>/assets/js/pdf_document_exporter.js?v=<?= APP_VERSION ?>_<?= @filemtime(dirname(__DIR__, 2) . '/assets/js/pdf_document_exporter.js') ?: time() ?>"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const verifyUrl = <?= jsonSafe($verifyUrl) ?>;

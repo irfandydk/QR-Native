@@ -23,12 +23,10 @@
         case 'creeping_line':
         case 'creeping':
           return 'Pola Jalur Rapat (Creeping Line Search - CS)';
-        case 'expanding_square':
-        case 'square':
-          return 'Pola Kotak Membesar (Expanding Square Search - SS)';
+        case 'e_sar':
         case 'sector_search':
         case 'sector':
-          return 'Pola Pencarian Sektor (Sector Search - VS)';
+          return 'Pola Pencarian E-SAR (Explorer Search and Rescue)';
         default:
           return 'Pola Pencarian Standar IAMSAR';
       }

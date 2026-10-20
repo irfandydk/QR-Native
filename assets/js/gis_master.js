@@ -11,7 +11,7 @@
   const BASE_URL = window.location.origin;
   const initialData = window.SAR_INITIAL_GIS_DATA || {};
   const csrfToken = initialData.csrfToken || window.CSRF_TOKEN || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
-  let filterMode = initialData.filterMode || (initialData.currentOperasiId ? 'operasi' : 'all');
+  let filterMode = initialData.filterMode || (initialData.currentOperasiId ? 'operasi' : 'basemap');
   let includeBaseInActive = !!initialData.includeBase;
   let currentOperasiId = initialData.currentOperasiId ? parseInt(initialData.currentOperasiId, 10) : null;
   let currentOperasi = initialData.currentOperasi || null;
@@ -188,10 +188,18 @@
       }
     }
 
+    updateGisBadges();
+  }
+
+  function updateGisBadges() {
     const pBadge = document.getElementById('pointsBadgeCount');
-    if (pBadge) pBadge.textContent = String(savedPoints.length);
+    if (pBadge) pBadge.textContent = String(savedPoints ? savedPoints.length : 0);
     const polyBadge = document.getElementById('polygonsBadgeCount');
-    if (polyBadge) polyBadge.textContent = String(savedPolygons.length);
+    if (polyBadge) polyBadge.textContent = String(savedPolygons ? savedPolygons.length : 0);
+    const patBadge = document.getElementById('patternsBadgeCount');
+    if (patBadge) patBadge.textContent = String(savedPatterns ? savedPatterns.length : 0);
+    const routeBadge = document.getElementById('routesBadgeCount');
+    if (routeBadge) routeBadge.textContent = String(savedRoutes ? savedRoutes.length : 0);
   }
 
   function notifyGisStorageUpdate() {
@@ -331,9 +339,25 @@
     return u;
   }
 
-  // Polygon Drawing state
+  // Global Dynamic Measurement Unit state (SSOT: 'NM' | 'KM' | 'M')
+  let activeGlobalUnit = 'NM';
+  try {
+    const savedGlobalUnit = localStorage.getItem('qr_sar_gis_unit');
+    if (savedGlobalUnit && ['NM', 'KM', 'M'].includes(savedGlobalUnit)) {
+      activeGlobalUnit = savedGlobalUnit;
+    }
+  } catch (e) {}
+
+  // Search Area (Polygon, Rectangle, Circle) state
   let isDrawingPolygon = false;
   let editingPolygonId = null;
+  let activeSearchAreaShape = 'polygon'; // 'polygon' | 'rectangle' | 'circle'
+  let polyCircleRadiusNm = 1.0;
+  let polyCircleRadiusUnit = activeGlobalUnit; // 'NM' | 'KM' | 'M'
+  let polyRectWidthNm = 2.0;
+  let polyRectHeightNm = 2.0;
+  let polyRectDimUnit = activeGlobalUnit; // 'NM' | 'KM' | 'M'
+  let polyShapeCenter = null;
   let activePolygonPoints = [];
   let polyStrokeColor = '#ea580c';
   let polyStrokeWeight = 2.5;
@@ -342,6 +366,9 @@
 
   // Search Pattern state (Default: Parallel Track)
   let activePatternType = 'parallel_track';
+  let activeEsarOrientation = 'horizontal'; // 'horizontal' | 'vertical'
+  let activeEsarDirection = 'west_to_east'; // 'west_to_east' | 'east_to_west' | 'north_to_south' | 'south_to_north'
+  let activeEsarArrowMarkers = [];
   let activeGeneratedWaypoints = [];
   let activeGeneratedDistanceNm = 0;
   let editingPatternId = null;
@@ -351,16 +378,258 @@
   let measureModeType = 'straight'; // 'straight' or 'path'
   let measurePoints = [];
   let currentActiveRouteId = null;
+  let activeDistanceUnit = activeGlobalUnit; // 'NM' | 'KM' | 'M'
+  let isUndoingRoutePoint = false;
   let autoSaveRouteDebounceTimer = null;
   let vesselSpeedKnots = 25;
-  let speedUnit = 'knot';
-  let patternSpacingUnit = 'NM'; // 'NM' or 'KM'
+  let speedUnit = activeGlobalUnit === 'KM' ? 'kmh' : (activeGlobalUnit === 'M' ? 'ms' : 'knot');
+  let patternSpacingUnit = activeGlobalUnit; // 'NM' | 'KM' | 'M'
 
-  // Hidden Layers IDs for eye toggles
+  /**
+   * Helper pemformat jarak dinamis mengacu pada activeGlobalUnit
+   * Format:
+   *  - KM: "X.XX km (Y.YY NM)"
+   *  - NM: "X.XX NM (Y.YY km)"
+   *  - M:  "X m (Y.YY NM)"
+   */
+  function formatDynamicDistance(distNm, distKm = null) {
+    const numNm = parseFloat(distNm) || 0;
+    if (distKm === null || distKm === undefined) distKm = numNm * 1.852;
+    const numKm = parseFloat(distKm) || 0;
+    const distM = numKm * 1000;
+    if (activeGlobalUnit === 'KM') {
+      return `${numKm.toFixed(2)} km (${numNm.toFixed(2)} NM)`;
+    } else if (activeGlobalUnit === 'M') {
+      return `${Math.round(distM).toLocaleString('id-ID')} m (${numNm.toFixed(2)} NM)`;
+    }
+    return `${numNm.toFixed(2)} NM (${numKm.toFixed(2)} km)`;
+  }
+
+  /**
+   * Helper pemformat luas area dinamis mengacu pada activeGlobalUnit
+   * Konversi presisi:
+   *  1 NM = 1.852 km
+   *  1 NM² = (1.852)² km² = 3.429904 km²
+   *  1 km² = (1 / 3.429904) NM² ≈ 0.291553 NM²
+   *  1 km² = 100 Ha = 1,000,000 m²
+   */
+  function formatDynamicArea(sqNm, sqKm = null) {
+    const numNm2 = parseFloat(sqNm) || 0;
+    if (sqKm === null || sqKm === undefined) sqKm = numNm2 * 3.429904;
+    const numKm2 = parseFloat(sqKm) || 0;
+    const hectares = numKm2 * 100;
+    const sqM = numKm2 * 1000000;
+    if (activeGlobalUnit === 'KM') {
+      return {
+        primary: `${numKm2.toFixed(2)} km²`,
+        secondary: `${numNm2.toFixed(2)} NM² (${hectares.toFixed(1)} Ha)`,
+        combined: `${numKm2.toFixed(2)} km² (${numNm2.toFixed(2)} NM²)`
+      };
+    } else if (activeGlobalUnit === 'M') {
+      return {
+        primary: `${Math.round(sqM).toLocaleString('id-ID')} m²`,
+        secondary: `${numNm2.toFixed(2)} NM² (${hectares.toFixed(1)} Ha)`,
+        combined: `${Math.round(sqM).toLocaleString('id-ID')} m² (${numNm2.toFixed(2)} NM²)`
+      };
+    }
+    return {
+      primary: `${numNm2.toFixed(2)} NM²`,
+      secondary: `${numKm2.toFixed(2)} km² (${hectares.toFixed(1)} Ha)`,
+      combined: `${numNm2.toFixed(2)} NM² (${numKm2.toFixed(2)} km²)`
+    };
+  }
+
+  /**
+   * Helper pemformat keliling perimeter dinamis mengacu pada activeGlobalUnit
+   */
+  function formatDynamicPerimeter(perimNm, perimKm = null) {
+    const numNm = parseFloat(perimNm) || 0;
+    if (perimKm === null || perimKm === undefined) perimKm = numNm * 1.852;
+    const numKm = parseFloat(perimKm) || 0;
+    const perimM = numKm * 1000;
+    if (activeGlobalUnit === 'KM') {
+      return {
+        primary: `${numKm.toFixed(2)} km`,
+        secondary: `${numNm.toFixed(2)} NM`,
+        combined: `${numKm.toFixed(2)} km (${numNm.toFixed(2)} NM)`
+      };
+    } else if (activeGlobalUnit === 'M') {
+      return {
+        primary: `${Math.round(perimM).toLocaleString('id-ID')} m`,
+        secondary: `${numNm.toFixed(2)} NM`,
+        combined: `${Math.round(perimM).toLocaleString('id-ID')} m (${numNm.toFixed(2)} NM)`
+      };
+    }
+    return {
+      primary: `${numNm.toFixed(2)} NM`,
+      secondary: `${numKm.toFixed(2)} km`,
+      combined: `${numNm.toFixed(2)} NM (${numKm.toFixed(2)} km)`
+    };
+  }
+
+  /**
+   * Helper pemformat kecepatan dinamis
+   */
+  function formatDynamicSpeed(speedKnots, speedKmh = null) {
+    const numKts = parseFloat(speedKnots) || 0;
+    if (speedKmh === null || speedKmh === undefined) speedKmh = numKts * 1.852;
+    const numKmh = parseFloat(speedKmh) || 0;
+    const speedMs = (numKmh * 1000) / 3600;
+    if (activeGlobalUnit === 'KM' || speedUnit === 'kmh') {
+      return `${numKmh.toFixed(1)} km/jam (${numKts.toFixed(1)} Knot)`;
+    } else if (activeGlobalUnit === 'M' || speedUnit === 'ms') {
+      return `${speedMs.toFixed(1)} m/s (${numKts.toFixed(1)} Knot)`;
+    }
+    return `${numKts.toFixed(1)} Knot (${numKmh.toFixed(1)} km/jam)`;
+  }
+
+  /**
+   * Sinkronisasi satuan dinamis menyeluruh di seluruh aplikasi GIS
+   */
+  function setGlobalMeasurementUnit(unit, skipRedraw = false) {
+    if (!['NM', 'KM', 'M'].includes(unit)) unit = 'NM';
+    activeGlobalUnit = unit;
+    try {
+      localStorage.setItem('qr_sar_gis_unit', unit);
+    } catch (e) {}
+
+    // 1. Update Master Pill Switcher UI
+    document.querySelectorAll('.global-unit-pill-btn').forEach((btn) => {
+      const bUnit = btn.getAttribute('data-global-unit');
+      if (bUnit === unit) {
+        btn.className = 'global-unit-pill-btn px-2 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition font-black cursor-pointer';
+      } else {
+        btn.className = 'global-unit-pill-btn px-2 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition font-medium cursor-pointer';
+      }
+    });
+
+    // 2. Synchronize Search Area Circle Radius Unit
+    polyCircleRadiusUnit = unit;
+    const circleRadUnitSel = document.getElementById('polyCircleRadiusUnit');
+    const circleRadInput = document.getElementById('polyCircleRadiusNm');
+    if (circleRadUnitSel) circleRadUnitSel.value = unit;
+    if (circleRadInput) {
+      if (unit === 'KM') circleRadInput.value = (polyCircleRadiusNm * 1.852).toFixed(2);
+      else if (unit === 'M') circleRadInput.value = Math.round(polyCircleRadiusNm * 1852);
+      else circleRadInput.value = polyCircleRadiusNm.toFixed(2);
+    }
+
+    // 3. Synchronize Search Area Rectangle Dimensions Unit
+    polyRectDimUnit = unit;
+    const rectDimUnitSel = document.getElementById('polyRectDimUnit');
+    const rectWidthInput = document.getElementById('polyRectWidthNm');
+    const rectHeightInput = document.getElementById('polyRectHeightNm');
+    const wLabel = document.getElementById('polyRectWidthUnitLabel');
+    const hLabel = document.getElementById('polyRectHeightUnitLabel');
+    if (rectDimUnitSel) rectDimUnitSel.value = unit;
+    if (wLabel) wLabel.textContent = unit;
+    if (hLabel) hLabel.textContent = unit;
+    if (rectWidthInput && rectHeightInput) {
+      if (unit === 'KM') {
+        rectWidthInput.value = (polyRectWidthNm * 1.852).toFixed(2);
+        rectHeightInput.value = (polyRectHeightNm * 1.852).toFixed(2);
+      } else if (unit === 'M') {
+        rectWidthInput.value = Math.round(polyRectWidthNm * 1852);
+        rectHeightInput.value = Math.round(polyRectHeightNm * 1852);
+      } else {
+        rectWidthInput.value = polyRectWidthNm.toFixed(2);
+        rectHeightInput.value = polyRectHeightNm.toFixed(2);
+      }
+    }
+
+    // 4. Synchronize Search Pattern Track Spacing Unit
+    const prevSpacingUnit = patternSpacingUnit;
+    patternSpacingUnit = unit;
+    const spacingUnitSel = document.getElementById('patternSpacingUnit');
+    const spacingInput = document.getElementById('patternTrackSpacing');
+    if (spacingUnitSel) spacingUnitSel.value = unit;
+    if (spacingInput) {
+      const curVal = parseFloat(spacingInput.value) || 1.0;
+      let valInNm = curVal;
+      if (prevSpacingUnit === 'KM') valInNm = curVal / 1.852;
+      else if (prevSpacingUnit === 'M') valInNm = curVal / 1852;
+      let targetVal = valInNm;
+      if (unit === 'KM') targetVal = valInNm * 1.852;
+      else if (unit === 'M') targetVal = valInNm * 1852;
+      spacingInput.value = (unit === 'M') ? Math.round(targetVal) : targetVal.toFixed(2);
+    }
+
+    // 5. Synchronize Measure Distance Unit
+    activeDistanceUnit = unit;
+    const distUnitSel = document.getElementById('measureDistanceUnit');
+    if (distUnitSel) distUnitSel.value = unit;
+
+    // 6. Synchronize Speed Unit: KM -> kmh, NM -> knot, M -> ms
+    const targetSpeedUnit = unit === 'KM' ? 'kmh' : (unit === 'M' ? 'ms' : 'knot');
+    const speedUnitSel = document.getElementById('measureSpeedUnit');
+    const speedInput = document.getElementById('measureVesselSpeed');
+    if (speedUnitSel) {
+      const prevSUnit = speedUnitSel.value || speedUnit;
+      speedUnitSel.value = targetSpeedUnit;
+      speedUnit = targetSpeedUnit;
+      if (speedInput) {
+        const curSpeed = parseFloat(speedInput.value) || 25;
+        let knots = curSpeed;
+        if (prevSUnit === 'kmh') knots = curSpeed / 1.852;
+        else if (prevSUnit === 'ms') knots = (curSpeed * 3.6) / 1.852;
+        let newSpeed = knots;
+        if (targetSpeedUnit === 'kmh') newSpeed = knots * 1.852;
+        else if (targetSpeedUnit === 'ms') newSpeed = (knots * 1.852) / 3.6;
+        speedInput.value = newSpeed.toFixed(1);
+      }
+    }
+
+    if (!skipRedraw) {
+      try { updateLivePolygonVisual(); } catch (e) {}
+      try { renderSavedPolygons(); } catch (e) {}
+      try { updatePatternAutoCalculation(); } catch (e) {}
+      try {
+        if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
+          recalculateActivePatternDistance();
+        }
+      } catch (e) {}
+      try { renderSavedPatterns(); } catch (e) {}
+      try { recalcRouteMetrics(measurePoints); } catch (e) {}
+      try { renderSavedRoutes(); } catch (e) {}
+    }
+  }
+
+  function initGlobalUnitSwitcher() {
+    document.querySelectorAll('.global-unit-pill-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const u = btn.getAttribute('data-global-unit');
+        if (u) {
+          setGlobalMeasurementUnit(u);
+        }
+      });
+    });
+    // Set initial active pill and sync dropdowns
+    setGlobalMeasurementUnit(activeGlobalUnit, true);
+  }
+
+  // Hidden Layers IDs for eye toggles (Normalized string comparison)
   let hiddenPointIds = new Set();
   let hiddenPolygonIds = new Set();
   let hiddenPatternIds = new Set();
   let hiddenRouteIds = new Set();
+
+  function isIdHidden(idSet, id) {
+    if (!idSet || id === null || id === undefined) return false;
+    return idSet.has(id) || idSet.has(String(id)) || (!isNaN(Number(id)) && idSet.has(Number(id)));
+  }
+
+  function toggleIdInSet(idSet, id) {
+    if (!idSet || id === null || id === undefined) return;
+    const strId = String(id);
+    const numId = Number(id);
+    if (isIdHidden(idSet, id)) {
+      idSet.delete(id);
+      idSet.delete(strId);
+      if (!isNaN(numId)) idSet.delete(numId);
+    } else {
+      idSet.add(strId);
+    }
+  }
 
   // Leaflet Map & Layer References
   let map = null;
@@ -371,6 +640,7 @@
   let activeDrawingPolygonOverlay = null;
   let activeDrawingVertexMarkers = [];
   let patternPolylinesMap = new Map();
+  let savedPatternArrowMarkersMap = new Map();
   let activePatternPolyline = null;
   let activePatternMarkers = [];
   let measurePolyline = null;
@@ -651,7 +921,7 @@
     }
 
     // 2. Box / Rectangle Area: A = width * height
-    if (shapeType === 'box' && boxWidthNm && boxHeightNm && Number(boxWidthNm) > 0 && Number(boxHeightNm) > 0) {
+    if ((shapeType === 'box' || shapeType === 'rectangle') && boxWidthNm && boxHeightNm && Number(boxWidthNm) > 0 && Number(boxHeightNm) > 0) {
       const w = Number(boxWidthNm);
       const h = Number(boxHeightNm);
       const sqNm = w * h;
@@ -901,6 +1171,8 @@
       zoom: 11,
       minZoom: 4,
       maxZoom: 22,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
       zoomControl: false,
       attributionControl: false
     });
@@ -908,35 +1180,41 @@
     // Zoom control on bottom right
     L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-    // Modern High-Resolution Basemaps with maxNativeZoom Scaling (No Blank on Zoom)
+    // Modern High-Resolution Basemaps with maxNativeZoom Scaling (No Blank on Zoom) - 100% Bebas API Key
     // 1. Google Maps Hybrid (High-Res Satellite + Roads + Labels)
     tileLayers.google_hybrid = L.tileLayer(
-      'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-      { maxNativeZoom: 20, maxZoom: 22, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }
+      'https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+      { maxNativeZoom: 20, maxZoom: 22, subdomains: ['0', '1', '2', '3'], attribution: 'Google Hybrid Satelit' }
     );
 
-    // 2. ESRI World Imagery (High-Res Satellite) with maxNativeZoom 18
+    // 2. Google Satellite High-Res (Identik dengan Peta Taktis Satelit pada Detail Operasi)
     tileLayers.satellite = L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      { maxNativeZoom: 18, maxZoom: 22 }
+      'https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+      { maxNativeZoom: 20, maxZoom: 22, subdomains: ['0', '1', '2', '3'], attribution: 'Google Satellite' }
     );
 
-    // 3. CartoDB Labels overlay for ESRI Satellite
+    // 3. CartoDB Labels overlay (opsional)
     tileLayers.labels = L.tileLayer(
       'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',
-      { subdomains: 'abcd', maxNativeZoom: 19, maxZoom: 22 }
+      { subdomains: 'abcd', maxNativeZoom: 19, maxZoom: 22, attribution: 'CartoDB Labels' }
     );
 
     // 4. Google Roadmap for crisp vector street networks
     tileLayers.roadmap = L.tileLayer(
-      'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-      { maxNativeZoom: 20, maxZoom: 22, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }
+      'https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      { maxNativeZoom: 20, maxZoom: 22, subdomains: ['0', '1', '2', '3'], attribution: 'Google Maps Roadmap' }
     );
 
-    // 5. OpenTopoMap for Relief & Contours with maxNativeZoom 17
+    // 5. Google Terrain for Relief & Contours with maxNativeZoom 20
     tileLayers.terrain = L.tileLayer(
-      'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-      { maxNativeZoom: 17, maxZoom: 22 }
+      'https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+      { maxNativeZoom: 20, maxZoom: 22, subdomains: ['0', '1', '2', '3'], attribution: 'Google Terrain' }
+    );
+
+    // 6. OpenStreetMap Standard for open maritime & land navigation
+    tileLayers.osm = L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxNativeZoom: 19, maxZoom: 22, subdomains: ['a', 'b', 'c'], attribution: '© OpenStreetMap contributors' }
     );
 
     // Set Default: Hybrid (Google High-Res Satellite + Navigation Labels)
@@ -1006,11 +1284,12 @@
       map.addLayer(tileLayers.google_hybrid);
     } else if (type === 'satellite') {
       map.addLayer(tileLayers.satellite);
-      map.addLayer(tileLayers.labels);
     } else if (type === 'roadmap') {
       map.addLayer(tileLayers.roadmap);
     } else if (type === 'terrain') {
       map.addLayer(tileLayers.terrain);
+    } else if (type === 'osm') {
+      if (tileLayers.osm) map.addLayer(tileLayers.osm);
     }
 
     // Update Pills in UI
@@ -1044,9 +1323,9 @@
       return;
     }
 
-    // 2. If Polygon Drawing is active, add vertex
+    // 2. If Search Area (Polygon/Rectangle/Circle) Drawing is active
     if (isDrawingPolygon) {
-      addPolygonVertex(lat, lng);
+      handleSearchAreaMapClick(lat, lng);
       return;
     }
 
@@ -1926,12 +2205,15 @@
     const nameInput = document.getElementById('pcPointName');
     if (nameInput) nameInput.value = data.label || '';
 
-    // Normalize category strictly to the 8 valid options
+    // Normalize category strictly to the valid options (including Dermaga SAR & Penemuan Korban)
     const VALID_CATEGORIES = [
       'Kantor SAR',
       'POS SAR',
       'Unit Siaga SAR',
+      'Dermaga SAR',
       'LKP',
+      'Penemuan Korban',
+      'Lokasi Penemuan Korban',
       'Posko',
       'Entry Poin',
       'Exit Poin',
@@ -1943,6 +2225,8 @@
     if (cat === 'Exit Point') cat = 'Exit Poin';
     if (!VALID_CATEGORIES.includes(cat)) {
       if (cat.toUpperCase() === 'LKP') cat = 'LKP';
+      else if (cat.toLowerCase().includes('dermaga')) cat = 'Dermaga SAR';
+      else if (cat.toLowerCase().includes('penemuan') || cat.toLowerCase().includes('korban')) cat = 'Penemuan Korban';
       else if (cat.includes('Kantor')) cat = 'Kantor SAR';
       else if (cat.includes('Posko')) cat = 'Posko';
       else if (cat.includes('POS')) cat = 'POS SAR';
@@ -2213,8 +2497,14 @@
         return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-orange-500/20 text-orange-400 border border-orange-500/30">📻 POS SAR</span>';
       case 'Unit Siaga SAR':
         return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">📡 Unit Siaga SAR</span>';
+      case 'Dermaga SAR':
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-400 border border-sky-500/30">⚓ Dermaga SAR</span>';
       case 'LKP':
         return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-500/20 text-red-400 border border-red-500/30">🚨 LKP</span>';
+      case 'Penemuan Korban':
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30">📍 Penemuan Korban</span>';
+      case 'Lokasi Penemuan Korban':
+        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30">📍 Lokasi Penemuan Korban</span>';
       case 'Posko':
         return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🏕️ Posko</span>';
       case 'Entry Poin':
@@ -2239,7 +2529,7 @@
 
     // 3. Render Markers on Map
     savedPoints.forEach((pt) => {
-      if (hiddenPointIds.has(pt.id)) return;
+      if (isIdHidden(hiddenPointIds, pt.id)) return;
 
       const html = createMarkerHtml(pt, false);
       const marker = L.marker([pt.lat, pt.lng], {
@@ -2325,7 +2615,7 @@
 
     listContainer.innerHTML = savedPoints
       .map((pt) => {
-        const isHidden = hiddenPointIds.has(pt.id);
+        const isHidden = isIdHidden(hiddenPointIds, pt.id);
         const dms = decimalToDms(pt.lat, pt.lng);
         const distFromKansar = calculateDistanceHaversine(-4.037694, 122.486694, pt.lat, pt.lng);
         const preset = PRESET_ICONS.find((p) => p.type === pt.pointType) || PRESET_ICONS[0];
@@ -2365,6 +2655,9 @@
 
             <!-- Action Buttons -->
             <div class="flex items-center gap-1 shrink-0">
+              <button type="button" onclick="window.SAR_GIS.copyPointCoordinates('${safeId}')" class="p-1 text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 rounded cursor-pointer transition" title="Salin Koordinat (DMS & Desimal)">
+                📋
+              </button>
               <button type="button" onclick="window.SAR_GIS.togglePointVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded cursor-pointer" title="${isHidden ? 'Tampilkan' : 'Sembunyikan'}">
                 ${isHidden ? '👁️‍🗨️' : '👁️'}
               </button>
@@ -2380,6 +2673,52 @@
       `;
       })
       .join('');
+  }
+
+  function copyPointCoordinates(id) {
+    const pt = savedPoints.find((p) => String(p.id) === String(id));
+    if (!pt) {
+      if (typeof showToast === 'function') showToast('Titik SAR tidak ditemukan.', 'error');
+      return;
+    }
+    const dms = decimalToDms(pt.lat, pt.lng);
+    const latNum = parseFloat(pt.lat);
+    const lngNum = parseFloat(pt.lng);
+    const ddLat = isNaN(latNum) ? pt.lat : latNum.toFixed(6);
+    const ddLng = isNaN(lngNum) ? pt.lng : lngNum.toFixed(6);
+    const label = pt.label && pt.label.trim() ? pt.label.trim() : (pt.category || 'Titik SAR');
+    const textToCopy = `${label}: ${dms} (${ddLat}, ${ddLng})`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        if (typeof showToast === 'function') {
+          showToast(`Koordinat ${label} berhasil disalin ke clipboard!`, 'success');
+        }
+      }).catch(() => {
+        fallbackCopyText(textToCopy, label);
+      });
+    } else {
+      fallbackCopyText(textToCopy, label);
+    }
+  }
+
+  function fallbackCopyText(text, label) {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.setAttribute('readonly', '');
+    el.style.position = 'absolute';
+    el.style.left = '-9999px';
+    document.body.appendChild(el);
+    el.select();
+    try {
+      document.execCommand('copy');
+      if (typeof showToast === 'function') {
+        showToast(`Koordinat ${label} berhasil disalin ke clipboard!`, 'success');
+      }
+    } catch {
+      prompt('Salin manual koordinat:', text);
+    }
+    document.body.removeChild(el);
   }
 
   // ==========================================
@@ -2431,6 +2770,90 @@
       });
     }
 
+    // Search Area Shape Selector Buttons (Polygon Bebas, Persegi / Kotak, Circle / Lingkaran)
+    document.querySelectorAll('.poly-shape-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const shape = btn.getAttribute('data-shape') || 'polygon';
+        setSearchAreaShape(shape);
+      });
+    });
+
+    // Circle Radius Input & Unit Listeners (NM, KM, Meter)
+    const circleRadInput = document.getElementById('polyCircleRadiusNm');
+    const circleRadUnitSel = document.getElementById('polyCircleRadiusUnit');
+
+    function syncCircleRadiusFromInput() {
+      if (!circleRadInput) return;
+      const rawVal = parseFloat(circleRadInput.value) || 1.0;
+      const unit = circleRadUnitSel ? circleRadUnitSel.value : 'NM';
+      polyCircleRadiusUnit = unit;
+      if (unit === 'KM') {
+        polyCircleRadiusNm = Math.max(0.01, rawVal / 1.852);
+      } else if (unit === 'M') {
+        polyCircleRadiusNm = Math.max(0.001, rawVal / 1852);
+      } else {
+        polyCircleRadiusNm = Math.max(0.05, rawVal);
+      }
+      if (activeSearchAreaShape === 'circle' && (polyShapeCenter || activePolygonPoints.length > 0)) {
+        const c = polyShapeCenter || getPolygonCentroid(activePolygonPoints);
+        polyShapeCenter = c;
+        activePolygonPoints = generateCircleVertices(c.lat, c.lng, polyCircleRadiusNm);
+        updateLivePolygonVisual();
+      }
+    }
+
+    if (circleRadInput) {
+      circleRadInput.addEventListener('input', syncCircleRadiusFromInput);
+    }
+
+    if (circleRadUnitSel) {
+      circleRadUnitSel.addEventListener('change', (e) => {
+        setGlobalMeasurementUnit(e.target.value);
+        syncCircleRadiusFromInput();
+      });
+    }
+
+    // Rectangle Dimensions Inputs & Unit Listeners (Lebar & Tinggi: NM, KM, Meter)
+    const rectWidthInput = document.getElementById('polyRectWidthNm');
+    const rectHeightInput = document.getElementById('polyRectHeightNm');
+    const rectDimUnitSel = document.getElementById('polyRectDimUnit');
+
+    function syncRectDimsFromInput() {
+      const rawW = parseFloat(rectWidthInput ? rectWidthInput.value : '2.0') || 2.0;
+      const rawH = parseFloat(rectHeightInput ? rectHeightInput.value : '2.0') || 2.0;
+      const unit = rectDimUnitSel ? rectDimUnitSel.value : 'NM';
+      polyRectDimUnit = unit;
+      if (unit === 'KM') {
+        polyRectWidthNm = Math.max(0.01, rawW / 1.852);
+        polyRectHeightNm = Math.max(0.01, rawH / 1.852);
+      } else if (unit === 'M') {
+        polyRectWidthNm = Math.max(0.001, rawW / 1852);
+        polyRectHeightNm = Math.max(0.001, rawH / 1852);
+      } else {
+        polyRectWidthNm = Math.max(0.05, rawW);
+        polyRectHeightNm = Math.max(0.05, rawH);
+      }
+      if (activeSearchAreaShape === 'rectangle' && (polyShapeCenter || activePolygonPoints.length > 0)) {
+        const c = polyShapeCenter || getPolygonCentroid(activePolygonPoints);
+        polyShapeCenter = c;
+        activePolygonPoints = generateRectangleVertices(c.lat, c.lng, polyRectWidthNm, polyRectHeightNm);
+        updateLivePolygonVisual();
+      }
+    }
+
+    [rectWidthInput, rectHeightInput].forEach((inp) => {
+      if (inp) {
+        inp.addEventListener('input', syncRectDimsFromInput);
+      }
+    });
+
+    if (rectDimUnitSel) {
+      rectDimUnitSel.addEventListener('change', (e) => {
+        setGlobalMeasurementUnit(e.target.value);
+        syncRectDimsFromInput();
+      });
+    }
+
     // New Polygon Button
     const btnNew = document.getElementById('btnStartNewPolygon');
     if (btnNew) {
@@ -2453,17 +2876,146 @@
     }
   }
 
+  function setSearchAreaShape(shape) {
+    activeSearchAreaShape = shape;
+
+    document.querySelectorAll('.poly-shape-btn').forEach((b) => {
+      const isCur = b.getAttribute('data-shape') === shape;
+      if (isCur) {
+        b.className = 'poly-shape-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-left transition font-bold shadow-xs cursor-pointer';
+      } else {
+        b.className = 'poly-shape-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-left hover:border-orange-500 transition cursor-pointer';
+      }
+    });
+
+    const rectBox = document.getElementById('polyRectangleParamsBox');
+    const circleBox = document.getElementById('polyCircleParamsBox');
+    const guideText = document.getElementById('polyDrawingGuideText');
+
+    if (shape === 'rectangle') {
+      if (rectBox) rectBox.classList.remove('hidden');
+      if (circleBox) circleBox.classList.add('hidden');
+      if (guideText) {
+        guideText.innerHTML = '👉 <strong>Klik di atas peta</strong> untuk menentukan titik pusat persegi, atau ubah Lebar & Tinggi NM di atas.';
+      }
+      if (activePolygonPoints.length > 0) {
+        const c = polyShapeCenter || getPolygonCentroid(activePolygonPoints);
+        polyShapeCenter = c;
+        activePolygonPoints = generateRectangleVertices(c.lat, c.lng, polyRectWidthNm, polyRectHeightNm);
+        updateLivePolygonVisual();
+      }
+    } else if (shape === 'circle') {
+      if (rectBox) rectBox.classList.add('hidden');
+      if (circleBox) circleBox.classList.remove('hidden');
+      if (guideText) {
+        guideText.innerHTML = '👉 <strong>Klik di atas peta</strong> untuk menentukan titik pusat lingkaran, lalu tentukan Radius NM.';
+      }
+      if (activePolygonPoints.length > 0) {
+        const c = polyShapeCenter || getPolygonCentroid(activePolygonPoints);
+        polyShapeCenter = c;
+        activePolygonPoints = generateCircleVertices(c.lat, c.lng, polyCircleRadiusNm);
+        updateLivePolygonVisual();
+      }
+    } else {
+      if (rectBox) rectBox.classList.add('hidden');
+      if (circleBox) circleBox.classList.add('hidden');
+      if (guideText) {
+        guideText.innerHTML = '👉 <strong>Klik di atas peta</strong> untuk menambah Titik A, B, C, dst. Semua titik sudut <strong>dapat digeser langsung</strong> pada peta.';
+      }
+    }
+  }
+
+  function generateCircleVertices(centerLat, centerLng, radiusNm, numPoints = 36) {
+    const points = [];
+    const radiusKm = radiusNm * 1.852;
+    const latKmPerDeg = 110.574;
+    const lngKmPerDeg = 111.32 * Math.cos((centerLat * Math.PI) / 180);
+
+    for (let i = 0; i < numPoints; i++) {
+      const theta = (i / numPoints) * 2 * Math.PI;
+      const dLat = (radiusKm * Math.cos(theta)) / latKmPerDeg;
+      const dLng = (radiusKm * Math.sin(theta)) / lngKmPerDeg;
+      points.push({
+        lat: centerLat + dLat,
+        lng: centerLng + dLng,
+        label: `R${i + 1}`
+      });
+    }
+    return points;
+  }
+
+  function generateRectangleVertices(centerLat, centerLng, widthNm, heightNm) {
+    const halfWidthKm = (widthNm * 1.852) / 2;
+    const halfHeightKm = (heightNm * 1.852) / 2;
+    const latKmPerDeg = 110.574;
+    const lngKmPerDeg = 111.32 * Math.cos((centerLat * Math.PI) / 180);
+
+    const dLat = halfHeightKm / latKmPerDeg;
+    const dLng = halfWidthKm / lngKmPerDeg;
+
+    return [
+      { lat: centerLat + dLat, lng: centerLng - dLng, label: 'Titik A (NW)' },
+      { lat: centerLat + dLat, lng: centerLng + dLng, label: 'Titik B (NE)' },
+      { lat: centerLat - dLat, lng: centerLng + dLng, label: 'Titik C (SE)' },
+      { lat: centerLat - dLat, lng: centerLng - dLng, label: 'Titik D (SW)' }
+    ];
+  }
+
+  function handleSearchAreaMapClick(lat, lng) {
+    if (activeSearchAreaShape === 'circle') {
+      polyShapeCenter = { lat, lng };
+      activePolygonPoints = generateCircleVertices(lat, lng, polyCircleRadiusNm);
+      updateLivePolygonVisual();
+    } else if (activeSearchAreaShape === 'rectangle') {
+      polyShapeCenter = { lat, lng };
+      activePolygonPoints = generateRectangleVertices(lat, lng, polyRectWidthNm, polyRectHeightNm);
+      updateLivePolygonVisual();
+    } else {
+      addPolygonVertex(lat, lng);
+    }
+  }
+
   function startPolygonDrawing(existingData = null) {
     isDrawingPolygon = true;
     editingPolygonId = existingData ? existingData.id : null;
     activePolygonPoints = existingData ? [...existingData.points] : [];
 
-    polyStrokeColor = existingData ? existingData.strokeColor : '#ea580c';
-    polyStrokeWeight = existingData ? existingData.strokeWeight : 2.5;
-    polyFillColor = existingData ? existingData.fillColor : '#ea580c';
-    polyFillOpacity = existingData ? existingData.fillOpacity : 0.2;
+    polyStrokeColor = existingData ? (existingData.strokeColor || '#ea580c') : '#ea580c';
+    polyStrokeWeight = existingData ? (existingData.strokeWeight || 2.5) : 2.5;
+    polyFillColor = existingData ? (existingData.fillColor || '#ea580c') : '#ea580c';
+    polyFillOpacity = existingData ? (existingData.fillOpacity || 0.2) : 0.2;
 
-    document.getElementById('polyEditorName').value = existingData ? existingData.name : 'Sektor Pencarian Alpha';
+    const shape = existingData && existingData.shapeType ? existingData.shapeType : 'polygon';
+    activeSearchAreaShape = shape;
+
+    if (existingData && existingData.shapeType === 'circle') {
+      polyCircleRadiusNm = parseFloat(existingData.radiusNm) || 1.0;
+      const rInput = document.getElementById('polyCircleRadiusNm');
+      if (rInput) rInput.value = polyCircleRadiusNm;
+      polyShapeCenter = (existingData.centerLat && existingData.centerLng)
+        ? { lat: parseFloat(existingData.centerLat), lng: parseFloat(existingData.centerLng) }
+        : (activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : null);
+    } else if (existingData && existingData.shapeType === 'rectangle') {
+      polyRectWidthNm = parseFloat(existingData.boxWidthNm) || 2.0;
+      polyRectHeightNm = parseFloat(existingData.boxHeightNm) || 2.0;
+      const wInput = document.getElementById('polyRectWidthNm');
+      const hInput = document.getElementById('polyRectHeightNm');
+      if (wInput) wInput.value = polyRectWidthNm;
+      if (hInput) hInput.value = polyRectHeightNm;
+      polyShapeCenter = (existingData.centerLat && existingData.centerLng)
+        ? { lat: parseFloat(existingData.centerLat), lng: parseFloat(existingData.centerLng) }
+        : (activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : null);
+    } else {
+      polyShapeCenter = activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : null;
+    }
+
+    setSearchAreaShape(shape);
+
+    const polyNameInput = document.getElementById('polyEditorName');
+    if (polyNameInput) {
+      polyNameInput.value = existingData ? (existingData.name || '') : '';
+      polyNameInput.placeholder = 'SEARCH AREA SRU 1';
+    }
     document.getElementById('polygonDrawingEditorCard').classList.remove('hidden');
     const btnNewPoly = document.getElementById('btnStartNewPolygon');
     if (btnNewPoly) btnNewPoly.classList.add('hidden');
@@ -2475,6 +3027,9 @@
     isDrawingPolygon = false;
     editingPolygonId = null;
     activePolygonPoints = [];
+    polyShapeCenter = null;
+    activeSearchAreaShape = 'polygon';
+    setSearchAreaShape('polygon');
 
     document.getElementById('polygonDrawingEditorCard').classList.add('hidden');
     const btnNewPoly = document.getElementById('btnStartNewPolygon');
@@ -2507,46 +3062,105 @@
 
   function updateLivePolygonVisual() {
     // 1. Calculate Area & Perimeter
-    const areaStats = calculatePolygonSphericalArea(activePolygonPoints);
-    document.getElementById('polyLiveSqNm').textContent = `${areaStats.sqNm.toFixed(2)} NM²`;
-    document.getElementById('polyLiveSqKm').textContent = `${areaStats.sqKm.toFixed(2)} km² (${areaStats.hectares.toFixed(1)} Ha)`;
-    document.getElementById('polyLivePerimeterNm').textContent = `${areaStats.perimeterNm.toFixed(2)} NM`;
-    document.getElementById('polyLivePerimeterKm').textContent = `${areaStats.perimeterKm.toFixed(2)} km`;
+    let areaStats;
+    if (activeSearchAreaShape === 'circle') {
+      const radiusKm = polyCircleRadiusNm * 1.852;
+      const sqNm = Math.PI * Math.pow(polyCircleRadiusNm, 2);
+      const sqKm = Math.PI * Math.pow(radiusKm, 2);
+      const perimeterNm = 2 * Math.PI * polyCircleRadiusNm;
+      const perimeterKm = 2 * Math.PI * radiusKm;
+      areaStats = {
+        sqNm: sqNm,
+        sqKm: sqKm,
+        hectares: sqKm * 100,
+        perimeterNm: perimeterNm,
+        perimeterKm: perimeterKm
+      };
+    } else {
+      areaStats = calculatePolygonSphericalArea(activePolygonPoints);
+    }
+
+    const areaFmt = formatDynamicArea(areaStats.sqNm, areaStats.sqKm);
+    const perimFmt = formatDynamicPerimeter(areaStats.perimeterNm, areaStats.perimeterKm);
+
+    const elSqNm = document.getElementById('polyLiveSqNm');
+    const elSqKm = document.getElementById('polyLiveSqKm');
+    const elPerimNm = document.getElementById('polyLivePerimeterNm');
+    const elPerimKm = document.getElementById('polyLivePerimeterKm');
+
+    if (elSqNm) elSqNm.textContent = areaFmt.primary;
+    if (elSqKm) elSqKm.textContent = areaFmt.secondary;
+    if (elPerimNm) elPerimNm.textContent = perimFmt.primary;
+    if (elPerimKm) elPerimKm.textContent = perimFmt.secondary;
 
     // Nearest Posko detection
-    if (activePolygonPoints.length > 0) {
-      const midLat = activePolygonPoints.reduce((acc, p) => acc + p.lat, 0) / activePolygonPoints.length;
-      const midLng = activePolygonPoints.reduce((acc, p) => acc + p.lng, 0) / activePolygonPoints.length;
-      const dist = calculateDistanceHaversine(-4.037694, 122.486694, midLat, midLng);
-      document.getElementById('polyLiveNearestPosko').textContent = `Kansar Kendari (${dist.nm} NM, ${dist.bearing}° ${dist.headingName})`;
+    const cPt = polyShapeCenter || (activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : null);
+    if (cPt) {
+      const dist = calculateDistanceHaversine(-4.037694, 122.486694, cPt.lat, cPt.lng);
+      const distFormatted = formatDynamicDistance(dist.nm, dist.km);
+      const elPosko = document.getElementById('polyLiveNearestPosko');
+      if (elPosko) elPosko.textContent = `Kansar Kendari (${distFormatted}, ${dist.bearing}° ${dist.headingName})`;
     }
 
-    // 2. Render Vertices Table
+    // 2. Render Vertices Table / Circle Info
     const tableEl = document.getElementById('polyVerticesListTable');
     if (tableEl) {
-      tableEl.innerHTML = activePolygonPoints
-        .map(
-          (pt, idx) => `
-        <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px]">
-          <div class="flex items-center gap-2">
-            <span class="w-5 h-5 rounded-full bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center">${String.fromCharCode(65 + (idx % 26))}</span>
-            <span class="font-bold text-white">${pt.label}</span>
+      if (activeSearchAreaShape === 'circle') {
+        const c = polyShapeCenter || (activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : null);
+        const centerDms = c ? decimalToDms(c.lat, c.lng) : 'Klik pada peta untuk menetapkan titik pusat';
+        let radDisplay = formatDynamicDistance(polyCircleRadiusNm, polyCircleRadiusNm * 1.852);
+        tableEl.innerHTML = `
+          <div class="p-3 rounded-xl bg-orange-500/10 border border-orange-500/20 space-y-2 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-full bg-orange-500 text-white font-black text-xs flex items-center justify-center shrink-0">📍</span>
+              <div class="min-w-0">
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Titik Pusat Datum (LKP)</div>
+                <div class="font-mono font-bold text-orange-600 dark:text-orange-400 text-[11px] truncate">${centerDms}</div>
+              </div>
+            </div>
+            <div class="flex items-center justify-between pt-1 border-t border-orange-500/15 text-[11px]">
+              <span class="text-slate-500 dark:text-slate-400">Radius Sektor:</span>
+              <span class="font-mono font-bold text-slate-800 dark:text-slate-200">${radDisplay}</span>
+            </div>
+            <div class="text-[10px] text-slate-400 italic">💡 Geser pin pusat di atas peta untuk memindahkan posisi radius lingkaran secara presisi.</div>
           </div>
-          <div class="text-[10px] font-mono text-slate-400">${decimalToDms(pt.lat, pt.lng)}</div>
-          <button type="button" onclick="window.SAR_GIS.removeVertex(${idx})" class="text-slate-500 hover:text-red-400 p-0.5">✕</button>
-        </div>
-      `
-        )
-        .join('');
+        `;
+      } else {
+        tableEl.innerHTML = activePolygonPoints
+          .map(
+            (pt, idx) => `
+          <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px]">
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center">${String.fromCharCode(65 + (idx % 26))}</span>
+              <span class="font-bold text-white">${pt.label}</span>
+            </div>
+            <div class="text-[10px] font-mono text-slate-400">${decimalToDms(pt.lat, pt.lng)}</div>
+            <button type="button" onclick="window.SAR_GIS.removeVertex(${idx})" class="text-slate-500 hover:text-red-400 p-0.5">✕</button>
+          </div>
+        `
+          )
+          .join('');
+      }
     }
 
-    // 3. Render Map Polygon Overlay
+    // 3. Render Map Polygon / Circle Overlay
     if (activeDrawingPolygonOverlay) {
       map.removeLayer(activeDrawingPolygonOverlay);
       activeDrawingPolygonOverlay = null;
     }
 
-    if (activePolygonPoints.length >= 2) {
+    if (activeSearchAreaShape === 'circle') {
+      const c = polyShapeCenter || (activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : null);
+      if (c) {
+        activeDrawingPolygonOverlay = L.circle([c.lat, c.lng], {
+          radius: polyCircleRadiusNm * 1852,
+          color: polyStrokeColor,
+          weight: polyStrokeWeight,
+          fillColor: polyFillColor,
+          fillOpacity: polyFillOpacity
+        }).addTo(map);
+      }
+    } else if (activePolygonPoints.length >= 2) {
       const latlngs = activePolygonPoints.map((p) => [p.lat, p.lng]);
       activeDrawingPolygonOverlay = L.polygon(latlngs, {
         color: polyStrokeColor,
@@ -2556,42 +3170,69 @@
       }).addTo(map);
     }
 
-    // 4. Render Vertex Badges (Draggable handles)
+    // 4. Render Handles: Circle = HANYA 1 center marker; Polygon/Rect = vertex markers
     activeDrawingVertexMarkers.forEach((m) => map.removeLayer(m));
     activeDrawingVertexMarkers = [];
 
-    activePolygonPoints.forEach((pt, idx) => {
-      const letter = String.fromCharCode(65 + (idx % 26));
-      const marker = L.marker([pt.lat, pt.lng], {
-        draggable: true,
-        zIndexOffset: 1200
-      }).addTo(map);
+    if (activeSearchAreaShape === 'circle') {
+      const c = polyShapeCenter || (activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : null);
+      if (c) {
+        const marker = L.marker([c.lat, c.lng], {
+          draggable: true,
+          zIndexOffset: 1250
+        }).addTo(map);
 
-      marker.setIcon(
-        L.divIcon({
-          html: createVertexBadgeHtml(letter, polyStrokeColor, false),
-          className: 'sar-vertex-pin',
-          iconSize: [30, 30],
-          iconAnchor: [15, 15]
-        })
-      );
+        marker.setIcon(
+          L.divIcon({
+            html: `<div class="w-7 h-7 rounded-full bg-orange-600 text-white font-black flex items-center justify-center border-2 border-white shadow-lg text-xs">📍</div>`,
+            className: 'sar-circle-center-pin',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+          })
+        );
 
-      marker.on('dragend', (e) => {
-        const pos = e.target.getLatLng();
-        pt.lat = pos.lat;
-        pt.lng = pos.lng;
-        updateLivePolygonVisual();
+        marker.on('dragend', (e) => {
+          const pos = e.target.getLatLng();
+          polyShapeCenter = { lat: pos.lat, lng: pos.lng };
+          activePolygonPoints = generateCircleVertices(pos.lat, pos.lng, polyCircleRadiusNm);
+          updateLivePolygonVisual();
+        });
+
+        activeDrawingVertexMarkers.push(marker);
+      }
+    } else {
+      activePolygonPoints.forEach((pt, idx) => {
+        const letter = String.fromCharCode(65 + (idx % 26));
+        const marker = L.marker([pt.lat, pt.lng], {
+          draggable: true,
+          zIndexOffset: 1200
+        }).addTo(map);
+
+        marker.setIcon(
+          L.divIcon({
+            html: createVertexBadgeHtml(letter, polyStrokeColor, false),
+            className: 'sar-vertex-pin',
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+          })
+        );
+
+        marker.on('dragend', (e) => {
+          const pos = e.target.getLatLng();
+          pt.lat = pos.lat;
+          pt.lng = pos.lng;
+          updateLivePolygonVisual();
+        });
+
+        activeDrawingVertexMarkers.push(marker);
       });
-
-      activeDrawingVertexMarkers.push(marker);
-    });
+    }
   }
 
   async function handleSavePolygon() {
-    const name = document.getElementById('polyEditorName').value.trim();
+    let name = document.getElementById('polyEditorName').value.trim();
     if (!name) {
-      alert('Nama Poligon Area wajib diisi!');
-      return;
+      name = `SEARCH AREA SRU ${savedPolygons.length + 1}`;
     }
 
     if (activePolygonPoints.length < 3) {
@@ -2604,6 +3245,10 @@
       : (editingPolygonId ? (rawAllPolygons.find(p => p.id === editingPolygonId)?.id_operasi || null) : null);
 
     const areaStats = calculatePolygonSphericalArea(activePolygonPoints);
+    const centroid = activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : { lat: 0, lng: 0 };
+    const centerLat = polyShapeCenter ? polyShapeCenter.lat : centroid.lat;
+    const centerLng = polyShapeCenter ? polyShapeCenter.lng : centroid.lng;
+
     const payload = {
       id: editingPolygonId || `poly-${Date.now()}`,
       id_operasi: targetOpId,
@@ -2613,7 +3258,13 @@
       strokeColor: polyStrokeColor,
       strokeWeight: polyStrokeWeight,
       fillColor: polyFillColor,
-      fillOpacity: polyFillOpacity
+      fillOpacity: polyFillOpacity,
+      shapeType: activeSearchAreaShape,
+      centerLat: centerLat,
+      centerLng: centerLng,
+      radiusNm: activeSearchAreaShape === 'circle' ? polyCircleRadiusNm : null,
+      boxWidthNm: activeSearchAreaShape === 'rectangle' ? polyRectWidthNm : null,
+      boxHeightNm: activeSearchAreaShape === 'rectangle' ? polyRectHeightNm : null
     };
 
     try {
@@ -2640,61 +3291,118 @@
     polygonOverlaysMap.forEach((poly) => map.removeLayer(poly));
     polygonOverlaysMap.clear();
 
-    // Render on map
+    // Render on map with robust defensive checks (respecting hiddenPolygonIds)
     savedPolygons.forEach((poly) => {
-      if (hiddenPolygonIds.has(poly.id)) return;
-      if (!poly.points || poly.points.length < 3) return;
+      try {
+        if (isIdHidden(hiddenPolygonIds, poly.id)) return;
 
-      const latlngs = poly.points.map((p) => [p.lat, p.lng]);
-      const overlay = L.polygon(latlngs, {
-        color: poly.strokeColor || '#ea580c',
-        weight: poly.strokeWeight || 2.5,
-        fillColor: poly.fillColor || '#ea580c',
-        fillOpacity: poly.fillOpacity || 0.2
-      }).addTo(map);
+        const isCircle = poly.shapeType === 'circle';
+        let overlay = null;
+        let stats = null;
+        const safePolyId = escapeHtml(poly.id);
+        const safePolyName = escapeHtml(poly.name);
 
-      const stats = calculatePolygonSphericalArea(poly.points);
-      const safePolyId = escapeHtml(poly.id);
-      const safePolyName = escapeHtml(poly.name);
+        if (isCircle) {
+          const cLat = poly.centerLat ? parseFloat(poly.centerLat) : (poly.points && poly.points[0] ? poly.points[0].lat : 0);
+          const cLng = poly.centerLng ? parseFloat(poly.centerLng) : (poly.points && poly.points[0] ? poly.points[0].lng : 0);
+          const rNm = parseFloat(poly.radiusNm) || 1.0;
+          const radiusMeters = rNm * 1852;
+          overlay = L.circle([cLat, cLng], {
+            radius: radiusMeters,
+            color: poly.strokeColor || '#ea580c',
+            weight: poly.strokeWeight || 2.5,
+            fillColor: poly.fillColor || '#ea580c',
+            fillOpacity: poly.fillOpacity || 0.2
+          }).addTo(map);
 
-      overlay.bindPopup(`
-        <div class="p-3 text-xs space-y-1">
-          <div class="font-bold text-orange-400 text-sm">${safePolyName}</div>
-          <div class="text-[11px] text-slate-300">Luas: <strong>${stats.sqNm} NM²</strong> (${stats.sqKm} km²)</div>
-          <div class="text-[11px] text-slate-300">Keliling: <strong>${stats.perimeterNm} NM</strong> (${stats.perimeterKm} km)</div>
-          <div class="text-[10px] text-slate-400 font-mono">${poly.points.length} Sudut Vertices</div>
-          <div class="pt-2">
-            <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${safePolyId}')" class="w-full py-1.5 px-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center gap-1 shadow-xs cursor-pointer">
-              <span>🚀 Buat Pola Lintasan SAR</span>
-            </button>
-          </div>
-        </div>
-      `);
+          const sqNm = Math.PI * Math.pow(rNm, 2);
+          const sqKm = sqNm * 3.4299;
+          const perimNm = 2 * Math.PI * rNm;
+          const perimKm = perimNm * 1.852;
+          stats = {
+            sqNm: sqNm.toFixed(2),
+            sqKm: sqKm.toFixed(2),
+            perimeterNm: perimNm.toFixed(2),
+            perimeterKm: perimKm.toFixed(2)
+          };
 
-      // Forward click to map drawing/measure handler when in drawing or measuring mode
-      overlay.on('click', (e) => {
-        if (isMeasureModeActive || isDrawingPolygon || isCreatingPoint) {
-          overlay.closePopup();
-          setTimeout(() => overlay.closePopup(), 10);
-          onMapClick(e);
-          if (e.originalEvent) {
-            L.DomEvent.stopPropagation(e.originalEvent);
+          const areaFmt = formatDynamicArea(sqNm, sqKm);
+          const perimFmt = formatDynamicPerimeter(perimNm, perimKm);
+          const radStr = formatDynamicDistance(rNm, rNm * 1.852);
+
+          overlay.bindPopup(`
+            <div class="p-3 text-xs space-y-1">
+              <div class="font-bold text-orange-400 text-sm">⭕ ${safePolyName}</div>
+              <div class="text-[11px] text-slate-300">Radius: <strong>${radStr}</strong></div>
+              <div class="text-[11px] text-slate-300">Luas Sektor: <strong>${areaFmt.combined}</strong></div>
+              <div class="text-[11px] text-slate-300">Keliling: <strong>${perimFmt.combined}</strong></div>
+              <div class="text-[10px] text-slate-400 font-mono">Pusat LKP: ${decimalToDms(cLat, cLng)}</div>
+              <div class="pt-2">
+                <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${safePolyId}')" class="w-full py-1.5 px-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center gap-1 shadow-xs cursor-pointer">
+                  <span>🚀 Buat Pola Lintasan SAR</span>
+                </button>
+              </div>
+            </div>
+          `);
+        } else {
+          const points = Array.isArray(poly.points) ? poly.points : [];
+          if (points.length < 3) return;
+
+          const latlngs = points.map((p) => [p.lat, p.lng]);
+          overlay = L.polygon(latlngs, {
+            color: poly.strokeColor || '#ea580c',
+            weight: poly.strokeWeight || 2.5,
+            fillColor: poly.fillColor || '#ea580c',
+            fillOpacity: poly.fillOpacity || 0.2
+          }).addTo(map);
+
+          stats = calculatePolygonSphericalArea(points);
+          const areaFmt = formatDynamicArea(stats.sqNm, stats.sqKm);
+          const perimFmt = formatDynamicPerimeter(stats.perimeterNm, stats.perimeterKm);
+
+          overlay.bindPopup(`
+            <div class="p-3 text-xs space-y-1">
+              <div class="font-bold text-orange-400 text-sm">${safePolyName}</div>
+              <div class="text-[11px] text-slate-300">Luas: <strong>${areaFmt.combined}</strong></div>
+              <div class="text-[11px] text-slate-300">Keliling: <strong>${perimFmt.combined}</strong></div>
+              <div class="text-[10px] text-slate-400 font-mono">${points.length} Sudut Vertices</div>
+              <div class="pt-2">
+                <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${safePolyId}')" class="w-full py-1.5 px-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center gap-1 shadow-xs cursor-pointer">
+                  <span>🚀 Buat Pola Lintasan SAR</span>
+                </button>
+              </div>
+            </div>
+          `);
+        }
+
+        // Forward click to map drawing/measure handler when in drawing or measuring mode
+        overlay.on('click', (e) => {
+          if (isMeasureModeActive || isDrawingPolygon || isCreatingPoint) {
+            overlay.closePopup();
+            setTimeout(() => overlay.closePopup(), 10);
+            onMapClick(e);
+            if (e.originalEvent) {
+              L.DomEvent.stopPropagation(e.originalEvent);
+            }
+            return;
           }
-          return;
-        }
-      });
+        });
 
-      overlay.on('popupopen', () => {
-        if (isMeasureModeActive || isDrawingPolygon || isCreatingPoint) {
-          overlay.closePopup();
-        }
-      });
+        overlay.on('popupopen', () => {
+          if (isMeasureModeActive || isDrawingPolygon || isCreatingPoint) {
+            overlay.closePopup();
+          }
+        });
 
-      polygonOverlaysMap.set(poly.id, overlay);
+        polygonOverlaysMap.set(poly.id, overlay);
+      } catch (err) {
+        console.warn('[GIS Warning] Gagal merender poligon:', poly, err);
+      }
     });
 
     renderSavedPolygonsList();
     populatePolygonSelectOptions();
+    updateGisBadges();
   }
 
   function renderSavedPolygonsList() {
@@ -2708,11 +3416,20 @@
 
     container.innerHTML = savedPolygons
       .map((poly) => {
-        const isHidden = hiddenPolygonIds.has(poly.id);
+        const isHidden = isIdHidden(hiddenPolygonIds, poly.id);
         const stats = calculatePolygonSphericalArea(poly.points);
         const safeId = escapeHtml(poly.id);
         const safeName = escapeHtml(poly.name);
         const safeColor = escapeHtml(poly.strokeColor || '#ea580c');
+        const shapeType = poly.shapeType || 'polygon';
+        const shapeBadge = shapeType === 'circle'
+          ? '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-bold">⭕ Lingkaran</span>'
+          : (shapeType === 'rectangle'
+            ? '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">⏹️ Persegi</span>'
+            : '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-bold">📐 Bebas</span>');
+
+        const areaFmt = formatDynamicArea(stats.sqNm, stats.sqKm);
+        const perimFmt = formatDynamicPerimeter(stats.perimeterNm, stats.perimeterKm);
 
         return `
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
@@ -2721,21 +3438,22 @@
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${safeColor};"></span>
                 <span class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</span>
+                ${shapeBadge}
                 ${getOperasiBadgeHtml(poly.id_operasi)}
               </div>
               <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-1">
-                ${stats.sqNm} NM² (${stats.sqKm} km²) • Keliling: ${stats.perimeterNm} NM
+                ${areaFmt.combined} • Keliling: ${perimFmt.combined}
               </div>
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
-              <button type="button" onclick="window.SAR_GIS.togglePolygonVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded" title="Sembunyikan / Tampilkan">
+              <button type="button" onclick="window.SAR_GIS.togglePolygonVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded cursor-pointer" title="${isHidden ? 'Tampilkan Search Area' : 'Sembunyikan Search Area'}">
                 ${isHidden ? '👁️‍🗨️' : '👁️'}
               </button>
-              <button type="button" onclick="window.SAR_GIS.editPolygon('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded" title="Edit">
+              <button type="button" onclick="window.SAR_GIS.editPolygon('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded cursor-pointer" title="Edit">
                 ✏️
               </button>
-              <button type="button" onclick="window.SAR_GIS.deletePolygon('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded" title="Hapus">
+              <button type="button" onclick="window.SAR_GIS.deletePolygon('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded cursor-pointer" title="Hapus">
                 🗑️
               </button>
             </div>
@@ -2762,8 +3480,26 @@
     }
 
     savedPolygons.forEach((p) => {
-      const ptCount = (p.points || []).length;
-      options += `<option value="${p.id}">📐 Area: ${p.name} (${ptCount} Sudut)</option>`;
+      const shapeType = p.shapeType || 'polygon';
+      let info = '';
+      if (shapeType === 'circle') {
+        const r = parseFloat(p.radiusNm || p.radius_nm) || 1.0;
+        info = `⭕ Circle R: ${formatDynamicDistance(r, r * 1.852)}`;
+      } else if (shapeType === 'rectangle' || shapeType === 'box') {
+        const w = parseFloat(p.boxWidthNm || p.box_width_nm) || 2.0;
+        const h = parseFloat(p.boxHeightNm || p.box_height_nm) || 2.0;
+        if (activeGlobalUnit === 'KM') {
+          info = `⏹️ Persegi ${(w * 1.852).toFixed(1)}x${(h * 1.852).toFixed(1)} km`;
+        } else if (activeGlobalUnit === 'M') {
+          info = `⏹️ Persegi ${Math.round(w * 1852)}x${Math.round(h * 1852)} m`;
+        } else {
+          info = `⏹️ Persegi ${w.toFixed(1)}x${h.toFixed(1)} NM`;
+        }
+      } else {
+        const ptCount = (p.points || []).length;
+        info = `📐 Poligon (${ptCount} Sudut)`;
+      }
+      options += `<option value="${p.id}">${info} - ${escapeHtml(p.name)}</option>`;
     });
 
     sel.innerHTML = options;
@@ -2788,7 +3524,10 @@
         const btnSave = document.getElementById('btnSavePatternConfirm');
         if (btnSave) btnSave.innerHTML = '<span>💾 Simpan Pola SAR</span>';
         const nameInput = document.getElementById('patternFormName');
-        if (nameInput) nameInput.value = `Pola Lintasan SAR ${getPatternDisplayName(activePatternType)} #${savedPatterns.length + 1}`;
+        if (nameInput) {
+          nameInput.value = '';
+          nameInput.placeholder = 'CREAPING LANE 1/ESAR 1/';
+        }
         const card = document.getElementById('patternCreationCard');
         if (card) card.classList.remove('hidden');
         btnNewPattern.classList.add('hidden');
@@ -2842,6 +3581,82 @@
       });
     });
 
+    // E-SAR Orientation Buttons (Horizontal vs Vertical)
+    const btnEsarH = document.getElementById('btnEsarOrientHorizontal');
+    const btnEsarV = document.getElementById('btnEsarOrientVertical');
+
+    function updateEsarDirectionButtonsUI() {
+      document.querySelectorAll('.esar-dir-btn').forEach((btn) => {
+        const dir = btn.getAttribute('data-direction') || btn.getAttribute('data-dir');
+        const isActive = dir === activeEsarDirection;
+        if (isActive) {
+          btn.className = 'esar-dir-btn p-2 rounded-xl border border-sky-500 bg-sky-500/20 text-sky-700 dark:text-sky-300 font-bold transition shadow-xs cursor-pointer flex items-center justify-center gap-1 text-xs';
+        } else {
+          btn.className = 'esar-dir-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-sky-500 font-semibold transition cursor-pointer flex items-center justify-center gap-1 text-xs';
+        }
+      });
+
+      // Toggle Horizontal vs Vertical direction button groups
+      const hGroup = document.getElementById('esarDirHorizontalGroup');
+      const vGroup = document.getElementById('esarDirVerticalGroup');
+      if (hGroup && vGroup) {
+        if (activeEsarOrientation === 'horizontal') {
+          hGroup.classList.remove('hidden');
+          vGroup.classList.add('hidden');
+        } else {
+          hGroup.classList.add('hidden');
+          vGroup.classList.remove('hidden');
+        }
+      }
+
+      if (btnEsarH) {
+        btnEsarH.className = activeEsarOrientation === 'horizontal'
+          ? 'esar-orient-btn p-2 rounded-xl border border-sky-500 bg-sky-500/20 text-sky-700 dark:text-sky-300 flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer font-bold'
+          : 'esar-orient-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-sky-500 flex items-center justify-center gap-1.5 transition cursor-pointer';
+      }
+      if (btnEsarV) {
+        btnEsarV.className = activeEsarOrientation === 'vertical'
+          ? 'esar-orient-btn p-2 rounded-xl border border-sky-500 bg-sky-500/20 text-sky-700 dark:text-sky-300 flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer font-bold'
+          : 'esar-orient-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-sky-500 flex items-center justify-center gap-1.5 transition cursor-pointer';
+      }
+    }
+
+    [btnEsarH, btnEsarV].forEach((btn) => {
+      if (btn) {
+        btn.addEventListener('click', () => {
+          activeEsarOrientation = btn.getAttribute('data-orientation') || 'horizontal';
+          if (activeEsarOrientation === 'horizontal') {
+            if (activeEsarDirection !== 'west_to_east' && activeEsarDirection !== 'east_to_west') {
+              activeEsarDirection = 'west_to_east';
+            }
+          } else {
+            if (activeEsarDirection !== 'north_to_south' && activeEsarDirection !== 'south_to_north') {
+              activeEsarDirection = 'north_to_south';
+            }
+          }
+          updateEsarDirectionButtonsUI();
+          updatePatternAutoCalculation({ source: 'auto' });
+          generateSearchPatternRoute();
+        });
+      }
+    });
+
+    // 4-Vector Direction Buttons for E-SAR (West->East, East->West, North->South, South->North)
+    document.querySelectorAll('.esar-dir-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const dir = btn.getAttribute('data-direction') || btn.getAttribute('data-dir') || 'west_to_east';
+        activeEsarDirection = dir;
+        if (dir === 'north_to_south' || dir === 'south_to_north') {
+          activeEsarOrientation = 'vertical';
+        } else {
+          activeEsarOrientation = 'horizontal';
+        }
+        updateEsarDirectionButtonsUI();
+        updatePatternAutoCalculation({ source: 'auto' });
+        generateSearchPatternRoute();
+      });
+    });
+
     // Activate default parallel_track button style
     const defaultPatBtn = document.querySelector('.pat-type-btn[data-ptype="parallel_track"]');
     if (defaultPatBtn) {
@@ -2852,16 +3667,11 @@
     const targetPolySel = document.getElementById('patternTargetPolygon');
     if (targetPolySel) {
       targetPolySel.addEventListener('change', () => {
-        updatePatternAutoCalculation();
+        updatePatternAutoCalculation({ source: 'auto' });
         const selectedId = targetPolySel.value;
-        let poly = null;
-        if (selectedId === 'active_draft' && activePolygonPoints && activePolygonPoints.length >= 3) {
-          poly = { points: activePolygonPoints };
-        } else {
-          poly = savedPolygons.find((p) => String(p.id) === String(selectedId));
-        }
-        if (poly && poly.points && poly.points.length >= 3 && map) {
-          const validPts = poly.points.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]).filter((p) => !isNaN(p[0]) && !isNaN(p[1]));
+        const resolvedPts = resolveTargetPolygonPoints(selectedId);
+        if (resolvedPts && resolvedPts.length >= 3 && map) {
+          const validPts = resolvedPts.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]).filter((p) => !isNaN(p[0]) && !isNaN(p[1]));
           if (validPts.length >= 3) {
             const bounds = L.latLngBounds(validPts);
             map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
@@ -2874,40 +3684,33 @@
       });
     }
 
-    // Spacing unit select listener (NM vs KM)
+    // Spacing unit select listener (NM, KM, M)
     const spacingUnitSel = document.getElementById('patternSpacingUnit');
     const spacingInput = document.getElementById('patternTrackSpacing');
     if (spacingUnitSel && spacingInput) {
       spacingUnitSel.addEventListener('change', (e) => {
-        const newUnit = e.target.value;
-        const currentVal = parseFloat(spacingInput.value) || 1.0;
-        if (newUnit === 'KM' && patternSpacingUnit === 'NM') {
-          // Convert NM to KM
-          spacingInput.value = (currentVal * 1.852).toFixed(2);
-        } else if (newUnit === 'NM' && patternSpacingUnit === 'KM') {
-          // Convert KM to NM
-          spacingInput.value = (currentVal / 1.852).toFixed(2);
-        }
-        patternSpacingUnit = newUnit;
-        updatePatternAutoCalculation();
+        setGlobalMeasurementUnit(e.target.value);
         if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
           generateSearchPatternRoute();
         }
       });
     }
 
+    // Two-Way Binding: Track Spacing Input -> Auto Calc Personnel
     if (spacingInput) {
       spacingInput.addEventListener('input', () => {
-        updatePatternAutoCalculation();
+        updatePatternAutoCalculation({ source: 'spacing' });
         if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
           generateSearchPatternRoute();
         }
       });
     }
 
+    // Two-Way Binding: Personnel Count Input -> Auto Calc Track Spacing
     const legsInput = document.getElementById('patternLegsCount');
     if (legsInput) {
       legsInput.addEventListener('input', () => {
+        updatePatternAutoCalculation({ source: 'personnel' });
         if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
           generateSearchPatternRoute();
         }
@@ -3014,7 +3817,45 @@
     });
   }
 
-  function updatePatternAutoCalculation() {
+  function resolveTargetPolygonPoints(targetPolyId) {
+    if (targetPolyId === 'active_draft') {
+      if (activePolygonPoints && activePolygonPoints.length >= 3) {
+        return activePolygonPoints;
+      }
+      return null;
+    }
+    const poly = savedPolygons.find((p) => String(p.id) === String(targetPolyId));
+    if (!poly) return null;
+
+    if (poly.points && Array.isArray(poly.points) && poly.points.length >= 3) {
+      return poly.points;
+    }
+
+    // Dynamic resolution for circle
+    if (poly.shapeType === 'circle' && (poly.radiusNm || poly.radius_nm)) {
+      const cLat = poly.centerLat != null ? parseFloat(poly.centerLat) : (poly.center_lat != null ? parseFloat(poly.center_lat) : null);
+      const cLng = poly.centerLng != null ? parseFloat(poly.centerLng) : (poly.center_lng != null ? parseFloat(poly.center_lng) : null);
+      const rNm = parseFloat(poly.radiusNm || poly.radius_nm) || 1.0;
+      if (cLat != null && !isNaN(cLat) && cLng != null && !isNaN(cLng) && rNm > 0) {
+        return generateCircleVertices(cLat, cLng, rNm, 36);
+      }
+    }
+
+    // Dynamic resolution for rectangle/box
+    if ((poly.shapeType === 'rectangle' || poly.shapeType === 'box') && (poly.boxWidthNm || poly.box_width_nm || poly.boxHeightNm || poly.box_height_nm)) {
+      const cLat = poly.centerLat != null ? parseFloat(poly.centerLat) : (poly.center_lat != null ? parseFloat(poly.center_lat) : null);
+      const cLng = poly.centerLng != null ? parseFloat(poly.centerLng) : (poly.center_lng != null ? parseFloat(poly.center_lng) : null);
+      const wNm = parseFloat(poly.boxWidthNm || poly.box_width_nm) || 2.0;
+      const hNm = parseFloat(poly.boxHeightNm || poly.box_height_nm) || 2.0;
+      if (cLat != null && !isNaN(cLat) && cLng != null && !isNaN(cLng)) {
+        return generateRectangleVertices(cLat, cLng, wNm, hNm);
+      }
+    }
+
+    return null;
+  }
+
+  function updatePatternAutoCalculation(trigger = { source: 'auto' }) {
     if (!activePatternType) {
       activePatternType = 'parallel_track';
     }
@@ -3026,18 +3867,14 @@
     const unit = unitSel ? unitSel.value : 'NM';
     patternSpacingUnit = unit;
     const rawSpacing = parseFloat(spacingInput ? spacingInput.value : '1.0') || 1.0;
-    const spacingNm = unit === 'KM' ? (rawSpacing / 1.852) : rawSpacing;
+    let spacingNm = rawSpacing;
+    if (unit === 'KM') spacingNm = rawSpacing / 1.852;
+    else if (unit === 'M') spacingNm = rawSpacing / 1852;
     const spacingKm = spacingNm * 1.852;
 
-    let targetPolygon = null;
-    if (targetPolyId === 'active_draft' && activePolygonPoints && activePolygonPoints.length >= 3) {
-      targetPolygon = { id: 'active_draft', name: 'Poligon Aktif', points: activePolygonPoints };
-    } else {
-      targetPolygon = savedPolygons.find((p) => String(p.id) === String(targetPolyId));
-    }
-
-    let rawCoords = (targetPolygon && targetPolygon.points && targetPolygon.points.length >= 3)
-      ? targetPolygon.points
+    const resolvedPoints = resolveTargetPolygonPoints(targetPolyId);
+    let rawCoords = (resolvedPoints && resolvedPoints.length >= 3)
+      ? resolvedPoints
       : [
         { lat: -3.98, lng: 122.50 },
         { lat: -3.98, lng: 122.62 },
@@ -3066,42 +3903,125 @@
 
     const spanDimNm = (activePatternType === 'creeping_line') ? widthNm : heightNm;
     const spanDimKm = (activePatternType === 'creeping_line') ? widthKm : heightKm;
-    const activeSpan = unit === 'KM' ? spanDimKm : spanDimNm;
-
-    // Recommended sweeps
-    const availSpan = Math.max(0, activeSpan - rawSpacing);
-    let recommendedSweeps = Math.max(2, Math.round(availSpan / rawSpacing) + 1);
-
-    if (activePatternType === 'sector_search') {
-      recommendedSweeps = 3;
-    } else if (activePatternType === 'expanding_square') {
-      const minDim = Math.min(heightNm, widthNm);
-      recommendedSweeps = Math.max(2, Math.min(10, Math.round(minDim / (2 * spacingNm))));
-    }
+    const activeSpan = unit === 'KM' ? spanDimKm : (unit === 'M' ? spanDimKm * 1000 : spanDimNm);
 
     const legsInput = document.getElementById('patternLegsCount');
-    if (legsInput) {
-      legsInput.value = recommendedSweeps;
-    }
-
     const badgeEl = document.getElementById('patternAutoBadge');
-    if (badgeEl) {
-      badgeEl.textContent = `${recommendedSweeps} SWEEPS`;
-    }
-
     const dimInfoEl = document.getElementById('patternDimInfo');
-    if (dimInfoEl) {
-      if (unit === 'KM') {
-        dimInfoEl.textContent = `P: ${widthKm.toFixed(1)} km • L: ${heightKm.toFixed(1)} km`;
+    const marginInfoEl = document.getElementById('patternMarginInfo');
+
+    const isEsar = (activePatternType === 'sector_search' || activePatternType === 'e_sar');
+    const esarWrapper = document.getElementById('esarOrientationWrapper');
+    const esarPersonnelInfo = document.getElementById('patternEsarPersonnelInfo');
+    const personnelReadout = document.getElementById('patternPersonnelCalcReadout');
+
+    if (isEsar) {
+      if (esarWrapper) esarWrapper.classList.remove('hidden');
+      if (esarPersonnelInfo) esarPersonnelInfo.classList.remove('hidden');
+
+      const areaStats = calculatePolygonSphericalArea(coords);
+      const areaNm = areaStats.sqNm || (widthNm * heightNm);
+      const perpSpanNm = activeEsarOrientation === 'horizontal' ? heightNm : widthNm;
+
+      let effectiveSpacingNm = spacingNm;
+      let effectivePersonnel = 5;
+
+      if (trigger && trigger.source === 'personnel') {
+        // TWO-WAY REACTIVE BINDING: User changed Personnel Count -> Re-calculate Track Spacing
+        effectivePersonnel = Math.max(2, Math.min(50, parseInt(legsInput ? legsInput.value : '5', 10) || 5));
+        effectiveSpacingNm = Math.max(0.005, perpSpanNm / Math.max(1, effectivePersonnel - 1));
+        if (spacingInput) {
+          if (unit === 'KM') spacingInput.value = (effectiveSpacingNm * 1.852).toFixed(2);
+          else if (unit === 'M') spacingInput.value = Math.round(effectiveSpacingNm * 1852);
+          else spacingInput.value = effectiveSpacingNm.toFixed(2);
+        }
+      } else if (trigger && trigger.source === 'spacing') {
+        // TWO-WAY REACTIVE BINDING: User changed Track Spacing -> Re-calculate Personnel Count
+        effectiveSpacingNm = Math.max(0.001, spacingNm);
+        effectivePersonnel = Math.max(2, Math.min(50, Math.ceil(perpSpanNm / effectiveSpacingNm) + 1));
+        if (legsInput) {
+          legsInput.value = effectivePersonnel;
+        }
       } else {
-        dimInfoEl.textContent = `P: ${widthNm.toFixed(1)} NM • L: ${heightNm.toFixed(1)} NM`;
+        // AUTO CALCULATION (Initial or Area change): Standard IAMSAR / Basarnas auto recommendation
+        let autoSpacingNm = 0.10;
+        if (areaNm <= 0.5) {
+          autoSpacingNm = 0.05;
+        } else if (areaNm <= 2.0) {
+          autoSpacingNm = 0.10;
+        } else {
+          autoSpacingNm = 0.20;
+        }
+
+        if (spacingInput) {
+          if (unit === 'KM') spacingInput.value = (autoSpacingNm * 1.852).toFixed(2);
+          else if (unit === 'M') spacingInput.value = Math.round(autoSpacingNm * 1852);
+          else spacingInput.value = autoSpacingNm.toFixed(2);
+        }
+
+        const numPersonnel = Math.max(2, Math.min(30, Math.ceil(perpSpanNm / autoSpacingNm) + 1));
+        effectivePersonnel = numPersonnel;
+        effectiveSpacingNm = autoSpacingNm;
+
+        if (legsInput) {
+          legsInput.value = numPersonnel;
+        }
+      }
+
+      if (badgeEl) {
+        badgeEl.textContent = `${effectivePersonnel} PERSONIL`;
+      }
+      if (personnelReadout) {
+        let dirLabel = 'Barat ➔ Timur';
+        if (activeEsarDirection === 'east_to_west') dirLabel = 'Timur ➔ Barat';
+        else if (activeEsarDirection === 'north_to_south') dirLabel = 'Utara ➔ Selatan';
+        else if (activeEsarDirection === 'south_to_north') dirLabel = 'Selatan ➔ Utara';
+        personnelReadout.textContent = `Track: ${formatDynamicDistance(effectiveSpacingNm, effectiveSpacingNm * 1.852)} • ${effectivePersonnel} Personil (Arah: ${dirLabel})`;
+      }
+      if (marginInfoEl) {
+        const marginVal = effectiveSpacingNm / 2;
+        marginInfoEl.textContent = `${formatDynamicDistance(marginVal, marginVal * 1.852)} (S/2 Jarak Pandang Personil)`;
+      }
+    } else {
+      if (esarWrapper) esarWrapper.classList.add('hidden');
+      if (esarPersonnelInfo) esarPersonnelInfo.classList.add('hidden');
+
+      // Recommended sweeps for marine search (Parallel Track & Creeping Line)
+      let recommendedSweeps = 6;
+      if (trigger && (trigger.source === 'personnel' || trigger.source === 'legs')) {
+        recommendedSweeps = Math.max(2, Math.min(50, parseInt(legsInput ? legsInput.value : '6', 10) || 6));
+        const newSpacing = Math.max(0.01, activeSpan / Math.max(1, recommendedSweeps - 1));
+        if (spacingInput) {
+          if (unit === 'KM') spacingInput.value = newSpacing.toFixed(2);
+          else if (unit === 'M') spacingInput.value = Math.round(newSpacing);
+          else spacingInput.value = newSpacing.toFixed(2);
+        }
+      } else {
+        const availSpan = Math.max(0, activeSpan - rawSpacing);
+        recommendedSweeps = Math.max(2, Math.min(50, Math.round(availSpan / Math.max(0.001, rawSpacing)) + 1));
+        if (legsInput) {
+          legsInput.value = recommendedSweeps;
+        }
+      }
+
+      if (badgeEl) {
+        badgeEl.textContent = `${recommendedSweeps} SWEEPS`;
+      }
+      if (marginInfoEl) {
+        const marginVal = rawSpacing / 2;
+        const marginNmVal = (unit === 'KM') ? (marginVal / 1.852) : ((unit === 'M') ? (marginVal / 1852) : marginVal);
+        marginInfoEl.textContent = `${formatDynamicDistance(marginNmVal, marginNmVal * 1.852)} (S/2 Jarak Pandang)`;
       }
     }
 
-    const marginInfoEl = document.getElementById('patternMarginInfo');
-    if (marginInfoEl) {
-      const marginVal = rawSpacing / 2;
-      marginInfoEl.textContent = `${marginVal.toFixed(2)} ${unit} (S/2 Jarak Pandang)`;
+    if (dimInfoEl) {
+      if (activeGlobalUnit === 'KM') {
+        dimInfoEl.textContent = `P: ${widthKm.toFixed(1)} km (${widthNm.toFixed(1)} NM) • L: ${heightKm.toFixed(1)} km (${heightNm.toFixed(1)} NM)`;
+      } else if (activeGlobalUnit === 'M') {
+        dimInfoEl.textContent = `P: ${Math.round(widthKm * 1000)} m • L: ${Math.round(heightKm * 1000)} m`;
+      } else {
+        dimInfoEl.textContent = `P: ${widthNm.toFixed(1)} NM (${widthKm.toFixed(1)} km) • L: ${heightNm.toFixed(1)} NM (${heightKm.toFixed(1)} km)`;
+      }
     }
   }
 
@@ -3117,23 +4037,24 @@
     const unitSel = document.getElementById('patternSpacingUnit');
     const unit = unitSel ? unitSel.value : 'NM';
     const rawSpacing = parseFloat(spacingInput ? spacingInput.value : '1.0') || 1.0;
-    const spacingNm = unit === 'KM' ? (rawSpacing / 1.852) : rawSpacing;
+    let spacingNm = rawSpacing;
+    if (unit === 'KM') spacingNm = rawSpacing / 1.852;
+    else if (unit === 'M') spacingNm = rawSpacing / 1852;
     const legsInput = document.getElementById('patternLegsCount');
     const legs = parseInt(legsInput ? legsInput.value : '6', 10) || 6;
 
-    let targetPolygon = null;
-    if (targetPolyId === 'active_draft' && activePolygonPoints && activePolygonPoints.length >= 3) {
-      targetPolygon = { id: 'active_draft', name: 'Poligon Aktif', points: activePolygonPoints };
-    } else {
-      targetPolygon = savedPolygons.find((p) => String(p.id) === String(targetPolyId));
-    }
+    const resolvedPoints = resolveTargetPolygonPoints(targetPolyId);
 
     let coords = [];
+    const patOptions = {
+      orientation: activeEsarOrientation,
+      direction: activeEsarDirection
+    };
 
-    if (targetPolygon && targetPolygon.points && targetPolygon.points.length >= 3) {
-      coords = generateFittedPatternInsidePolygon(activePatternType, targetPolygon.points, spacingNm, legs);
+    if (resolvedPoints && resolvedPoints.length >= 3) {
+      coords = generateFittedPatternInsidePolygon(activePatternType, resolvedPoints, spacingNm, legs, patOptions);
     } else {
-      coords = generateDatumPattern(activePatternType, null, spacingNm, legs);
+      coords = generateDatumPattern(activePatternType, null, spacingNm, legs, patOptions);
     }
 
     if (!coords || coords.length < 2) {
@@ -3353,9 +4274,9 @@
     };
   }
 
-  function generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount) {
+  function generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount, options = {}) {
     if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.generateFittedPatternInsidePolygon === 'function') {
-      return window.QrSarGis.Patterns.generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount);
+      return window.QrSarGis.Patterns.generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount, options);
     }
     const cleanPoints = (polygonPoints || []).map((p) => ({
       lat: parseFloat(p.lat),
@@ -3419,6 +4340,16 @@
           });
         }
       }
+
+      if (points.length < 2) {
+        const stepY = spanLat / Math.max(1, effectiveLegs - 1);
+        for (let i = 0; i < effectiveLegs; i++) {
+          const curLat = effMaxLat - i * stepY;
+          const sweepEast = i % 2 === 0;
+          points.push({ lat: curLat, lng: sweepEast ? minLng + safeMarginLng : maxLng - safeMarginLng, label: i === 0 ? 'Entry (S)' : `Lintasan ${i + 1}A` });
+          points.push({ lat: curLat, lng: sweepEast ? maxLng - safeMarginLng : minLng + safeMarginLng, label: i === effectiveLegs - 1 ? 'Exit (E)' : `Lintasan ${i + 1}B` });
+        }
+      }
     } else if (type === 'creeping_line') {
       const effMinLng = minLng + safeMarginLng;
       const effMaxLng = maxLng - safeMarginLng;
@@ -3448,48 +4379,27 @@
           });
         }
       }
-    } else if (type === 'expanding_square') {
-      // Expanding Square (SS) - Starts from polygon centroid and expands strictly bounded
-      const startPt = { lat: centroid.lat, lng: centroid.lng };
-      points.push({ lat: startPt.lat, lng: startPt.lng, label: 'Datum Centroid (S)' });
 
-      let curPt = { lat: startPt.lat, lng: startPt.lng };
-      let curX = 0, curY = 0, step = 1, dir = 0;
-      const totalLegs = effectiveLegs * 2;
-      const safeBufferDeg = Math.min(spanLat, spanLng) * 0.03;
-
-      for (let leg = 1; leg <= totalLegs; leg++) {
-        const legKm = step * spacingKm;
-        if (dir === 0) curX += legKm;       // East
-        else if (dir === 1) curY -= legKm;  // South
-        else if (dir === 2) curX -= legKm;  // West
-        else if (dir === 3) curY += legKm;  // North
-
-        const rawTarget = {
-          lat: startPt.lat + curY / 110.574,
-          lng: startPt.lng + curX / lngKmPerDeg
-        };
-
-        const clipped = clipSegmentToPolygon(curPt, rawTarget, cleanPoints, safeBufferDeg);
-        points.push({
-          lat: clipped.lat,
-          lng: clipped.lng,
-          label: leg === totalLegs ? 'Exit (E)' : `WP-${leg}`
-        });
-        curPt = { lat: clipped.lat, lng: clipped.lng };
-
-        if (leg % 2 === 0) step += 1;
-        dir = (dir + 1) % 4;
+      if (points.length < 2) {
+        const stepX = spanLng / Math.max(1, effectiveLegs - 1);
+        for (let i = 0; i < effectiveLegs; i++) {
+          const curLng = effMinLng + i * stepX;
+          const sweepSouth = i % 2 === 0;
+          points.push({ lat: sweepSouth ? maxLat - safeMarginLat : minLat + safeMarginLat, lng: curLng, label: i === 0 ? 'Entry (S)' : `Sapu ${i + 1}A` });
+          points.push({ lat: sweepSouth ? minLat + safeMarginLat : maxLat - safeMarginLat, lng: curLng, label: i === effectiveLegs - 1 ? 'Exit (E)' : `Sapu ${i + 1}B` });
+        }
       }
     } else {
-      // 4. Pola Pencarian E-SAR (Explorer SAR - Darat / Gunung Hutan)
+      // 3. Pola Pencarian E-SAR (Explorer SAR - Darat / Gunung Hutan)
       // Pola sapuan sejajar serentak beberapa personel regu (skirmish / sweep line)
       const personnelCount = Math.max(2, effectiveLegs || 5);
       const spanLatKm = (maxLat - minLat) * 110.574;
       const spanLngKm = (maxLng - minLng) * lngKmPerDeg;
+      const orient = (options && options.orientation) ? options.orientation : (spanLatKm >= spanLngKm ? 'vertical' : 'horizontal');
+      const dir = (options && options.direction) ? options.direction : (orient === 'vertical' ? 'north_to_south' : 'west_to_east');
 
-      if (spanLatKm >= spanLngKm) {
-        // Area memanjang vertikal (Utara-Selatan): Seluruh personel berbaris sejajar Barat-Timur di baseline awal dan menyapu maju serentak ke arah Selatan
+      if (orient === 'vertical') {
+        // Area disapu vertikal (Utara-Selatan atau Selatan-Utara): Seluruh personel berbaris sejajar Barat-Timur di baseline awal
         const effMinLng = minLng + safeMarginLng;
         const effMaxLng = maxLng - safeMarginLng;
         const stepX = (effMaxLng - effMinLng) / Math.max(1, personnelCount - 1);
@@ -3502,13 +4412,19 @@
             const top = inters[inters.length - 1] - safeMarginLat;
             const pNum = i + 1;
 
-            // Seluruh personel bergerak serentak dari baseline awal (top) ke batas maju (bottom)
-            points.push({ lat: top, lng: curLng, label: `P${pNum} Start (Baseline)` });
-            points.push({ lat: bottom, lng: curLng, label: `P${pNum} Batas Maju` });
+            if (dir === 'south_to_north') {
+              // Seluruh personel bergerak serentak dari baseline awal (Selatan/bottom) ke batas maju (Utara/top)
+              points.push({ lat: bottom, lng: curLng, label: `P${pNum} Start (Baseline)`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'north', bearing: 0 });
+              points.push({ lat: top, lng: curLng, label: `P${pNum} Batas Maju`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'north', bearing: 0 });
+            } else {
+              // Default: Seluruh personel bergerak serentak dari baseline awal (Utara/top) ke batas maju (Selatan/bottom)
+              points.push({ lat: top, lng: curLng, label: `P${pNum} Start (Baseline)`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'south', bearing: 180 });
+              points.push({ lat: bottom, lng: curLng, label: `P${pNum} Batas Maju`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'south', bearing: 180 });
+            }
           }
         }
       } else {
-        // Area memanjang horizontal (Barat-Timur): Seluruh personel berbaris sejajar Utara-Selatan di baseline awal dan menyapu maju serentak ke arah Timur
+        // Area disapu horizontal (Barat-Timur atau Timur-Barat): Seluruh personel berbaris sejajar Utara-Selatan di baseline awal
         const effMinLat = minLat + safeMarginLat;
         const effMaxLat = maxLat - safeMarginLat;
         const stepY = (effMaxLat - effMinLat) / Math.max(1, personnelCount - 1);
@@ -3521,31 +4437,34 @@
             const east = inters[inters.length - 1] - safeMarginLng;
             const pNum = i + 1;
 
-            // Seluruh personel bergerak serentak dari baseline awal (west) ke batas maju (east)
-            points.push({ lat: curLat, lng: west, label: `P${pNum} Start (Baseline)` });
-            points.push({ lat: curLat, lng: east, label: `P${pNum} Batas Maju` });
+            if (dir === 'east_to_west') {
+              // Seluruh personel bergerak serentak dari baseline awal (Timur/east) ke batas maju (Barat/west)
+              points.push({ lat: curLat, lng: east, label: `P${pNum} Start (Baseline)`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'west', bearing: 270 });
+              points.push({ lat: curLat, lng: west, label: `P${pNum} Batas Maju`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'west', bearing: 270 });
+            } else {
+              // Default: Seluruh personel bergerak serentak dari baseline awal (Barat/west) ke batas maju (Timur/east)
+              points.push({ lat: curLat, lng: west, label: `P${pNum} Start (Baseline)`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'east', bearing: 90 });
+              points.push({ lat: curLat, lng: east, label: `P${pNum} Batas Maju`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'east', bearing: 90 });
+            }
           }
         }
       }
     }
 
-    // Final safety check: guarantee all waypoints are strictly inside polygon boundaries
+    // Final safety check: guarantee all waypoints are strictly inside polygon boundaries and preserve metadata
     return points.map((p) => {
       if (!isPointInPolygon(p.lat, p.lng, cleanPoints)) {
         return {
+          ...p,
           lat: p.lat * 0.88 + centroid.lat * 0.12,
-          lng: p.lng * 0.88 + centroid.lng * 0.12,
-          label: p.label
+          lng: p.lng * 0.88 + centroid.lng * 0.12
         };
       }
       return p;
     });
   }
 
-  function generateDatumPattern(type, center, spacingNm, legsCount) {
-    if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.generateDatumPattern === 'function') {
-      return window.QrSarGis.Patterns.generateDatumPattern(type, center, spacingNm, legsCount);
-    }
+  function generateDatumPattern(type, center, spacingNm, legsCount, options = {}) {
     let c = center;
     if (!c || typeof c.lat !== 'number' || isNaN(c.lat)) {
       const lkpPoint = savedPoints.find((p) => p.category === 'LKP' || p.pointType === 'lkp');
@@ -3560,6 +4479,10 @@
     } else {
       c = { lat: parseFloat(c.lat), lng: parseFloat(c.lng) };
     }
+
+    if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.generateDatumPattern === 'function') {
+      return window.QrSarGis.Patterns.generateDatumPattern(type, c, spacingNm, legsCount, options);
+    }
     const spanDeg = Math.max(0.08, (spacingNm * Math.max(3, legsCount || 4) * 1.852) / 110.574);
     const fakePolygon = [
       { lat: c.lat + spanDeg / 2, lng: c.lng - spanDeg / 2 },
@@ -3567,7 +4490,7 @@
       { lat: c.lat - spanDeg / 2, lng: c.lng + spanDeg / 2 },
       { lat: c.lat - spanDeg / 2, lng: c.lng - spanDeg / 2 }
     ];
-    return generateFittedPatternInsidePolygon(type, fakePolygon, spacingNm, legsCount);
+    return generateFittedPatternInsidePolygon(type, fakePolygon, spacingNm, legsCount, options);
   }
 
   function getPatternPolylineCoords(type, waypoints) {
@@ -3619,7 +4542,7 @@
 
     const elDist = document.getElementById('resPatternDistNm');
     if (elDist) {
-      elDist.textContent = `${totalNm.toFixed(2)} NM (${(totalNm * 1.852).toFixed(2)} km)`;
+      elDist.textContent = formatDynamicDistance(totalNm, totalNm * 1.852);
     }
     const elWp = document.getElementById('resPatternWpCount');
     if (elWp) {
@@ -3630,12 +4553,13 @@
     const spacingInput = document.getElementById('patternTrackSpacing');
     const unitSel = document.getElementById('patternSpacingUnit');
     const rawSpacing = parseFloat(spacingInput ? spacingInput.value : '1.0') || 1.0;
-    const spacingNm = (unitSel && unitSel.value === 'KM') ? (rawSpacing / 1.852) : rawSpacing;
+    const curSpacingUnit = unitSel ? unitSel.value : patternSpacingUnit;
+    const spacingNm = (curSpacingUnit === 'KM') ? (rawSpacing / 1.852) : (curSpacingUnit === 'M' ? (rawSpacing / 1852) : rawSpacing);
     const areaSweptNm2 = totalNm * spacingNm;
     const areaSweptKm2 = areaSweptNm2 * 3.429904;
     const elAreaSwept = document.getElementById('resPatternAreaSwept');
     if (elAreaSwept) {
-      elAreaSwept.textContent = `${areaSweptNm2.toFixed(2)} NM² (${areaSweptKm2.toFixed(2)} km²)`;
+      elAreaSwept.textContent = formatDynamicArea(areaSweptNm2, areaSweptKm2).combined;
     }
 
     return totalNm;
@@ -3650,6 +4574,10 @@
       if (map) map.removeLayer(m);
     });
     activePatternMarkers = [];
+    activeEsarArrowMarkers.forEach((m) => {
+      if (map) map.removeLayer(m);
+    });
+    activeEsarArrowMarkers = [];
   }
 
   function renderActivePatternOnMap() {
@@ -3677,6 +4605,48 @@
     }).addTo(map);
 
     const isEsar = (activePatternType === 'sector_search' || activePatternType === 'e_sar');
+
+    // Create directional arrows for E-SAR sweep lines
+    if (isEsar) {
+      for (let i = 0; i < activeGeneratedWaypoints.length - 1; i += 2) {
+        const p1 = activeGeneratedWaypoints[i];
+        const p2 = activeGeneratedWaypoints[i + 1];
+        if (!p1 || !p2) continue;
+
+        const lat1 = parseFloat(p1.lat);
+        const lng1 = parseFloat(p1.lng);
+        const lat2 = parseFloat(p2.lat);
+        const lng2 = parseFloat(p2.lng);
+        if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) continue;
+
+        // Position arrow marker at 65% of the sweep segment
+        const arrowLat = lat1 + (lat2 - lat1) * 0.65;
+        const arrowLng = lng1 + (lng2 - lng1) * 0.65;
+        const distData = calculateDistanceHaversine(lat1, lng1, lat2, lng2);
+        const brng = distData.bearing;
+
+        const arrowSvg = `
+          <div style="transform: rotate(${Math.round(brng)}deg); display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; pointer-events: none;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="${lineColor}" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));">
+              <polygon points="12,2 22,22 12,17 2,22 12,2" />
+            </svg>
+          </div>
+        `;
+
+        const arrowMarker = L.marker([arrowLat, arrowLng], {
+          icon: L.divIcon({
+            html: arrowSvg,
+            className: 'sar-esar-sweep-arrow',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+          }),
+          interactive: false,
+          zIndexOffset: 1450
+        }).addTo(map);
+
+        activeEsarArrowMarkers.push(arrowMarker);
+      }
+    }
 
     // Create DRAGGABLE markers for ALL waypoints
     activeGeneratedWaypoints.forEach((wp, idx) => {
@@ -3789,7 +4759,6 @@
   function getPatternDisplayName(type) {
     if (type === 'parallel_track') return 'Parallel Track (PS)';
     if (type === 'creeping_line') return 'Creeping Line (CS)';
-    if (type === 'expanding_square') return 'Expanding Square (SS)';
     if (type === 'sector_search' || type === 'e_sar') return 'Pola Pencarian E-SAR';
     return 'Lintasan IAMSAR';
   }
@@ -3810,8 +4779,10 @@
       return;
     }
 
-    const patTypeName = getPatternDisplayName(activePatternType);
-    const patName = name || `Pola Lintasan SAR ${patTypeName} #${savedPatterns.length + 1}`;
+    const defaultPatPrefix = (activePatternType === 'e_sar' || activePatternType === 'sector_search')
+      ? 'ESAR'
+      : (activePatternType === 'creeping_line' ? 'CREAPING LANE' : 'PARALLEL TRACK');
+    const patName = name || `${defaultPatPrefix} ${savedPatterns.length + 1}`;
 
     const polySel = document.getElementById('patternTargetPolygon');
     const targetPolyId = polySel ? polySel.value : '';
@@ -3853,7 +4824,7 @@
       polygonId: targetPolyId,
       polygonName: polyName,
       patternType: activePatternType,
-      trackSpacingNm: patternSpacingUnit === 'KM' ? (spacingVal / 1.852) : spacingVal,
+      trackSpacingNm: patternSpacingUnit === 'KM' ? (spacingVal / 1.852) : (patternSpacingUnit === 'M' ? (spacingVal / 1852) : spacingVal),
       legsCount: legsVal,
       color: lineColor,
       opacity: lineOpacity,
@@ -3922,11 +4893,17 @@
   }
 
   function renderSavedPatterns() {
+    updateGisBadges();
     patternPolylinesMap.forEach((pl) => map.removeLayer(pl));
     patternPolylinesMap.clear();
 
+    savedPatternArrowMarkersMap.forEach((markers) => {
+      markers.forEach((m) => { if (map) map.removeLayer(m); });
+    });
+    savedPatternArrowMarkersMap.clear();
+
     savedPatterns.forEach((pat) => {
-      if (hiddenPatternIds.has(pat.id)) return;
+      if (isIdHidden(hiddenPatternIds, pat.id)) return;
       if (editingPatternId && String(pat.id) === String(editingPatternId)) return;
       if (!pat.waypoints || pat.waypoints.length < 2) return;
 
@@ -3947,6 +4924,52 @@
       });
 
       patternPolylinesMap.set(pat.id, pl);
+
+      // Render directional arrows for E-SAR saved patterns
+      if (pat.patternType === 'e_sar' || pat.patternType === 'sector_search') {
+        const arrowMarkers = [];
+        const wps = pat.waypoints;
+        for (let i = 0; i < wps.length - 1; i += 2) {
+          const p1 = wps[i];
+          const p2 = wps[i + 1];
+          if (!p1 || !p2) continue;
+
+          const lat1 = parseFloat(p1.lat);
+          const lng1 = parseFloat(p1.lng);
+          const lat2 = parseFloat(p2.lat);
+          const lng2 = parseFloat(p2.lng);
+          if (isNaN(lat1) || isNaN(lng1) || isNaN(lat2) || isNaN(lng2)) continue;
+
+          const arrowLat = lat1 + (lat2 - lat1) * 0.65;
+          const arrowLng = lng1 + (lng2 - lng1) * 0.65;
+          const distData = calculateDistanceHaversine(lat1, lng1, lat2, lng2);
+          const brng = distData.bearing;
+
+          const arrowSvg = `
+            <div style="transform: rotate(${Math.round(brng)}deg); display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; pointer-events: none;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="${pat.color || '#0284c7'}" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));">
+                <polygon points="12,2 22,22 12,17 2,22 12,2" />
+              </svg>
+            </div>
+          `;
+
+          const arrowMarker = L.marker([arrowLat, arrowLng], {
+            icon: L.divIcon({
+              html: arrowSvg,
+              className: 'sar-esar-sweep-arrow',
+              iconSize: [28, 28],
+              iconAnchor: [14, 14]
+            }),
+            interactive: false,
+            zIndexOffset: 1450
+          }).addTo(map);
+
+          arrowMarkers.push(arrowMarker);
+        }
+        if (arrowMarkers.length > 0) {
+          savedPatternArrowMarkersMap.set(pat.id, arrowMarkers);
+        }
+      }
     });
 
     renderSavedPatternsList();
@@ -3963,7 +4986,7 @@
 
     container.innerHTML = savedPatterns
       .map((pat) => {
-        const isHidden = hiddenPatternIds.has(pat.id);
+        const isHidden = isIdHidden(hiddenPatternIds, pat.id);
         const safeId = escapeHtml(pat.id);
         const safeName = escapeHtml(pat.name);
         const patColor = pat.color || '#0284c7';
@@ -3979,7 +5002,7 @@
                 ${getOperasiBadgeHtml(pat.id_operasi)}
               </div>
               <div class="text-[10px] font-mono text-sky-600 dark:text-sky-400 mt-0.5">
-                ${pat.totalDistanceNm ? `${pat.totalDistanceNm.toFixed(1)} NM` : ''} • ${pat.waypoints ? pat.waypoints.length : 0} Waypoints • <span class="capitalize text-slate-500 dark:text-slate-400 font-sans">${getPatternDisplayName(pat.patternType)}</span>
+                ${pat.totalDistanceNm ? formatDynamicDistance(pat.totalDistanceNm, pat.totalDistanceNm * 1.852) : ''} • ${pat.waypoints ? pat.waypoints.length : 0} Waypoints • <span class="capitalize text-slate-500 dark:text-slate-400 font-sans">${getPatternDisplayName(pat.patternType)}</span>
               </div>
             </div>
 
@@ -4007,10 +5030,14 @@
 
     editingPatternId = pat.id;
 
-    // Immediately remove saved static polyline from map to prevent 2 overlapping patterns!
+    // Immediately remove saved static polyline and arrows from map to prevent 2 overlapping patterns!
     if (patternPolylinesMap.has(pat.id)) {
       map.removeLayer(patternPolylinesMap.get(pat.id));
       patternPolylinesMap.delete(pat.id);
+    }
+    if (savedPatternArrowMarkersMap.has(pat.id)) {
+      savedPatternArrowMarkersMap.get(pat.id).forEach((m) => { if (map) map.removeLayer(m); });
+      savedPatternArrowMarkersMap.delete(pat.id);
     }
 
     switchActiveTab('tab-pattern');
@@ -4104,7 +5131,7 @@
       renderActivePatternOnMap();
 
       const elDist = document.getElementById('resPatternDistNm');
-      if (elDist) elDist.textContent = `${activeGeneratedDistanceNm.toFixed(2)} NM (${(activeGeneratedDistanceNm * 1.852).toFixed(2)} km)`;
+      if (elDist) elDist.textContent = formatDynamicDistance(activeGeneratedDistanceNm, activeGeneratedDistanceNm * 1.852);
       const elTypeInfo = document.getElementById('resPatternTypeInfo');
       if (elTypeInfo) {
         elTypeInfo.textContent = (activePatternType === 'sector_search' || activePatternType === 'e_sar')
@@ -4162,9 +5189,14 @@
     }
 
     const routeNameInput = document.getElementById('measureRouteNameInput');
-    if (routeNameInput && (!routeNameInput.value.trim() || routeNameInput.value.startsWith('Jarak Lurus') || routeNameInput.value.startsWith('Jalur Manual') || routeNameInput.value.startsWith('Rute Darat') || routeNameInput.value.startsWith('Rute Laut'))) {
-      const modeLabel = measureModeType === 'straight' ? 'Jarak Lurus' : 'Jalur Manual';
-      routeNameInput.value = `${modeLabel} #${savedRoutes.length + 1}`;
+    if (routeNameInput) {
+      routeNameInput.placeholder = 'RUTE 1';
+      if (!currentActiveRouteId) {
+        // Keep empty during new route creation so placeholder is shown
+        if (routeNameInput.value.startsWith('Jarak Lurus') || routeNameInput.value.startsWith('Jalur Manual')) {
+          routeNameInput.value = '';
+        }
+      }
     }
 
     updateMeasureVisual();
@@ -4184,8 +5216,13 @@
     const speedInput = document.getElementById('measureVesselSpeed');
     const enteredSpeed = parseFloat(speedInput ? speedInput.value : '25') || 25;
 
+    const distUnitSel = document.getElementById('measureDistanceUnit');
+    if (distUnitSel) {
+      activeDistanceUnit = distUnitSel.value || 'NM';
+    }
+
     if (!points || !Array.isArray(points) || points.length < 2) {
-      if (elNm) elNm.textContent = '0.00 NM';
+      if (elNm) elNm.textContent = activeDistanceUnit === 'M' ? '0 Meter' : (activeDistanceUnit === 'KM' ? '0.00 km' : '0.00 NM');
       if (elKm) elKm.textContent = '0.00 km';
       if (elBrg) elBrg.textContent = '0° (Utara)';
       if (elEta) elEta.textContent = '0 Menit';
@@ -4216,25 +5253,46 @@
       const speedKmh = Math.max(0.1, enteredSpeed);
       vesselSpeedKnots = speedKmh / 1.852;
       etaMins = (totalKm / speedKmh) * 60;
-      if (elKm) {
-        elKm.textContent = `${totalKm.toFixed(2)} km`;
-        elKm.className = 'text-base font-black text-emerald-600 dark:text-emerald-400 font-mono';
-      }
-      if (elNm) {
-        elNm.textContent = `${totalNm.toFixed(2)} NM`;
-        elNm.className = 'text-[10px] text-slate-500 dark:text-slate-400 block font-mono';
-      }
+    } else if (currentUnit === 'ms') {
+      // Perhitungan berbasis Meter/Detik (m/s)
+      const speedMs = Math.max(0.1, enteredSpeed);
+      const speedKmh = speedMs * 3.6;
+      vesselSpeedKnots = speedKmh / 1.852;
+      etaMins = (totalKm / speedKmh) * 60;
     } else {
       // Perhitungan berbasis Knot (Kts)
       const speedKts = Math.max(0.1, enteredSpeed);
       vesselSpeedKnots = speedKts;
       etaMins = (totalNm / speedKts) * 60;
+    }
+
+    // Dynamic Distance Unit rendering
+    if (activeDistanceUnit === 'KM') {
+      if (elNm) {
+        elNm.textContent = `${totalKm.toFixed(2)} km`;
+        elNm.className = 'text-base font-black text-emerald-600 dark:text-emerald-400 font-mono';
+      }
+      if (elKm) {
+        elKm.textContent = `${totalNm.toFixed(2)} NM (${Math.round(totalKm * 1000)} m)`;
+        elKm.className = 'text-[10px] text-slate-500 dark:text-slate-400 block font-mono';
+      }
+    } else if (activeDistanceUnit === 'M') {
+      if (elNm) {
+        elNm.textContent = `${Math.round(totalKm * 1000).toLocaleString('id-ID')} Meter`;
+        elNm.className = 'text-base font-black text-emerald-600 dark:text-emerald-400 font-mono';
+      }
+      if (elKm) {
+        elKm.textContent = `${totalNm.toFixed(2)} NM (${totalKm.toFixed(2)} km)`;
+        elKm.className = 'text-[10px] text-slate-500 dark:text-slate-400 block font-mono';
+      }
+    } else {
+      // Default: NM
       if (elNm) {
         elNm.textContent = `${totalNm.toFixed(2)} NM`;
         elNm.className = 'text-base font-black text-emerald-600 dark:text-emerald-400 font-mono';
       }
       if (elKm) {
-        elKm.textContent = `${totalKm.toFixed(2)} km`;
+        elKm.textContent = `${totalKm.toFixed(2)} km (${Math.round(totalKm * 1000)} m)`;
         elKm.className = 'text-[10px] text-slate-500 dark:text-slate-400 block font-mono';
       }
     }
@@ -4268,6 +5326,14 @@
       btnPath.addEventListener('click', () => setMeasureMode('path'));
     }
 
+    // Satuan Jarak Rute (NM, KM, M)
+    const distUnitSel = document.getElementById('measureDistanceUnit');
+    if (distUnitSel) {
+      distUnitSel.addEventListener('change', (e) => {
+        setGlobalMeasurementUnit(e.target.value);
+      });
+    }
+
     // Satuan Kecepatan & Navigasi: Otomatis konversi nilai dan hitung ulang seketika!
     const speedUnitSel = document.getElementById('measureSpeedUnit');
     if (speedUnitSel) {
@@ -4277,13 +5343,16 @@
         const speedInput = document.getElementById('measureVesselSpeed');
         if (speedInput) {
           const curVal = parseFloat(speedInput.value) || 25;
-          if (newUnit === 'kmh' && prevUnit === 'knot') {
-            // Knot ➔ Km/Jam: curVal * 1.852
-            speedInput.value = (curVal * 1.852).toFixed(1);
-          } else if (newUnit === 'knot' && prevUnit === 'kmh') {
-            // Km/Jam ➔ Knot: curVal / 1.852
-            speedInput.value = (curVal / 1.852).toFixed(1);
-          }
+          // Convert current value to Knots first, then to target unit
+          let valInKnots = curVal;
+          if (prevUnit === 'kmh') valInKnots = curVal / 1.852;
+          else if (prevUnit === 'ms') valInKnots = (curVal * 3.6) / 1.852;
+
+          let targetVal = valInKnots;
+          if (newUnit === 'kmh') targetVal = valInKnots * 1.852;
+          else if (newUnit === 'ms') targetVal = (valInKnots * 1.852) / 3.6;
+
+          speedInput.value = targetVal.toFixed(1);
         }
         prevUnit = newUnit;
         speedUnit = newUnit;
@@ -4325,6 +5394,11 @@
         isMeasureModeActive = true;
         currentActiveRouteId = null;
         clearMeasureVisual();
+        const rNameInput = document.getElementById('measureRouteNameInput');
+        if (rNameInput) {
+          rNameInput.value = '';
+          rNameInput.placeholder = 'RUTE 1';
+        }
         setMeasureMode(measureModeType);
       });
     }
@@ -4350,8 +5424,55 @@
       saveBtn.addEventListener('click', () => performSaveRoute({ isManualClick: true }));
     }
 
+    // Undo Waypoint Buttons (Both Counter Pill & Bottom Action Bar)
+    const btnUndoWaypoint = document.getElementById('btnUndoMeasureRouteWaypoint');
+    const btnBottomUndo = document.getElementById('btnBottomUndoRoute');
+    [btnUndoWaypoint, btnBottomUndo].forEach((btn) => {
+      if (btn && !btn.getAttribute('onclick')) {
+        btn.addEventListener('click', () => undoLastMeasurePoint());
+      }
+    });
+
     // Initialize default mode
     setMeasureMode(measureModeType);
+  }
+
+  function undoLastMeasurePoint() {
+    // Single-click debounce throttle lock to prevent accidental double point deletion
+    if (isUndoingRoutePoint) return;
+    isUndoingRoutePoint = true;
+    setTimeout(() => {
+      isUndoingRoutePoint = false;
+    }, 200);
+
+    if (!Array.isArray(measurePoints) || measurePoints.length === 0) {
+      if (typeof showToast === 'function') {
+        showToast('Belum ada titik rute untuk di-undo.', 'info');
+      }
+      return;
+    }
+    measurePoints.pop();
+    const counter = document.getElementById('manualPointsCounter');
+    if (counter) {
+      counter.textContent = `${measurePoints.length} Titik`;
+    }
+    updateMeasureVisual();
+    const badge = document.getElementById('routeRealtimeStatusBadge');
+    if (badge) {
+      if (measurePoints.length >= 2) {
+        badge.textContent = currentActiveRouteId ? '✏️ Mode Edit (Siap Disimpan)' : '✏️ Rute Belum Disimpan';
+        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
+      } else if (measurePoints.length === 1) {
+        badge.textContent = 'Menunggu titik ke-2...';
+        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
+      } else {
+        badge.textContent = '⚡ Siap Rancang';
+        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
+      }
+    }
+    if (typeof showToast === 'function') {
+      showToast('Titik rute terakhir berhasil dihapus (Undo).', 'info');
+    }
   }
 
   function addMeasurePoint(lat, lng) {
@@ -4367,8 +5488,8 @@
     }
 
     const nameInput = document.getElementById('measureRouteNameInput');
-    if (nameInput && !nameInput.value.trim()) {
-      nameInput.value = `Jalur Manual Ops #${savedRoutes.length + 1}`;
+    if (nameInput) {
+      nameInput.placeholder = 'RUTE 1';
     }
 
     updateMeasureVisual();
@@ -4487,7 +5608,10 @@
     }
 
     const nameInput = document.getElementById('measureRouteNameInput');
-    if (nameInput) nameInput.value = '';
+    if (nameInput) {
+      nameInput.value = '';
+      nameInput.placeholder = 'RUTE 1';
+    }
 
     const saveBtn = document.getElementById('btnSaveMeasureRoute');
     if (saveBtn) {
@@ -4529,8 +5653,6 @@
   }
 
   async function performSaveRoute(options = {}) {
-    const isManualClick = !!options.isManualClick;
-
     if (!measurePoints || measurePoints.length < 2) {
       const badge = document.getElementById('routeRealtimeStatusBadge');
       if (badge) {
@@ -4541,13 +5663,11 @@
       return;
     }
 
-    // 1. Resolve Route Name directly from Form Input (No localhost prompt!)
+    // 1. Resolve Route Name from Form Input or Placeholder fallback "RUTE #"
     const nameInput = document.getElementById('measureRouteNameInput');
     let routeName = nameInput ? nameInput.value.trim() : '';
     if (!routeName) {
-      const modeLabel = measureModeType === 'straight' ? 'Jarak Lurus' : 'Jalur Manual';
-      routeName = `${modeLabel} #${savedRoutes.length + 1}`;
-      if (nameInput) nameInput.value = routeName;
+      routeName = `RUTE ${savedRoutes.length + 1}`;
     }
 
     const isEditing = !!currentActiveRouteId && savedRoutes.some(r => String(r.id) === String(currentActiveRouteId));
@@ -4566,7 +5686,7 @@
       id: currentActiveRouteId,
       id_operasi: targetOpId,
       name: routeName,
-      points: measurePoints,
+      points: measurePoints.map(p => ({ lat: p.lat, lng: p.lng, label: p.label || '' })),
       vesselSpeedKnots: vesselSpeedKnots,
       speedUnit: speedUnit || 'knot',
       distanceNm: metrics.totalNm,
@@ -4607,20 +5727,19 @@
       updateRawRoute(payload, false);
       renderSavedRoutes();
 
-      const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      if (badge) {
-        badge.textContent = `⚡ Tersimpan (${timeStr})`;
-        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold transition';
-      }
-
-      const counter = document.getElementById('manualPointsCounter');
-      if (counter) {
-        counter.textContent = `${measurePoints.length} Titik (Tersimpan)`;
-      }
-
       const actionText = isEditing ? 'diperbarui' : 'disimpan';
-      showRouteSaveFeedback(`✅ Rute "${escapeHtml(routeName)}" berhasil ${actionText} (${metrics.totalNm.toFixed(2)} NM, ETA ${formatDurationIndonesian(metrics.etaMins)}).`, 'success');
+      if (typeof showToast === 'function') {
+        showToast(`Rute "${routeName}" berhasil ${actionText} (${metrics.totalNm.toFixed(2)} NM, ETA ${formatDurationIndonesian(metrics.etaMins)}).`, 'success');
+      }
+
+      // Requirement 1: Auto-hide form after route is successfully added or updated
+      clearMeasureVisual();
+      isMeasureModeActive = false;
       currentActiveRouteId = null;
+      const routeCard = document.getElementById('routePlanningCard');
+      if (routeCard) routeCard.classList.add('hidden');
+      const btnNewRoute = document.getElementById('btnStartNewRoute');
+      if (btnNewRoute) btnNewRoute.classList.remove('hidden');
     } catch (err) {
       console.warn('Save route offline or failed:', err);
       const existingIdx = savedRoutes.findIndex(r => String(r.id) === String(payload.id));
@@ -4631,13 +5750,18 @@
       }
       renderSavedRoutes();
 
-      if (badge) {
-        badge.textContent = '⚡ Tersimpan Lokal';
-        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 font-bold transition';
+      if (typeof showToast === 'function') {
+        showToast(`Rute "${routeName}" disimpan secara lokal (${metrics.totalNm.toFixed(2)} NM).`, 'info');
       }
 
-      showRouteSaveFeedback(`✅ Rute "${escapeHtml(routeName)}" disimpan secara lokal (${metrics.totalNm.toFixed(2)} NM).`, 'info');
+      // Requirement 1: Auto-hide form after route is added/updated
+      clearMeasureVisual();
+      isMeasureModeActive = false;
       currentActiveRouteId = null;
+      const routeCard = document.getElementById('routePlanningCard');
+      if (routeCard) routeCard.classList.add('hidden');
+      const btnNewRoute = document.getElementById('btnStartNewRoute');
+      if (btnNewRoute) btnNewRoute.classList.remove('hidden');
     } finally {
       if (saveBtn) {
         saveBtn.disabled = false;
@@ -4744,11 +5868,12 @@
   }
 
   function renderSavedRoutes() {
+    updateGisBadges();
     savedRoutePolylinesMap.forEach((pl) => map.removeLayer(pl));
     savedRoutePolylinesMap.clear();
 
     savedRoutes.forEach((route) => {
-      if (hiddenRouteIds.has(route.id)) return;
+      if (isIdHidden(hiddenRouteIds, route.id)) return;
       if (!route.points || route.points.length < 2) return;
 
       const latlngs = route.points.map((p) => [p.lat, p.lng]);
@@ -4775,7 +5900,7 @@
 
     container.innerHTML = savedRoutes
       .map((rt) => {
-        const isHidden = hiddenRouteIds.has(rt.id);
+        const isHidden = isIdHidden(hiddenRouteIds, rt.id);
         const safeId = escapeHtml(rt.id);
         const safeName = escapeHtml(rt.name);
 
@@ -4799,7 +5924,7 @@
                 ${getOperasiBadgeHtml(rt.id_operasi)}
               </div>
               <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
-                ${distNm.toFixed(2)} NM (${(distNm * 1.852).toFixed(2)} km) • @ ${escapeHtml(speedDisplay)}
+                ${formatDynamicDistance(distNm, distNm * 1.852)} • @ ${escapeHtml(speedDisplay)}
               </div>
               <div class="text-[9px] font-mono text-slate-400 mt-1 flex flex-col gap-0.5">
                 <span class="truncate"><b class="text-emerald-400">A:</b> ${escapeHtml(startDms)}</span>
@@ -5007,475 +6132,7 @@
   }
 
   // ==========================================
-  // 11. PRINT MAP MODAL IMPLEMENTATION
-  // ==========================================
-
-  function initPrintModalUI() {
-    const btnOpen = document.getElementById('btnOpenPrintModal');
-    const btnClose = document.getElementById('btnClosePrintModal');
-    const btnCancel = document.getElementById('btnCancelPrintModal');
-    const btnPrint = document.getElementById('btnExecutePrintIframe');
-    const modal = document.getElementById('printMapModal');
-
-    // Realtime metadata input synchronization to printable sheet preview
-    const inputDocNum = document.getElementById('printDocNumber');
-    const inputTitle = document.getElementById('printOpsTitle');
-    const inputSmc = document.getElementById('printSmcName');
-    const inputScale = document.getElementById('printScale');
-
-    const prevDocNum = document.getElementById('printDocNumberPreview');
-    const prevTitle = document.getElementById('printPreviewTitle');
-    const prevSmc = document.getElementById('printPreviewSmc');
-    const prevScale = document.getElementById('printPreviewScale');
-    const sigSmc = document.getElementById('printSignatureSmc');
-
-    if (inputDocNum && prevDocNum) {
-      inputDocNum.addEventListener('input', (e) => {
-        prevDocNum.textContent = e.target.value.trim() || '-';
-      });
-    }
-    if (inputTitle && prevTitle) {
-      inputTitle.addEventListener('input', (e) => {
-        prevTitle.textContent = e.target.value.trim() || '-';
-      });
-    }
-    if (inputSmc) {
-      inputSmc.addEventListener('input', (e) => {
-        const val = e.target.value.trim() || '-';
-        if (prevSmc) prevSmc.textContent = val;
-        if (sigSmc) sigSmc.textContent = val;
-      });
-    }
-    if (inputScale && prevScale) {
-      inputScale.addEventListener('input', (e) => {
-        prevScale.textContent = e.target.value.trim() || '-';
-      });
-    }
-
-    if (btnOpen) {
-      btnOpen.addEventListener('click', openPrintMapModal);
-    }
-
-    [btnClose, btnCancel].forEach((b) => {
-      if (b) {
-        b.addEventListener('click', () => {
-          modal.classList.add('hidden');
-          modal.classList.remove('flex');
-        });
-      }
-    });
-
-    if (btnPrint) {
-      btnPrint.addEventListener('click', executePrintIframe);
-    }
-  }
-
-  let printPreviewMap = null;
-
-  function openPrintMapModal() {
-    const modal = document.getElementById('printMapModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
-    // 1. Sync header metadata inputs to preview
-    const inputDocNum = document.getElementById('printDocNumber');
-    const inputTitle = document.getElementById('printOpsTitle');
-    const inputSmc = document.getElementById('printSmcName');
-    const inputScale = document.getElementById('printScale');
-
-    const prevDocNum = document.getElementById('printDocNumberPreview');
-    const prevTitle = document.getElementById('printPreviewTitle');
-    const prevSmc = document.getElementById('printPreviewSmc');
-    const prevScale = document.getElementById('printPreviewScale');
-    const sigSmc = document.getElementById('printSignatureSmc');
-
-    if (inputDocNum && prevDocNum) prevDocNum.textContent = inputDocNum.value || '-';
-    if (inputTitle && prevTitle) prevTitle.textContent = inputTitle.value || '-';
-    if (inputSmc) {
-      if (prevSmc) prevSmc.textContent = inputSmc.value || '-';
-      if (sigSmc) sigSmc.textContent = inputSmc.value || '-';
-    }
-    if (inputScale && prevScale) prevScale.textContent = inputScale.value || '-';
-
-    // 2. Populate Points Table
-    const tbodyPts = document.getElementById('printTbodyPoints');
-    if (tbodyPts) {
-      tbodyPts.innerHTML = savedPoints
-        .map(
-          (p) => `
-        <tr>
-          <td class="py-1 font-bold text-slate-800">${escapeHtml(p.label || '(Tanpa Nama)')}</td>
-          <td class="py-1 text-slate-600">${escapeHtml(p.category || 'Tanpa Kategori')}</td>
-          <td class="py-1 text-slate-700">${decimalToDms(p.lat, p.lng)}</td>
-        </tr>
-      `
-        )
-        .join('');
-    }
-
-    // 3. Populate Polygons Table
-    const tbodyPolys = document.getElementById('printTbodyPolygons');
-    if (tbodyPolys) {
-      tbodyPolys.innerHTML = savedPolygons
-        .map((poly) => {
-          const stats = calculatePolygonSphericalArea(poly.points);
-          return `
-          <tr>
-            <td class="py-1 font-bold text-slate-800">${escapeHtml(poly.name)}</td>
-            <td class="py-1 text-slate-700">${stats.sqNm} NM²</td>
-            <td class="py-1 text-slate-700">${stats.perimeterNm} NM</td>
-          </tr>
-        `;
-        })
-        .join('');
-    }
-
-    // 4. Populate Routes & Measurements Table
-    const tbodyRoutes = document.getElementById('printTbodyRoutes');
-    if (tbodyRoutes) {
-      const allPrintRoutes = [...savedRoutes];
-      if (measurePoints && measurePoints.length >= 2) {
-        const mMetrics = recalcRouteMetrics(measurePoints);
-        allPrintRoutes.unshift({
-          name: document.getElementById('measureRouteNameInput')?.value || 'Jarak Lurus Aktif (Pengukuran)',
-          distanceNm: mMetrics.totalNm,
-          bearing: mMetrics.lastBearing,
-          heading: mMetrics.lastHeading,
-          vesselSpeedKnots: vesselSpeedKnots,
-          etaText: formatDurationIndonesian(mMetrics.etaMins)
-        });
-      }
-
-      if (allPrintRoutes.length === 0) {
-        tbodyRoutes.innerHTML = `<tr><td colspan="4" class="py-1 text-center text-slate-400 italic">Tidak ada rute / jarak aktif.</td></tr>`;
-      } else {
-        tbodyRoutes.innerHTML = allPrintRoutes
-          .map((rt) => {
-            const dist = typeof rt.distanceNm === 'number' ? rt.distanceNm.toFixed(2) : (parseFloat(rt.distanceNm) || 0).toFixed(2);
-            const brg = rt.bearing !== undefined ? `${rt.bearing}° (${rt.heading || 'Nav'})` : '-';
-            const spd = rt.vesselSpeedKnots ? `${rt.vesselSpeedKnots} Kts` : '-';
-            return `
-              <tr>
-                <td class="py-1 font-bold text-slate-800">${escapeHtml(rt.name || 'Rute Navigasi')}</td>
-                <td class="py-1 text-slate-700">${dist} NM</td>
-                <td class="py-1 text-slate-700">${brg} / ${spd}</td>
-                <td class="py-1 text-slate-700 font-bold text-emerald-700">${rt.etaText || '-'}</td>
-              </tr>
-            `;
-          })
-          .join('');
-      }
-    }
-
-    // 5. Populate Search Patterns Table
-    const tbodyPatterns = document.getElementById('printTbodyPatterns');
-    if (tbodyPatterns) {
-      const allPrintPatterns = [...savedPatterns];
-      if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2 && !savedPatterns.some(p => p.id === editingPatternId)) {
-        allPrintPatterns.unshift({
-          name: document.getElementById('patternFormName')?.value || 'Pola SAR Aktif (Rancangan)',
-          patternType: activePatternType,
-          trackSpacingNm: patternSpacingUnit === 'KM' ? ((parseFloat(document.getElementById('patternTrackSpacing')?.value) || 1) / 1.852) : (parseFloat(document.getElementById('patternTrackSpacing')?.value) || 1),
-          totalDistanceNm: activeGeneratedDistanceNm
-        });
-      }
-
-      if (allPrintPatterns.length === 0) {
-        tbodyPatterns.innerHTML = `<tr><td colspan="4" class="py-1 text-center text-slate-400 italic">Tidak ada pola lintasan SAR tersimpan.</td></tr>`;
-      } else {
-        tbodyPatterns.innerHTML = allPrintPatterns
-          .map((pat) => {
-            const dist = typeof pat.totalDistanceNm === 'number' ? pat.totalDistanceNm.toFixed(2) : (parseFloat(pat.totalDistanceNm) || 0).toFixed(2);
-            const spacing = typeof pat.trackSpacingNm === 'number' ? pat.trackSpacingNm.toFixed(2) : (parseFloat(pat.trackSpacingNm) || 0).toFixed(2);
-            return `
-              <tr>
-                <td class="py-1 font-bold text-slate-800">${escapeHtml(pat.name || 'Pola SAR')}</td>
-                <td class="py-1 text-slate-700">${getPatternDisplayName(pat.patternType)}</td>
-                <td class="py-1 text-slate-700">${spacing} NM</td>
-                <td class="py-1 text-slate-700 font-bold text-sky-700">${dist} NM</td>
-              </tr>
-            `;
-          })
-          .join('');
-      }
-    }
-
-    // 6. Render Mini-Map Snapshot Target inside modal
-    setTimeout(() => {
-      const container = document.getElementById('printMapSnapshotTarget');
-      if (!container) return;
-
-      if (printPreviewMap) {
-        printPreviewMap.remove();
-        printPreviewMap = null;
-      }
-
-      printPreviewMap = L.map('printMapSnapshotTarget', {
-        center: map.getCenter(),
-        zoom: map.getZoom(),
-        zoomControl: false,
-        attributionControl: false
-      });
-
-      // Synchronize tile layer with active basemap
-      if (activeBasemap === 'hybrid' || activeBasemap === 'google_hybrid') {
-        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-          maxNativeZoom: 20,
-          maxZoom: 22,
-          subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-        }).addTo(printPreviewMap);
-      } else if (activeBasemap === 'satellite') {
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-          maxNativeZoom: 18,
-          maxZoom: 22
-        }).addTo(printPreviewMap);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', {
-          subdomains: 'abcd',
-          maxNativeZoom: 19,
-          maxZoom: 22
-        }).addTo(printPreviewMap);
-      } else if (activeBasemap === 'roadmap') {
-        L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-          maxNativeZoom: 20,
-          maxZoom: 22,
-          subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-        }).addTo(printPreviewMap);
-      } else if (activeBasemap === 'terrain') {
-        L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-          maxNativeZoom: 17,
-          maxZoom: 22
-        }).addTo(printPreviewMap);
-      } else {
-        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-          maxNativeZoom: 20,
-          maxZoom: 22,
-          subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
-        }).addTo(printPreviewMap);
-      }
-
-      // Clone Polygons
-      savedPolygons.forEach((poly) => {
-        if (hiddenPolygonIds.has(poly.id)) return;
-        if (poly.points && poly.points.length >= 3) {
-          L.polygon(poly.points.map((p) => [p.lat, p.lng]), {
-            color: poly.strokeColor || '#ea580c',
-            weight: 2,
-            fillColor: poly.fillColor || '#ea580c',
-            fillOpacity: poly.fillOpacity || 0.25
-          }).addTo(printPreviewMap);
-        }
-      });
-
-      // Clone Points
-      savedPoints.forEach((pt) => {
-        if (hiddenPointIds.has(pt.id)) return;
-        L.marker([pt.lat, pt.lng], {
-          icon: L.divIcon({
-            html: createMarkerHtml(pt, false),
-            className: 'sar-print-pin',
-            iconSize: [38, 46],
-            iconAnchor: [19, 42],
-            popupAnchor: [0, -42]
-          })
-        }).addTo(printPreviewMap);
-      });
-
-      // Clone Saved Search Patterns
-      savedPatterns.forEach((pat) => {
-        if (hiddenPatternIds.has(pat.id)) return;
-        if (!pat.waypoints || pat.waypoints.length < 2) return;
-        L.polyline(pat.waypoints.map((p) => [p.lat, p.lng]), {
-          color: pat.color || '#0284c7',
-          weight: 3,
-          dashArray: '6, 6'
-        }).addTo(printPreviewMap);
-      });
-
-      // Clone Active Generated Pattern (if currently on map)
-      if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
-        L.polyline(activeGeneratedWaypoints.map((p) => [p.lat, p.lng]), {
-          color: '#0284c7',
-          weight: 3,
-          dashArray: '6, 6'
-        }).addTo(printPreviewMap);
-      }
-
-      // Clone Saved Routes
-      savedRoutes.forEach((route) => {
-        if (hiddenRouteIds.has(route.id)) return;
-        if (!route.points || route.points.length < 2) return;
-        L.polyline(route.points.map((p) => [p.lat, p.lng]), {
-          color: route.strokeColor || '#10b981',
-          weight: 3.5,
-          opacity: 0.9
-        }).addTo(printPreviewMap);
-
-        route.points.forEach((p, idx) => {
-          const isStart = idx === 0;
-          const isEnd = idx === route.points.length - 1;
-          if (isStart || isEnd) {
-            const bgColor = isStart ? '#16a34a' : '#dc2626';
-            const text = isStart ? 'A' : (route.points.length === 2 ? 'B' : `${idx + 1}`);
-            L.marker([p.lat, p.lng], {
-              icon: L.divIcon({
-                className: 'custom-measure-waypoint',
-                html: `<div style="width:20px;height:20px;border-radius:50%;background:${bgColor};border:2px solid #fff;color:#fff;font-weight:900;font-size:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.5);">${text}</div>`,
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
-              })
-            }).addTo(printPreviewMap);
-          }
-        });
-      });
-
-      // Clone Active Straight-line / Measurement Ruler
-      if (measurePoints && measurePoints.length >= 2) {
-        L.polyline(measurePoints.map((p) => [p.lat, p.lng]), {
-          color: '#10b981',
-          weight: 3.5
-        }).addTo(printPreviewMap);
-
-        measurePoints.forEach((p, idx) => {
-          const isStart = idx === 0;
-          const isEnd = idx === measurePoints.length - 1;
-          const bgColor = isStart ? '#16a34a' : (isEnd ? '#dc2626' : '#0ea5e9');
-          const text = isStart ? 'A' : (measurePoints.length === 2 ? 'B' : `${idx + 1}`);
-          L.marker([p.lat, p.lng], {
-            icon: L.divIcon({
-              className: 'custom-measure-waypoint',
-              html: `<div style="width:20px;height:20px;border-radius:50%;background:${bgColor};border:2px solid #fff;color:#fff;font-weight:900;font-size:10px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.5);">${text}</div>`,
-              iconSize: [20, 20],
-              iconAnchor: [10, 10]
-            })
-          }).addTo(printPreviewMap);
-        });
-
-        // Add distance tooltip at midpoint
-        const metrics = recalcRouteMetrics(measurePoints);
-        if (metrics && metrics.totalNm > 0) {
-          const midPoint = [
-            (measurePoints[0].lat + measurePoints[measurePoints.length - 1].lat) / 2,
-            (measurePoints[0].lng + measurePoints[measurePoints.length - 1].lng) / 2
-          ];
-          L.tooltip({ permanent: true, direction: 'center', className: 'distance-label-tooltip' })
-            .setContent(`📏 ${metrics.totalNm.toFixed(2)} NM (${metrics.lastBearing}° ${metrics.lastHeading})`)
-            .setLatLng(midPoint)
-            .addTo(printPreviewMap);
-        }
-      }
-
-      // Ensure leaflet container dimensions adapt correctly
-      setTimeout(() => {
-        if (printPreviewMap) {
-          printPreviewMap.invalidateSize();
-        }
-      }, 250);
-    }, 200);
-  }
-
-  function executePrintIframe() {
-    const printArea = document.getElementById('printableDocumentSheet');
-    if (!printArea) return;
-
-    const frame = document.createElement('iframe');
-    frame.style.position = 'fixed';
-    frame.style.right = '0';
-    frame.style.bottom = '0';
-    frame.style.width = '0';
-    frame.style.height = '0';
-    frame.style.border = '0';
-    document.body.appendChild(frame);
-
-    const doc = frame.contentWindow?.document;
-    if (!doc) {
-      window.print();
-      return;
-    }
-
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>LEMBAR OPERASIONAL SAR KENDARI</title>
-          <link rel="stylesheet" href="/assets/vendor/leaflet/leaflet.min.css"/>
-          <style>
-            @page { size: A4 portrait; margin: 8mm; }
-            body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #0f172a; background: #fff; margin: 0; padding: 0; }
-            table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-            th, td { border: 1px solid #cbd5e1; padding: 4px 6px; font-size: 9.5px; }
-            th { background: #f1f5f9; text-align: left; font-weight: bold; color: #334155; }
-            .grid { display: grid; }
-            .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
-            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .gap-2 { gap: 8px; }
-            .gap-3 { gap: 12px; }
-            .border { border: 1px solid #cbd5e1; }
-            .border-b { border-bottom: 1px solid #cbd5e1; }
-            .border-b-2 { border-bottom: 2px solid #0f172a; }
-            .border-2 { border: 2px solid #0f172a; }
-            .border-slate-800 { border-color: #1e293b; }
-            .rounded { border-radius: 4px; }
-            .rounded-lg { border-radius: 8px; }
-            .p-2 { padding: 8px; }
-            .p-6 { padding: 18px; }
-            .pb-0\\.5 { padding-bottom: 2px; }
-            .pb-3 { padding-bottom: 12px; }
-            .pt-6 { padding-top: 18px; }
-            .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-            .font-bold { font-weight: bold; }
-            .font-black { font-weight: 900; }
-            .text-center { text-align: center; }
-            .text-right { text-align: right; }
-            .flex { display: flex; }
-            .items-center { align-items: center; }
-            .justify-between { justify-content: space-between; }
-            .h-14 { height: 56px; }
-            .h-16 { height: 60px; }
-            .w-auto { width: auto; }
-            .w-full { width: 100%; }
-            .uppercase { text-transform: uppercase; }
-            .underline { text-decoration: underline; }
-            .text-orange-600 { color: #ea580c; }
-            .text-emerald-700 { color: #047857; }
-            .text-sky-700 { color: #0369a1; }
-            .bg-slate-50 { background-color: #f8fafc; }
-            .bg-slate-900 { background-color: #0f172a; }
-            .text-white { color: #ffffff; }
-            .text-slate-400 { color: #94a3b8; }
-            .text-slate-500 { color: #64748b; }
-            .text-slate-600 { color: #475569; }
-            .text-slate-700 { color: #334155; }
-            .text-slate-800 { color: #1e293b; }
-            .text-slate-900 { color: #0f172a; }
-            .text-slate-950 { color: #020617; }
-            .text-xs { font-size: 11px; }
-            .text-sm { font-size: 13px; }
-            .text-\\[9px\\] { font-size: 9px; }
-            .text-\\[10px\\] { font-size: 10px; }
-            .text-\\[11px\\] { font-size: 11px; }
-            .space-y-4 > * + * { margin-top: 14px; }
-            .distance-label-tooltip { background: rgba(255, 255, 255, 0.95); border: 1.5px solid #10b981; color: #0f172a; font-weight: 800; font-size: 9px; padding: 2px 6px; border-radius: 4px; }
-            .sar-print-pin svg, .custom-measure-waypoint div { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-            * { print-color-adjust: exact; -webkit-print-color-adjust: exact; box-sizing: border-box; }
-          </style>
-        </head>
-        <body>
-          ${printArea.innerHTML}
-        </body>
-      </html>
-    `);
-    doc.close();
-
-    setTimeout(() => {
-      frame.contentWindow?.focus();
-      frame.contentWindow?.print();
-      setTimeout(() => document.body.removeChild(frame), 1500);
-    }, 600);
-  }
-
-  // ==========================================
-  // 12. TAB SWITCHER & GLOBAL CONTROLS
+  // 11. TAB SWITCHER & GLOBAL CONTROLS
   // ==========================================
 
   function initTabSwitcher() {
@@ -5643,25 +6300,21 @@
 
   window.SAR_GIS = {
     focusPoint: (id) => {
-      const pt = savedPoints.find((p) => p.id === id);
+      const pt = savedPoints.find((p) => String(p.id) === String(id));
       if (pt && map) {
         map.flyTo([pt.lat, pt.lng], 14, { duration: 1 });
-        const marker = pointMarkersMap.get(id);
+        const marker = pointMarkersMap.get(pt.id) || pointMarkersMap.get(id);
         if (marker) marker.openPopup();
       }
     },
 
     togglePointVisibility: (id) => {
-      if (hiddenPointIds.has(id)) {
-        hiddenPointIds.delete(id);
-      } else {
-        hiddenPointIds.add(id);
-      }
+      toggleIdInSet(hiddenPointIds, id);
       renderSavedPoints();
     },
 
     editPoint: (id) => {
-      const pt = savedPoints.find((p) => p.id === id);
+      const pt = savedPoints.find((p) => String(p.id) === String(id));
       if (pt) {
         openPointCreator(pt);
       }
@@ -5681,7 +6334,7 @@
     },
 
     focusPolygon: (id) => {
-      const poly = savedPolygons.find((p) => p.id === id);
+      const poly = savedPolygons.find((p) => String(p.id) === String(id));
       if (poly && poly.points.length >= 3 && map) {
         const bounds = L.latLngBounds(poly.points.map((p) => [p.lat, p.lng]));
         map.fitBounds(bounds, { padding: [50, 50] });
@@ -5689,16 +6342,12 @@
     },
 
     togglePolygonVisibility: (id) => {
-      if (hiddenPolygonIds.has(id)) {
-        hiddenPolygonIds.delete(id);
-      } else {
-        hiddenPolygonIds.add(id);
-      }
+      toggleIdInSet(hiddenPolygonIds, id);
       renderSavedPolygons();
     },
 
     editPolygon: (id) => {
-      const poly = savedPolygons.find((p) => p.id === id);
+      const poly = savedPolygons.find((p) => String(p.id) === String(id));
       if (poly) {
         startPolygonDrawing(poly);
       }
@@ -5722,19 +6371,25 @@
     },
 
     applyPatternFromPolygon: (id) => {
+      editingPatternId = null;
       switchActiveTab('tab-pattern');
       const card = document.getElementById('patternCreationCard');
       if (card) card.classList.remove('hidden');
       const btnNew = document.getElementById('btnStartNewPattern');
       if (btnNew) btnNew.classList.add('hidden');
+      const nameInput = document.getElementById('patternFormName');
+      if (nameInput) {
+        nameInput.value = '';
+        nameInput.placeholder = 'CREAPING LANE 1/ESAR 1/';
+      }
       const sel = document.getElementById('patternTargetPolygon');
       if (sel) {
         sel.value = id;
         updatePatternAutoCalculation();
       }
-      const poly = savedPolygons.find((p) => String(p.id) === String(id));
-      if (poly && poly.points && poly.points.length >= 3 && map) {
-        const validPts = poly.points.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]).filter((p) => !isNaN(p[0]) && !isNaN(p[1]));
+      const resolvedPts = resolveTargetPolygonPoints(id);
+      if (resolvedPts && resolvedPts.length >= 3 && map) {
+        const validPts = resolvedPts.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]).filter((p) => !isNaN(p[0]) && !isNaN(p[1]));
         if (validPts.length >= 3) {
           const bounds = L.latLngBounds(validPts);
           map.fitBounds(bounds, { padding: [60, 60], maxZoom: 15 });
@@ -5744,7 +6399,7 @@
     },
 
     focusPattern: (id) => {
-      const pat = savedPatterns.find((p) => p.id === id);
+      const pat = savedPatterns.find((p) => String(p.id) === String(id));
       if (pat && pat.waypoints.length >= 2 && map) {
         const bounds = L.latLngBounds(pat.waypoints.map((p) => [p.lat, p.lng]));
         map.fitBounds(bounds, { padding: [50, 50] });
@@ -5756,11 +6411,7 @@
     },
 
     togglePatternVisibility: (id) => {
-      if (hiddenPatternIds.has(id)) {
-        hiddenPatternIds.delete(id);
-      } else {
-        hiddenPatternIds.add(id);
-      }
+      toggleIdInSet(hiddenPatternIds, id);
       renderSavedPatterns();
     },
 
@@ -5790,11 +6441,7 @@
     },
 
     toggleRouteVisibility: (id) => {
-      if (hiddenRouteIds.has(id)) {
-        hiddenRouteIds.delete(id);
-      } else {
-        hiddenRouteIds.add(id);
-      }
+      toggleIdInSet(hiddenRouteIds, id);
       renderSavedRoutes();
     },
 
@@ -5813,7 +6460,13 @@
 
     setMeasureMode: (mode) => setMeasureMode(mode),
     saveRoute: () => performSaveRoute({ isManualClick: true }),
-    clearRoute: () => clearMeasureVisual()
+    clearRoute: () => clearMeasureVisual(),
+    undoRoutePoint: () => undoLastMeasurePoint(),
+    copyPointCoordinates: (id) => copyPointCoordinates(id),
+    setSearchAreaShape: (shape) => setSearchAreaShape(shape),
+    setUnit: (u) => setGlobalMeasurementUnit(u),
+    getUnit: () => activeGlobalUnit,
+    updateBadges: () => updateGisBadges()
   };
 
   window.QRSAR = window.QRSAR || {};
@@ -5888,17 +6541,6 @@
           }
         }
 
-        // Sinkronisasi judul lembar operasional pada modal cetak jika tersedia
-        const inputTitle = document.getElementById('printOpsTitle');
-        if (inputTitle) {
-          if (currentOperasi) {
-            inputTitle.value = currentOperasi.nama_operasi.toUpperCase();
-          } else if (filterMode === 'basemap' || filterMode === 'dasar') {
-            inputTitle.value = 'BASE MAP TAKTIS WILAYAH KERJA KPP KENDARI';
-          } else {
-            inputTitle.value = 'PLOTING TAKTIS OPERASI SAR WILAYAH KERJA KPP KENDARI';
-          }
-        }
 
         updateUrlParams();
         updateSelectorUI();
@@ -5967,6 +6609,1240 @@
   }
 
   // ==========================================
+  // 13B. DOCUMENT MAP CAPTURE 16:9 ENGINE
+  // ==========================================
+
+  let isCaptureModeActive = false;
+  let captureBoxRect = { x: 40, y: 40, width: 640, height: 360 };
+  let captureLatLngBounds = null;
+  let captureDetectedData = {
+    points: [],
+    polygons: [],
+    patterns: [],
+    routes: [],
+    unit: 'NM'
+  };
+  let cachedOperasiSnapshots = [];
+  let cachedOperasiRenopsList = [];
+  let cachedOperasiSitrepList = [];
+
+  function initDocumentCaptureUI() {
+    const btnToggle = document.getElementById('btnToggleCaptureMode');
+    const btnClose = document.getElementById('btnCloseCaptureMode');
+    const overlay = document.getElementById('captureFrameOverlay');
+    const frameBox = document.getElementById('captureFrameBox');
+    const panel = document.getElementById('captureControlPanel');
+    const selOperasi = document.getElementById('captureSelectOperasi');
+    const selJenis = document.getElementById('captureSelectJenisDokumen');
+    const refWrapper = document.getElementById('captureReferensiWrapper');
+    const selRef = document.getElementById('captureSelectReferensi');
+    const btnFit = document.getElementById('btnFitCaptureComponents');
+    const btnSave = document.getElementById('btnExecuteCaptureSave');
+    const inputKet = document.getElementById('captureInputKeterangan');
+
+    if (!btnToggle || !overlay || !frameBox || !panel) return;
+
+    function computeCaptureFrameGeometry() {
+      const wrapper = document.getElementById('gisMapWrapper');
+      if (!wrapper) return;
+      const wRect = wrapper.getBoundingClientRect();
+      const totalW = Math.max(320, wRect.width);
+      const totalH = Math.max(240, wRect.height);
+
+      // Reserve space on the right for the control panel on desktop screens
+      const panelWidthReserve = totalW >= 900 ? 370 : 24;
+      const availW = Math.max(260, totalW - panelWidthReserve - 40);
+      const availH = Math.max(180, totalH - 88);
+
+      // Enforce exact 16:9 aspect ratio
+      let boxW = availW;
+      let boxH = Math.round((boxW * 9) / 16);
+      if (boxH > availH) {
+        boxH = availH;
+        boxW = Math.round((boxH * 16) / 9);
+      }
+
+      const boxX = Math.max(16, Math.round((totalW - (totalW >= 900 ? 356 : 0) - boxW) / 2));
+      const boxY = Math.max(34, Math.round((totalH - boxH) / 2));
+
+      captureBoxRect = { x: boxX, y: boxY, width: boxW, height: boxH };
+
+      frameBox.style.left = `${boxX}px`;
+      frameBox.style.top = `${boxY}px`;
+      frameBox.style.width = `${boxW}px`;
+      frameBox.style.height = `${boxH}px`;
+
+      if (map) {
+        const nw = map.containerPointToLatLng([boxX, boxY]);
+        const se = map.containerPointToLatLng([boxX + boxW, boxY + boxH]);
+        captureLatLngBounds = L.latLngBounds(
+          [Math.min(nw.lat, se.lat), Math.min(nw.lng, se.lng)],
+          [Math.max(nw.lat, se.lat), Math.max(nw.lng, se.lng)]
+        );
+
+        const badge = document.getElementById('captureFrameBoundsBadge');
+        if (badge) {
+          badge.textContent = `NW: ${decimalToDms(nw.lat, nw.lng)} | SE: ${decimalToDms(se.lat, se.lng)}`;
+        }
+      }
+    }
+
+    function getPatternDisplayLabel(type) {
+      const t = String(type || '').toLowerCase();
+      if (t === 'parallel' || t === 'parallel_track') return 'Parallel Track Search';
+      if (t === 'creeping' || t === 'creeping_line') return 'Creeping Line Search';
+      if (t === 'expanding_square' || t === 'square') return 'Expanding Square Search';
+      if (t === 'sector' || t === 'sector_search') return 'Sector Search';
+      if (t === 'track_line' || t === 'trackline') return 'Track Line Search';
+      if (t === 'esar' || t === 'e_sar' || t === 'e-sar') return 'E-SAR (Explore / Darat)';
+      return type || 'Pola Pencarian SAR';
+    }
+
+    function extractCornerLetter(rawLabel, fallbackIdx) {
+      const fallback = String.fromCharCode(65 + (fallbackIdx % 26));
+      if (!rawLabel) return fallback;
+      const str = String(rawLabel).trim();
+      if (/^[A-Z0-9]{1,2}$/i.test(str)) return str.toUpperCase();
+      const m = str.match(/\bTitik\s+([A-Z0-9]{1,2})\b/i);
+      if (m && m[1]) return m[1].toUpperCase();
+      return fallback;
+    }
+
+    function detectComponentsInCaptureBox() {
+      if (!isCaptureModeActive || !map) return;
+      computeCaptureFrameGeometry();
+      if (!captureLatLngBounds) return;
+
+      const detectedPoints = [];
+      const detectedPolygons = [];
+      const detectedPatterns = [];
+      const detectedRoutes = [];
+
+      // 1. Detect Points inside 16:9 BBox (including full icon metadata for canvas rendering)
+      (savedPoints || []).forEach((pt) => {
+        if (isIdHidden(hiddenPointIds, pt.id)) return;
+        const lat = parseFloat(pt.lat);
+        const lng = parseFloat(pt.lng);
+        if (isNaN(lat) || isNaN(lng)) return;
+        if (captureLatLngBounds.contains([lat, lng])) {
+          const cat = pt.category || 'Tanpa Kategori';
+          const label = (pt.label && pt.label.trim()) ? pt.label.trim() : (cat !== 'Tanpa Kategori' ? cat : 'Titik SAR');
+          const pType = pt.pointType || (cat === 'LKP' ? 'lkp' : 'pin_umum');
+          const preset = PRESET_ICONS.find((p) => p.type === pType);
+          const normCustomUrl = normalizeIconUrl(pt.customIconUrl || '');
+          const pinColor = pt.customColor || (preset ? preset.color : (cat === 'LKP' ? '#dc2626' : (cat === 'Penemuan Korban' || cat === 'Lokasi Penemuan Korban' ? '#d97706' : '#ea580c')));
+          const emoji = preset ? preset.emoji : (cat === 'LKP' ? '🚨' : (cat === 'Dermaga SAR' ? '⚓' : (cat === 'Kantor SAR' ? '🏢' : '📍')));
+
+          detectedPoints.push({
+            id: pt.id,
+            label: label,
+            hasCustomLabel: !!(pt.label && pt.label.trim()),
+            category: cat,
+            pointType: normCustomUrl ? 'custom_upload' : pType,
+            alphabetChar: pt.alphabetChar || 'A',
+            customIconUrl: normCustomUrl,
+            color: pinColor,
+            emoji: emoji,
+            lat: lat,
+            lng: lng,
+            dms: decimalToDms(lat, lng),
+            description: pt.description || '',
+            scope: pt.id_operasi ? 'Operasi SAR' : 'Base Map'
+          });
+        }
+      });
+
+      // 2. Detect Search Areas (Polygons / Rectangles / Circles) intersecting 16:9 BBox
+      (savedPolygons || []).forEach((poly) => {
+        if (isIdHidden(hiddenPolygonIds, poly.id)) return;
+        const pts = Array.isArray(poly.points) ? poly.points : [];
+        const shapeType = poly.shapeType || 'polygon';
+        let intersects = false;
+
+        if (shapeType === 'circle' && poly.centerLat && poly.centerLng) {
+          const cLat = parseFloat(poly.centerLat);
+          const cLng = parseFloat(poly.centerLng);
+          const rNm = parseFloat(poly.radiusNm) || 1.0;
+          const degDelta = rNm / 60.0;
+          const cBounds = L.latLngBounds([cLat - degDelta, cLng - degDelta], [cLat + degDelta, cLng + degDelta]);
+          intersects = captureLatLngBounds.intersects(cBounds);
+        } else if (pts.length >= 3) {
+          const polyBounds = L.latLngBounds(pts.map(p => [parseFloat(p.lat), parseFloat(p.lng)]));
+          intersects = captureLatLngBounds.intersects(polyBounds);
+        }
+
+        if (intersects) {
+          const areaNm2 = parseFloat(poly.areaNm2) || calculatePolygonAreaNm2(pts, shapeType, poly.radiusNm, poly.boxWidthNm, poly.boxHeightNm);
+          const areaInfo = formatDynamicArea(areaNm2);
+          let coordsSummary = '';
+          let circleCenterDms = '';
+          let circleRadiusText = '';
+
+          if (shapeType === 'circle') {
+            const cLat = parseFloat(poly.centerLat ?? (pts[0] ? pts[0].lat : 0));
+            const cLng = parseFloat(poly.centerLng ?? (pts[0] ? pts[0].lng : 0));
+            const rNm = parseFloat(poly.radiusNm) || 1.0;
+            circleCenterDms = decimalToDms(cLat, cLng);
+            circleRadiusText = formatDynamicDistance(rNm, rNm * 1.852);
+            coordsSummary = `Pusat: ${circleCenterDms} (Radius: ${circleRadiusText})`;
+          } else {
+            const maxPts = pts.slice(0, 6).map((p, idx) => {
+              const lbl = extractCornerLetter(p.label, idx);
+              return `Titik ${lbl}: ${decimalToDms(parseFloat(p.lat), parseFloat(p.lng))}`;
+            });
+            coordsSummary = maxPts.join(' | ') + (pts.length > 6 ? ` (+${pts.length - 6} ttk)` : '');
+          }
+
+          detectedPolygons.push({
+            id: poly.id,
+            name: poly.name || 'Search Area',
+            shapeType: shapeType,
+            area_nm2: Number(areaNm2.toFixed(2)),
+            area_text: areaInfo.combined,
+            coords_summary: coordsSummary,
+            center_dms: circleCenterDms,
+            radius_text: circleRadiusText,
+            strokeColor: poly.strokeColor || '#ea580c',
+            fillColor: poly.fillColor || '#ea580c',
+            fillOpacity: poly.fillOpacity ?? 0.2,
+            centerLat: poly.centerLat ? parseFloat(poly.centerLat) : (shapeType === 'circle' && pts[0] ? parseFloat(pts[0].lat) : null),
+            centerLng: poly.centerLng ? parseFloat(poly.centerLng) : (shapeType === 'circle' && pts[0] ? parseFloat(pts[0].lng) : null),
+            radiusNm: poly.radiusNm ? parseFloat(poly.radiusNm) : (shapeType === 'circle' ? 1.0 : null),
+            // Khusus lingkaran (circle), titik batas keliling aproksimasi dikosongkan agar legenda peta tidak dipenuhi 36 titik
+            points: shapeType === 'circle' ? [] : pts.map((p, idx) => ({
+              lat: parseFloat(p.lat),
+              lng: parseFloat(p.lng),
+              label: extractCornerLetter(p.label, idx),
+              dms: decimalToDms(parseFloat(p.lat), parseFloat(p.lng))
+            }))
+          });
+        }
+      });
+
+      // 3. Detect Search Patterns intersecting 16:9 BBox
+      const allCandidatePatterns = [...(savedPatterns || [])];
+      if (Array.isArray(activeGeneratedWaypoints) && activeGeneratedWaypoints.length >= 2 && !editingPatternId) {
+        allCandidatePatterns.push({
+          id: 'active-live-pattern',
+          name: `Pola Aktif (${getPatternDisplayLabel(activePatternType)})`,
+          type: activePatternType,
+          patternType: activePatternType,
+          trackSpacingNm: parseFloat(document.getElementById('patternTrackSpacing')?.value) || 0.5,
+          totalDistanceNm: activeGeneratedDistanceNm || 0,
+          color: '#06b6d4',
+          strokeColor: '#06b6d4',
+          waypoints: activeGeneratedWaypoints
+        });
+      }
+
+      allCandidatePatterns.forEach((pat) => {
+        if (pat.id !== 'active-live-pattern' && isIdHidden(hiddenPatternIds, pat.id)) return;
+        const wps = Array.isArray(pat.waypoints) ? pat.waypoints : [];
+        if (wps.length < 2) return;
+        const patBounds = L.latLngBounds(wps.map(w => [parseFloat(w.lat), parseFloat(w.lng)]));
+        if (!captureLatLngBounds.intersects(patBounds)) return;
+
+        const patType = pat.patternType || pat.type || 'parallel_track';
+        const spacingNm = parseFloat(pat.trackSpacingNm) || 0.5;
+        let distNm = parseFloat(pat.totalDistanceNm) || 0;
+        if (distNm <= 0) {
+          for (let i = 0; i < wps.length - 1; i++) {
+            const d = calculateDistanceHaversine(parseFloat(wps[i].lat), parseFloat(wps[i].lng), parseFloat(wps[i + 1].lat), parseFloat(wps[i + 1].lng));
+            distNm += d.nm;
+          }
+        }
+        const sweptNm2 = spacingNm * distNm;
+        const csp = wps[0];
+
+        detectedPatterns.push({
+          id: pat.id,
+          name: pat.name || getPatternDisplayLabel(patType),
+          type: patType,
+          type_label: getPatternDisplayLabel(patType),
+          spacing_text: formatDynamicDistance(spacingNm),
+          length_text: formatDynamicDistance(distNm),
+          swept_area_text: formatDynamicArea(sweptNm2).combined,
+          csp_dms: `CSP: ${decimalToDms(parseFloat(csp.lat), parseFloat(csp.lng))}`,
+          csp_lat: parseFloat(csp.lat),
+          csp_lng: parseFloat(csp.lng),
+          waypoints_count: wps.length,
+          strokeColor: pat.color || pat.strokeColor || '#06b6d4',
+          waypoints: wps.map(w => ({
+            lat: parseFloat(w.lat),
+            lng: parseFloat(w.lng),
+            label: w.label || '',
+            bearing: w.bearing ?? null,
+            pNum: w.pNum ?? null
+          }))
+        });
+      });
+
+      // 4. Detect Routes / Distance Lines intersecting 16:9 BBox
+      const allCandidateRoutes = [...(savedRoutes || [])];
+      if (Array.isArray(measurePoints) && measurePoints.length >= 2 && !currentActiveRouteId) {
+        allCandidateRoutes.push({
+          id: 'active-live-route',
+          name: 'Jalur Pengukuran Aktif',
+          vesselSpeedKnots: vesselSpeedKnots || 25,
+          strokeColor: '#10b981',
+          points: measurePoints
+        });
+      }
+
+      allCandidateRoutes.forEach((rt) => {
+        if (rt.id !== 'active-live-route' && isIdHidden(hiddenRouteIds, rt.id)) return;
+        const rPts = Array.isArray(rt.points) ? rt.points : [];
+        if (rPts.length < 2) return;
+        const rBounds = L.latLngBounds(rPts.map(p => [parseFloat(p.lat), parseFloat(p.lng)]));
+        if (!captureLatLngBounds.intersects(rBounds)) return;
+
+        let totalNm = 0;
+        let totalKm = 0;
+        for (let i = 0; i < rPts.length - 1; i++) {
+          const seg = calculateDistanceHaversine(
+            parseFloat(rPts[i].lat),
+            parseFloat(rPts[i].lng),
+            parseFloat(rPts[i + 1].lat),
+            parseFloat(rPts[i + 1].lng)
+          );
+          totalNm += seg.nm;
+          totalKm += seg.km;
+        }
+        const firstPt = rPts[0];
+        const lastPt = rPts[rPts.length - 1];
+        const directSeg = calculateDistanceHaversine(
+          parseFloat(firstPt.lat),
+          parseFloat(firstPt.lng),
+          parseFloat(lastPt.lat),
+          parseFloat(lastPt.lng)
+        );
+
+        detectedRoutes.push({
+          id: rt.id,
+          name: rt.name || 'RUTE 1',
+          distance_text: formatDynamicDistance(totalNm, totalKm),
+          bearing_text: `${directSeg.bearing}° (${directSeg.headingName})`,
+          speed_text: formatDynamicSpeed(parseFloat(rt.vesselSpeedKnots) || 25),
+          waypoints_summary: `Titik A (${decimalToDms(parseFloat(firstPt.lat), parseFloat(firstPt.lng))}) → Titik B (${decimalToDms(parseFloat(lastPt.lat), parseFloat(lastPt.lng))})`,
+          start_point: {
+            label: 'A',
+            lat: parseFloat(firstPt.lat),
+            lng: parseFloat(firstPt.lng),
+            dms: decimalToDms(parseFloat(firstPt.lat), parseFloat(firstPt.lng))
+          },
+          end_point: {
+            label: 'B',
+            lat: parseFloat(lastPt.lat),
+            lng: parseFloat(lastPt.lng),
+            dms: decimalToDms(parseFloat(lastPt.lat), parseFloat(lastPt.lng))
+          },
+          strokeColor: rt.strokeColor || '#10b981',
+          points: rPts.map((p, idx) => ({
+            lat: parseFloat(p.lat),
+            lng: parseFloat(p.lng),
+            label: idx === 0 ? 'A' : (idx === rPts.length - 1 ? 'B' : `WP-${idx + 1}`),
+            dms: decimalToDms(parseFloat(p.lat), parseFloat(p.lng))
+          }))
+        });
+      });
+
+      captureDetectedData = {
+        points: detectedPoints,
+        polygons: detectedPolygons,
+        patterns: detectedPatterns,
+        routes: detectedRoutes,
+        unit: activeGlobalUnit
+      };
+
+      // Update UI Counters
+      const elPts = document.getElementById('captureCountPoints');
+      const elPolys = document.getElementById('captureCountPolygons');
+      const elPats = document.getElementById('captureCountPatterns');
+      const elRts = document.getElementById('captureCountRoutes');
+      if (elPts) elPts.textContent = String(detectedPoints.length);
+      if (elPolys) elPolys.textContent = String(detectedPolygons.length);
+      if (elPats) elPats.textContent = String(detectedPatterns.length);
+      if (elRts) elRts.textContent = String(detectedRoutes.length);
+
+      const listEl = document.getElementById('captureDetectedList');
+      if (listEl) {
+        const itemsHtml = [];
+        detectedPoints.forEach((p) => {
+          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-slate-800 dark:text-slate-200 truncate">${escapeHtml(p.emoji || '📍')} ${escapeHtml(p.label)} <span class="text-[9px] text-purple-500">(${escapeHtml(p.category)})</span></span><span class="font-mono text-[9px] text-slate-500 shrink-0">${escapeHtml(p.dms)}</span></div>`);
+        });
+        detectedPolygons.forEach((poly) => {
+          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-blue-600 dark:text-blue-400 truncate">📐 ${escapeHtml(poly.name)}</span><span class="font-mono text-[9px] text-slate-500 shrink-0">${escapeHtml(poly.area_text)}</span></div>`);
+        });
+        detectedPatterns.forEach((pat) => {
+          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-orange-600 dark:text-orange-400 truncate">🧭 ${escapeHtml(pat.name)}</span><span class="font-mono text-[9px] text-slate-500 shrink-0">S: ${escapeHtml(pat.spacing_text)}</span></div>`);
+        });
+        detectedRoutes.forEach((rt) => {
+          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-emerald-600 dark:text-emerald-400 truncate">📏 ${escapeHtml(rt.name)}</span><span class="font-mono text-[9px] text-slate-500 shrink-0">${escapeHtml(rt.distance_text)}</span></div>`);
+        });
+
+        if (itemsHtml.length === 0) {
+          listEl.innerHTML = `<div class="text-slate-400 italic text-center py-2">Belum ada komponen di dalam bingkai 16:9. Geser peta atau klik "Paskan Peta".</div>`;
+        } else {
+          listEl.innerHTML = itemsHtml.join('');
+        }
+      }
+    }
+
+    async function fetchOperasiSnapshotMeta(idOp) {
+      if (!idOp || idOp <= 0) {
+        cachedOperasiSnapshots = [];
+        cachedOperasiRenopsList = [];
+        cachedOperasiSitrepList = [];
+        updateCaptureRefDropdown();
+        updateSavedStatusBanner();
+        return;
+      }
+      try {
+        const res = await gisFetch(`${BASE_URL}/api/gis/snapshots?id_operasi=${encodeURIComponent(idOp)}`);
+        const json = await res.json();
+        if (json && json.success) {
+          const rawSnaps = Array.isArray(json.data?.snapshots) ? json.data.snapshots : (Array.isArray(json.snapshots) ? json.snapshots : (Array.isArray(json.data) ? json.data : []));
+          const rawRenops = Array.isArray(json.renops_list) ? json.renops_list : (Array.isArray(json.data?.renops_list) ? json.data.renops_list : []);
+          const rawSitrep = Array.isArray(json.sitrep_list) ? json.sitrep_list : (Array.isArray(json.data?.sitrep_list) ? json.data.sitrep_list : []);
+          cachedOperasiSnapshots = rawSnaps;
+          cachedOperasiRenopsList = rawRenops;
+          cachedOperasiSitrepList = rawSitrep;
+        }
+      } catch (e) {
+        console.warn('[Capture] Gagal memuat metadata snapshot:', e);
+      }
+      updateCaptureRefDropdown();
+      updateSavedStatusBanner();
+    }
+
+    function updateCaptureRefDropdown() {
+      if (!selJenis || !refWrapper || !selRef) return;
+      const jenis = selJenis.value;
+      const prevVal = selRef.value;
+
+      // Requirement 3:
+      // - LAPORAN_AWAL & PENUTUPAN: 1x capture per operasi (id_referensi = NULL)
+      // - RENOPS: Berbeda-beda setiap hari RENOPS (per id_renops)
+      if (jenis === 'RENOPS') {
+        refWrapper.classList.remove('hidden');
+        if (cachedOperasiRenopsList.length === 0) {
+          selRef.innerHTML = `<option value="">⚠️ Belum ada dokumen RENOPS pada operasi ini</option>`;
+        } else {
+          const opts = cachedOperasiRenopsList.map((r) => {
+            return `<option value="${r.id_renops}">🗺️ RENOPS ${escapeHtml(r.hari_ke || '')} (${escapeHtml(r.tanggal_laporan || '')})</option>`;
+          });
+          selRef.innerHTML = opts.join('');
+          if (prevVal && Array.from(selRef.options).some(o => o.value === String(prevVal))) {
+            selRef.value = String(prevVal);
+          } else {
+            selRef.value = String(cachedOperasiRenopsList[0].id_renops);
+          }
+        }
+      } else {
+        refWrapper.classList.add('hidden');
+        selRef.innerHTML = `<option value="">1x Capture Operasi SAR</option>`;
+        selRef.value = '';
+      }
+    }
+
+    function getPrintUrlForSelection(idOp, jenis, idRef) {
+      if (!idOp) return '#';
+      if (jenis === 'LAPORAN_AWAL') return `${BASE_URL}/operasi.php?action=print_laporan_awal&id=${idOp}`;
+      if (jenis === 'RENOPS') {
+        const ref = idRef || (cachedOperasiRenopsList[0] ? cachedOperasiRenopsList[0].id_renops : '');
+        return ref ? `${BASE_URL}/operasi.php?action=print_renops&id_operasi=${idOp}&id_renops=${ref}` : `${BASE_URL}/operasi_detail.php?id=${idOp}&tab=cetak`;
+      }
+      if (jenis === 'PENUTUPAN') return `${BASE_URL}/operasi.php?action=print_penutupan&id=${idOp}`;
+      return `${BASE_URL}/operasi_detail.php?id=${idOp}&tab=cetak`;
+    }
+
+    function updateSavedStatusBanner() {
+      const banner = document.getElementById('captureSavedStatusBanner');
+      if (!banner || !selOperasi || !selJenis) return;
+      const idOp = parseInt(selOperasi.value, 10) || 0;
+      const jenis = selJenis.value;
+      const idRef = (jenis === 'RENOPS' && selRef && selRef.value) ? parseInt(selRef.value, 10) : null;
+
+      if (!idOp) {
+        banner.classList.add('hidden');
+        return;
+      }
+
+      let found = null;
+      if (jenis === 'RENOPS') {
+        found = cachedOperasiSnapshots.find((s) => {
+          return String(s.jenis_dokumen) === 'RENOPS' && parseInt(s.id_referensi, 10) === idRef;
+        });
+      } else {
+        found = cachedOperasiSnapshots.find((s) => String(s.jenis_dokumen) === String(jenis));
+      }
+
+      if (found) {
+        const printUrl = getPrintUrlForSelection(idOp, jenis, idRef);
+        banner.classList.remove('hidden');
+        banner.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <div class="font-extrabold text-emerald-700 dark:text-emerald-300">✓ Snapshot 16:9 Tersedia pada Dokumen Ini</div>
+              <div class="text-[9px] text-slate-500 dark:text-slate-400">Terakhir diperbarui: ${escapeHtml(found.updated_at || '')}</div>
+            </div>
+            <a href="${escapeHtml(printUrl)}" target="_blank" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shrink-0 shadow-xs transition">
+              🖨️ Lihat Cetakan
+            </a>
+          </div>
+        `;
+      } else {
+        banner.classList.add('hidden');
+      }
+    }
+
+    function fitComponentsIntoCaptureBox() {
+      if (!map) return;
+      const coords = [];
+      (savedPoints || []).forEach(p => {
+        if (!isIdHidden(hiddenPointIds, p.id) && p.lat && p.lng) {
+          if (!currentOperasiId || parseInt(p.id_operasi, 10) === currentOperasiId) {
+            coords.push([parseFloat(p.lat), parseFloat(p.lng)]);
+          }
+        }
+      });
+      (savedPolygons || []).forEach(poly => {
+        if (!isIdHidden(hiddenPolygonIds, poly.id) && Array.isArray(poly.points)) {
+          poly.points.forEach(pt => coords.push([parseFloat(pt.lat), parseFloat(pt.lng)]));
+        }
+      });
+      (savedPatterns || []).forEach(pat => {
+        if (!isIdHidden(hiddenPatternIds, pat.id) && Array.isArray(pat.waypoints)) {
+          pat.waypoints.forEach(wp => coords.push([parseFloat(wp.lat), parseFloat(wp.lng)]));
+        }
+      });
+      (savedRoutes || []).forEach(rt => {
+        if (!isIdHidden(hiddenRouteIds, rt.id) && Array.isArray(rt.points)) {
+          rt.points.forEach(pt => coords.push([parseFloat(pt.lat), parseFloat(pt.lng)]));
+        }
+      });
+
+      if (coords.length === 0 && currentOperasi && currentOperasi.koordinat) {
+        const parsed = parseCoordinatesString(currentOperasi.koordinat);
+        if (parsed) coords.push([parsed.lat, parsed.lng]);
+      }
+
+      if (coords.length === 1) {
+        map.setView(coords[0], 13);
+      } else if (coords.length > 1) {
+        const bounds = L.latLngBounds(coords);
+        map.fitBounds(bounds, {
+          paddingTopLeft: [60, 60],
+          paddingBottomRight: [window.innerWidth >= 900 ? 410 : 60, 60],
+          maxZoom: 15
+        });
+      }
+      setTimeout(detectComponentsInCaptureBox, 250);
+    }
+
+    function openCaptureMode(docType = null, refId = null) {
+      isCaptureModeActive = true;
+      overlay.classList.remove('hidden');
+      panel.classList.remove('hidden');
+      btnToggle.classList.remove('bg-emerald-600');
+      btnToggle.classList.add('bg-amber-600', 'ring-2', 'ring-amber-300');
+
+      if (selOperasi && currentOperasiId) {
+        selOperasi.value = String(currentOperasiId);
+      }
+      if (docType && selJenis) {
+        const normalizedDoc = docType === 'SITREP' ? 'PENUTUPAN' : docType;
+        const validDocs = ['LAPORAN_AWAL', 'RENOPS', 'PENUTUPAN'];
+        if (validDocs.includes(normalizedDoc)) {
+          selJenis.value = normalizedDoc;
+        }
+      }
+
+      computeCaptureFrameGeometry();
+      detectComponentsInCaptureBox();
+
+      const opIdToFetch = selOperasi && selOperasi.value ? parseInt(selOperasi.value, 10) : currentOperasiId;
+      fetchOperasiSnapshotMeta(opIdToFetch).then(() => {
+        if (refId && selRef && selJenis && selJenis.value === 'RENOPS') {
+          selRef.value = String(refId);
+          updateSavedStatusBanner();
+        }
+      });
+    }
+
+    function closeCaptureMode() {
+      isCaptureModeActive = false;
+      overlay.classList.add('hidden');
+      panel.classList.add('hidden');
+      btnToggle.classList.remove('bg-amber-600', 'ring-2', 'ring-amber-300');
+      btnToggle.classList.add('bg-emerald-600');
+    }
+
+    /**
+     * Offscreen 1280x720 (16:9) High-Resolution Canvas Synthesizer
+     * Renders map tiles (with proxy fallback) + all active vector layers + icons + tactical HUD
+     */
+    async function renderCaptureCanvas16x9() {
+      const CANVAS_W = 1280;
+      const CANVAS_H = 720;
+      const canvas = document.createElement('canvas');
+      canvas.width = CANVAS_W;
+      canvas.height = CANVAS_H;
+      const ctx = canvas.getContext('2d');
+
+      computeCaptureFrameGeometry();
+      const scaleX = CANVAS_W / Math.max(1, captureBoxRect.width);
+      const scaleY = CANVAS_H / Math.max(1, captureBoxRect.height);
+
+      function latLngToCanvas(lat, lng) {
+        const pt = map.latLngToContainerPoint([lat, lng]);
+        return {
+          x: (pt.x - captureBoxRect.x) * scaleX,
+          y: (pt.y - captureBoxRect.y) * scaleY
+        };
+      }
+
+      // 1. Tactical Maritime Background + Subtle Grid (Fallback if offline)
+      ctx.fillStyle = '#0b1329';
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+      ctx.lineWidth = 1;
+      for (let gx = 0; gx < CANVAS_W; gx += 64) {
+        ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, CANVAS_H); ctx.stroke();
+      }
+      for (let gy = 0; gy < CANVAS_H; gy += 64) {
+        ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(CANVAS_W, gy); ctx.stroke();
+      }
+
+      // 2. Render Web Mercator Map Tiles onto the 1280x720 Canvas
+      function lon2tileX(lon, z) {
+        return ((lon + 180) / 360) * Math.pow(2, z);
+      }
+      function lat2tileY(lat, z) {
+        const rad = (lat * Math.PI) / 180;
+        return ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * Math.pow(2, z);
+      }
+      function tileX2lon(x, z) {
+        return (x / Math.pow(2, z)) * 360 - 180;
+      }
+      function tileY2lat(y, z) {
+        const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, z);
+        return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+      }
+
+      function buildTileUrl(layerType, z, x, y) {
+        const sNum = Math.abs(x + y) % 4;
+        if (layerType === 'satellite') {
+          // Identik dengan Peta Taktis Satelit pada Detail Operasi (Google Satellite HD)
+          return `https://mt${sNum}.google.com/vt/lyrs=s&x=${x}&y=${y}&z=${z}`;
+        }
+        if (layerType === 'roadmap') {
+          return `https://mt${sNum}.google.com/vt/lyrs=m&x=${x}&y=${y}&z=${z}`;
+        }
+        if (layerType === 'terrain') {
+          return `https://mt${sNum}.google.com/vt/lyrs=p&x=${x}&y=${y}&z=${z}`;
+        }
+        if (layerType === 'osm') {
+          const subs = ['a', 'b', 'c'];
+          return `https://${subs[Math.abs(x + y) % 3]}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
+        }
+        // Default: Google Hybrid (Satellite + Labels)
+        return `https://mt${sNum}.google.com/vt/lyrs=y&x=${x}&y=${y}&z=${z}`;
+      }
+
+      function loadImageSafe(rawUrl) {
+        return new Promise((resolve) => {
+          if (!rawUrl) {
+            resolve(null);
+            return;
+          }
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          let settled = false;
+          const timer = setTimeout(() => {
+            if (!settled) { settled = true; resolve(null); }
+          }, 4500);
+
+          img.onload = () => {
+            if (!settled) { settled = true; clearTimeout(timer); resolve(img); }
+          };
+          img.onerror = () => {
+            if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+              const proxyImg = new Image();
+              proxyImg.crossOrigin = 'anonymous';
+              proxyImg.onload = () => {
+                if (!settled) { settled = true; clearTimeout(timer); resolve(proxyImg); }
+              };
+              proxyImg.onerror = () => {
+                if (!settled) { settled = true; clearTimeout(timer); resolve(null); }
+              };
+              proxyImg.src = `${BASE_URL}/api/gis/tile-proxy?url=${encodeURIComponent(rawUrl)}`;
+            } else {
+              if (!settled) { settled = true; clearTimeout(timer); resolve(null); }
+            }
+          };
+          img.src = rawUrl;
+        });
+      }
+
+      if (captureLatLngBounds) {
+        const maxNative = 20;
+        const z = Math.max(4, Math.min(maxNative, Math.round(map.getZoom())));
+        const nw = captureLatLngBounds.getNorthWest();
+        const se = captureLatLngBounds.getSouthEast();
+
+        const minX = Math.floor(lon2tileX(nw.lng, z));
+        const maxX = Math.floor(lon2tileX(se.lng, z));
+        const minY = Math.floor(lat2tileY(nw.lat, z));
+        const maxY = Math.floor(lat2tileY(se.lat, z));
+
+        const tileJobs = [];
+        for (let tx = minX; tx <= maxX; tx++) {
+          for (let ty = minY; ty <= maxY; ty++) {
+            if (tx < 0 || ty < 0) continue;
+            const url = buildTileUrl(activeBasemap, z, tx, ty);
+            const tNW = latLngToCanvas(tileY2lat(ty, z), tileX2lon(tx, z));
+            const tSE = latLngToCanvas(tileY2lat(ty + 1, z), tileX2lon(tx + 1, z));
+            tileJobs.push(
+              loadImageSafe(url).then((img) => ({
+                img,
+                x: tNW.x,
+                y: tNW.y,
+                w: tSE.x - tNW.x,
+                h: tSE.y - tNW.y
+              }))
+            );
+          }
+        }
+
+        const loadedTiles = await Promise.all(tileJobs);
+        loadedTiles.forEach((t) => {
+          if (t.img && t.w > 0 && t.h > 0) {
+            ctx.drawImage(t.img, t.x - 0.5, t.y - 0.5, t.w + 1, t.h + 1);
+          }
+        });
+      }
+
+      // 3. Draw Search Areas (Polygons / Rectangles / Circles) with Corner Badges A, B, C, D
+      captureDetectedData.polygons.forEach((poly) => {
+        const strokeColor = poly.strokeColor || '#ea580c';
+        const fillColor = poly.fillColor || strokeColor;
+        ctx.save();
+
+        if (poly.shapeType === 'circle' && poly.centerLat && poly.centerLng) {
+          const cPt = latLngToCanvas(poly.centerLat, poly.centerLng);
+          const edgeLat = poly.centerLat + (poly.radiusNm || 1.0) / 60.0;
+          const ePt = latLngToCanvas(edgeLat, poly.centerLng);
+          const rPx = Math.max(8, Math.hypot(ePt.x - cPt.x, ePt.y - cPt.y));
+
+          ctx.beginPath();
+          ctx.arc(cPt.x, cPt.y, rPx, 0, Math.PI * 2);
+          ctx.fillStyle = hexToRgba(fillColor, 0.22);
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = strokeColor;
+          ctx.stroke();
+          // Requirement 5: Nama search area pada hasil capture peta tidak perlu tampil
+        } else if (Array.isArray(poly.points) && poly.points.length >= 3) {
+          const cPts = poly.points.map(p => latLngToCanvas(p.lat, p.lng));
+          ctx.beginPath();
+          cPts.forEach((pt, idx) => {
+            if (idx === 0) ctx.moveTo(pt.x, pt.y);
+            else ctx.lineTo(pt.x, pt.y);
+          });
+          ctx.closePath();
+          ctx.fillStyle = hexToRgba(fillColor, 0.22);
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = strokeColor;
+          ctx.stroke();
+
+          // Requirement 7: Titik A, B, C, D pada Polygon dan Persegi
+          let sumX = 0, sumY = 0;
+          cPts.forEach((pt, idx) => {
+            sumX += pt.x;
+            sumY += pt.y;
+            const cornerLetter = extractCornerLetter(poly.points[idx].label, idx);
+            drawCanvasCircleBadge(ctx, pt.x, pt.y, cornerLetter, strokeColor);
+          });
+          // Requirement 5: Nama search area pada hasil capture peta tidak perlu tampil
+        }
+        ctx.restore();
+      });
+
+      // 4. Draw Search Patterns (Tracks & Directional Arrows ONLY — NO Start/Exit 'S'/'E' badges per Requirement 7)
+      captureDetectedData.patterns.forEach((pat) => {
+        const wps = pat.waypoints || [];
+        if (wps.length < 2) return;
+        const cWps = wps.map(w => ({ ...latLngToCanvas(w.lat, w.lng), raw: w }));
+        const patColor = pat.strokeColor || '#06b6d4';
+
+        ctx.save();
+        // Dark halo casing for visibility over satellite
+        ctx.beginPath();
+        cWps.forEach((pt, idx) => {
+          if (idx === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.lineWidth = 5.5;
+        ctx.strokeStyle = 'rgba(15, 23, 42, 0.75)';
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        // Main pattern track
+        ctx.beginPath();
+        cWps.forEach((pt, idx) => {
+          if (idx === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = patColor;
+        ctx.stroke();
+
+        // Directional arrows along segments
+        for (let i = 0; i < cWps.length - 1; i++) {
+          const p1 = cWps[i];
+          const p2 = cWps[i + 1];
+          const segLen = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          if (segLen > 32) {
+            const mx = (p1.x + p2.x) / 2;
+            const my = (p1.y + p2.y) / 2;
+            const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+            drawCanvasArrowHead(ctx, mx, my, angle, patColor);
+          }
+        }
+        ctx.restore();
+      });
+
+      // 5. Draw Routes (Navigation Lines, Distance Pill, and ONLY Start Point 'A' & End Point 'B' per Requirement 7)
+      captureDetectedData.routes.forEach((rt) => {
+        const rPts = rt.points || [];
+        if (rPts.length < 2) return;
+        const cPts = rPts.map(p => latLngToCanvas(p.lat, p.lng));
+        const rColor = rt.strokeColor || '#10b981';
+
+        ctx.save();
+        ctx.beginPath();
+        cPts.forEach((pt, idx) => {
+          if (idx === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.setLineDash([10, 6]);
+        cPts.forEach((pt, idx) => {
+          if (idx === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = rColor;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Requirement 7: Titik A ke B pada Jalur Manual (hanya Titik Awal A dan Titik Akhir B, bukan titik keseluruhan jalur)
+        const startPt = cPts[0];
+        const endPt = cPts[cPts.length - 1];
+        drawCanvasCircleBadge(ctx, startPt.x, startPt.y, 'A', '#16a34a');
+        drawCanvasCircleBadge(ctx, endPt.x, endPt.y, 'B', '#dc2626');
+
+        const midIdx = Math.floor((cPts.length - 1) / 2);
+        const mx = (cPts[midIdx].x + cPts[midIdx + 1].x) / 2;
+        const my = (cPts[midIdx].y + cPts[midIdx + 1].y) / 2;
+        drawCanvasPillLabel(ctx, mx, my - 14, `${rt.name}: ${rt.distance_text}`, '#ffffff', '#0f172a', rColor);
+        ctx.restore();
+      });
+
+      // 6. Draw Tactical Points WITH their Component Icons (Custom Image, Alphabet, LKP Target, or Preset Emoji)
+      const pointCustomImages = await Promise.all(
+        captureDetectedData.points.map((pt) =>
+          pt.customIconUrl ? loadImageSafe(pt.customIconUrl) : Promise.resolve(null)
+        )
+      );
+
+      captureDetectedData.points.forEach((pt, idx) => {
+        const cPt = latLngToCanvas(pt.lat, pt.lng);
+        const isLkp = pt.category === 'LKP' || pt.pointType === 'lkp';
+        const isKorban = pt.category === 'Penemuan Korban' || pt.category === 'Lokasi Penemuan Korban';
+        const pinColor = pt.color || (isLkp ? '#dc2626' : (isKorban ? '#d97706' : '#ea580c'));
+        const customImg = pointCustomImages[idx];
+
+        ctx.save();
+        // Outer tactical pulse ring for LKP / Korban
+        if (isLkp || isKorban) {
+          ctx.beginPath();
+          ctx.arc(cPt.x, cPt.y - 22, 20, 0, Math.PI * 2);
+          ctx.fillStyle = hexToRgba(pinColor, 0.28);
+          ctx.fill();
+        }
+
+        // Draw Teardrop Pin Body anchored at (cPt.x, cPt.y) with head center at (cPt.x, cPt.y - 24)
+        const headY = cPt.y - 24;
+        const headR = 14;
+        ctx.beginPath();
+        ctx.arc(cPt.x, headY, headR, Math.PI * 0.82, Math.PI * 0.18, false);
+        ctx.lineTo(cPt.x, cPt.y);
+        ctx.closePath();
+        ctx.fillStyle = pinColor;
+        ctx.fill();
+        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+
+        // Inner white circle for icon
+        ctx.beginPath();
+        ctx.arc(cPt.x, headY, 10.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+
+        // Render specific Point Icon inside the white circle
+        if (customImg) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(cPt.x, headY, 9.5, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.drawImage(customImg, cPt.x - 9.5, headY - 9.5, 19, 19);
+          ctx.restore();
+        } else if (pt.pointType === 'alphabet') {
+          ctx.fillStyle = pinColor;
+          ctx.font = '900 12px Arial, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(String(pt.alphabetChar || 'A').toUpperCase(), cPt.x, headY + 0.5);
+        } else if (pt.pointType === 'lkp' || pt.pointType === 'target') {
+          ctx.beginPath();
+          ctx.arc(cPt.x, headY, 8.5, 0, Math.PI * 2);
+          ctx.fillStyle = pinColor;
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(cPt.x, headY, 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(cPt.x - 8.5, headY);
+          ctx.lineTo(cPt.x + 8.5, headY);
+          ctx.moveTo(cPt.x, headY - 8.5);
+          ctx.lineTo(cPt.x, headY + 8.5);
+          ctx.stroke();
+        } else {
+          const iconEmoji = pt.emoji || '📍';
+          ctx.font = '13px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", Arial, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(iconEmoji, cPt.x, headY + 1);
+        }
+
+        // Point Label pill above pin
+        const titleText = `${pt.label}`;
+        drawCanvasPillLabel(ctx, cPt.x, headY - 25, titleText, '#0f172a', '#ffffff', pinColor);
+        ctx.restore();
+      });
+
+      // 7. Draw Official Basarnas 16:9 Tactical Frame Header, Compass Rose & Coordinate Footer
+      drawCaptureHudOverlay(ctx, CANVAS_W, CANVAS_H);
+
+      return canvas.toDataURL('image/png', 0.92);
+    }
+
+    function hexToRgba(hex, alpha) {
+      const clean = String(hex || '#ea580c').replace('#', '');
+      const num = parseInt(clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean, 16);
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function drawCanvasPillLabel(ctx, x, y, text, bgHex, textHex, borderHex) {
+      ctx.save();
+      ctx.font = 'bold 11px Arial, sans-serif';
+      const padX = 8;
+      const metrics = ctx.measureText(text);
+      const w = Math.min(360, metrics.width + padX * 2);
+      const h = 20;
+      const rx = Math.max(8, Math.min(1280 - w - 8, x - w / 2));
+      const ry = Math.max(42, Math.min(720 - h - 32, y - h / 2));
+
+      ctx.fillStyle = bgHex === '#0f172a' ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.94)';
+      ctx.strokeStyle = borderHex || '#ea580c';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(rx, ry, w, h, 5);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = textHex || '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, rx + w / 2, ry + h / 2, w - 8);
+      ctx.restore();
+    }
+
+    function drawCanvasArrowHead(ctx, x, y, angleRad, color) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angleRad);
+      ctx.beginPath();
+      ctx.moveTo(7, 0);
+      ctx.lineTo(-6, -5);
+      ctx.lineTo(-3, 0);
+      ctx.lineTo(-6, 5);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawCanvasCircleBadge(ctx, x, y, char, bgHex) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.fillStyle = bgHex;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(char, x, y);
+      ctx.restore();
+    }
+
+    function drawCaptureHudOverlay(ctx, w, h) {
+      ctx.save();
+      // Top-left official badge
+      const opId = selOperasi && selOperasi.value ? parseInt(selOperasi.value, 10) : currentOperasiId;
+      const opObj = operasiList.find(o => parseInt(o.id_operasi, 10) === opId) || currentOperasi;
+      const opTitle = opObj ? `OPS #${opObj.id_operasi} - ${opObj.nama_operasi}` : 'PETA TAKTIS OPERASI SAR';
+      const docLabelMap = {
+        LAPORAN_AWAL: 'LAPORAN AWAL OPERASI SAR',
+        RENOPS: 'RENCANA OPERASI SAR (RENOPS)',
+        SITREP: 'LAPORAN PERKEMBANGAN (SITREP)',
+        PENUTUPAN: 'BERITA ACARA PENUTUPAN OPS SAR'
+      };
+      const selectedJenis = selJenis?.value || 'LAPORAN_AWAL';
+      let docTitle = docLabelMap[selectedJenis] || 'DOKUMEN OPERASI SAR';
+      if (selectedJenis === 'RENOPS' && selRef && selRef.value) {
+        const foundRenops = cachedOperasiRenopsList.find(r => String(r.id_renops) === String(selRef.value));
+        if (foundRenops && foundRenops.hari_ke) {
+          docTitle = `RENCANA OPERASI SAR (RENOPS ${foundRenops.hari_ke})`;
+        }
+      }
+
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      ctx.strokeStyle = '#ea580c';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(14, 12, 540, 44, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#f97316';
+      ctx.font = 'bold 11px Arial, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(`BASARNAS KENDARI • ${docTitle}`, 26, 19);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px Arial, sans-serif';
+      ctx.fillText(String(opTitle).substring(0, 62), 26, 35);
+
+      // Top-right Compass Rose (Utara / North)
+      const cx = w - 42;
+      const cy = 42;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 24, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#94a3b8';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 16);
+      ctx.lineTo(cx + 6, cy + 4);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(cx - 6, cy + 4);
+      ctx.closePath();
+      ctx.fillStyle = '#ef4444';
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 10px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('U', cx, cy + 16);
+
+      // Bottom Coordinate & Unit Bar
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      ctx.fillRect(0, h - 26, w, 26);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = 'bold 11px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const nw = captureLatLngBounds ? captureLatLngBounds.getNorthWest() : { lat: -4.03, lng: 122.48 };
+      const se = captureLatLngBounds ? captureLatLngBounds.getSouthEast() : { lat: -4.05, lng: 122.52 };
+      ctx.fillText(
+        `WGS 84 | NW: ${decimalToDms(nw.lat, nw.lng)} • SE: ${decimalToDms(se.lat, se.lng)} | Satuan: ${activeGlobalUnit}`,
+        14,
+        h - 13
+      );
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#fb923c';
+      ctx.fillText(
+        `Komponen: ${captureDetectedData.points.length} Titik • ${captureDetectedData.polygons.length} Area • ${captureDetectedData.patterns.length} Pola • ${captureDetectedData.routes.length} Jalur`,
+        w - 14,
+        h - 13
+      );
+      ctx.restore();
+    }
+
+    // Event Listeners
+    btnToggle.addEventListener('click', () => {
+      if (isCaptureModeActive) {
+        closeCaptureMode();
+      } else {
+        openCaptureMode();
+      }
+    });
+
+    if (btnClose) {
+      btnClose.addEventListener('click', closeCaptureMode);
+    }
+
+    if (btnFit) {
+      btnFit.addEventListener('click', fitComponentsIntoCaptureBox);
+    }
+
+    if (selOperasi) {
+      selOperasi.addEventListener('change', () => {
+        const val = parseInt(selOperasi.value, 10);
+        if (val > 0) {
+          const mainSel = document.getElementById('selectGisOperasi');
+          if (mainSel && mainSel.value !== String(val)) {
+            mainSel.value = String(val);
+            mainSel.dispatchEvent(new Event('change'));
+          }
+          fetchOperasiSnapshotMeta(val);
+          setTimeout(fitComponentsIntoCaptureBox, 300);
+        } else {
+          fetchOperasiSnapshotMeta(0);
+        }
+      });
+    }
+
+    if (selJenis) {
+      selJenis.addEventListener('change', () => {
+        updateCaptureRefDropdown();
+        updateSavedStatusBanner();
+      });
+    }
+
+    if (selRef) {
+      selRef.addEventListener('change', updateSavedStatusBanner);
+    }
+
+    if (btnSave) {
+      btnSave.addEventListener('click', async () => {
+        const idOp = selOperasi && selOperasi.value ? parseInt(selOperasi.value, 10) : currentOperasiId;
+        if (!idOp || idOp <= 0) {
+          alert('Silakan pilih Operasi SAR terlebih dahulu pada dropdown nomor 1 sebelum melakukan Capture Peta.');
+          if (selOperasi) selOperasi.focus();
+          return;
+        }
+
+        const jenis = selJenis ? selJenis.value : 'LAPORAN_AWAL';
+        const idRef = (jenis === 'RENOPS' && selRef && selRef.value) ? parseInt(selRef.value, 10) : null;
+        if (jenis === 'RENOPS' && (!idRef || idRef <= 0)) {
+          alert('Silakan pilih Hari RENOPS tujuan terlebih dahulu (atau buat dokumen RENOPS pada operasi ini).');
+          return;
+        }
+        const keterangan = inputKet ? inputKet.value.trim() : '';
+
+        const origHtml = btnSave.innerHTML;
+        btnSave.disabled = true;
+        btnSave.innerHTML = `<span>⏳ Merender Peta 16:9...</span>`;
+
+        try {
+          detectComponentsInCaptureBox();
+          const dataUrl = await renderCaptureCanvas16x9();
+          const nw = captureLatLngBounds ? captureLatLngBounds.getNorthWest() : { lat: -4.037, lng: 122.486 };
+          const se = captureLatLngBounds ? captureLatLngBounds.getSouthEast() : { lat: -4.05, lng: 122.52 };
+
+          const payload = {
+            id_operasi: idOp,
+            jenis_dokumen: jenis,
+            id_referensi: idRef,
+            image_base64: dataUrl,
+            bounds: {
+              north: nw.lat,
+              west: nw.lng,
+              south: se.lat,
+              east: se.lng,
+              zoom: map ? map.getZoom() : 11,
+              basemap: activeBasemap
+            },
+            komponen: captureDetectedData,
+            keterangan_tambahan: keterangan
+          };
+
+          const res = await gisFetch(`${BASE_URL}/api/gis/snapshots`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          const json = await res.json();
+          if (json && json.success) {
+            await fetchOperasiSnapshotMeta(idOp);
+            btnSave.innerHTML = `<span>✅ Tersimpan ke Dokumen!</span>`;
+            setTimeout(() => {
+              btnSave.disabled = false;
+              btnSave.innerHTML = origHtml;
+            }, 1800);
+          } else {
+            throw new Error((json && json.message) ? json.message : 'Gagal menyimpan snapshot peta.');
+          }
+        } catch (err) {
+          console.error('[Capture Error]', err);
+          alert('Gagal menyimpan capture peta: ' + (err.message || err));
+          btnSave.disabled = false;
+          btnSave.innerHTML = origHtml;
+        }
+      });
+    }
+
+    if (map) {
+      map.on('moveend zoomend resize', () => {
+        if (isCaptureModeActive) {
+          detectComponentsInCaptureBox();
+        }
+      });
+    }
+    window.addEventListener('resize', () => {
+      if (isCaptureModeActive) {
+        detectComponentsInCaptureBox();
+      }
+    });
+
+    // Auto-open if URL has ?capture_doc=...
+    if (initialData.captureDocParam) {
+      setTimeout(() => {
+        openCaptureMode(initialData.captureDocParam, initialData.captureRefParam || null);
+        fitComponentsIntoCaptureBox();
+      }, 450);
+    }
+  }
+
+  // ==========================================
   // 14. BOOTSTRAP APPLICATION
   // ==========================================
 
@@ -5975,19 +7851,27 @@
       setTimeout(bootstrapApp, 50);
       return;
     }
-    initLeafletMap();
-    initLocationSearchBar();
-    initPointCreatorUI();
-    initPolygonManagerUI();
-    initSearchPatternUI();
-    initMeasureDistanceUI();
-    initPrintModalUI();
-    initTabSwitcher();
-    initSidebarToggle();
-    initBasemapSwitcher();
-    initExportDropdown();
-    initFullscreenToggle();
-    initOperasiSelector();
+
+    // 1. Inisialisasi Kontrol Navigasi & UI Shell Terlebih Dahulu (Tab, Sidebar, Basemap, dll)
+    // Memastikan tab dan tombol SELALU responsif dan dapat diklik dalam kondisi apa pun
+    try { initTabSwitcher(); } catch (e) { console.error('[GIS Bootstrap] TabSwitcher error:', e); }
+    try { initSidebarToggle(); } catch (e) { console.error('[GIS Bootstrap] SidebarToggle error:', e); }
+    try { initBasemapSwitcher(); } catch (e) { console.error('[GIS Bootstrap] BasemapSwitcher error:', e); }
+    try { initGlobalUnitSwitcher(); } catch (e) { console.error('[GIS Bootstrap] GlobalUnitSwitcher error:', e); }
+    try { initExportDropdown(); } catch (e) { console.error('[GIS Bootstrap] ExportDropdown error:', e); }
+    try { initFullscreenToggle(); } catch (e) { console.error('[GIS Bootstrap] FullscreenToggle error:', e); }
+    try { initOperasiSelector(); } catch (e) { console.error('[GIS Bootstrap] OperasiSelector error:', e); }
+
+    // 2. Inisialisasi Inti Peta Geospasial Leaflet
+    try { initLeafletMap(); } catch (e) { console.error('[GIS Bootstrap] LeafletMap error:', e); }
+
+    // 3. Inisialisasi Modul Fitur Taktis (Pencarian Lokasi, Titik, Search Area, Pola, Rute, Capture Cetak)
+    try { initLocationSearchBar(); } catch (e) { console.error('[GIS Bootstrap] LocationSearchBar error:', e); }
+    try { initPointCreatorUI(); } catch (e) { console.error('[GIS Bootstrap] PointCreatorUI error:', e); }
+    try { initPolygonManagerUI(); } catch (e) { console.error('[GIS Bootstrap] PolygonManagerUI error:', e); }
+    try { initSearchPatternUI(); } catch (e) { console.error('[GIS Bootstrap] SearchPatternUI error:', e); }
+    try { initMeasureDistanceUI(); } catch (e) { console.error('[GIS Bootstrap] MeasureDistanceUI error:', e); }
+    try { initDocumentCaptureUI(); } catch (e) { console.error('[GIS Bootstrap] DocumentCaptureUI error:', e); }
   }
 
   if (document.readyState === 'loading') {

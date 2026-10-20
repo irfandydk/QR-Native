@@ -108,7 +108,10 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
     <style>
         @page {
             size: A4 portrait;
-            margin: 10mm 15mm 12mm 15mm;
+            margin: 15mm 15mm 12mm 15mm;
+        }
+        @page :first {
+            margin-top: 10mm;
         }
         @media print {
             html, body {
@@ -147,19 +150,41 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
             width: 210mm;
             min-height: 297mm;
             margin: 1rem auto;
-            padding: 15mm 18mm;
+            padding: 12mm 16mm 14mm 16mm;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
             border-radius: 2px;
             box-sizing: border-box;
             transition: transform 0.2s ease-in-out;
+            overflow-x: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .page-sheet *, .page-sheet *::before, .page-sheet *::after {
+            box-sizing: border-box !important;
+            max-width: 100%;
+        }
+        .page-sheet table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
         }
         .table-borderless td {
             padding: 2px 4px;
             vertical-align: top;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
         }
         .table-dinas th, .table-dinas td {
             border: 1px solid #000000;
             padding: 4px 6px;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            word-break: break-word !important;
+        }
+        .text-justify {
+            text-align: justify !important;
+            text-justify: inter-word;
         }
     </style>
 </head>
@@ -189,6 +214,15 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                     </button>
                 </div>
+
+                <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=PENUTUPAN" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-950/60 hover:bg-orange-900/70 border border-orange-700/60 text-xs font-semibold text-orange-300 transition" title="Capture / Perbarui Area Peta 16:9 untuk Berita Acara Penutupan ini (1x)">
+                    <span>📸 Capture Peta 16:9</span>
+                </a>
+
+                <button type="button" id="btnDownloadPdf" data-pdf-filename="BERITA_ACARA_PENUTUPAN_OPS_<?= (int)$id ?>_<?= e($operasi['nama_operasi']) ?>" onclick="downloadOfficialPdf(null, this)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="Download Dokumen Elektronik PDF (Ukuran Optimal A4 Portrait)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    <span>Download PDF</span>
+                </button>
 
                 <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-sm cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
@@ -289,14 +323,22 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
             </div>
 
             <!-- PERTIMBANGAN & KONSENSUS MUSYAWARAH -->
-            <div class="mb-3 break-inside-avoid text-justify text-[9.5pt]">
-                <p class="font-bold uppercase text-[9.5pt] mb-1">
+            <div class="mb-3 text-justify text-[9.5pt]" style="page-break-inside: auto; break-inside: auto;">
+                <p class="font-bold uppercase text-[9.5pt] mb-1" style="page-break-after: avoid; break-after: avoid;">
                     HASIL EVALUASI DAN PERTIMBANGAN PENUTUPAN:
                 </p>
-                <div class="border border-slate-300 bg-slate-50 p-2.5 rounded text-[9pt] leading-normal mb-2 italic">
+                <div class="border border-slate-300 bg-slate-50 p-2.5 rounded text-[9pt] leading-normal mb-2 italic" style="page-break-inside: auto; break-inside: auto;">
                     <?= nl2br(e($laporan['isi_laporan'] ?? 'Seluruh sektor pencarian telah disisir secara optimal oleh Tim SAR Gabungan sesuai Rencana Operasi. Korban telah berhasil dievakuasi dan diserahterimakan kepada pihak keluarga/rumah sakit setempat.')) ?>
                 </div>
-                <p class="indent-8">
+
+                <?php
+                require_once __DIR__ . '/../../models/DokumenPetaSnapshotModel.php';
+                $mapSnapshot = DokumenPetaSnapshotModel::getSnapshot((int)$id, 'PENUTUPAN');
+                $mapSnapshotSectionTitle = 'VISUALISASI PETA REKAPITULASI AREA PENCARIAN & PENEMUAN KORBAN (RASIO 16:9)';
+                include __DIR__ . '/partials/print_map_snapshot_block.php';
+                ?>
+
+                <p class="indent-8 mt-2">
                     Berdasarkan hasil evaluasi pelaksanaan operasi pencarian dan pertolongan yang telah dilaksanakan oleh Tim SAR Gabungan, serta setelah dilakukan musyawarah mufakat bersama unsur Potensi SAR terkait dan perwakilan pihak keluarga korban, maka para pihak yang bertanda tangan di bawah ini secara bersama-sama menyatakan sepakat:
                 </p>
             </div>
@@ -384,8 +426,10 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
     <!-- Hidden Raw WA text container for copying -->
     <div id="raw-wa-text-holder" class="hidden"><?= htmlspecialchars($fullWaText) ?></div>
 
-    <!-- QR Code Script -->
+    <!-- QR Code & PDF Exporter Scripts -->
     <script src="<?= BASE_URL ?>/assets/vendor/qrcode/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
+    <script src="<?= BASE_URL ?>/assets/vendor/html2pdf/html2pdf.bundle.min.js?v=<?= APP_VERSION ?>"></script>
+    <script src="<?= BASE_URL ?>/assets/js/pdf_document_exporter.js?v=<?= APP_VERSION ?>_<?= @filemtime(dirname(__DIR__, 2) . '/assets/js/pdf_document_exporter.js') ?: time() ?>"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const verifyUrl = <?= jsonSafe($verifyUrl) ?>;

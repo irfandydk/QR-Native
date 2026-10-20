@@ -238,7 +238,7 @@
   /**
    * Generate search pattern fitted strictly inside polygon boundary
    */
-  function generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount) {
+  function generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount, options = {}) {
     const cleanPoints = (polygonPoints || []).map((p) => ({
       lat: parseFloat(p.lat),
       lng: parseFloat(p.lng),
@@ -300,6 +300,16 @@
           });
         }
       }
+
+      if (points.length < 2) {
+        const stepY = spanLat / Math.max(1, effectiveLegs - 1);
+        for (let i = 0; i < effectiveLegs; i++) {
+          const curLat = effMaxLat - i * stepY;
+          const sweepEast = i % 2 === 0;
+          points.push({ lat: curLat, lng: sweepEast ? minLng + safeMarginLng : maxLng - safeMarginLng, label: i === 0 ? 'Entry (S)' : `Lintasan ${i + 1}A` });
+          points.push({ lat: curLat, lng: sweepEast ? maxLng - safeMarginLng : minLng + safeMarginLng, label: i === effectiveLegs - 1 ? 'Exit (E)' : `Lintasan ${i + 1}B` });
+        }
+      }
     } else if (type === 'creeping_line') {
       const effMinLng = minLng + safeMarginLng;
       const effMaxLng = maxLng - safeMarginLng;
@@ -329,46 +339,25 @@
           });
         }
       }
-    } else if (type === 'expanding_square') {
-      // Expanding Square (SS)
-      const startPt = { lat: centroid.lat, lng: centroid.lng };
-      points.push({ lat: startPt.lat, lng: startPt.lng, label: 'Datum Centroid (S)' });
 
-      let curPt = { lat: startPt.lat, lng: startPt.lng };
-      let curX = 0, curY = 0, step = 1, dir = 0;
-      const totalLegs = effectiveLegs * 2;
-      const safeBufferDeg = Math.min(spanLat, spanLng) * 0.03;
-
-      for (let leg = 1; leg <= totalLegs; leg++) {
-        const legKm = step * spacingKm;
-        if (dir === 0) curX += legKm;       // East
-        else if (dir === 1) curY -= legKm;  // South
-        else if (dir === 2) curX -= legKm;  // West
-        else if (dir === 3) curY += legKm;  // North
-
-        const rawTarget = {
-          lat: startPt.lat + curY / 110.574,
-          lng: startPt.lng + curX / lngKmPerDeg
-        };
-
-        const clipped = clipSegmentToPolygon(curPt, rawTarget, cleanPoints, safeBufferDeg);
-        points.push({
-          lat: clipped.lat,
-          lng: clipped.lng,
-          label: leg === totalLegs ? 'Exit (E)' : `WP-${leg}`
-        });
-        curPt = { lat: clipped.lat, lng: clipped.lng };
-
-        if (leg % 2 === 0) step += 1;
-        dir = (dir + 1) % 4;
+      if (points.length < 2) {
+        const stepX = spanLng / Math.max(1, effectiveLegs - 1);
+        for (let i = 0; i < effectiveLegs; i++) {
+          const curLng = effMinLng + i * stepX;
+          const sweepSouth = i % 2 === 0;
+          points.push({ lat: sweepSouth ? maxLat - safeMarginLat : minLat + safeMarginLat, lng: curLng, label: i === 0 ? 'Entry (S)' : `Sapu ${i + 1}A` });
+          points.push({ lat: sweepSouth ? minLat + safeMarginLat : maxLat - safeMarginLat, lng: curLng, label: i === effectiveLegs - 1 ? 'Exit (E)' : `Sapu ${i + 1}B` });
+        }
       }
     } else {
-      // 4. Pola Pencarian E-SAR (Explorer SAR - Darat / Gunung Hutan)
+      // 3. Pola Pencarian E-SAR (Explorer SAR - Darat / Gunung Hutan)
       const personnelCount = Math.max(2, effectiveLegs || 5);
       const spanLatKm = (maxLat - minLat) * 110.574;
       const spanLngKm = (maxLng - minLng) * lngKmPerDeg;
+      const orient = (options && options.orientation) ? options.orientation : (spanLatKm >= spanLngKm ? 'vertical' : 'horizontal');
+      const dir = (options && options.direction) ? options.direction : (orient === 'vertical' ? 'north_to_south' : 'west_to_east');
 
-      if (spanLatKm >= spanLngKm) {
+      if (orient === 'vertical') {
         const effMinLng = minLng + safeMarginLng;
         const effMaxLng = maxLng - safeMarginLng;
         const stepX = (effMaxLng - effMinLng) / Math.max(1, personnelCount - 1);
@@ -381,8 +370,15 @@
             const top = inters[inters.length - 1] - safeMarginLat;
             const pNum = i + 1;
 
-            points.push({ lat: top, lng: curLng, label: `P${pNum} Start (Baseline)` });
-            points.push({ lat: bottom, lng: curLng, label: `P${pNum} Batas Maju` });
+            if (dir === 'south_to_north') {
+              // Maju dari Selatan ke Utara
+              points.push({ lat: bottom, lng: curLng, label: `P${pNum} Start (Selatan)`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'north', bearing: 0 });
+              points.push({ lat: top, lng: curLng, label: `P${pNum} Batas Maju (Utara)`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'north', bearing: 0 });
+            } else {
+              // Maju dari Utara ke Selatan (default)
+              points.push({ lat: top, lng: curLng, label: `P${pNum} Start (Utara)`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'south', bearing: 180 });
+              points.push({ lat: bottom, lng: curLng, label: `P${pNum} Batas Maju (Selatan)`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'south', bearing: 180 });
+            }
           }
         }
       } else {
@@ -398,20 +394,27 @@
             const east = inters[inters.length - 1] - safeMarginLng;
             const pNum = i + 1;
 
-            points.push({ lat: curLat, lng: west, label: `P${pNum} Start (Baseline)` });
-            points.push({ lat: curLat, lng: east, label: `P${pNum} Batas Maju` });
+            if (dir === 'east_to_west') {
+              // Maju dari Timur ke Barat
+              points.push({ lat: curLat, lng: east, label: `P${pNum} Start (Timur)`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'west', bearing: 270 });
+              points.push({ lat: curLat, lng: west, label: `P${pNum} Batas Maju (Barat)`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'west', bearing: 270 });
+            } else {
+              // Maju dari Barat ke Timur (default)
+              points.push({ lat: curLat, lng: west, label: `P${pNum} Start (Barat)`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'east', bearing: 90 });
+              points.push({ lat: curLat, lng: east, label: `P${pNum} Batas Maju (Timur)`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'east', bearing: 90 });
+            }
           }
         }
       }
     }
 
-    // Boundary containment verification
+    // Boundary containment verification: pertahankan properti sweepDir, pNum, bearing
     return points.map((p) => {
       if (!isPointInPolygon(p.lat, p.lng, cleanPoints)) {
         return {
+          ...p,
           lat: p.lat * 0.88 + centroid.lat * 0.12,
-          lng: p.lng * 0.88 + centroid.lng * 0.12,
-          label: p.label
+          lng: p.lng * 0.88 + centroid.lng * 0.12
         };
       }
       return p;
@@ -421,7 +424,7 @@
   /**
    * Generate fallback datum pattern around center coordinate
    */
-  function generateDatumPattern(type, center, spacingNm, legsCount) {
+  function generateDatumPattern(type, center, spacingNm, legsCount, options = {}) {
     let c = center;
     if (!c || typeof c.lat !== 'number' || isNaN(c.lat)) {
       c = { lat: -4.037694, lng: 122.486694 };
@@ -435,7 +438,7 @@
       { lat: c.lat - spanDeg / 2, lng: c.lng + spanDeg / 2 },
       { lat: c.lat - spanDeg / 2, lng: c.lng - spanDeg / 2 }
     ];
-    return generateFittedPatternInsidePolygon(type, fakePolygon, spacingNm, legsCount);
+    return generateFittedPatternInsidePolygon(type, fakePolygon, spacingNm, legsCount, options);
   }
 
   /**
@@ -504,7 +507,6 @@
   function getPatternDisplayName(type) {
     if (type === 'parallel_track') return 'Parallel Track (PS)';
     if (type === 'creeping_line') return 'Creeping Line (CS)';
-    if (type === 'expanding_square') return 'Expanding Square (SS)';
     if (type === 'sector_search' || type === 'e_sar') return 'Pola Pencarian E-SAR';
     return 'Lintasan IAMSAR';
   }

@@ -49,6 +49,11 @@ class GisApiController extends BaseApiController {
             return true;
         }
 
+        // 9. Document Map Snapshots (Capture 16:9 for Official Printouts)
+        if (self::handleSnapshotsRoute($path, $method, $input)) {
+            return true;
+        }
+
         return false;
     }
 
@@ -667,5 +672,129 @@ class GisApiController extends BaseApiController {
             'eta_text' => $etaText,
             'dms' => GeoHelper::decimalToDms($destLat, $destLng)
         ]);
+    }
+
+    private static function handleSnapshotsRoute(string $path, string $method, array $input): bool {
+        if (($path === '/gis/snapshot' || $path === '/gis/snapshots') && $method === 'GET') {
+            self::requireAuth();
+            $idOperasi = isset($_GET['id_operasi']) ? (int)$_GET['id_operasi'] : 0;
+            $jenisDokumen = isset($_GET['jenis_dokumen']) ? trim((string)$_GET['jenis_dokumen']) : '';
+            $idReferensi = isset($_GET['id_referensi']) && $_GET['id_referensi'] !== '' ? (int)$_GET['id_referensi'] : null;
+
+            if ($idOperasi <= 0) {
+                self::json(['success' => true, 'data' => [], 'renops_list' => [], 'sitrep_list' => []]);
+                return true;
+            }
+
+            if ($jenisDokumen !== '') {
+                $snap = DokumenPetaSnapshotModel::getSnapshot($idOperasi, $jenisDokumen, $idReferensi);
+                self::json(['success' => true, 'data' => $snap]);
+                return true;
+            }
+
+            $all = DokumenPetaSnapshotModel::getAllByOperasi($idOperasi);
+            // Strip heavy base64 data URI from bulk list for fast network transfer
+            foreach ($all as &$item) {
+                unset($item['image_data_uri']);
+            }
+            unset($item);
+
+            $renopsList = [];
+            foreach (RenopsModel::getByOperasiId($idOperasi) as $r) {
+                $renopsList[] = [
+                    'id_renops' => (int)$r['id_renops'],
+                    'hari_ke' => $r['hari_ke'] ?? 'H.1',
+                    'tanggal_laporan' => $r['tanggal_laporan'] ?? ''
+                ];
+            }
+
+            $sitrepList = [];
+            foreach (LaporanModel::getByOperasiId($idOperasi) as $l) {
+                $sitrepList[] = [
+                    'id_laporan' => (int)$l['id_laporan'],
+                    'hari_ke' => $l['hari_ke'] ?? 'H.1',
+                    'jenis_laporan' => $l['jenis_laporan'] ?? 'Harian',
+                    'waktu_laporan' => $l['waktu_laporan'] ?? ''
+                ];
+            }
+
+            self::json([
+                'success' => true,
+                'data' => [
+                    'snapshots' => $all,
+                    'renops_list' => $renopsList,
+                    'sitrep_list' => $sitrepList
+                ],
+                'snapshots' => $all,
+                'renops_list' => $renopsList,
+                'sitrep_list' => $sitrepList
+            ]);
+            return true;
+        }
+
+        if (($path === '/gis/snapshot' || $path === '/gis/snapshots') && in_array($method, ['POST', 'PUT'], true)) {
+            self::requireAuth();
+            try {
+                $saved = DokumenPetaSnapshotModel::saveSnapshot($input);
+                unset($saved['image_data_uri']);
+                self::json([
+                    'success' => true,
+                    'message' => 'Cuplikan peta 16:9 beserta keterangan komponen berhasil disimpan untuk dokumen cetak.',
+                    'data' => $saved
+                ]);
+            } catch (InvalidArgumentException $e) {
+                self::error($e->getMessage(), 422, 'VALIDATION_ERROR');
+            } catch (Throwable $e) {
+                self::error('Gagal menyimpan cuplikan peta: ' . $e->getMessage(), 500, 'SNAPSHOT_SAVE_FAILED');
+            }
+            return true;
+        }
+
+        if (preg_match('#^/gis/snapshot(?:s)?/(\d+)$#', $path, $m) && $method === 'DELETE') {
+            self::requireAuth();
+            $idSnap = (int)$m[1];
+            $ok = DokumenPetaSnapshotModel::deleteSnapshot($idSnap);
+            self::json(['success' => $ok]);
+            return true;
+        }
+
+        if ($path === '/gis/tile-proxy' && $method === 'GET') {
+            self::requireAuth();
+            $tileUrl = trim((string)($_GET['url'] ?? ''));
+            $parsed = parse_url($tileUrl);
+            $host = strtolower((string)($parsed['host'] ?? ''));
+            $allowedHosts = [
+                'mt0.google.com', 'mt1.google.com', 'mt2.google.com', 'mt3.google.com',
+                'tile.openstreetmap.org', 'a.tile.openstreetmap.org', 'b.tile.openstreetmap.org', 'c.tile.openstreetmap.org',
+                'server.arcgisonline.com'
+            ];
+            if (!in_array($host, $allowedHosts, true) || !in_array(strtolower((string)($parsed['scheme'] ?? '')), ['http', 'https'], true)) {
+                http_response_code(400);
+                exit;
+            }
+            $ctx = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'timeout' => 4,
+                    'header' => "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) QR-SAR-GIS/2.5\r\n"
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false
+                ]
+            ]);
+            $imgBytes = @file_get_contents($tileUrl, false, $ctx);
+            if ($imgBytes === false || strlen($imgBytes) < 32) {
+                http_response_code(404);
+                exit;
+            }
+            header('Content-Type: image/png');
+            header('Cache-Control: public, max-age=86400');
+            header('Access-Control-Allow-Origin: *');
+            echo $imgBytes;
+            exit;
+        }
+
+        return false;
     }
 }

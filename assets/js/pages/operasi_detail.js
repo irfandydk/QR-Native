@@ -118,7 +118,21 @@ function focusDetailMapComponent(layerKey) {
 
 function copyDetailPolygonCoords(id) {
     const p = (detailOpsGisBundle.polygons || []).find(item => item.id == id);
-    if (!p || !p.points || !p.points.length) {
+    if (!p) {
+        showToast('Search Area tidak ditemukan', 'error');
+        return;
+    }
+    if (p.shapeType === 'circle') {
+        const cLat = (p.centerLat !== null && p.centerLat !== undefined && p.centerLat !== '') ? Number(p.centerLat) : (p.points && p.points[0] ? Number(p.points[0].lat) : 0);
+        const cLng = (p.centerLng !== null && p.centerLng !== undefined && p.centerLng !== '') ? Number(p.centerLng) : (p.points && p.points[0] ? Number(p.points[0].lng) : 0);
+        const rNm = Number(p.radiusNm || 1);
+        const rKm = (rNm * 1.852).toFixed(2);
+        const areaNm = p.areaNm2 ? Number(p.areaNm2).toFixed(2) : (Math.PI * rNm * rNm).toFixed(2);
+        const text = `[Search Area: ${p.name || 'Sektor Radius'}]\nBentuk: Lingkaran (Circle)\nPusat Datum (LKP): ${formatDetailDms(cLat, cLng)}\nRadius Sektor: ${rNm} NM (${rKm} km)\nLuas Area: ${areaNm} NM²`;
+        copyToClipboard(text, 'Parameter Radius Search Area Disalin!');
+        return;
+    }
+    if (!p.points || !p.points.length) {
         showToast('Koordinat tidak ditemukan', 'error');
         return;
     }
@@ -133,6 +147,22 @@ function copyDetailPatternCoords(id) {
     const p = (detailOpsGisBundle.searchPatterns || []).find(item => item.id == id);
     if (!p || !p.waypoints || !p.waypoints.length) {
         showToast('Koordinat tidak ditemukan', 'error');
+        return;
+    }
+    if (p.patternType === 'e_sar' || p.patternType === 'sector_search') {
+        const lines = [];
+        for (let i = 0; i < p.waypoints.length; i += 2) {
+            const pIndex = Math.floor(i / 2) + 1;
+            const wpStart = p.waypoints[i];
+            const wpEnd = p.waypoints[i + 1];
+            if (wpStart) {
+                lines.push(`Personel ${pIndex} (Start Baseline): ${formatDetailDms(wpStart.lat, wpStart.lng)}`);
+            }
+            if (wpEnd) {
+                lines.push(`Personel ${pIndex} (Batas Maju): ${formatDetailDms(wpEnd.lat, wpEnd.lng)}`);
+            }
+        }
+        copyToClipboard(`[Pola SAR E-SAR: ${p.name || 'Pola'}]\n` + lines.join('\n'), 'Koordinat Pola E-SAR Disalin!');
         return;
     }
     const lines = p.waypoints.map((pt, idx) => {
@@ -188,6 +218,18 @@ function renderDetailGisHistoryList() {
         detailOpsGisBundle.polygons.forEach(p => {
             const isBaseMap = !p.id_operasi;
             if (activeHistoryFilter === 'polygons' || activeHistoryFilter === 'all' || (activeHistoryFilter === 'basemap' && isBaseMap)) {
+                let metaStr = '';
+                if (p.shapeType === 'circle') {
+                    const rNm = Number(p.radiusNm || 1).toFixed(2);
+                    metaStr = `⭕ Radius: ${rNm} NM &bull; Luas: ${p.areaNm2 ? Number(p.areaNm2).toFixed(2) + ' Nm²' : '- Nm²'}`;
+                } else if (p.shapeType === 'rectangle') {
+                    const wNm = Number(p.boxWidthNm || 2).toFixed(2);
+                    const hNm = Number(p.boxHeightNm || 2).toFixed(2);
+                    metaStr = `⏹️ Persegi: ${wNm} x ${hNm} NM &bull; Luas: ${p.areaNm2 ? Number(p.areaNm2).toFixed(2) + ' Nm²' : '- Nm²'}`;
+                } else {
+                    metaStr = `${p.areaNm2 ? Number(p.areaNm2).toFixed(2) + ' Nm²' : '- Nm²'} &bull; ${(p.points || []).length} Sudut Batas`;
+                }
+
                 items.push({
                     type: 'polygon',
                     layerKey: 'polygon_' + p.id,
@@ -197,7 +239,7 @@ function renderDetailGisHistoryList() {
                     tag: 'Search Area',
                     tagColor: 'blue',
                     color: sanitizeDetailGisColor(p.strokeColor, '#2563eb'),
-                    meta: `${p.areaNm2 ? Number(p.areaNm2).toFixed(2) + ' Nm²' : '- Nm²'} &bull; ${(p.points || []).length} Sudut Batas`,
+                    meta: metaStr,
                     desc: p.keterangan || ''
                 });
             }
@@ -207,20 +249,21 @@ function renderDetailGisHistoryList() {
     // 2. Search Patterns
     if (Array.isArray(detailOpsGisBundle.searchPatterns)) {
         const typeLabels = {
-            'creeping_line': 'Creeping Line',
-            'parallel_track': 'Parallel Track',
-            'expanding_square': 'Expanding Square',
-            'e_sar': 'Pola E-SAR (Hutan/Darat)',
-            'sector_search': 'Pola E-SAR (Hutan/Darat)',
-            'track_line': 'Track Line'
+            'creeping_line': 'Creeping Line Search',
+            'parallel_track': 'Parallel Track Search',
+            'e_sar': 'Pola Pencarian E-SAR',
+            'sector_search': 'Pola Pencarian E-SAR',
+            'track_line': 'Track Line Search'
         };
         detailOpsGisBundle.searchPatterns.forEach(p => {
             const isBaseMap = !p.id_operasi;
             if (activeHistoryFilter === 'patterns' || activeHistoryFilter === 'all' || (activeHistoryFilter === 'basemap' && isBaseMap)) {
+                const isEsar = (p.patternType === 'e_sar' || p.patternType === 'sector_search');
                 const typeStr = escapeHtml(typeLabels[p.patternType] || p.patternType || 'Pola SAR');
                 const safeSpacing = escapeHtml(p.trackSpacingNm || '-');
                 const safeDist = p.totalDistanceNm ? Number(p.totalDistanceNm).toFixed(1) : '-';
-                const safeLegs = Number(p.legsCount) || (p.waypoints || []).length;
+                const safeLegs = Number(p.legsCount) || (isEsar ? Math.floor((p.waypoints || []).length / 2) : (p.waypoints || []).length);
+                const legsLabel = isEsar ? 'Personil' : 'Leg';
                 items.push({
                     type: 'pattern',
                     layerKey: 'pattern_' + p.id,
@@ -230,7 +273,7 @@ function renderDetailGisHistoryList() {
                     tag: 'Pola SAR',
                     tagColor: 'orange',
                     color: sanitizeDetailGisColor(p.color, '#ea580c'),
-                    meta: `${typeStr} &bull; S: ${safeSpacing} Nm &bull; Jarak: ${safeDist} Nm &bull; ${safeLegs} Leg`,
+                    meta: `${typeStr} &bull; S: ${safeSpacing} Nm &bull; Jarak: ${safeDist} Nm &bull; ${safeLegs} ${legsLabel}`,
                     desc: p.notes || ''
                 });
             }

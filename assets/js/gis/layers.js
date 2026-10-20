@@ -17,20 +17,22 @@
      */
     createTileLayers: function () {
       return {
-        hybrid: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        hybrid: L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
           maxNativeZoom: 20,
           maxZoom: 22,
-          subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+          subdomains: ['0', '1', '2', '3'],
           attribution: 'Google Hybrid Satelit'
         }),
         osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
+          maxNativeZoom: 19,
+          maxZoom: 22,
+          subdomains: ['a', 'b', 'c'],
           attribution: '© OpenStreetMap contributors'
         }),
-        roadmap: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        roadmap: L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
           maxNativeZoom: 20,
           maxZoom: 22,
-          subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+          subdomains: ['0', '1', '2', '3'],
           attribution: 'Google Maps Roadmap'
         }),
         satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -38,10 +40,10 @@
           maxZoom: 22,
           attribution: 'Esri World Imagery'
         }),
-        terrain: L.tileLayer('https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
-          maxNativeZoom: 15,
-          maxZoom: 20,
-          subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+        terrain: L.tileLayer('https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+          maxNativeZoom: 20,
+          maxZoom: 22,
+          subdomains: ['0', '1', '2', '3'],
           attribution: 'Google Terrain'
         })
       };

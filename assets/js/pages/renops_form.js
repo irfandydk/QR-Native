@@ -18,6 +18,234 @@ const escapeHtml = (window.QrSarUtils && window.QrSarUtils.escapeHtml) || functi
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 };
 
+// Master Measurement Unit state (NM, KM, M)
+let activeRenopsUnit = (function() {
+  const fromCfg = renopsCfg.satuanJarak ? String(renopsCfg.satuanJarak).toUpperCase() : null;
+  if (fromCfg && ['NM', 'KM', 'M'].includes(fromCfg)) return fromCfg;
+  try {
+    const fromStorage = localStorage.getItem('qr_sar_renops_unit') || localStorage.getItem('qr_sar_gis_unit');
+    if (fromStorage && ['NM', 'KM', 'M'].includes(fromStorage.toUpperCase())) return fromStorage.toUpperCase();
+  } catch (e) {}
+  return 'NM';
+})();
+
+// Precision Mathematical Constants & Unit Formatters
+const KM_PER_NM = 1.852;
+const NM_PER_KM = 1 / 1.852; // ~0.539957
+const KM2_PER_NM2 = 1.852 * 1.852; // 3.429904
+const NM2_PER_KM2 = 1 / KM2_PER_NM2; // ~0.291553
+
+function formatRenopsArea(sqNm) {
+  const numNm2 = parseFloat(sqNm) || 0;
+  const numKm2 = numNm2 * KM2_PER_NM2;
+  const sqM = numKm2 * 1000000;
+  if (activeRenopsUnit === 'KM') {
+    return `${numKm2.toFixed(2)} KM² (${numNm2.toFixed(2)} NM²)`;
+  } else if (activeRenopsUnit === 'M') {
+    return `${Math.round(sqM).toLocaleString('id-ID')} m² (${numNm2.toFixed(2)} NM²)`;
+  }
+  return `${numNm2.toFixed(2)} NM² (${numKm2.toFixed(2)} KM²)`;
+}
+
+function formatRenopsAreaShort(sqNm) {
+  const numNm2 = parseFloat(sqNm) || 0;
+  const numKm2 = numNm2 * KM2_PER_NM2;
+  const sqM = numKm2 * 1000000;
+  if (activeRenopsUnit === 'KM') {
+    return `${numKm2.toFixed(2)} KM²`;
+  } else if (activeRenopsUnit === 'M') {
+    return `${Math.round(sqM).toLocaleString('id-ID')} m²`;
+  }
+  return `${numNm2.toFixed(2)} NM²`;
+}
+
+function formatRenopsDistance(distNm) {
+  const numNm = parseFloat(distNm) || 0;
+  const numKm = numNm * KM_PER_NM;
+  const numM = numKm * 1000;
+  if (activeRenopsUnit === 'KM') {
+    return `${numKm.toFixed(2)} km (${numNm.toFixed(2)} NM)`;
+  } else if (activeRenopsUnit === 'M') {
+    return `${Math.round(numM).toLocaleString('id-ID')} m (${numNm.toFixed(2)} NM)`;
+  }
+  return `${numNm.toFixed(2)} NM (${numKm.toFixed(2)} km)`;
+}
+
+function formatRenopsDistanceShort(distNm) {
+  const numNm = parseFloat(distNm) || 0;
+  const numKm = numNm * KM_PER_NM;
+  const numM = numKm * 1000;
+  if (activeRenopsUnit === 'KM') {
+    return `${numKm.toFixed(1)} km`;
+  } else if (activeRenopsUnit === 'M') {
+    return `${Math.round(numM)} m`;
+  }
+  return `${numNm.toFixed(1)} NM`;
+}
+
+function formatRenopsSpacingShort(spacingNm) {
+  const numNm = parseFloat(spacingNm) || 0;
+  const numKm = numNm * KM_PER_NM;
+  const numM = numKm * 1000;
+  if (activeRenopsUnit === 'KM') {
+    return numKm < 1 ? `${Math.round(numM)} m` : `${numKm.toFixed(2)} km`;
+  } else if (activeRenopsUnit === 'M') {
+    return `${Math.round(numM)} m`;
+  }
+  return `${numNm.toFixed(2)} NM`;
+}
+
+function formatRenopsSpeed(speedKnots) {
+  const numKts = parseFloat(speedKnots) || 0;
+  const numKmh = numKts * KM_PER_NM;
+  if (activeRenopsUnit === 'KM') {
+    return `${numKmh.toFixed(0)} km/jam (${numKts.toFixed(0)} Knots)`;
+  } else if (activeRenopsUnit === 'M') {
+    const numMs = (numKmh * 1000) / 3600;
+    return `${numMs.toFixed(1)} m/s (${numKts.toFixed(0)} Knots)`;
+  }
+  return `${numKts.toFixed(0)} Knots (${numKmh.toFixed(0)} km/jam)`;
+}
+
+function setRenopsUnit(unit, isInitial = false) {
+  if (!['NM', 'KM', 'M'].includes(unit)) unit = 'NM';
+  const prevUnit = activeRenopsUnit;
+  activeRenopsUnit = unit;
+
+  try {
+    localStorage.setItem('qr_sar_renops_unit', unit);
+    localStorage.setItem('qr_sar_gis_unit', unit);
+  } catch (e) {}
+
+  // Update hidden input for form submission
+  const hiddenInp = document.getElementById('renops_satuan_jarak');
+  if (hiddenInp) hiddenInp.value = unit;
+
+  // Update Section 2 Header switcher buttons
+  document.querySelectorAll('.renops-unit-btn').forEach(btn => {
+    const bUnit = btn.getAttribute('data-renops-unit');
+    if (bUnit === unit) {
+      btn.className = 'renops-unit-btn px-2.5 py-1 rounded-md transition cursor-pointer font-bold bg-orange-500 text-white shadow-xs';
+    } else {
+      btn.className = 'renops-unit-btn px-2.5 py-1 rounded-md transition cursor-pointer font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white';
+    }
+  });
+
+  // Update modal label indicator
+  document.querySelectorAll('.renops-active-unit-label').forEach(el => {
+    el.textContent = unit;
+  });
+
+  if (!isInitial && prevUnit !== unit) {
+    recalculateAllSrusByUnit(unit, prevUnit);
+  }
+}
+
+function recalculateAllSrusByUnit(unit, prevUnit) {
+  const polys = SAR_GIS_BUNDLE.polygons || [];
+  const patterns = SAR_GIS_BUNDLE.searchPatterns || [];
+
+  currentSrus.forEach((s, idx) => {
+    // 1. Polygon / Area calculation
+    const matchedPoly = polys.find((p, pIdx) => {
+      if (s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())) return true;
+      if (s.koordinat_area && p.name && s.koordinat_area.toLowerCase().includes(p.name.toLowerCase())) return true;
+      if (idx === pIdx && polys.length === currentSrus.length) return true;
+      return false;
+    });
+
+    if (matchedPoly) {
+      const aNum = calculatePolygonAreaNm2(matchedPoly);
+      if (aNum > 0) {
+        s.luas_area = formatRenopsAreaShort(aNum);
+      }
+      if (matchedPoly.shapeType === 'circle') {
+        const coordsText = getPolygonCoordsText(matchedPoly);
+        s.koordinat_area = `Sektor: ${matchedPoly.name} (${s.luas_area})\n${coordsText}`;
+      } else if (s.koordinat_area && s.koordinat_area.startsWith('Sektor:')) {
+        const coordsText = getPolygonCoordsText(matchedPoly);
+        s.koordinat_area = `Sektor: ${matchedPoly.name} (${s.luas_area})\nBatas Koordinat:\n${coordsText}`;
+      }
+    } else if (s.luas_area) {
+      // Numerical regex extraction for manual areas
+      const match = s.luas_area.match(/([0-9]+(?:\.[0-9]+)?)\s*(nm²|km²|m²)/i);
+      if (match) {
+        const val = parseFloat(match[1]);
+        const u = match[2].toUpperCase();
+        let valNm2 = val;
+        if (u === 'KM²') valNm2 = val / KM2_PER_NM2;
+        else if (u === 'M²') valNm2 = (val / 1000000) / KM2_PER_NM2;
+        s.luas_area = formatRenopsAreaShort(valNm2);
+      }
+    }
+
+    // 2. Pattern calculation
+    const matchedPattern = patterns.find((p, pIdx) => {
+      if (s.nama_sru && p.polygonName && s.nama_sru.toLowerCase().includes(p.polygonName.toLowerCase())) return true;
+      if (s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())) return true;
+      if (idx === pIdx && patterns.length === currentSrus.length) return true;
+      return false;
+    });
+
+    if (matchedPattern) {
+      const isEsar = (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search');
+      const legs = matchedPattern.legsCount || (matchedPattern.waypoints ? Math.max(1, Math.floor(matchedPattern.waypoints.length / 2)) : 6);
+      const spacing = formatRenopsSpacingShort(matchedPattern.trackSpacingNm || 1.0);
+      const dist = matchedPattern.totalDistanceNm ? formatRenopsDistanceShort(matchedPattern.totalDistanceNm) : '-';
+      s.total_sapuan = isEsar
+        ? `${legs} Personel E-SAR (Spasi: ${spacing}, Total: ${dist})`
+        : `${legs} Sapuan (Spasi: ${spacing}, Total: ${dist})`;
+      s.track_spacing = spacing;
+    } else if (s.total_sapuan) {
+      // Numerical regex conversion for manual strings
+      const spMatch = s.total_sapuan.match(/spasi:\s*([0-9]+(?:\.[0-9]+)?)\s*(nm|km|m)?/i);
+      const distMatch = s.total_sapuan.match(/total:\s*([0-9]+(?:\.[0-9]+)?)\s*(nm|km|m)?/i);
+      if (spMatch || distMatch) {
+        let newTotal = s.total_sapuan;
+        if (spMatch) {
+          const rawSp = parseFloat(spMatch[1]);
+          const spU = (spMatch[2] || prevUnit || 'NM').toUpperCase();
+          let spNm = rawSp;
+          if (spU === 'KM') spNm = rawSp / KM_PER_NM;
+          else if (spU === 'M') spNm = rawSp / 1852;
+          const newSpStr = formatRenopsSpacingShort(spNm);
+          newTotal = newTotal.replace(spMatch[0], `Spasi: ${newSpStr}`);
+        }
+        if (distMatch) {
+          const rawDist = parseFloat(distMatch[1]);
+          const distU = (distMatch[2] || prevUnit || 'NM').toUpperCase();
+          let distNm = rawDist;
+          if (distU === 'KM') distNm = rawDist / KM_PER_NM;
+          else if (distU === 'M') distNm = rawDist / 1852;
+          const newDistStr = formatRenopsDistanceShort(distNm);
+          newTotal = newTotal.replace(distMatch[0], `Total: ${newDistStr}`);
+        }
+        s.total_sapuan = newTotal;
+      }
+    }
+  });
+
+  renderSruList();
+  if (typeof renderGisImportContent === 'function') {
+    try { renderGisImportContent(); } catch (e) {}
+  }
+  if (typeof showToast === 'function') {
+    const unitNames = { 'NM': 'Nautical Miles (NM)', 'KM': 'Kilometer (KM)', 'M': 'Meter (M)' };
+    showToast(`Satuan jarak RENOPS diubah ke ${unitNames[unit] || unit}. Data dan perhitungan diperbarui!`, 'success');
+  }
+}
+
+function initRenopsUnitSwitcher() {
+  document.querySelectorAll('.renops-unit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const u = btn.getAttribute('data-renops-unit');
+      if (u) setRenopsUnit(u);
+    });
+  });
+  // Initialize with activeRenopsUnit
+  setRenopsUnit(activeRenopsUnit, true);
+}
+
 // ── SRU Sector Manager ──
 function renderSruList() {
   const container = document.getElementById('sru-container');
@@ -35,7 +263,7 @@ function renderSruList() {
 
   currentSrus.forEach((s, idx) => {
     // Auto-detect and sync area, pattern, and sweep from GIS plotting if missing or legacy placeholder
-    if (!s.luas_area || s.luas_area === '10 Nm²' || s.luas_area.trim() === '') {
+    if (!s.luas_area || s.luas_area === '10 Nm²' || s.luas_area === '10 NM²' || s.luas_area.trim() === '') {
       const matchedPoly = (SAR_GIS_BUNDLE.polygons || []).find((p, pIdx) => {
         if (s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())) return true;
         if (idx === pIdx && (SAR_GIS_BUNDLE.polygons || []).length === currentSrus.length) return true;
@@ -44,7 +272,7 @@ function renderSruList() {
       if (matchedPoly) {
         const aNum = calculatePolygonAreaNm2(matchedPoly);
         if (aNum > 0) {
-          s.luas_area = `${aNum.toFixed(2)} Nm²`;
+          s.luas_area = formatRenopsAreaShort(aNum);
         }
       }
     }
@@ -59,13 +287,13 @@ function renderSruList() {
       if (matchedPattern) {
         const isEsar = (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search');
         const legs = matchedPattern.legsCount || (matchedPattern.waypoints ? Math.max(1, Math.floor(matchedPattern.waypoints.length / 2)) : 6);
-        const spacing = matchedPattern.trackSpacingNm ? Number(matchedPattern.trackSpacingNm).toFixed(2) : '1.00';
-        const dist = matchedPattern.totalDistanceNm ? Number(matchedPattern.totalDistanceNm).toFixed(1) : '-';
+        const spacing = formatRenopsSpacingShort(matchedPattern.trackSpacingNm || 1.0);
+        const dist = matchedPattern.totalDistanceNm ? formatRenopsDistanceShort(matchedPattern.totalDistanceNm) : '-';
         s.total_sapuan = isEsar
-          ? `${legs} Personel E-SAR (Spasi: ${spacing} Nm, Total: ${dist} Nm)`
-          : `${legs} Sapuan (Spasi: ${spacing} Nm, Total: ${dist} Nm)`;
+          ? `${legs} Personel E-SAR (Spasi: ${spacing}, Total: ${dist})`
+          : `${legs} Sapuan (Spasi: ${spacing}, Total: ${dist})`;
+        s.track_spacing = spacing;
         if (matchedPattern.patternType === 'creeping_line') s.pola_pencarian = 'Creeping Line Search';
-        else if (matchedPattern.patternType === 'expanding_square') s.pola_pencarian = 'Expanding Square Search';
         else if (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search') s.pola_pencarian = 'Pola Pencarian E-SAR';
         else if (matchedPattern.patternType === 'track_line') s.pola_pencarian = 'Track Line Search';
       }
@@ -74,9 +302,21 @@ function renderSruList() {
     const card = document.createElement('div');
     card.className = 'p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 space-y-3';
 
-    const luasVal = (s.luas_area && s.luas_area.trim() !== '' && s.luas_area !== '10 Nm²') ? s.luas_area : (s.luas_area || '');
+    const luasVal = (s.luas_area && s.luas_area.trim() !== '' && s.luas_area !== '10 Nm²' && s.luas_area !== '10 NM²') ? s.luas_area : (s.luas_area || '');
     const polaVal = s.pola_pencarian || 'Parallel Track Search';
     const sapuanVal = s.total_sapuan || '';
+
+    const polygonsList = SAR_GIS_BUNDLE.polygons || [];
+    const polyOptionsHtml = polygonsList.length > 0
+      ? `<option value="">-- Pilih Sektor dari Plotting GIS (${polygonsList.length} Sektor Tersedia) --</option>` +
+        polygonsList.map(p => {
+          const aNum = calculatePolygonAreaNm2(p);
+          const areaDisplay = formatRenopsAreaShort(aNum);
+          const isMatched = (s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase()));
+          const shapeIcon = p.shapeType === 'circle' ? '⭕' : (p.shapeType === 'rectangle' ? '⏹️' : '📐');
+          return `<option value="${escapeHtml(p.id)}" ${isMatched ? 'selected' : ''}>${shapeIcon} ${escapeHtml(p.name)} (${areaDisplay})</option>`;
+        }).join('')
+      : `<option value="">(Belum ada search area di plotting GIS)</option>`;
 
     card.innerHTML = `
       <div class="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-800">
@@ -85,14 +325,25 @@ function renderSruList() {
             SRU ${idx + 1}
           </span>
           <input type="text" name="srus[${idx}][nama_sru]" value="${escapeHtml(s.nama_sru || '')}" placeholder="Nama SRU (contoh: SRU 1 Kapal RIB)" required class="text-xs font-bold px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500" onchange="currentSrus[${idx}].nama_sru = this.value">
-          <button type="button" onclick="openGisImportModal(${idx})" class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/25 transition cursor-pointer shadow-2xs" title="Ambil data sektor atau pola dari plotting untuk SRU ini">
+          <button type="button" onclick="openGisImportModal(${idx})" class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/25 transition cursor-pointer shadow-2xs" title="Buka modal import GIS lengkap untuk SRU ini">
             <span>🗺️</span>
-            <span>Ambil Data Plotting</span>
+            <span>Import Plotting</span>
           </button>
         </div>
         <button type="button" onclick="removeSruRow(${idx})" class="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer" title="Hapus SRU">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
+      </div>
+
+      <!-- Quick Sector Linking Dropdown (Deteksi Langsung Search Area Baru) -->
+      <div class="flex items-center gap-2 p-2 rounded-xl bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/20 text-xs">
+        <span class="font-bold text-[10px] text-orange-600 dark:text-orange-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+          <span>📐</span>
+          <span>Sektor Plotting GIS:</span>
+        </span>
+        <select onchange="applySektorToPlotting(${idx}, this.value)" class="flex-1 text-xs px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 cursor-pointer">
+          ${polyOptionsHtml}
+        </select>
       </div>
 
       <!-- Ringkasan Data Otomatis Taktis (Luas Area, Pola Pencarian & Total Sapuan) -->
@@ -104,7 +355,7 @@ function renderSruList() {
           <div class="min-w-0">
             <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Luas Area Pencarian</span>
             <span class="font-mono font-bold text-xs ${luasVal ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 italic'}">
-              ${luasVal ? `✓ ${escapeHtml(luasVal)}` : 'Belum Terdeteksi (Klik Ambil Data)'}
+              ${luasVal ? `✓ ${escapeHtml(luasVal)}` : 'Belum Terdeteksi'}
             </span>
           </div>
         </div>
@@ -154,6 +405,107 @@ function renderSruList() {
     container.appendChild(card);
   });
 }
+
+function applySektorToPlotting(targetIdx, polyId) {
+  if (targetIdx < 0 || targetIdx >= currentSrus.length) return;
+  if (!polyId) return;
+
+  const poly = (SAR_GIS_BUNDLE.polygons || []).find(p => String(p.id) === String(polyId));
+  if (!poly) return;
+
+  const areaNum = calculatePolygonAreaNm2(poly);
+  const coordsText = getPolygonCoordsText(poly);
+  const areaFormatted = formatRenopsAreaShort(areaNum);
+
+  currentSrus[targetIdx].nama_sru = `SRU ${targetIdx + 1} - ${poly.name}`;
+  currentSrus[targetIdx].luas_area = areaFormatted;
+  currentSrus[targetIdx].koordinat_area = `Sektor: ${poly.name} (${areaFormatted})\n${coordsText}`;
+
+  // Match pattern jika ada
+  const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find(pat =>
+    (pat.polygonId && String(pat.polygonId) === String(poly.id)) ||
+    (pat.polygonName && poly.name && pat.polygonName.toLowerCase() === poly.name.toLowerCase())
+  );
+
+  if (matchedPattern) {
+    const isEsar = (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search');
+    const legs = matchedPattern.legsCount || (matchedPattern.waypoints ? Math.max(1, Math.floor(matchedPattern.waypoints.length / 2)) : 6);
+    const spacing = formatRenopsSpacingShort(matchedPattern.trackSpacingNm || 1.0);
+    const dist = matchedPattern.totalDistanceNm ? formatRenopsDistanceShort(matchedPattern.totalDistanceNm) : '-';
+    currentSrus[targetIdx].total_sapuan = isEsar
+      ? `${legs} Personel E-SAR (Spasi: ${spacing}, Total: ${dist})`
+      : `${legs} Sapuan (Spasi: ${spacing}, Total: ${dist})`;
+    currentSrus[targetIdx].track_spacing = spacing;
+    if (matchedPattern.patternType === 'creeping_line') currentSrus[targetIdx].pola_pencarian = 'Creeping Line Search';
+    else if (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search') currentSrus[targetIdx].pola_pencarian = 'Pola Pencarian E-SAR';
+    else if (matchedPattern.patternType === 'track_line') currentSrus[targetIdx].pola_pencarian = 'Track Line Search';
+  }
+
+  renderSruList();
+  if (typeof showToast === 'function') {
+    showToast(`Sektor "${poly.name}" berhasil diterapkan ke SRU ${targetIdx + 1}!`, 'success');
+  }
+}
+
+async function syncAllPlottingSectorsToSru() {
+  let polys = SAR_GIS_BUNDLE.polygons || [];
+  if (polys.length === 0) {
+    await refreshGisBundle(false);
+    polys = SAR_GIS_BUNDLE.polygons || [];
+  }
+
+  if (polys.length === 0) {
+    if (typeof showToast === 'function') {
+      showToast('Tidak ada Search Area / Sektor yang ditemukan di plotting GIS.', 'warning');
+    }
+    return;
+  }
+
+  currentSrus = polys.map((poly, idx) => {
+    const areaNum = calculatePolygonAreaNm2(poly);
+    const coordsText = getPolygonCoordsText(poly);
+    const areaFormatted = formatRenopsAreaShort(areaNum);
+
+    let pola = 'Parallel Track Search';
+    let totalSapuan = '';
+    let trackSpacing = '';
+
+    const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find(pat =>
+      (pat.polygonId && String(pat.polygonId) === String(poly.id)) ||
+      (pat.polygonName && poly.name && pat.polygonName.toLowerCase() === poly.name.toLowerCase())
+    );
+
+    if (matchedPattern) {
+      const isEsar = (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search');
+      const legs = matchedPattern.legsCount || (matchedPattern.waypoints ? Math.max(1, Math.floor(matchedPattern.waypoints.length / 2)) : 6);
+      const spacing = formatRenopsSpacingShort(matchedPattern.trackSpacingNm || 1.0);
+      const dist = matchedPattern.totalDistanceNm ? formatRenopsDistanceShort(matchedPattern.totalDistanceNm) : '-';
+      trackSpacing = spacing;
+      totalSapuan = isEsar
+        ? `${legs} Personel E-SAR (Spasi: ${spacing}, Total: ${dist})`
+        : `${legs} Sapuan (Spasi: ${spacing}, Total: ${dist})`;
+      if (matchedPattern.patternType === 'creeping_line') pola = 'Creeping Line Search';
+      else if (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search') pola = 'Pola Pencarian E-SAR';
+      else if (matchedPattern.patternType === 'track_line') pola = 'Track Line Search';
+    }
+
+    return {
+      nama_sru: `SRU ${idx + 1} - ${poly.name}`,
+      luas_area: areaFormatted,
+      koordinat_area: `Sektor: ${poly.name} (${areaFormatted})\n${coordsText}`,
+      pola_pencarian: pola,
+      total_sapuan: totalSapuan,
+      track_spacing: trackSpacing
+    };
+  });
+
+  renderSruList();
+  if (typeof showToast === 'function') {
+    showToast(`Berhasil menyinkronkan ${polys.length} Sektor Plotting GIS ke daftar SRU!`, 'success');
+  }
+}
+window.syncAllPlottingSectorsToSru = syncAllPlottingSectorsToSru;
+window.applySektorToPlotting = applySektorToPlotting;
 
 function addSruRow() {
   const num = currentSrus.length + 1;
@@ -460,7 +812,8 @@ function previewRenopsWa() {
 
   let sruList = [];
   if (currentSrus.length === 0) {
-    sruList.push(`*SRU 1 Tim Rescue Kansar Kendari* melakukan penyisiran dgn koordinat :\nA: ${defaultKoordinat}\nLuas area pencarian : 10 Nm²\nPola pencarian : Parallel Track Search`);
+    const defaultLuas = formatRenopsAreaShort(10);
+    sruList.push(`*SRU 1 Tim Rescue Kansar Kendari* melakukan penyisiran dgn koordinat :\nA: ${defaultKoordinat}\nLuas area pencarian : ${defaultLuas}\nPola pencarian : Parallel Track Search`);
   } else {
     currentSrus.forEach((s) => {
       const rawName = (s.nama_sru || 'SRU').replace(/^\*+|\*+$/g, '').trim();
@@ -690,8 +1043,9 @@ async function refreshGisBundle(showToastAlert = false) {
         syncTimeEl.textContent = `(Sinkron: ${timeStr})`;
       }
 
-      // Re-render modal content
+      // Re-render modal content and update SRU sector pickers
       renderGisImportModalContent();
+      renderSruList();
 
       if (showToastAlert && typeof showToast === 'function') {
         showToast(`Data plotting peta berhasil diperbarui! (${totalAll} data taktis ditemukan)`, 'success');
@@ -752,7 +1106,7 @@ function calculatePolygonAreaNm2(poly) {
   if (poly.shapeType === 'circle' && poly.radiusNm) {
     return Math.round(Math.PI * Math.pow(Number(poly.radiusNm), 2) * 100) / 100;
   }
-  if (poly.shapeType === 'box' && poly.boxWidthNm && poly.boxHeightNm) {
+  if ((poly.shapeType === 'box' || poly.shapeType === 'rectangle') && poly.boxWidthNm && poly.boxHeightNm) {
     return Math.round(Number(poly.boxWidthNm) * Number(poly.boxHeightNm) * 100) / 100;
   }
   const pts = poly.points || [];
@@ -788,6 +1142,46 @@ function calculatePolygonAreaNm2(poly) {
 }
 
 function getPolygonCoordsText(poly) {
+  if (!poly) return '';
+  if (poly.shapeType === 'circle') {
+    const pts = poly.points || [];
+    const cLat = poly.centerLat !== undefined ? Number(poly.centerLat) : (pts[0]?.lat || 0);
+    const cLng = poly.centerLng !== undefined ? Number(poly.centerLng) : (pts[0]?.lng || 0);
+    const rNm = Number(poly.radiusNm || 1.0);
+    const rKm = (rNm * 1.852).toFixed(2);
+    const areaNm = calculatePolygonAreaNm2(poly);
+    let radiusText = '';
+    let areaText = '';
+    if (activeRenopsUnit === 'KM') {
+      radiusText = `${rKm} km (${rNm.toFixed(2)} NM)`;
+      areaText = formatRenopsArea(areaNm);
+    } else if (activeRenopsUnit === 'M') {
+      radiusText = `${Math.round(rNm * 1852)} m (${rNm.toFixed(2)} NM)`;
+      areaText = formatRenopsArea(areaNm);
+    } else {
+      radiusText = `${rNm.toFixed(2)} NM (${rKm} km)`;
+      areaText = formatRenopsArea(areaNm);
+    }
+    return `Pusat Datum (LKP): ${formatDmsPair(cLat, cLng)}\nRadius Sektor: ${radiusText}\nLuas Area: ${areaText}`;
+  }
+
+  if (poly.shapeType === 'rectangle' && (!poly.points || poly.points.length === 0) && poly.centerLat && poly.centerLng && poly.boxWidthNm && poly.boxHeightNm) {
+    const cLat = Number(poly.centerLat);
+    const cLng = Number(poly.centerLng);
+    const wNm = Number(poly.boxWidthNm);
+    const hNm = Number(poly.boxHeightNm);
+    const halfLatDeg = (hNm / 60.0) / 2.0;
+    const cosLat = Math.cos(cLat * Math.PI / 180.0) || 1.0;
+    const halfLngDeg = ((wNm / 60.0) / cosLat) / 2.0;
+    const corners = [
+      { label: 'A (NW)', lat: cLat + halfLatDeg, lng: cLng - halfLngDeg },
+      { label: 'B (NE)', lat: cLat + halfLatDeg, lng: cLng + halfLngDeg },
+      { label: 'C (SE)', lat: cLat - halfLatDeg, lng: cLng + halfLngDeg },
+      { label: 'D (SW)', lat: cLat - halfLatDeg, lng: cLng - halfLngDeg }
+    ];
+    return corners.map(pt => `${pt.label}: ${formatDmsPair(pt.lat, pt.lng)}`).join('\n');
+  }
+
   const pts = poly.points || [];
   if (!Array.isArray(pts) || pts.length === 0) return '';
   return pts.map((pt, idx) => {
@@ -874,7 +1268,7 @@ function renderGisImportModalContent() {
     container.innerHTML = polys.map(p => {
       const isBaseMap = !p.id_operasi;
       const areaNum = calculatePolygonAreaNm2(p);
-      const area = areaNum > 0 ? areaNum.toFixed(2) : '-';
+      const area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : '-';
       const pts = p.points || [];
       const coordsPreview = getPolygonCoordsText(p);
       const selId = `sel-poly-target-${p.id}`;
@@ -889,7 +1283,7 @@ function renderGisImportModalContent() {
               </span>
             </div>
             <div class="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
-              Luas: <span class="text-blue-600 dark:text-blue-400">${area} Nm²</span> &bull; ${pts.length} Titik Sudut
+              Luas: <span class="text-blue-600 dark:text-blue-400">${area}</span> &bull; ${pts.length} Titik Sudut
             </div>
           </div>
           <div class="text-[11px] font-mono text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 whitespace-pre-line max-h-24 overflow-y-auto leading-relaxed select-all">
@@ -933,7 +1327,6 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
       const typeLabels = {
         'creeping_line': 'Creeping Line Search',
         'parallel_track': 'Parallel Track Search',
-        'expanding_square': 'Expanding Square Search',
         'e_sar': 'Pola Pencarian E-SAR',
         'sector_search': 'Pola Pencarian E-SAR',
         'track_line': 'Track Line Search'
@@ -941,8 +1334,8 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
       const typeLabel = typeLabels[p.patternType] || p.patternType || 'Parallel Track Search';
       const selId = `sel-pattern-target-${p.id}`;
       const waypoints = p.waypoints || [];
-      const dist = p.totalDistanceNm ? Number(p.totalDistanceNm).toFixed(1) : '-';
-      const spacing = p.trackSpacingNm ? Number(p.trackSpacingNm).toFixed(2) : '-';
+      const dist = p.totalDistanceNm ? formatRenopsDistanceShort(p.totalDistanceNm) : '-';
+      const spacing = p.trackSpacingNm ? formatRenopsSpacingShort(p.trackSpacingNm) : '-';
       return `
         <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-3">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -957,7 +1350,7 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
               </span>
             </div>
             <div class="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
-              Spacing: <span class="text-orange-600 dark:text-orange-400">${spacing} Nm</span> &bull; Jarak: <span>${dist} Nm</span>
+              Spacing: <span class="text-orange-600 dark:text-orange-400">${spacing}</span> &bull; Jarak: <span>${dist}</span>
             </div>
           </div>
           <div class="text-[11px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
@@ -995,8 +1388,8 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
     }
     container.innerHTML = routes.map(r => {
       const isBaseMap = !r.id_operasi;
-      const dist = r.totalDistanceNm ? Number(r.totalDistanceNm).toFixed(1) : '-';
-      const speed = r.vesselSpeedKnots ? Number(r.vesselSpeedKnots).toFixed(0) : '25';
+      const dist = r.totalDistanceNm ? formatRenopsDistanceShort(r.totalDistanceNm) : '-';
+      const speed = r.vesselSpeedKnots ? formatRenopsSpeed(r.vesselSpeedKnots) : (activeRenopsUnit === 'KM' ? '46 km/jam' : '25 Knots');
       const pts = r.points || [];
       const selId = `sel-route-target-${r.id}`;
       return `
@@ -1010,7 +1403,7 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
               </span>
             </div>
             <div class="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
-              Panjang: <span class="text-emerald-600 dark:text-emerald-400">${dist} Nm</span> &bull; Kecepatan: <span>${speed} Knots</span>
+              Panjang: <span class="text-emerald-600 dark:text-emerald-400">${dist}</span> &bull; Kecepatan: <span>${speed}</span>
             </div>
           </div>
           <div class="text-[11px] font-mono text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -1123,19 +1516,18 @@ function getPatternDetails(matchedPattern) {
   let pola = 'Parallel Track Search';
   const pt = matchedPattern.patternType;
   if (pt === 'creeping_line') pola = 'Creeping Line Search';
-  else if (pt === 'expanding_square') pola = 'Expanding Square Search';
   else if (pt === 'e_sar' || pt === 'sector_search') pola = 'Pola Pencarian E-SAR';
   else if (pt === 'track_line') pola = 'Track Line Search';
   else pola = 'Parallel Track Search';
 
   const isEsar = (pt === 'e_sar' || pt === 'sector_search');
   const legs = matchedPattern.legsCount || (matchedPattern.waypoints ? Math.max(1, Math.floor(matchedPattern.waypoints.length / 2)) : 6);
-  const spacing = matchedPattern.trackSpacingNm ? Number(matchedPattern.trackSpacingNm).toFixed(2) : '1.00';
-  const dist = matchedPattern.totalDistanceNm ? Number(matchedPattern.totalDistanceNm).toFixed(1) : '-';
+  const spacing = formatRenopsSpacingShort(matchedPattern.trackSpacingNm || 1.0);
+  const dist = matchedPattern.totalDistanceNm ? formatRenopsDistanceShort(matchedPattern.totalDistanceNm) : '-';
 
   const totalSapuan = isEsar
-    ? `${legs} Personel E-SAR (Spasi: ${spacing} Nm, Total: ${dist} Nm)`
-    : `${legs} Sapuan (Spasi: ${spacing} Nm, Total: ${dist} Nm)`;
+    ? `${legs} Personel E-SAR (Spasi: ${spacing}, Total: ${dist})`
+    : `${legs} Sapuan (Spasi: ${spacing}, Total: ${dist})`;
 
   const detailText = '';
 
@@ -1157,7 +1549,7 @@ function importAllPolygonsToSrus() {
     const sruNum = idx + 1;
     const name = poly.name || `Sektor ${String.fromCharCode(65 + idx)}`;
     const areaNum = calculatePolygonAreaNm2(poly);
-    const area = areaNum > 0 ? `${areaNum.toFixed(2)} Nm²` : (poly.areaNm2 ? `${Number(poly.areaNm2).toFixed(2)} Nm²` : '');
+    const area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : (poly.areaNm2 ? formatRenopsAreaShort(Number(poly.areaNm2)) : '');
     const coordsText = getPolygonCoordsText(poly);
     
     const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find(p => p.polygonId === poly.id || (p.polygonName && poly.name && p.polygonName === poly.name));
@@ -1191,7 +1583,7 @@ function importPolygonToSru(polyId, targetIdx) {
   
   const name = poly.name || 'Sektor Pencarian';
   const areaNum = calculatePolygonAreaNm2(poly);
-  const area = areaNum > 0 ? `${areaNum.toFixed(2)} Nm²` : (poly.areaNm2 ? `${Number(poly.areaNm2).toFixed(2)} Nm²` : '');
+  const area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : (poly.areaNm2 ? formatRenopsAreaShort(Number(poly.areaNm2)) : '');
   const coordsText = getPolygonCoordsText(poly);
   
   const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find(p => p.polygonId === poly.id || (p.polygonName && poly.name && p.polygonName === poly.name));
@@ -1217,7 +1609,7 @@ function importPolygonToNewSru(polyId) {
   const num = currentSrus.length + 1;
   const name = poly.name || `Sektor ${String.fromCharCode(64 + num)}`;
   const areaNum = calculatePolygonAreaNm2(poly);
-  const area = areaNum > 0 ? `${areaNum.toFixed(2)} Nm²` : (poly.areaNm2 ? `${Number(poly.areaNm2).toFixed(2)} Nm²` : '');
+  const area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : (poly.areaNm2 ? formatRenopsAreaShort(Number(poly.areaNm2)) : '');
   const coordsText = getPolygonCoordsText(poly);
   
   const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find(p => p.polygonId === poly.id || (p.polygonName && poly.name && p.polygonName === poly.name));
@@ -1254,7 +1646,7 @@ function importPatternToSru(patId, targetIdx) {
   const linkedPoly = (SAR_GIS_BUNDLE.polygons || []).find(p => (pat.polygonId && p.id === pat.polygonId) || (pat.polygonName && p.name === pat.polygonName));
   if (linkedPoly) {
     const areaNum = calculatePolygonAreaNm2(linkedPoly);
-    const area = areaNum > 0 ? `${areaNum.toFixed(2)} Nm²` : (linkedPoly.areaNm2 ? `${Number(linkedPoly.areaNm2).toFixed(2)} Nm²` : '');
+    const area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : (linkedPoly.areaNm2 ? formatRenopsAreaShort(Number(linkedPoly.areaNm2)) : '');
     if (area && !currentSrus[targetIdx].luas_area) {
       currentSrus[targetIdx].luas_area = area;
     }
@@ -1282,7 +1674,7 @@ function importPatternToNewSru(patId) {
   const linkedPoly = (SAR_GIS_BUNDLE.polygons || []).find(p => (pat.polygonId && p.id === pat.polygonId) || (pat.polygonName && p.name === pat.polygonName));
   if (linkedPoly) {
     const areaNum = calculatePolygonAreaNm2(linkedPoly);
-    area = areaNum > 0 ? `${areaNum.toFixed(2)} Nm²` : (linkedPoly.areaNm2 ? `${Number(linkedPoly.areaNm2).toFixed(2)} Nm²` : '');
+    area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : (linkedPoly.areaNm2 ? formatRenopsAreaShort(Number(linkedPoly.areaNm2)) : '');
     coordsText = getPolygonCoordsText(linkedPoly);
   }
 
@@ -1310,9 +1702,9 @@ function importRouteToSru(routeId, targetIdx) {
   const r = (SAR_GIS_BUNDLE.routes || []).find(item => String(item.id) === String(routeId));
   if (!r) return;
   
-  const dist = r.totalDistanceNm ? Number(r.totalDistanceNm).toFixed(1) : '-';
-  const speed = r.vesselSpeedKnots ? Number(r.vesselSpeedKnots).toFixed(0) : '25';
-  const totalSapuan = `1 Lintasan Track Line (Panjang: ${dist} Nm, Kecepatan: ${speed} Knots)`;
+  const dist = r.totalDistanceNm ? formatRenopsDistanceShort(r.totalDistanceNm) : '-';
+  const speed = r.vesselSpeedKnots ? formatRenopsSpeed(r.vesselSpeedKnots) : (activeRenopsUnit === 'KM' ? '46 km/jam' : '25 Knots');
+  const totalSapuan = `1 Lintasan Track Line (Panjang: ${dist}, Kecepatan: ${speed})`;
   const pts = r.points || [];
   let routeCoordsText = '';
   if (Array.isArray(pts) && pts.length > 0) {
@@ -1322,14 +1714,15 @@ function importRouteToSru(routeId, targetIdx) {
     }).join('\n');
   }
 
-  const routeDesc = `Jalur/Rute: ${r.name}\nPanjang Lintasan: ${dist} Nm | Kecepatan Alut: ${speed} Knots` + (routeCoordsText ? `\nKoordinat Lintasan:\n${routeCoordsText}` : '');
+  const routeDesc = `Jalur/Rute: ${r.name}\nPanjang Lintasan: ${dist} | Kecepatan Alut: ${speed}` + (routeCoordsText ? `\nKoordinat Lintasan:\n${routeCoordsText}` : '');
+  const corridorLuas = `${dist} (Koridor)`;
 
   if (targetIdx === -1 || !currentSrus[targetIdx]) {
     const num = currentSrus.length + 1;
     currentSrus.push({
       nama_sru: `SRU ${num} - Jalur ${r.name}`,
       koordinat_area: routeDesc,
-      luas_area: `${dist} Nm (Koridor)`,
+      luas_area: corridorLuas,
       pola_pencarian: 'Track Line Search',
       total_sapuan: totalSapuan
     });
@@ -1337,7 +1730,7 @@ function importRouteToSru(routeId, targetIdx) {
   } else {
     currentSrus[targetIdx].pola_pencarian = 'Track Line Search';
     currentSrus[targetIdx].total_sapuan = totalSapuan;
-    if (!currentSrus[targetIdx].luas_area) currentSrus[targetIdx].luas_area = `${dist} Nm (Koridor)`;
+    if (!currentSrus[targetIdx].luas_area) currentSrus[targetIdx].luas_area = corridorLuas;
     currentSrus[targetIdx].koordinat_area = (currentSrus[targetIdx].koordinat_area || '') + '\n\n' + routeDesc;
   }
   
@@ -1488,6 +1881,7 @@ document.getElementById('form-renops')?.addEventListener('submit', function() {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
+  initRenopsUnitSwitcher();
   recalculateRenopsHariKe();
   renderSruList();
   renderUnsurList();
@@ -1495,6 +1889,18 @@ document.addEventListener('DOMContentLoaded', () => {
   restoreRenopsDraft();
   recalculateRenopsHariKe();
 });
+
+// Expose public API for external scripts, testing & integration
+window.RENOPS_FORM = {
+  setUnit: setRenopsUnit,
+  getUnit: () => activeRenopsUnit,
+  formatArea: formatRenopsArea,
+  formatAreaShort: formatRenopsAreaShort,
+  formatDistance: formatRenopsDistance,
+  formatDistanceShort: formatRenopsDistanceShort,
+  formatSpacingShort: formatRenopsSpacingShort,
+  formatSpeed: formatRenopsSpeed
+};
 
 // Cross-tab auto-sync when plotting data is saved/updated/deleted in GIS map tab
 window.addEventListener('storage', (e) => {

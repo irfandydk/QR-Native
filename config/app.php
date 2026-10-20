@@ -103,7 +103,10 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.use_only_cookies', '1');
     ini_set('session.cookie_httponly', '1');
     
-    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+                (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443) ||
+                (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+                (isset($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] === 'on');
     session_set_cookie_params([
         'lifetime' => 86400 * 7,
         'path' => '/',
@@ -134,7 +137,13 @@ define('APP_KEY', (string)$appKey);
 
 // Base URL detection with Host Header sanitization & optional APP_URL override
 $appUrlEnv = getenv('APP_URL') ?: (getenv('BASE_URL') ?: null);
-if ($appUrlEnv) {
+$rawHost = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? '');
+$isLocalDev = (php_sapi_name() === 'cli-server') ||
+              str_starts_with($rawHost, 'localhost') ||
+              str_starts_with($rawHost, '127.0.0.1') ||
+              str_starts_with($rawHost, '[::1]');
+
+if ($appUrlEnv && !$isLocalDev) {
     $baseUrl = rtrim($appUrlEnv, '/');
 } else {
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||

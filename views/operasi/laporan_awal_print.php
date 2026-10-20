@@ -86,7 +86,10 @@ if (empty($fullWaText)) {
     <style>
         @page {
             size: A4 portrait;
-            margin: 10mm 15mm 12mm 15mm;
+            margin: 15mm 15mm 12mm 15mm;
+        }
+        @page :first {
+            margin-top: 10mm;
         }
         @media print {
             html, body {
@@ -129,14 +132,36 @@ if (empty($fullWaText)) {
             padding: 12mm 16mm 14mm 16mm;
             box-sizing: border-box;
             transition: transform 0.2s ease-in-out;
+            overflow-x: hidden;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .page-sheet *, .page-sheet *::before, .page-sheet *::after {
+            box-sizing: border-box !important;
+            max-width: 100%;
+        }
+        .page-sheet table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
         }
         .table-dinas th, .table-dinas td {
             border: 1px solid #000000;
             padding: 4px 6px;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            word-break: break-word !important;
         }
         .table-borderless td {
             padding: 2px 4px;
             vertical-align: top;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+        .text-justify {
+            text-align: justify !important;
+            text-justify: inter-word;
         }
     </style>
 </head>
@@ -167,9 +192,18 @@ if (empty($fullWaText)) {
                     </button>
                 </div>
 
+                <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=LAPORAN_AWAL" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-xs font-bold text-white transition no-underline" title="Ambil atau Perbarui Capture Peta 16:9 untuk Laporan Awal">
+                    <span>📸 Capture Peta 16:9</span>
+                </a>
+
                 <button type="button" onclick="copyWaText()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition" title="Salin Naskah WhatsApp Laporan Awal">
                     <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                     <span class="hidden sm:inline">Salin WA</span>
+                </button>
+
+                <button type="button" id="btnDownloadPdf" data-pdf-filename="LAPORAN_AWAL_OPS_<?= (int)$id ?>_<?= e($operasi['nama_operasi']) ?>" onclick="downloadOfficialPdf(null, this)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="Download Dokumen Elektronik PDF (Ukuran Optimal A4 Portrait)">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    <span>Download PDF</span>
                 </button>
 
                 <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-sm cursor-pointer">
@@ -272,10 +306,20 @@ if (empty($fullWaText)) {
                 </table>
             </div>
 
-            <!-- II. LOKASI KEJADIAN & DATA NAVIGASI (LKP) -->
+            <!-- II. KRONOLOGI KEJADIAN -->
+            <div class="mb-3" style="page-break-inside: auto; break-inside: auto;">
+                <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5" style="page-break-after: avoid; break-after: avoid;">
+                    II. KRONOLOGI KEJADIAN
+                </div>
+                <div class="p-2 border border-black text-[10pt] leading-relaxed text-justify" style="page-break-inside: auto; break-inside: auto;">
+                    <?= nl2br(e($operasi['kronologi'] ?: 'Kronologi kejadian belum terinci.')) ?>
+                </div>
+            </div>
+
+            <!-- III. LOKASI KEJADIAN & DATA NAVIGASI (LKP) -->
             <div class="mb-3 break-inside-avoid">
                 <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5">
-                    II. LOKASI KEJADIAN & LAST KNOWN POSITION (LKP)
+                    III. LOKASI KEJADIAN & LAST KNOWN POSITION (LKP)
                 </div>
                 <table class="w-full table-borderless text-[10pt]">
                     <tr>
@@ -299,12 +343,19 @@ if (empty($fullWaText)) {
                         <td><?= e($operasi['eta_lokasi'] ?: '-') ?> (Estimasi Tiba / ETA: <?= $tglEta ?> pukul <?= $jamEta ?> WITA)</td>
                     </tr>
                 </table>
+
+                <?php
+                require_once dirname(__DIR__, 2) . '/models/DokumenPetaSnapshotModel.php';
+                $mapSnapshot = DokumenPetaSnapshotModel::getSnapshot((int)$id, 'LAPORAN_AWAL');
+                $mapBlockTitle = '5. PETA LKP, SEARCH AREA & LOKASI PENEMUAN KORBAN (16:9)';
+                include __DIR__ . '/partials/print_map_snapshot_block.php';
+                ?>
             </div>
 
-            <!-- III. DATA KORBAN / PEOPLE ON BOARD (POB) -->
+            <!-- IV. DATA KORBAN / PEOPLE ON BOARD (POB) -->
             <div class="mb-3 break-inside-avoid">
                 <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5 flex justify-between items-center">
-                    <span>III. DATA KORBAN / PEOPLE ON BOARD (POB)</span>
+                    <span>IV. DATA KORBAN / PEOPLE ON BOARD (POB)</span>
                     <span class="font-mono text-[9.5pt]">TOTAL POB: <?= (int)$statsKorban['total'] ?> ORANG</span>
                 </div>
 
@@ -332,12 +383,12 @@ if (empty($fullWaText)) {
                 <table class="w-full table-dinas text-[9.5pt]">
                     <thead class="bg-slate-50 font-bold uppercase text-[8.5pt]">
                         <tr>
-                            <th class="w-8 text-center">No</th>
-                            <th>Nama Lengkap Korban</th>
-                            <th class="w-16 text-center">Umur</th>
-                            <th class="w-16 text-center">JK</th>
-                            <th>Alamat Domisili</th>
-                            <th class="w-28 text-center">Status</th>
+                            <th class="text-center" style="width: 6%;">No</th>
+                            <th style="width: 26%;">Nama Lengkap Korban</th>
+                            <th class="text-center" style="width: 10%;">Umur</th>
+                            <th class="text-center" style="width: 8%;">JK</th>
+                            <th style="width: 30%;">Alamat Domisili</th>
+                            <th class="text-center" style="width: 20%;">Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -375,10 +426,10 @@ if (empty($fullWaText)) {
                 </table>
             </div>
 
-            <!-- IV. PELAKSANAAN SAR, UNSUR & ALUT -->
+            <!-- V. PELAKSANAAN SAR, UNSUR & ALUT -->
             <div class="mb-3 break-inside-avoid">
                 <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5">
-                    IV. PELAKSANAAN SAR, TIM & ALUT DIKERAHKAN
+                    V. PELAKSANAAN SAR, TIM & ALUT DIKERAHKAN
                 </div>
                 <table class="w-full table-borderless text-[10pt] mb-2">
                     <tr>
@@ -404,7 +455,7 @@ if (empty($fullWaText)) {
                                 <?php endforeach; ?>
                             </ul>
                         <?php else: ?>
-                            <p class="whitespace-pre-line"><?= e($operasi['unsur_terlibat'] ?: '• Tim Rescue Kansar Kendari') ?></p>
+                            <p class="whitespace-pre-line text-justify"><?= e($operasi['unsur_terlibat'] ?: '• Tim Rescue Kansar Kendari') ?></p>
                         <?php endif; ?>
                     </div>
 
@@ -418,19 +469,9 @@ if (empty($fullWaText)) {
                                 <?php endforeach; ?>
                             </ul>
                         <?php else: ?>
-                            <p class="whitespace-pre-line"><?= e($operasi['alut_palsar'] ?: '• 1 Unit Rescue Car\n• 1 Unit Rubber Boat') ?></p>
+                            <p class="whitespace-pre-line text-justify"><?= e($operasi['alut_palsar'] ?: '• 1 Unit Rescue Car\n• 1 Unit Rubber Boat') ?></p>
                         <?php endif; ?>
                     </div>
-                </div>
-            </div>
-
-            <!-- V. KRONOLOGI KEJADIAN -->
-            <div class="mb-3 break-inside-avoid">
-                <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5">
-                    V. KRONOLOGI KEJADIAN
-                </div>
-                <div class="p-2 border border-black text-[10pt] leading-relaxed text-justify">
-                    <?= nl2br(e($operasi['kronologi'] ?: 'Kronologi kejadian belum terinci.')) ?>
                 </div>
             </div>
 
@@ -512,8 +553,10 @@ if (empty($fullWaText)) {
     <!-- Hidden Raw WA text container for copying -->
     <div id="raw-wa-text-holder" class="hidden"><?= htmlspecialchars($fullWaText) ?></div>
 
-    <!-- QR Code Script -->
+    <!-- QR Code & PDF Exporter Scripts -->
     <script src="<?= BASE_URL ?>/assets/vendor/qrcode/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
+    <script src="<?= BASE_URL ?>/assets/vendor/html2pdf/html2pdf.bundle.min.js?v=<?= APP_VERSION ?>"></script>
+    <script src="<?= BASE_URL ?>/assets/js/pdf_document_exporter.js?v=<?= APP_VERSION ?>_<?= @filemtime(dirname(__DIR__, 2) . '/assets/js/pdf_document_exporter.js') ?: time() ?>"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const verifyUrl = <?= jsonSafe($verifyUrl) ?>;

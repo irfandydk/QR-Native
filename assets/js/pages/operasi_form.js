@@ -635,25 +635,27 @@ function createWaypointDivIcon(idx) {
 
 function addStandardTileLayers(map) {
   // 1. Google Maps Hybrid (Satelit Resolusi Tinggi + Label Garis Pantai/Jalan) — 100% Tanpa API Key
-  const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+  const googleHybrid = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
     maxNativeZoom: 20,
     maxZoom: 22,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    attribution: 'Google Hybrid'
+    subdomains: ['0', '1', '2', '3'],
+    attribution: 'Google Hybrid Satelit'
   });
 
   // 2. OpenStreetMap Standard (Peta Terbuka / Navigasi Darat & Pesisir) — 100% Tanpa API Key
   const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
+    maxNativeZoom: 19,
+    maxZoom: 22,
+    subdomains: ['a', 'b', 'c'],
     attribution: '© OpenStreetMap contributors'
   });
 
   // 3. Google Roadmap (Peta Jalan Vektor Bersih) — 100% Tanpa API Key
-  const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+  const googleRoadmap = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
     maxNativeZoom: 20,
     maxZoom: 22,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    attribution: 'Google Maps'
+    subdomains: ['0', '1', '2', '3'],
+    attribution: 'Google Maps Roadmap'
   });
 
   // 4. ESRI World Imagery (Citra Satelit Global) — 100% Tanpa API Key
@@ -794,6 +796,10 @@ function initLkpTacticalMap() {
   tacticalState.inlineMap = L.map('lkp_inline_map', {
     center: [tacticalState.lkpLat, tacticalState.lkpLng],
     zoom: 10,
+    minZoom: 4,
+    maxZoom: 22,
+    zoomSnap: 0.5,
+    zoomDelta: 0.5,
     zoomControl: true
   });
 
@@ -1376,16 +1382,40 @@ function recalculateTacticalMetrics(autoApply = false) {
     fbEl.innerHTML = `📍 Terkalkulasi dari <strong>${escapeHtml(tacticalState.originName)}</strong> ke LKP [${routeTypeStr}]: <strong>${totalNm.toFixed(1)} NM</strong> (${totalKm.toFixed(1)} KM), Radial <strong>${departureRadial.toString().padStart(3, '0')}°</strong>`;
   }
 
-  // Update Hidden Inputs
+  // Update Hidden Inputs for GIS & Backend Sync
   const manualRouteHidden = document.getElementById('manual_route_json');
   if (manualRouteHidden) {
     manualRouteHidden.value = JSON.stringify(pts);
+  }
+
+  const tacticalRouteHidden = document.getElementById('tactical_route_data');
+  if (tacticalRouteHidden) {
+    tacticalRouteHidden.value = JSON.stringify({
+      routingMode: tacticalState.routingMode,
+      origin: { lat: tacticalState.originLat, lng: tacticalState.originLng, name: tacticalState.originName },
+      lkp: { lat: tacticalState.lkpLat, lng: tacticalState.lkpLng },
+      waypoints: tacticalState.manualWaypoints,
+      totalNm: totalNm,
+      totalKm: totalKm,
+      radial: departureRadial,
+      speedKnots: tacticalState.vesselSpeedKnots,
+      etaMinutes: totalMins,
+      etaStr: etaStr,
+      points: pts
+    });
   }
 
   const speedHidden = document.getElementById('vessel_speed_knots');
   if (speedHidden) {
     speedHidden.value = speedKnots.toFixed(2);
   }
+
+  const oLatIn = document.getElementById('origin_lat');
+  const oLngIn = document.getElementById('origin_lng');
+  const oNameIn = document.getElementById('origin_name');
+  if (oLatIn) oLatIn.value = tacticalState.originLat;
+  if (oLngIn) oLngIn.value = tacticalState.originLng;
+  if (oNameIn) oNameIn.value = tacticalState.originName;
 
   if (autoApply) {
     applyTacticalRouteToForm();
@@ -1464,6 +1494,10 @@ function openFullscreenMapModal() {
       tacticalState.modalMap = L.map('lkp_modal_map', {
         center: [tacticalState.lkpLat, tacticalState.lkpLng],
         zoom: 10,
+        minZoom: 4,
+        maxZoom: 22,
+        zoomSnap: 0.5,
+        zoomDelta: 0.5,
         zoomControl: true
       });
 

@@ -35,7 +35,7 @@ class TacticalGisMap {
         const container = document.getElementById(this.containerId);
         if (!container) return;
 
-        // 1. Google Hybrid (Satelit Resolusi Tinggi + Label Jalan & Wilayah)
+        // 1. Google Hybrid (Satelit Resolusi Tinggi + Label Jalan & Wilayah) - 100% Bebas API Key
         const hybrid = L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
             attribution: '© Google Maps',
             subdomains: ['0', '1', '2', '3'],
@@ -51,7 +51,14 @@ class TacticalGisMap {
             maxNativeZoom: 20
         });
 
-        // 3. Google Roadmap (Peta Jalan Vektor Bersih)
+        // 3. ESRI World Imagery (High-Res Global Satellite)
+        const esriSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Esri World Imagery',
+            maxZoom: 22,
+            maxNativeZoom: 18
+        });
+
+        // 4. Google Roadmap (Peta Jalan Vektor Bersih)
         const roadmap = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
             attribution: '© Google Maps',
             subdomains: ['0', '1', '2', '3'],
@@ -59,7 +66,7 @@ class TacticalGisMap {
             maxNativeZoom: 20
         });
 
-        // 4. Google Terrain (Peta Topografi, Kontur Relief & Elevasi)
+        // 5. Google Terrain (Peta Topografi, Kontur Relief & Elevasi)
         const terrain = L.tileLayer('https://mt{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
             attribution: '© Google Maps',
             subdomains: ['0', '1', '2', '3'],
@@ -67,36 +74,60 @@ class TacticalGisMap {
             maxNativeZoom: 20
         });
 
+        // 6. OpenStreetMap Standard
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            subdomains: ['a', 'b', 'c'],
+            maxZoom: 22,
+            maxNativeZoom: 19
+        });
+
         // Optional Dark Taktis (Operasi Malam)
         const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             attribution: '© CartoDB, OpenStreetMap contributors',
-            maxZoom: 19
+            subdomains: 'abcd',
+            maxZoom: 22,
+            maxNativeZoom: 19
         });
 
         this.baseLayers = {
             hybrid: hybrid,
             satellite: satellite,
+            esri: esriSatellite,
             roadmap: roadmap,
             terrain: terrain,
-            osm: roadmap,   // Alias kompatibilitas
-            topo: terrain,  // Alias kompatibilitas
+            osm: osm,
+            topo: terrain,
             dark: dark
         };
+
+        // Silently tolerate single tile errors
+        Object.values(this.baseLayers).forEach(layer => {
+            if (layer && typeof layer.on === 'function') {
+                layer.on('tileerror', () => { /* Silent fallback without uncaught exceptions */ });
+            }
+        });
 
         const activeBaseLayer = this.baseLayers[this.currentBaseLayerKey] || hybrid;
 
         this.map = L.map(this.containerId, {
             center: this.options.center,
             zoom: this.options.zoom,
+            minZoom: 4,
+            maxZoom: 22,
+            zoomSnap: 0.5,
+            zoomDelta: 0.5,
             layers: [activeBaseLayer]
         });
 
         // Layer controls (Pilihan Peta Dasar & Overlay Komponen SAR)
         const baseMaps = {
             "🛰️ Hybrid (Satelit + Jalan)": hybrid,
-            "🌍 Satelit Murni": satellite,
+            "🌍 Satelit Google": satellite,
+            "🛰️ Satelit Esri": esriSatellite,
             "🗺️ Roadmap (Peta Jalan)": roadmap,
             "🏔️ Terrain (Topografi & Kontur)": terrain,
+            "🌐 OpenStreetMap": osm,
             "🌙 Dark Taktis": dark
         };
 
@@ -114,6 +145,13 @@ class TacticalGisMap {
 
         // Add overlay layers to map
         Object.values(this.layers).forEach(layer => layer.addTo(this.map));
+
+        // Invalidate size on resize to avoid distorted canvas
+        window.addEventListener('resize', () => {
+            if (this.map) {
+                setTimeout(() => this.map.invalidateSize(), 150);
+            }
+        });
 
         // Click handler for coordinates
         this.map.on('click', (e) => this.onMapClick(e));
@@ -414,40 +452,90 @@ class TacticalGisMap {
                 const safeKet = p.keterangan ? this.escapeHtml(p.keterangan) : '';
 
                 // Handle Lingkaran (Circle Search Area)
-                if (p.shapeType === 'circle' && p.radiusNm && Number(p.radiusNm) > 0 && pts.length > 0) {
-                    const center = [Number(pts[0].lat) || 0, Number(pts[0].lng) || 0];
-                    const radiusNmVal = Number(p.radiusNm) || 0;
-                    const radiusMeters = radiusNmVal * 1852;
-                    const safeCircleName = this.escapeHtml(p.name || 'Search Area Radius');
-                    const circleLayer = L.circle(center, {
-                        radius: radiusMeters,
-                        color: strokeColor,
-                        weight: Number(p.strokeWeight) || 3,
-                        opacity: Number(p.strokeOpacity) || 0.9,
-                        fillColor: fillColor,
-                        fillOpacity: Number(p.fillOpacity) || 0.25
-                    }).addTo(this.layers.polygons);
+                const isCircle = p.shapeType === 'circle' && Number(p.radiusNm) > 0;
+                if (isCircle) {
+                    const cLat = (p.centerLat !== null && p.centerLat !== undefined && p.centerLat !== '')
+                        ? Number(p.centerLat)
+                        : (pts.length > 0 ? Number(pts[0].lat) : null);
+                    const cLng = (p.centerLng !== null && p.centerLng !== undefined && p.centerLng !== '')
+                        ? Number(p.centerLng)
+                        : (pts.length > 0 ? Number(pts[0].lng) : null);
 
-                    const popupContent = `
-                        <div style="font-size:12px;min-width:200px;line-height:1.4;">
-                            <div style="font-weight:bold;color:${strokeColor};margin-bottom:3px;font-size:13px;">⭕ ${safeCircleName}</div>
-                            <div style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-bottom:6px;background:${isBaseMap ? '#eff6ff;color:#2563eb;' : '#fff7ed;color:#ea580c;'}">
-                                ${isBaseMap ? 'BASE MAP' : 'OPERASI SAR'}
+                    if (cLat !== null && cLng !== null && !isNaN(cLat) && !isNaN(cLng)) {
+                        const center = [cLat, cLng];
+                        const radiusNmVal = Number(p.radiusNm) || 0;
+                        const radiusMeters = radiusNmVal * 1852;
+                        const safeCircleName = this.escapeHtml(p.name || 'Search Area Radius');
+                        const circleLayer = L.circle(center, {
+                            radius: radiusMeters,
+                            color: strokeColor,
+                            weight: Number(p.strokeWeight) || 3,
+                            opacity: Number(p.strokeOpacity) || 0.9,
+                            fillColor: fillColor,
+                            fillOpacity: Number(p.fillOpacity) || 0.25
+                        }).addTo(this.layers.polygons);
+
+                        // Center Datum Marker
+                        const centerHtml = `
+                            <div style="background:#ea580c;color:#ffffff;width:24px;height:24px;border-radius:50%;border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,0.5);user-select:none;">
+                                ⊙
                             </div>
-                            <div>Radius: <strong>${radiusNmVal} Nm</strong> (${(radiusNmVal * 1.852).toFixed(1)} Km)</div>
-                            <div>Luas Area: <strong>${area} Nm²</strong></div>
-                            ${safeKet ? `<div style="margin-top:4px;color:#64748b;font-size:11px;">${safeKet}</div>` : ''}
-                        </div>
-                    `;
-                    circleLayer.bindPopup(popupContent);
-                    this.componentLayers['polygon_' + p.id] = circleLayer;
-                    this.componentLayers[p.id] = circleLayer;
-                    return;
+                        `;
+                        const centerIcon = L.divIcon({
+                            className: 'sar-circle-center-pin',
+                            html: centerHtml,
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 12]
+                        });
+                        L.marker(center, { icon: centerIcon })
+                            .bindTooltip(`Pusat Datum (LKP): ${this.formatDms(cLat, cLng)}<br>Radius: ${radiusNmVal} NM`, { permanent: false })
+                            .addTo(this.layers.polygons);
+
+                        const popupContent = `
+                            <div style="font-size:12px;min-width:200px;line-height:1.4;">
+                                <div style="font-weight:bold;color:${strokeColor};margin-bottom:3px;font-size:13px;">⭕ ${safeCircleName}</div>
+                                <div style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-bottom:6px;background:${isBaseMap ? '#eff6ff;color:#2563eb;' : '#fff7ed;color:#ea580c;'}">
+                                    ${isBaseMap ? 'BASE MAP' : 'OPERASI SAR'}
+                                </div>
+                                <div>Radius: <strong>${radiusNmVal} Nm</strong> (${(radiusNmVal * 1.852).toFixed(1)} Km)</div>
+                                <div>Luas Area: <strong>${area} Nm²</strong></div>
+                                <div>Pusat Datum: <strong>${this.formatDms(cLat, cLng)}</strong></div>
+                                ${safeKet ? `<div style="margin-top:4px;color:#64748b;font-size:11px;">${safeKet}</div>` : ''}
+                            </div>
+                        `;
+                        circleLayer.bindPopup(popupContent);
+                        this.componentLayers['polygon_' + p.id] = circleLayer;
+                        this.componentLayers[p.id] = circleLayer;
+                        return;
+                    }
+                }
+
+                // Handle Rectangle corner generation if only dimensions/center exist
+                let effectivePts = pts;
+                if ((p.shapeType === 'rectangle' || p.shapeType === 'box') && (!effectivePts || effectivePts.length < 3)) {
+                    const cLat = Number(p.centerLat);
+                    const cLng = Number(p.centerLng);
+                    const wNm = Number(p.boxWidthNm);
+                    const hNm = Number(p.boxHeightNm);
+                    if (!isNaN(cLat) && !isNaN(cLng) && wNm > 0 && hNm > 0) {
+                        const halfWidthKm = (wNm * 1.852) / 2;
+                        const halfHeightKm = (hNm * 1.852) / 2;
+                        const latKmPerDeg = 110.574;
+                        const lngKmPerDeg = 111.32 * Math.cos((cLat * Math.PI) / 180);
+                        const dLat = halfHeightKm / latKmPerDeg;
+                        const dLng = halfWidthKm / lngKmPerDeg;
+                        effectivePts = [
+                            { lat: cLat + dLat, lng: cLng - dLng, label: 'Titik A (NW)' },
+                            { lat: cLat + dLat, lng: cLng + dLng, label: 'Titik B (NE)' },
+                            { lat: cLat - dLat, lng: cLng + dLng, label: 'Titik C (SE)' },
+                            { lat: cLat - dLat, lng: cLng - dLng, label: 'Titik D (SW)' }
+                        ];
+                    }
                 }
 
                 // Handle Standard Polygon (Minimal 3 titik koordinat sudut)
-                if (pts.length < 3) return;
-                const latlngs = pts.map(pt => [Number(pt.lat) || 0, Number(pt.lng) || 0]);
+                if (!effectivePts || effectivePts.length < 3) return;
+                const latlngs = effectivePts.map(pt => [Number(pt.lat) || 0, Number(pt.lng) || 0]);
                 const safePolyName = this.escapeHtml(p.name || 'Sektor Pencarian');
 
                 const polygonLayer = L.polygon(latlngs, {
@@ -459,7 +547,7 @@ class TacticalGisMap {
                 }).addTo(this.layers.polygons);
 
                 // Tambahkan Badge Sudut Koordinat (A, B, C, D...)
-                pts.forEach((pt, idx) => {
+                effectivePts.forEach((pt, idx) => {
                     const letter = String.fromCharCode(65 + (idx % 26));
                     const cornerHtml = `
                         <div style="background:${strokeColor};color:#ffffff;width:22px;height:22px;border-radius:50%;border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;box-shadow:0 2px 5px rgba(0,0,0,0.45);user-select:none;">
@@ -485,7 +573,7 @@ class TacticalGisMap {
                             ${isBaseMap ? 'BASE MAP' : 'OPERASI SAR'}
                         </div>
                         <div>Luas Sektor: <strong>${area} Nm²</strong></div>
-                        <div>Sudut Batas: <strong>${pts.length} titik koordinat (A-${String.fromCharCode(64 + Math.min(pts.length, 26))})</strong></div>
+                        <div>Sudut Batas: <strong>${effectivePts.length} titik koordinat (A-${String.fromCharCode(64 + Math.min(effectivePts.length, 26))})</strong></div>
                         ${safeKet ? `<div style="margin-top:4px;color:#64748b;font-size:11px;">${safeKet}</div>` : ''}
                     </div>
                 `;
@@ -500,45 +588,112 @@ class TacticalGisMap {
             bundle.searchPatterns.forEach(p => {
                 const wps = p.waypoints || [];
                 if (wps.length < 2) return;
-                const latlngs = wps.map(w => [Number(w.lat) || 0, Number(w.lng) || 0]);
                 const color = this.sanitizeColor(p.color, '#ea580c');
                 const isBaseMap = !p.id_operasi;
+                const isEsar = (p.patternType === 'e_sar' || p.patternType === 'sector_search');
 
-                const patternLayer = L.polyline(latlngs, {
+                let patternPolylineCoords = [];
+                if (isEsar) {
+                    const segments = [];
+                    const baseline = [];
+                    for (let i = 0; i < wps.length - 1; i += 2) {
+                        const pStart = wps[i];
+                        const pFin = wps[i + 1];
+                        if (pStart && pFin) {
+                            const lat1 = Number(pStart.lat) || 0;
+                            const lng1 = Number(pStart.lng) || 0;
+                            const lat2 = Number(pFin.lat) || 0;
+                            const lng2 = Number(pFin.lng) || 0;
+                            segments.push([[lat1, lng1], [lat2, lng2]]);
+                            baseline.push([lat1, lng1]);
+
+                            // Add SVG directional arrow for each sweep line
+                            const arrowLat = lat1 + (lat2 - lat1) * 0.65;
+                            const arrowLng = lng1 + (lng2 - lng1) * 0.65;
+                            const dLng = (lng2 - lng1) * Math.PI / 180;
+                            const φ1 = lat1 * Math.PI / 180;
+                            const φ2 = lat2 * Math.PI / 180;
+                            const y = Math.sin(dLng) * Math.cos(φ2);
+                            const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(dLng);
+                            const brng = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+
+                            const arrowSvg = `
+                                <div style="transform: rotate(${Math.round(brng)}deg); display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; pointer-events: none;">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="${color}" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));">
+                                        <polygon points="12,2 22,22 12,17 2,22 12,2" />
+                                    </svg>
+                                </div>
+                            `;
+                            L.marker([arrowLat, arrowLng], {
+                                icon: L.divIcon({
+                                    className: 'sar-esar-sweep-arrow',
+                                    html: arrowSvg,
+                                    iconSize: [28, 28],
+                                    iconAnchor: [14, 14]
+                                }),
+                                interactive: false,
+                                zIndexOffset: 1450
+                            }).addTo(this.layers.searchPatterns);
+                        }
+                    }
+                    if (baseline.length >= 2) {
+                        segments.push(baseline);
+                    }
+                    patternPolylineCoords = segments;
+
+                    // Add Personnel Start Badges (P1, P2, P3...)
+                    for (let i = 0; i < wps.length - 1; i += 2) {
+                        const pNum = Math.floor(i / 2) + 1;
+                        const pStart = wps[i];
+                        const lat = Number(pStart.lat) || 0;
+                        const lng = Number(pStart.lng) || 0;
+                        const pHtml = `
+                            <div style="background:#0284c7;color:#ffffff;width:22px;height:22px;border-radius:50%;border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;box-shadow:0 2px 4px rgba(0,0,0,0.45);">
+                                P${pNum}
+                            </div>
+                        `;
+                        L.marker([lat, lng], {
+                            icon: L.divIcon({ className: 'sar-pat-esar-p', html: pHtml, iconSize: [22, 22], iconAnchor: [11, 11] })
+                        }).bindTooltip(`Personel ${pNum} (Garis Awal)`, { permanent: false }).addTo(this.layers.searchPatterns);
+                    }
+                } else {
+                    patternPolylineCoords = wps.map(w => [Number(w.lat) || 0, Number(w.lng) || 0]);
+
+                    // Entry / Start Marker (S)
+                    const startWp = wps[0];
+                    const startHtml = `
+                        <div style="background:#16a34a;color:#ffffff;width:24px;height:24px;border-radius:50%;border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;box-shadow:0 2px 5px rgba(0,0,0,0.45);">
+                            S
+                        </div>
+                    `;
+                    L.marker([Number(startWp.lat) || 0, Number(startWp.lng) || 0], {
+                        icon: L.divIcon({ className: 'sar-pat-start', html: startHtml, iconSize: [24, 24], iconAnchor: [12, 12] })
+                    }).bindTooltip('Titik Awal Sapuan (Entry / Start)', { permanent: false }).addTo(this.layers.searchPatterns);
+
+                    // Exit / End Marker (E)
+                    const endWp = wps[wps.length - 1];
+                    const endHtml = `
+                        <div style="background:#dc2626;color:#ffffff;width:24px;height:24px;border-radius:50%;border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;box-shadow:0 2px 5px rgba(0,0,0,0.45);">
+                            E
+                        </div>
+                    `;
+                    L.marker([Number(endWp.lat) || 0, Number(endWp.lng) || 0], {
+                        icon: L.divIcon({ className: 'sar-pat-end', html: endHtml, iconSize: [24, 24], iconAnchor: [12, 12] })
+                    }).bindTooltip('Titik Akhir Sapuan (Exit / End)', { permanent: false }).addTo(this.layers.searchPatterns);
+                }
+
+                const patternLayer = L.polyline(patternPolylineCoords, {
                     color: color,
                     weight: Number(p.strokeWeight) || 3,
                     opacity: Number(p.opacity) || 0.9,
                     dashArray: '6, 6'
                 }).addTo(this.layers.searchPatterns);
 
-                // Entry / Start Marker (S)
-                const startWp = wps[0];
-                const startHtml = `
-                    <div style="background:#16a34a;color:#ffffff;width:24px;height:24px;border-radius:50%;border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;box-shadow:0 2px 5px rgba(0,0,0,0.45);">
-                        S
-                    </div>
-                `;
-                L.marker([Number(startWp.lat) || 0, Number(startWp.lng) || 0], {
-                    icon: L.divIcon({ className: 'sar-pat-start', html: startHtml, iconSize: [24, 24], iconAnchor: [12, 12] })
-                }).bindTooltip('Titik Awal Sapuan (Entry / Start)', { permanent: false }).addTo(this.layers.searchPatterns);
-
-                // Exit / End Marker (E)
-                const endWp = wps[wps.length - 1];
-                const endHtml = `
-                    <div style="background:#dc2626;color:#ffffff;width:24px;height:24px;border-radius:50%;border:2px solid #ffffff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;box-shadow:0 2px 5px rgba(0,0,0,0.45);">
-                        E
-                    </div>
-                `;
-                L.marker([Number(endWp.lat) || 0, Number(endWp.lng) || 0], {
-                    icon: L.divIcon({ className: 'sar-pat-end', html: endHtml, iconSize: [24, 24], iconAnchor: [12, 12] })
-                }).bindTooltip('Titik Akhir Sapuan (Exit / End)', { permanent: false }).addTo(this.layers.searchPatterns);
-
                 const typeLabels = {
                     'creeping_line': 'Creeping Line Search (Lintasan Merayap)',
                     'parallel_track': 'Parallel Track Search (Lintasan Paralel)',
-                    'expanding_square': 'Expanding Square Search (Kotak Membesar)',
                     'e_sar': 'Pola E-SAR (Hutan/Darat)',
-                    'sector_search': 'Pola Sektor Terfokus (Sector Search)',
+                    'sector_search': 'Pola E-SAR (Hutan/Darat)',
                     'track_line': 'Track Line Search (Jalur Lurus)'
                 };
                 const safePatName = this.escapeHtml(p.name || 'Pola Pencarian SAR');
@@ -546,9 +701,20 @@ class TacticalGisMap {
                 const safeSpacing = p.trackSpacingNm !== undefined && p.trackSpacingNm !== null && p.trackSpacingNm !== ''
                     ? this.escapeHtml(p.trackSpacingNm)
                     : '-';
-                const safeLegsCount = Number(p.legsCount) || wps.length;
+                const safeLegsCount = Number(p.legsCount) || (isEsar ? Math.floor(wps.length / 2) : wps.length);
 
-                const popupContent = `
+                const popupContent = isEsar ? `
+                    <div style="font-size:12px;min-width:200px;line-height:1.4;">
+                        <div style="font-weight:bold;color:${color};margin-bottom:3px;font-size:13px;">⚡ ${safePatName}</div>
+                        <div style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-bottom:6px;background:${isBaseMap ? '#eff6ff;color:#2563eb;' : '#fff7ed;color:#ea580c;'}">
+                            ${isBaseMap ? 'BASE MAP' : 'OPERASI SAR'}
+                        </div>
+                        <div>Tipe: <strong>${safeTypeLabel}</strong></div>
+                        <div>Jumlah Personil: <strong>${safeLegsCount} Personil</strong></div>
+                        <div>Spasi Antar Personil (S): <strong>${safeSpacing} Nm</strong></div>
+                        <div>Total Panjang Sapuan: <strong>${p.totalDistanceNm ? Number(p.totalDistanceNm).toFixed(1) : '-'} Nm</strong></div>
+                    </div>
+                ` : `
                     <div style="font-size:12px;min-width:200px;line-height:1.4;">
                         <div style="font-weight:bold;color:${color};margin-bottom:3px;font-size:13px;">⚡ ${safePatName}</div>
                         <div style="display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;margin-bottom:6px;background:${isBaseMap ? '#eff6ff;color:#2563eb;' : '#fff7ed;color:#ea580c;'}">
