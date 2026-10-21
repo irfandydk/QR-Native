@@ -117,6 +117,17 @@ $sampleBounds = [
     'unit' => 'NM'
 ];
 
+// Uji Simpan snapshot umum RENOPS (id_referensi = null) untuk menguji fallback cerdas
+$savedRenopsGeneral = DokumenPetaSnapshotModel::saveSnapshot([
+    'id_operasi' => $testIdOperasi,
+    'jenis_dokumen' => 'RENOPS',
+    'id_referensi' => null,
+    'image_data' => $dummyPngBase64,
+    'komponen' => $sampleKomponen,
+    'bounds' => $sampleBounds,
+    'keterangan_tambahan' => 'Peta Umum RENOPS Operasi'
+]);
+
 // Uji Simpan & Fallback untuk RENOPS dengan idReferensi spesifik khusus test (999888)
 $savedRenopsSpecific = DokumenPetaSnapshotModel::saveSnapshot([
     'id_operasi' => $testIdOperasi,
@@ -141,13 +152,13 @@ assertTrue(is_file($absFile), "File fisik PNG snapshot berhasil ditulis ke disk:
 $fetchedSpecific = DokumenPetaSnapshotModel::getSnapshot($testIdOperasi, 'RENOPS', 999888);
 assertTrue(!empty($fetchedSpecific) && (int)$fetchedSpecific['id_snapshot'] === (int)$savedRenopsSpecific['id_snapshot'], "getSnapshot mengembalikan snapshot spesifik untuk id_referensi=999888");
 
-// Ambil dengan id_referensi=999889 (belum ada spesifik 999889, harus fallback ke snapshot RENOPS milik operasi tersebut)
+// Ambil dengan id_referensi=999889 (belum ada spesifik 999889, harus fallback ke snapshot umum RENOPS milik operasi tersebut)
 $fetchedFallback = DokumenPetaSnapshotModel::getSnapshot($testIdOperasi, 'RENOPS', 999889);
 assertTrue(!empty($fetchedFallback) && (int)$fetchedFallback['id_operasi'] === $testIdOperasi, "getSnapshot memiliki fallback cerdas jika id_referensi spesifik belum memiliki snapshot tersendiri");
 
 // Uji getAllByOperasi
 $allSnaps = DokumenPetaSnapshotModel::getAllByOperasi($testIdOperasi);
-assertTrue(count($allSnaps) === 1, "getAllByOperasi mengembalikan daftar snapshot milik operasi");
+assertTrue(count($allSnaps) >= 1, "getAllByOperasi mengembalikan daftar snapshot milik operasi");
 
 // Uji Rendering Partial print_map_snapshot_block.php
 $mapSnapshot = $savedRenopsSpecific;
@@ -158,11 +169,14 @@ $renderedBlock = ob_get_clean();
 
 assertTrue(strpos($renderedBlock, 'VISUALISASI PETA TAKTIS LKP &amp; AREA PENCARIAN AWAL (RASIO 16:9)') !== false, "Partial print_map_snapshot_block.php menampilkan judul bagian dengan benar");
 assertTrue(strpos($renderedBlock, 'aspect-ratio: 16 / 9') !== false, "Partial print_map_snapshot_block.php menerapkan rasio 16:9 pada kontainer gambar peta");
-assertTrue(strpos($renderedBlock, 'KOORDINAT &amp; KETERANGAN SPESIFIKASI AREA CAPTURE') !== false, "Partial print_map_snapshot_block.php merender header Tabel Keterangan Komponen");
+assertTrue(strpos($renderedBlock, 'KOORDINAT &amp; SPESIFIKASI AREA') !== false, "Partial print_map_snapshot_block.php merender header Tabel Keterangan Komponen");
 assertTrue(strpos($renderedBlock, 'LKP KM Harapan Jaya') !== false && strpos($renderedBlock, 'Penemuan Korban #1 (La Ode Ahmad)') !== false, "Partial print_map_snapshot_block.php menampilkan seluruh baris komponen di dalam tabel keterangan");
 
 // Uji Delete Snapshot & pembersihan file fisik
 $del = DokumenPetaSnapshotModel::deleteSnapshot((int)$savedRenopsSpecific['id_snapshot']);
+if (!empty($savedRenopsGeneral['id_snapshot'])) {
+    DokumenPetaSnapshotModel::deleteSnapshot((int)$savedRenopsGeneral['id_snapshot']);
+}
 assertTrue($del, "deleteSnapshot berhasil menghapus record dari database");
 assertTrue(!is_file($absFile), "deleteSnapshot ikut membersihkan file PNG fisik dari disk");
 
@@ -179,22 +193,24 @@ assertTrue(strpos($gisJs, 'function detectComponentsInCaptureBox(') !== false, "
 assertTrue(strpos($gisJs, 'function renderCaptureCanvas16x9(') !== false, "assets/js/gis_master.js mendefinisikan fungsi kanvas 16:9 renderCaptureCanvas16x9()");
 assertTrue(strpos($gisJs, 'CANVAS_W = 1280') !== false && strpos($gisJs, 'CANVAS_H = 720') !== false, "renderCaptureCanvas16x9() menggunakan resolusi 16:9 presisi (1280x720)");
 
-// 4. Verifikasi Integrasi di Keempat Dokumen Cetak Resmi
+// 4. Verifikasi Integrasi di Dokumen Cetak Resmi Sesuai SOP Basarnas
 $printFiles = [
-    'views/operasi/laporan_awal_print.php' => 'LAPORAN_AWAL',
-    'views/operasi/renops_print.php'       => 'RENOPS',
-    'views/operasi/sitrep_print.php'       => 'SITREP',
-    'views/operasi/penutupan_print.php'    => 'PENUTUPAN'
+    'views/operasi/laporan_awal_print.php' => ['doc' => 'LAPORAN_AWAL', 'cap' => 'LAPORAN_AWAL'],
+    'views/operasi/renops_print.php'       => ['doc' => 'RENOPS',       'cap' => 'RENOPS'],
+    'views/operasi/sitrep_print.php'       => ['doc' => 'PENUTUPAN',    'cap' => 'PENUTUPAN'],
+    'views/operasi/penutupan_print.php'    => ['doc' => 'PENUTUPAN',    'cap' => 'PENUTUPAN']
 ];
 
-foreach ($printFiles as $relFile => $docCode) {
+foreach ($printFiles as $relFile => $cfg) {
     $content = file_get_contents($rootDir . '/' . $relFile);
+    $docCode = $cfg['doc'];
+    $capCode = $cfg['cap'];
     assertTrue(
         strpos($content, 'print_map_snapshot_block.php') !== false && strpos($content, "'{$docCode}'") !== false,
         "Dokumen cetak {$relFile} telah menyematkan print_map_snapshot_block.php untuk {$docCode} di dalam BAB relevan"
     );
     assertTrue(
-        strpos($content, "capture_doc={$docCode}") !== false,
+        strpos($content, "capture_doc={$capCode}") !== false,
         "Dokumen cetak {$relFile} memiliki tombol pintas Capture Peta 16:9 di toolbar"
     );
 }

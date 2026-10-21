@@ -282,6 +282,13 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
         <button type="button" id="btnResetGisOperasi" class="p-1 text-slate-400 hover:text-red-500 transition <?= ($filterMode === 'operasi' || $filterMode === 'basemap' || $filterMode === 'dasar') ? '' : 'hidden' ?>" title="Reset ke Semua Komponen">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
+
+        <?php if ($filterMode === 'operasi' && $selectedOperasiId > 0): ?>
+          <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $selectedOperasiId ?>" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-600 dark:text-orange-400 text-xs font-bold border border-orange-500/30 transition shadow-xs" title="Kembali ke Detail Operasi SAR">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+            <span class="hidden xl:inline">Ke Operasi</span>
+          </a>
+        <?php endif; ?>
       </div>
     </div>
 

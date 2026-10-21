@@ -188,11 +188,128 @@ class OperasiController extends BaseController {
             exit;
         }
 
+        // Portal Verifikasi Keabsahan Dokumen Operasi SAR (Akses Publik / Scanner Barcode)
+        if ($action === 'verify' || $action === 'verify_doc') {
+            $this->verifyDocument();
+            return;
+        }
+
         // Default: show list
         $this->render('dashboard', [], [
             'title' => 'Daftar Operasi SAR',
             'route' => 'operasi',
             'navbarTitle' => 'Daftar Operasi SAR Kendari'
+        ]);
+    }
+
+    /**
+     * Portal Verifikasi Publik Resmi Keabsahan Dokumen Operasi SAR
+     */
+    protected function verifyDocument(): void {
+        $type = DocVerifyHelper::normalizeType($_GET['type'] ?? 'laporan_awal');
+        $idOps = (int)($_GET['id'] ?? 0);
+        $refId = (int)($_GET['ref'] ?? 0);
+        $token = trim((string)($_GET['token'] ?? ''));
+
+        $operasi = $idOps > 0 ? OperasiModel::getById($idOps) : null;
+        $docData = null;
+
+        if ($operasi) {
+            if ($type === DocVerifyHelper::TYPE_RENOPS) {
+                if ($refId > 0) {
+                    $docData = RenopsModel::getById($refId);
+                } else {
+                    $list = RenopsModel::getByOperasiId($idOps);
+                    $docData = !empty($list) ? end($list) : null;
+                }
+            } elseif ($type === DocVerifyHelper::TYPE_SITREP) {
+                if ($refId > 0) {
+                    $docData = LaporanModel::getById($refId);
+                } else {
+                    $list = LaporanModel::getByOperasiId($idOps);
+                    $docData = !empty($list) ? end($list) : null;
+                }
+            } elseif ($type === DocVerifyHelper::TYPE_PENUTUPAN) {
+                if ($refId > 0) {
+                    $docData = LaporanModel::getById($refId);
+                } else {
+                    $list = LaporanModel::getByOperasiId($idOps);
+                    foreach ($list as $l) {
+                        if (strtoupper((string)($l['jenis_laporan'] ?? '')) === 'PENUTUPAN') {
+                            $docData = $l;
+                            break;
+                        }
+                    }
+                    if (!$docData && !empty($list)) {
+                        $docData = end($list);
+                    }
+                }
+            }
+        }
+
+        $isValid = false;
+        if ($operasi && !empty($token)) {
+            $isValid = DocVerifyHelper::verifyToken($type, $operasi, $docData, $token);
+        }
+
+        if (!$isValid) {
+            http_response_code(404);
+            $invalidRef = "OPS-{$idOps}" . ($refId > 0 ? "/REF-{$refId}" : "") . " [{$type}]";
+            $this->render('bra/verify_invalid', [
+                'invalidTitle' => 'Naskah Dokumen Operasi SAR Tidak Terverifikasi',
+                'invalidRef' => $invalidRef,
+                'invalidToken' => htmlspecialchars($token, ENT_QUOTES, 'UTF-8'),
+                'verificationStatus' => 'INVALID_TOKEN',
+                'verificationMessage' => 'Tanda tangan digital atau token verifikasi tidak valid. Dokumen operasi SAR ini diduga mengalami manipulasi URL atau tidak terdaftar dalam pangkalan data resmi Basarnas KPP Kendari.'
+            ], [
+                'layout' => 'public',
+                'title' => 'Verifikasi Dokumen Tidak Sah'
+            ]);
+            return;
+        }
+
+        $settings = [];
+        try {
+            if (class_exists('SettingsModel')) {
+                $settings = SettingsModel::get();
+            }
+        } catch (Throwable) {
+            $settings = [];
+        }
+        $satkerKode = $settings['satker_kode'] ?? 'SAR-304';
+
+        $defaultSmc = null;
+        try {
+            if (class_exists('MasterModel')) {
+                $defaultSmc = MasterModel::getDefaultSmc();
+            }
+        } catch (Throwable) {
+            $defaultSmc = null;
+        }
+
+        $docTitle = DocVerifyHelper::getDocTitle($type, $operasi, $docData);
+        $docNumber = DocVerifyHelper::getDocNumber($type, $operasi, $docData, $satkerKode);
+        $docTimestamp = DocVerifyHelper::getDocTimestamp($type, $operasi, $docData);
+        $smcName = DocVerifyHelper::getSmcName($defaultSmc, $docData, $operasi);
+        $printUrl = DocVerifyHelper::getPrintUrl($type, $idOps, (int)($docData['id_renops'] ?? ($docData['id_laporan'] ?? 0)));
+
+        $this->render('operasi/verify_public', [
+            'type' => $type,
+            'idOps' => $idOps,
+            'refId' => $refId,
+            'token' => $token,
+            'operasi' => $operasi,
+            'docData' => $docData,
+            'docTitle' => $docTitle,
+            'docNumber' => $docNumber,
+            'docTimestamp' => $docTimestamp,
+            'smcName' => $smcName,
+            'defaultSmc' => $defaultSmc,
+            'satkerKode' => $satkerKode,
+            'printUrl' => $printUrl
+        ], [
+            'layout' => 'public',
+            'title' => "Verifikasi Keabsahan {$docTitle}"
         ]);
     }
 

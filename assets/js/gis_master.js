@@ -3076,6 +3076,18 @@
         perimeterNm: perimeterNm,
         perimeterKm: perimeterKm
       };
+    } else if (activeSearchAreaShape === 'rectangle') {
+      const sqNm = polyRectWidthNm * polyRectHeightNm;
+      const sqKm = (polyRectWidthNm * 1.852) * (polyRectHeightNm * 1.852);
+      const perimeterNm = 2 * (polyRectWidthNm + polyRectHeightNm);
+      const perimeterKm = 2 * ((polyRectWidthNm * 1.852) + (polyRectHeightNm * 1.852));
+      areaStats = {
+        sqNm: sqNm,
+        sqKm: sqKm,
+        hectares: sqKm * 100,
+        perimeterNm: perimeterNm,
+        perimeterKm: perimeterKm
+      };
     } else {
       areaStats = calculatePolygonSphericalArea(activePolygonPoints);
     }
@@ -3249,12 +3261,19 @@
     const centerLat = polyShapeCenter ? polyShapeCenter.lat : centroid.lat;
     const centerLng = polyShapeCenter ? polyShapeCenter.lng : centroid.lng;
 
+    let exactAreaNm2 = areaStats.sqNm;
+    if (activeSearchAreaShape === 'circle') {
+      exactAreaNm2 = Math.PI * Math.pow(polyCircleRadiusNm, 2);
+    } else if (activeSearchAreaShape === 'rectangle') {
+      exactAreaNm2 = polyRectWidthNm * polyRectHeightNm;
+    }
+
     const payload = {
       id: editingPolygonId || `poly-${Date.now()}`,
       id_operasi: targetOpId,
       name: name,
       points: activePolygonPoints,
-      areaNm2: areaStats.sqNm,
+      areaNm2: parseFloat(exactAreaNm2.toFixed(2)),
       strokeColor: polyStrokeColor,
       strokeWeight: polyStrokeWeight,
       fillColor: polyFillColor,
@@ -3356,7 +3375,20 @@
             fillOpacity: poly.fillOpacity || 0.2
           }).addTo(map);
 
-          stats = calculatePolygonSphericalArea(points);
+          if (poly.shapeType === 'rectangle' || poly.shapeType === 'box') {
+            const wNm = parseFloat(poly.boxWidthNm) || 2.0;
+            const hNm = parseFloat(poly.boxHeightNm) || 2.0;
+            const sqNm = poly.areaNm2 ? parseFloat(poly.areaNm2) : (wNm * hNm);
+            const sqKm = (wNm * 1.852) * (hNm * 1.852);
+            stats = {
+              sqNm: sqNm.toFixed(2),
+              sqKm: sqKm.toFixed(2),
+              perimeterNm: (2 * (wNm + hNm)).toFixed(2),
+              perimeterKm: (2 * ((wNm * 1.852) + (hNm * 1.852))).toFixed(2)
+            };
+          } else {
+            stats = calculatePolygonSphericalArea(points);
+          }
           const areaFmt = formatDynamicArea(stats.sqNm, stats.sqKm);
           const perimFmt = formatDynamicPerimeter(stats.perimeterNm, stats.perimeterKm);
 
@@ -3417,11 +3449,45 @@
     container.innerHTML = savedPolygons
       .map((poly) => {
         const isHidden = isIdHidden(hiddenPolygonIds, poly.id);
-        const stats = calculatePolygonSphericalArea(poly.points);
+        const shapeType = poly.shapeType || 'polygon';
+
+        let stats;
+        if (shapeType === 'circle') {
+          const rNm = parseFloat(poly.radiusNm) || 1.0;
+          const sqNm = Math.PI * Math.pow(rNm, 2);
+          const sqKm = sqNm * 3.4299;
+          const perimNm = 2 * Math.PI * rNm;
+          const perimKm = perimNm * 1.852;
+          stats = {
+            sqNm: (poly.areaNm2 ? parseFloat(poly.areaNm2) : sqNm).toFixed(2),
+            sqKm: sqKm.toFixed(2),
+            perimeterNm: perimNm.toFixed(2),
+            perimeterKm: perimKm.toFixed(2)
+          };
+        } else if (shapeType === 'rectangle' || shapeType === 'box') {
+          const wNm = parseFloat(poly.boxWidthNm) || 2.0;
+          const hNm = parseFloat(poly.boxHeightNm) || 2.0;
+          const sqNm = wNm * hNm;
+          const sqKm = (wNm * 1.852) * (hNm * 1.852);
+          const perimNm = 2 * (wNm + hNm);
+          const perimKm = 2 * ((wNm * 1.852) + (hNm * 1.852));
+          stats = {
+            sqNm: (poly.areaNm2 ? parseFloat(poly.areaNm2) : sqNm).toFixed(2),
+            sqKm: sqKm.toFixed(2),
+            perimeterNm: perimNm.toFixed(2),
+            perimeterKm: perimKm.toFixed(2)
+          };
+        } else {
+          stats = calculatePolygonSphericalArea(poly.points);
+          if (poly.areaNm2) {
+            stats.sqNm = parseFloat(poly.areaNm2).toFixed(2);
+            stats.sqKm = (parseFloat(poly.areaNm2) * 3.4299).toFixed(2);
+          }
+        }
+
         const safeId = escapeHtml(poly.id);
         const safeName = escapeHtml(poly.name);
         const safeColor = escapeHtml(poly.strokeColor || '#ea580c');
-        const shapeType = poly.shapeType || 'polygon';
         const shapeBadge = shapeType === 'circle'
           ? '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-bold">⭕ Lingkaran</span>'
           : (shapeType === 'rectangle'

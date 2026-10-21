@@ -34,7 +34,7 @@ $timestamp = date('d F Y, H:i:s') . ' WITA';
         </div>
 
         <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-            Naskah Berita Radio SAR Tidak Terverifikasi
+            <?= htmlspecialchars($invalidTitle ?? 'Naskah Berita Radio SAR Tidak Terverifikasi', ENT_QUOTES, 'UTF-8') ?>
         </h1>
         
         <p class="text-sm text-slate-600 dark:text-slate-300 mt-2 max-w-xl mx-auto leading-relaxed">

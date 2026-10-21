@@ -45,7 +45,7 @@ $totalFiltered = count($braList);
   <div class="p-5 sm:p-6 rounded-3xl border shadow-lg transition-colors bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
       <div class="flex items-start gap-3.5">
-        <a href="<?= BASE_URL ?>/dashboard.php"
+        <a href="<?= BASE_URL ?>/index.php"
            class="p-2.5 rounded-2xl border transition-colors mt-0.5 border-slate-200 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 shrink-0"
            title="Kembali ke Dashboard">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>

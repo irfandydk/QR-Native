@@ -1,6 +1,6 @@
 # QR-SAR (Quick Report Search and Rescue) - PHP Native & MySQL
 
-## Sistem Pelaporan Operasi SAR & Berita Radio SAR (FILE AKTIF)
+## Sistem Pelaporan Operasi SAR, Berita Radio SAR & Verifikasi Dokumen Digital (FILE AKTIF)
 
 Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari — Badan Nasional Pencarian dan Pertolongan (BASARNAS).
 
@@ -8,19 +8,20 @@ Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari — Badan Nasional Pencar
 
 ## 🌟 Ringkasan Aplikasi
 
-Aplikasi **QR-SAR PHP Native** ini adalah implementasi sistematis, elegan, dan profesional berstandar kedinasan Basarnas yang dibangun menggunakan **PHP Native murni (PHP 8.0+)** dengan basis data **MySQL**.
+Aplikasi **QR-SAR PHP Native** adalah sistem manajemen pelaporan operasi pencarian dan pertolongan (Search and Rescue) berstandar kedinasan Basarnas yang dibangun menggunakan **PHP Native murni (PHP 8.0+)** dengan basis data **MySQL / MariaDB**. 
 
-Aplikasi ini mereplikasi 100% workflow, struktur data, format laporan dinas Basarnas, dan estetika visual dari repositori referensi [QR-SAR](https://github.com/irfandydk/QR-SAR.git), dilengkapi fitur:
+Sistem ini mengadopsi arsitektur **Modular MVC (Model-View-Controller) dengan Service Layer terpisah**, mereplikasi 100% alur kerja resmi FILE AKTIF Basarnas, naskah Berita Radio SAR (BRA), pemetaan taktikal maritim GIS, serta pengesahan dokumen digital:
 
-1. **Inisiasi Laporan Awal Operasi SAR** (Format FILE AKTIF resmi Basarnas dengan DMS GPS converter, Haversine NM/Km, perhitungan heading/azimuth dari Kansar).
-2. **Siklus Rencana Operasi SAR (RENOPS H.X)** (Pembagian Sektor A-B-C-D, SRU 1 & SRU 2, alut terlibat, dan pola pencarian).
-3. **Laporan Perkembangan Harian (SITREP / LAPBANG)** (Pembaruan status korban: Selamat / Meninggal Dunia / Dalam Pencarian / Hilang, kendala operasi, cuaca).
-4. **Penutupan Operasi & Rollback** (Debriefing penutupan resmi & opsi pembukaan kembali bila ada perkembangan korban).
-5. **Naskah Berita Radio SAR (BRA SAR)** (Format resmi dinas Senkom: Panggilan, Jenis, Derajat `SGR`, DARI, AKSI, INFO, TWU, TWB, Seksi AAA–ZZZ dengan word counter otomatis, dan footer 4 kolom Senkom).
-6. **Pengesahan Barcode QR Digital Terenkripsi** (QR Code Canvas resolusi tinggi dengan Error Correction level H dan logo Basarnas di tengah kode QR, diverifikasi ke link resmi dokumen).
-7. **Tactical Maritime GIS & Map Plotting** (Peta interaktif Leaflet dengan citra Satelit Resolusi Tinggi Esri World Imagery & OpenStreetMap, radar pulsing LKP, kalkulator rute berkecepatan knot alut, kalkulator pola pencarian IAMSAR: Parallel Sweep, Creeping Line, Expanding Square, Sector Search, serta ekspor GeoJSON & KML).
-8. **Master Data & Pengaturan Terpusat** (Armada Alut laut/darat/palsar, unsur potensi gabungan TNI/Polri/Masyarakat, daftar Pejabat SMC, profil Satker `SAR-304`, backup JSON, dan ekspor SQL dump mandiri).
-9. **Desain Visual Eksklusif Basarnas** (Warna resmi Basarnas Oranye `#F97316`, dark mode/light mode dinamis, layout responsif glassmorphism, dan format cetak lembar fisik telegram A4/F4/Folio/Letter/Legal 80%-125%).
+1. **Inisiasi Laporan Awal Operasi SAR**: Format pesan darurat baku respons cepat Basarnas, dilengkapi konverter koordinat dua arah DMS $\leftrightarrow$ Decimal GPS, kalkulasi jarak Haversine (Nautical Miles & Kilometer), serta radial azimuth kompas dari pangkalan/pos tim siaga.
+2. **Siklus Rencana Operasi SAR (RENOPS H.X)**: Perencanaan harian pembagian Search and Rescue Unit (SRU 1 & SRU 2), penentuan batas koordinat area pencarian, alokasi alut laut/darat/udara, dan frekuensi komunikasi radio taktis.
+3. **Laporan Perkembangan Harian (SITREP / LAPBANG)**: Pemantauan harian hasil pencarian, pembaruan status korban (*Selamat / Meninggal Dunia / Dalam Pencarian / Hilang*), kondisi cuaca maritim BMKG, dan faktor penghambat di lapangan.
+4. **Penutupan Operasi & Rollback Dinamis**: Debriefing resmi penutupan operasi, pembuatan Berita Acara Penutupan, dan opsi pemulihan status (*rollback*) jika ada laporan korban lanjutan.
+5. **Naskah Berita Radio SAR (BRA Standar Senkom)**: Kategori `BRA MAPEL`, `BRA SAR`, dan `BRA PERGERAKAN KAPAL` dengan format resmi dinas Senkom: Panggilan, Jenis, Derajat `SGR`, DARI, AKSI, INFO, TWU, TWB, Seksi dinas alfabetis `AAA–ZZZ`, *live word counter*, dan tabel 4 kolom komunikasi Senkom.
+6. **Verifikasi Keabsahan Dokumen Digital (HMAC QR Code)**: Seluruh dokumen resmi (Laporan Awal, RENOPS, SITREP, Berita Acara Penutupan, dan BRA SAR) dilengkapi Barcode QR beresolusi tinggi dengan emblem logo Basarnas di tengah dan token kriptografis HMAC SHA-256 yang terverifikasi ke portal publik mandiri (*Zero-Login Public Verification*).
+7. **Studio Capture Peta 16:9 & Map Snapshot**: Fitur tangkapan layar peta taktikal rasio 16:9 terintegrasi pada GIS yang secara otomatis mendeteksi komponen spasial di dalam bingkai (titik LKP, lokasi korban, poligon pencarian, rute alut) dan menyematkannya langsung ke dalam dokumen cetak resmi berserta tabel keterangan komponen.
+8. **Tactical Maritime GIS & Kalkulator Pola IAMSAR**: Peta interaktif Leaflet dengan citra Satelit Resolusi Tinggi (Esri World Imagery) dan Peta Vektor OSM, radar pulsing LKP, pengukur rute berkecepatan knot alut Basarnas, kalkulator pola pencarian maritim IAMSAR (*Parallel Sweep, Creeping Line, Expanding Square, Sector Search*), serta ekspor data spasial GeoJSON & KML.
+9. **Official PDF Exporter (Anti-Cut Smart Slicing)**: Konversi lembar naskah dinas A4 Portrait menjadi dokumen elektronik PDF yang tajam, presisi, dan bebas huruf terpotong melalui algoritma deteksi spasi putih antar-baris teks (*safe page-cut detection*).
+10. **Master Data & Pengaturan Terpusat**: Manajemen 9 Pangkalan Resmi Basarnas Sultra (Kansar Kendari, Pos SAR Kolaka, Baubau, Wakatobi, Konawe Utara, Unit Siaga Muna, Konawe, Kolaka Utara, Dermaga Sandar Bungkutoko), armada Alut, potensi SAR gabungan, data Pejabat SMC, profil Satker `SAR-304`, backup JSON/SQL, dan audit trail log pengguna.
 
 ---
 
@@ -28,109 +29,131 @@ Aplikasi ini mereplikasi 100% workflow, struktur data, format laporan dinas Basa
 
 ```text
 QR-SAR/
-├── public/                  # DocumentRoot produksi resmi (Front Controller)
-│   ├── .htaccess            # Apache hardening & rewrite rule ke index.php
-│   ├── index.php            # Entrypoint utama sistem publik (bootstrap & dispatch)
+├── public/                  # DocumentRoot produksi resmi (Front Controller Pattern)
+│   ├── .htaccess            # Apache security hardening & URL rewrite dispatcher
+│   ├── index.php            # Entrypoint utama sistem publik (bootstrap & Router::dispatch)
 │   ├── router.php           # Local CLI dev router (php -S 127.0.0.1:8000 -t public public/router.php)
-│   └── assets -> ../assets  # Symlink aset publik untuk performa statis cepat
-├── config/                  # Konfigurasi aplikasi & database
-│   ├── app.php              # Bootstrap inti, session, CSRF guard, autoloader, zona waktu WITA
-│   └── database.php         # PDO Database Singleton connection & auto-reconnect
-├── helpers/                 # Utility & business logic helpers
-│   ├── AuthHelper.php       # Role guard (ADMIN/USER), session management & perizinan aksi
-│   ├── ViewHelper.php       # Centralized View Helper (renderView & domain view resolution)
-│   ├── Router.php           # Central router, clean URLs dispatcher, asset server & security barrier
-│   ├── TemplateHelper.php   # Generator naskah WhatsApp resmi FILE AKTIF & kalkulator hari SAR
-│   ├── BraHelper.php        # Nomor urut atomik telegram ([urut]/SAR-304/[MMYY]), kalkulasi kata
-│   ├── GeoHelper.php        # DMS <-> Decimal, Haversine NM/Km, Azimuth/Bearing, Waypoint math
-│   └── AiHelper.php         # Integrasi asisten AI Gemini & generator narasi resmi
-├── models/                  # Domain Data Layer (Prepared Statements PDO)
-│   ├── OperasiModel.php     # CRUD Operasi, penutupan operasi, rollback, statistik KPI
-│   ├── RenopsModel.php      # Rencana Operasi harian (H.1, H.2, dst.) & pembagian sektor SRU
-│   ├── LaporanModel.php     # SITREP harian, status korban (S/MD/DP/H), timeline lapangan
-│   ├── BraModel.php         # Dokumen naskah telegram radio, nomor atomik & validasi token QR
-│   ├── SarUnitModel.php     # Domain model Pos SAR, Unit Siaga, & KN SAR Kendari
-│   ├── PejabatModel.php     # Domain model Pejabat penandatangan, Kansar & Kepala Seksi
-│   ├── MasterModel.php      # Facade model backward-compatible untuk armada, tim, & alut
-│   ├── GisModel.php         # Data titik taktis, poligon pencarian, rute & pola IAMSAR
-│   ├── UserModel.php        # Manajemen akun, otentikasi login, hashing password & audit
-│   └── SettingsModel.php    # Profil Satker SAR-304, backup JSON & ekspor SQL
-├── views/                   # Presentation Layer (Template Berbasis Domain)
+│   └── assets -> ../assets  # Tautan simbolik ke aset publik untuk performa statis cepat
+├── controllers/             # Controller Layer (Pemisahan Logika Alur Bisnis)
+│   ├── BaseController.php       # Controller dasar, session guard, CSRF validation, response JSON/view
+│   ├── OperasiController.php    # Manajemen Operasi SAR, Renops, Sitrep, Penutupan & cetak dokumen
+│   ├── BraController.php        # Dokumen Berita Radio SAR, nomor atomik Senkom & cetak telegram
+│   ├── DashboardController.php  # Agregasi data KPI operasi aktif/selesai & statistik real-time
+│   ├── GisController.php        # Endpoint halaman GIS maritim taktis & workstation pemetaan
+│   ├── MasterController.php     # Pengelolaan alut, unsur potensi SAR gabungan, dan pejabat SMC
+│   ├── AdminController.php      # Konfigurasi Satker SAR-304, akun user, backup data & audit log
+│   └── AuthController.php       # Autentikasi sesi petugas, login/logout, dan pengamanan akses
+├── services/                # Service Layer (Domain Business Logic Terisolasi)
+│   ├── SarCalculationService.php   # Perhitungan koordinat DMS/Decimal, Haversine NM/Km, Azimuth, ETA kapal
+│   ├── DocumentNumberService.php   # Penomoran atomik dokumen resmi telegram dan surat kedinasan
+│   ├── WhatsAppTemplateService.php # Generator naskah pesan WhatsApp resmi FILE AKTIF 1-klik
+│   ├── OperasiRelationService.php  # Integritas relasi data operasi, SRU, alut, dan korban
+│   ├── BackupService.php           # Mekanisme backup mandiri (ekspor SQL dump & snapshot JSON)
+│   └── LogService.php              # Pencatatan riwayat audit trail aktivitas pengguna
+├── helpers/                 # Utility & Engine Helpers
+│   ├── DocVerifyHelper.php   # Token kriptografis HMAC, URL verifikasi publik dokumen resmi SAR
+│   ├── AuditHelper.php       # Audit logging aktivitas petugas, operasi, dan administrasi
+│   ├── HierarchyHelper.php   # Perhitungan hari operasi dinamis (H.1, H.2, dst.) & timeline urut tanggal
+│   ├── AuthHelper.php        # Role guard (ADMIN / USER), session lifecycle & perizinan aksi
+│   ├── ViewHelper.php        # Template compiler & perender partials modular
+│   ├── Router.php            # Central router, clean URLs dispatcher, asset server & security barrier
+│   ├── TemplateHelper.php    # Format tanggal/waktu resmi Indonesia & WITA, format kedinasan
+│   ├── BraHelper.php         # Format telegram Senkom, nomor atomik [urut]/SAR-304/[MMYY], word counter
+│   ├── GeoHelper.php         # DMS <-> Decimal, Haversine formula, Azimuth/Bearing, Waypoint math
+│   └── AiHelper.php          # Integrasi asisten AI Gemini untuk penulisan narasi laporan dinas
+├── models/                  # Domain Data Layer (PDO Prepared Statements)
+│   ├── OperasiModel.php              # CRUD Operasi SAR, penutupan, rollback, KPI statistik
+│   ├── RenopsModel.php               # Rencana Operasi harian (H.1, H.2, dst.) & pembagian sektor SRU
+│   ├── LaporanModel.php              # SITREP harian, status korban (S/MD/DP/H), timeline lapangan
+│   ├── BraModel.php                  # Dokumen telegram radio, nomor atomik & validasi token QR
+│   ├── DokumenPetaSnapshotModel.php  # Model snapshot peta taktis 16:9 untuk dokumen cetak resmi
+│   ├── GisModel.php                  # Titik taktis, poligon pencarian, rute berkecepatan knot & pola IAMSAR
+│   ├── SarUnitModel.php              # Data 9 Pangkalan resmi Basarnas Sultra (Kansar, Pos, Unit Siaga)
+│   ├── PejabatModel.php              # Pejabat penandatangan, Kansar & Kepala Seksi Operasi
+│   ├── MasterModel.php               # Model armada kapal, alut darat, palsar, dan potensi SAR
+│   ├── UserModel.php                 # Akun petugas, verifikasi password bcrypt, audit RBAC
+│   └── SettingsModel.php             # Profil Satker SAR-304, konfigurasi, backup JSON/SQL
+├── views/                   # Presentation Layer (Template Berbasis Domain & Partials)
 │   ├── operasi/             # Modul Operasi SAR
-│   │   ├── form.php         # Form inisiasi laporan awal operasi & kalkulator koordinat
-│   │   ├── detail.php       # Tabbed Hub (Ringkasan, Renops, Sitrep, BRA, GIS, Ekspor)
-│   │   ├── renops_form.php  # Form Rencana Operasi SAR & pembagian sektor SRU
-│   │   └── sitrep_form.php  # Form Laporan Perkembangan harian SITREP/LAPBANG
+│   │   ├── form.php                  # Form inisiasi laporan awal operasi & kalkulator koordinat
+│   │   ├── detail.php                # Tabbed Hub Utama Operasi SAR
+│   │   ├── renops_form.php           # Form pembuatan Rencana Operasi SAR & pembagian SRU
+│   │   ├── sitrep_form.php           # Form Laporan Perkembangan harian SITREP/LAPBANG
+│   │   ├── laporan_awal_print.php    # Dokumen cetak resmi fisik & PDF Laporan Awal (+ Peta 16:9 & QR)
+│   │   ├── renops_print.php          # Dokumen cetak resmi fisik & PDF RENOPS H.X (+ Peta 16:9 & QR)
+│   │   ├── sitrep_print.php          # Dokumen cetak resmi fisik & PDF SITREP H.X (+ Peta 16:9 & QR)
+│   │   ├── penutupan_print.php       # Berita Acara Penutupan Operasi (+ Peta 16:9 & QR)
+│   │   ├── verify_public.php         # Portal verifikasi keabsahan dokumen publik mandiri
+│   │   └── partials/                 # Komponen Tab Modular Operasi
+│   │       ├── tab_hierarchy.php         # Timeline hierarkis runtut waktu (Laporan Awal, Renops, Sitrep)
+│   │       ├── tab_renops.php            # Arsip dan ringkasan RENOPS harian
+│   │       ├── tab_sitrep.php            # Arsip dan ringkasan SITREP harian
+│   │       ├── tab_korban.php            # Matriks pembaruan status korban & visualisasi KPI
+│   │       ├── tab_kekuatan.php          # Kekuatan personel, alut, dan unsur SAR gabungan
+│   │       ├── tab_gis.php               # Tampilan peta taktis terintegrasi per operasi
+│   │       ├── tab_bra.php               # Naskah telegram radio yang tertaut dengan operasi
+│   │       ├── tab_cetak.php             # Pusat komando cetak PDF & manajemen snapshot peta 16:9
+│   │       ├── print_map_snapshot_block.php # Komponen render visual peta 16:9 & tabel komponen
+│   │       └── modals.php                # Dialog modal penutupan, rollback, dan hapus operasi
 │   ├── bra/                 # Modul Berita Radio SAR
-│   │   ├── form.php         # Form builder telegram Senkom & word counter dinamis
-│   │   ├── list.php         # Arsip dokumen BRA (MAPEL, SAR UMUM, PERGERAKAN KAPAL)
-│   │   ├── view.php         # Lembar cetak fisik telegram Basarnas & verifikasi QR
-│   │   └── verify_invalid.php # Tampilan respon dokumen manipulatif / token tidak sah
+│   │   ├── form.php                  # Builder telegram radio Senkom & live word counter
+│   │   ├── list.php                  # Arsip dokumen telegram (MAPEL, SAR, PERGERAKAN KAPAL)
+│   │   ├── view.php                  # Lembar cetak fisik telegram kedinasan Senkom & QR barcode
+│   │   └── verify_invalid.php        # Tampilan dokumen tidak sah / token manipulasi
 │   ├── master/              # Modul Master Data
-│   │   └── index.php        # Manajemen armada kapal, alut darat, palsar, potensi SAR & SMC
-│   ├── admin/               # Modul Administrasi & Pengaturan Satker
-│   │   └── index.php        # Manajemen hak akses, user, profil satker, backup database & audit log
+│   │   ├── index.php                 # Tampilan utama master data
+│   │   └── partials/                 # Tab armada alut, pejabat SMC, potensi SAR, dan modals
+│   ├── admin/               # Modul Administrasi & Satker
+│   │   ├── index.php                 # Tampilan utama dashboard administrasi
+│   │   └── partials/                 # Tab satker, manajemen user, backup/restore, dan audit log
 │   ├── auth/                # Modul Otentikasi
-│   │   └── login.php        # Portal login otentikasi petugas SAR
+│   │   └── login.php                 # Portal login petugas SAR
 │   ├── layout/              # Template Tata Letak Bersama
-│   │   ├── header.php       # HTML5 head, meta security, conditional CSS loader
-│   │   ├── sidebar.php      # Navigasi utama sidebar responsif dengan badge satker
-│   │   ├── navbar.php       # Header atas, dark mode switch, info user aktif
-│   │   ├── footer.php       # Footer kedinasan, conditional JS loader, modal dialogs
-│   │   ├── public_header.php # Header khusus portal verifikasi publik mandiri
-│   │   └── public_footer.php # Footer portal publik
-│   ├── errors/              # Halaman Error HTTP Terstandarisasi
-│   │   ├── 403.php          # Akses Ditolak
-│   │   ├── 404.php          # Berkas / Rute Tidak Ditemukan
-│   │   └── 500.php          # Kesalahan Internal Server
-│   ├── dashboard.php        # Beranda ringkasan operasi aktif & KPI real-time
-│   └── gis.php              # Antarmuka GIS maritim taktis & pola pencarian IAMSAR
+│   │   ├── header.php, sidebar.php, navbar.php, footer.php
+│   │   ├── public_header.php, public_footer.php # Layout khusus portal verifikasi publik mandiri
+│   └── errors/              # Halaman HTTP Error Terstandarisasi (403.php, 404.php, 500.php)
 ├── api/                     # RESTful JSON API Backend
-│   ├── controllers/         # Controller API Modular Berbasis Domain
-│   │   ├── BaseApiController.php     # Abstraksi respon JSON, error handling, session guard
-│   │   ├── AuthApiController.php     # Endpoint otentikasi & session checking
-│   │   ├── OperasiApiController.php  # Endpoint data operasi & kalkulasi jarak/heading
-│   │   ├── RenopsApiController.php   # Endpoint dokumen renops & pembagian sru
-│   │   ├── SitrepApiController.php   # Endpoint laporan perkembangan & status korban
-│   │   ├── BraApiController.php      # Endpoint telegram radio, preview & nomor atomik
-│   │   ├── MasterApiController.php   # Endpoint alut, tim potensi, pangkalan SAR & pejabat
-│   │   ├── SettingsApiController.php # Endpoint konfigurasi & profil satker
-│   │   ├── AiApiController.php       # Endpoint integrasi asisten AI Gemini
-│   │   └── GisApiController.php      # Endpoint sinkronisasi bundle peta taktis
+│   ├── controllers/         # API Controllers per Domain
+│   │   ├── BaseApiController.php, AuthApiController.php, OperasiApiController.php
+│   │   ├── RenopsApiController.php, SitrepApiController.php, BraApiController.php
+│   │   ├── MasterApiController.php, SettingsApiController.php, GisApiController.php, AiApiController.php
 │   └── index.php            # API Front Controller & request dispatcher
 ├── assets/                  # Static Web Assets (CSS, JS, Fonts, Images)
-│   ├── vendor/              # Third-Party Libraries Terisolasi
-│   │   ├── leaflet/         # Leaflet CSS, JS, dan marker assets
-│   │   ├── sweetalert2/     # SweetAlert2 alert engine & CSS
-│   │   ├── qrcode/          # QRCode.js engine
-│   │   ├── tailwind/        # Tailwind CSS offline runtime
-│   │   └── jszip/           # JSZip file compressor
+│   ├── vendor/              # Third-Party Libraries Offline (Leaflet, SweetAlert2, QRCode.js, Tailwind)
 │   ├── js/                  # Application JavaScript
-│   │   ├── pages/           # Extracted Browser-Cacheable Page Scripts
-│   │   │   ├── renops_form.js    # Logic pembagian SRU & kalkulator sektor
-│   │   │   ├── operasi_form.js   # Logic inisiasi operasi & kalkulator koordinat
-│   │   │   ├── bra_form.js       # Logic format Senkom, word count & barcode
-│   │   │   ├── operasi_detail.js # Tab switching, rollback modal & detail GIS
-│   │   │   └── sitrep_form.js    # Logic input sitrep & kalkulasi korban
-│   │   ├── app.js           # Theme switcher, CSRF header hook, modal system
-│   │   ├── bra.js           # Telegram section handler & word counter
-│   │   ├── gis.js           # TacticalGisMap class & rendering engine Leaflet
-│   │   └── gis_master.js    # Full GIS workstation mapping interface
+│   │   ├── pdf_document_exporter.js  # Engine PDF resmi dengan algoritma safe page-cut multi-halaman
+│   │   ├── gis_master.js             # Workstation GIS lengkap, Studio Capture 16:9, rute, IAMSAR
+│   │   ├── gis.js                    # TacticalGisMap Leaflet wrapper class
+│   │   ├── app.js                    # Theme switcher, CSRF header hook, modal system
+│   │   └── pages/                    # Browser-cacheable page-specific script handlers
 │   ├── css/
-│   │   └── style.css        # Basarnas Design System, Glassmorphism, Print CSS
-│   └── images/              # Assets gambar resmi & icon instansi
-├── database/                # Skrip Migrasi & Basis Data
-│   ├── migrate.php          # CLI Database Migration Runner (Zero runtime locking)
-│   ├── db_sar_qr.sql        # Standalone dump MySQL lengkap DDL + data siap pakai
-│   └── seed.sql             # SQL data awal pejabat, user, dan pangkalan SAR
-├── storage/                 # Penyimpanan Internal Terproteksi (.htaccess blocked)
+│   │   └── style.css        # Basarnas Design System, Glassmorphism, Dark Mode, Print Sheet CSS
+│   └── images/              # Logo resmi Basarnas, ikon maritim & grafis instansi
+├── database/                # Skrip Migrasi & Pangkalan Data
+│   └── migrate.php          # CLI Database Migration Runner (Zero runtime locking, auto-increment sync)
+├── storage/                 # Direktori Penyimpanan Terproteksi (.htaccess blocked)
 │   ├── logs/                # Berkas log aplikasi & audit trail
-│   ├── backups/             # Berkas cadangan dump SQL & JSON
+│   ├── backups/             # Berkas cadangan dump SQL & snapshot JSON
 │   └── cache/               # Cache sementara sistem
-└── tests/                   # Automated Regression Test Suites (CLI Only)
-    ├── test_phase2_architecture.php    # Uji verifikasi arsitektur backend & database
-    ├── test_phase3_frontend_assets.php  # Uji verifikasi aset vendor & ekstraksi JS
-    └── test_phase4_standardization.php  # Uji verifikasi webroot, routing & modular view
+├── tests/                   # Automated Regression Test Suites (39+ Unit & E2E Tests)
+│   ├── run_all.php                   # Master Test Runner CLI (menjalankan seluruh test suite)
+│   ├── test_buttons_and_navigation_e2e.php  # Verifikasi navigasi & tombol antarmuka
+│   ├── test_crud_audit_end_to_end.php       # Verifikasi siklus CRUD lengkap & pencatatan audit log
+│   ├── test_doc_verify_and_barcode.php      # Verifikasi token HMAC & Barcode QR keabsahan dokumen
+│   ├── test_document_map_snapshot.php       # Verifikasi tangkapan peta 16:9 & tabel komponen dokumen
+│   ├── test_gis_advanced_and_bra_dtg.php    # Verifikasi GIS lanjutan, IAMSAR, & format DTG BRA
+│   ├── test_lkp_routing.php                 # Verifikasi rute pelayaran berkecepatan knot kapal
+│   ├── test_master_data_integrity.php       # Verifikasi integritas data master alut, potensi, pejabat
+│   ├── test_phase4_refactoring_architecture.php # Verifikasi pemisahan Controllers, Services, Helpers
+│   └── ...                           # Rangkaian uji regresi lengkap lainnya
+├── cli/                     # Skrip Bantu Konsol
+│   └── sync_assets.php      # Sinkronisasi symlink/mirror aset publik (/assets -> /public/assets)
+├── config/                  # Konfigurasi Inti
+│   ├── app.php              # Bootstrap inti, session, CSRF guard, autoloader, zona waktu WITA
+│   └── database.php         # PDO Database Singleton connection & auto-reconnect
+├── .env.example             # Contoh berkas konfigurasi kredensial lingkungan
+├── .htaccess                # Konfigurasi Apache webroot hardening & rewrite
+└── metadata.json            # Metadata kapabilitas aplikasi (Gemini API & SAR System)
 ```
 
 ---
@@ -139,25 +162,19 @@ QR-SAR/
 
 ### 1. Prasyarat Sistem
 
-- **PHP** versi 8.0, 8.1, 8.2, 8.3, atau 8.5+ (Ekstensi `pdo_mysql`, `json`, `mbstring` aktif).
-- **MySQL / MariaDB** (Versi 5.7, 8.0, atau MariaDB 10.4+).
-- Web Server: Built-in PHP Server, Apache (XAMPP/Laragon/MAMP), atau Nginx.
+- **PHP** versi 8.0, 8.1, 8.2, 8.3, atau 8.4+ (Ekstensi `pdo_mysql`, `json`, `mbstring`, `openssl` wajib aktif).
+- **MySQL** versi 5.7/8.0+ atau **MariaDB** 10.4+.
+- Web Server: Built-in PHP Server, Apache (XAMPP/Laragon/MAMP), atau Nginx/LiteSpeed.
 
-### 2. Import Basis Data MySQL
+### 2. Konfigurasi Lingkungan (`.env`)
 
-Buat database bernama `qrsar` (atau sesuaikan pada konfigurasi), lalu import file SQL:
+Salin file `.env.example` menjadi `.env` pada direktori root proyek:
 
 ```bash
-# Melalui terminal MySQL:
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS qrsar CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -u root -p qrsar < database/db_sar_qr.sql
+cp .env.example .env
 ```
 
-*Atau gunakan **phpMyAdmin**: Buat database `qrsar` baru dan import file `database/db_sar_qr.sql`.*
-
-### 3. Konfigurasi Lingkungan (`.env`)
-
-Salin file `.env.example` menjadi `.env` jika diperlukan (secara default aplikasi langsung mendeteksi koneksi lokal `localhost` dengan user `root` tanpa password):
+Sesuaikan parameter basis data pada berkas `.env`:
 
 ```ini
 DB_HOST=127.0.0.1
@@ -165,117 +182,161 @@ DB_PORT=3306
 DB_DATABASE=qrsar
 DB_USERNAME=root
 DB_PASSWORD=
+APP_ENV=development
+APP_KEY=SAR-304-KENDARI-SECRET-KEY
 ```
 
-### 4. Menjalankan Server Lokal & Pilihan Arsitektur
+### 3. Migrasi Otomatis Skema Basis Data
 
-Aplikasi QR-SAR mendukung arsitektur **Dual-Mode Deployment** yang fleksibel:
+Sistem QR-SAR dilengkapi **CLI Database Migration Runner** yang secara otomatis membuat dan menyinkronkan seluruh tabel pangkalan data, indeks komposit, data awal 9 Pangkalan SarUnit Sultra, serta penataan auto-increment tanpa perlu import file SQL manual:
 
-#### Opsi 1: Mode Cepat Pangkalan (Root Document Root)
+```bash
+# Pastikan database sudah dibuat di MySQL:
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS qrsar CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
-Sangat cocok untuk pengujian cepat di laptop siaga menggunakan PHP Built-in Server:
+# Jalankan skrip migrasi terpusat:
+php database/migrate.php
+```
+
+### 4. Menjalankan Server Lokal (Development)
+
+Aplikasi QR-SAR mendukung dua opsi eksekusi:
+
+#### Opsi A: Mode Cepat (Root Document Root)
+Sangat praktis untuk pengujian di laptop dinas menggunakan PHP Built-in Server:
 
 ```bash
 php -S 127.0.0.1:8000 router.php
 ```
 
-#### Opsi 2: Mode Modern Aman Produksi (Public Document Root)
-
-Direkomendasikan untuk server produksi Linux (Apache / Nginx). Direktori privat (`config`, `models`, `helpers`, `views`, `database`) berada 100% di luar Document Root:
+#### Opsi B: Mode Standar Produksi (Public Document Root)
+Direkomendasikan untuk keamanan maksimal pada server produksi (seluruh kode privat berada di luar Document Root):
 
 ```bash
 php -S 127.0.0.1:8000 -t public public/router.php
 ```
 
-#### Manajemen & Sinkronisasi Aset Publik (Single Source of Truth)
-
-Seluruh aset desain dan berkas unggahan berpusat pada folder `/assets` dan `/uploads`. Folder `/public` secara cerdas terhubung melalui tautan simbolik (*symlink*) otomatis dengan sistem *fallback streaming* PHP jika server tidak mendukung symlink. Gunakan alat bantu CLI untuk mengelola keterhubungan aset:
+#### Manajemen Aset Publik (Single Source of Truth)
+Aset desain statis berpusat pada folder `/assets`. Folder `/public` secara otomatis terhubung melalui tautan simbolik (*symlink*) dengan fallback cerdas. Gunakan CLI helper jika diperlukan:
 
 ```bash
-# Periksa status keterhubungan aset publik:
+# Periksa status keterhubungan aset:
 php cli/sync_assets.php --status
 
 # Pasang / perbarui tautan simbolik relatif (Linux/macOS):
 php cli/sync_assets.php --symlink
 
-# Sinkronisasi salinan fisik penuh (Windows / Hosting tanpa dukungan symlink):
+# Sinkronisasi salinan fisik penuh (Windows / Hosting tanpa symlink):
 php cli/sync_assets.php --mirror
 ```
 
-Buka peramban (*browser*) dan akses alamat:
+Buka peramban (*browser*) dan akses:  
 👉 **`http://localhost:8000`**
 
 ---
 
-## 🔐 Akun Masuk Sistem (Default Login)
+## 🔐 Akun Masuk Sistem (Default Credentials)
 
-Sistem dilengkapi dua tingkatan peran (*role*):
+Sistem dilengkapi dua tingkatan peran (*Role-Based Access Control*):
 
 1. **Administrator Utama (SMC)**
    - **Username**: `admin`
    - **Password**: `Kendari304` *(atau `admin123`)*
-   - **Hak Akses**: Hak penuh mengelola Operasi, menerbitkan naskah BRA, menghapus arsip, konfigurasi master alut/tim/pejabat, profil satker, dan backup database.
+   - **Kewenangan**: Hak penuh mengelola Operasi, menerbitkan naskah BRA, menghapus arsip, konfigurasi master alut/tim/pejabat, profil satker, backup database, dan inspeksi audit log.
 
 2. **Operator Siaga SAR & Senkom**
    - **Username**: `user`
    - **Password**: `Kendari304` *(atau `user123`)*
-   - **Hak Akses**: Input Laporan Awal, Renops, Sitrep harian, drafting BRA SAR, dan plotting peta taktikal GIS.
+   - **Kewenangan**: Entri Laporan Awal, pembuatan Renops, Sitrep harian, drafting Berita Radio SAR, dan plotting peta taktikal GIS.
 
 ---
 
 ## 📑 Spesifikasi Fitur Utama
 
 ### 1. Inisiasi Laporan Awal (Emergency Quick Report)
-
-- Format baku pesan darurat siaga SAR tanpa nomor surat pada fase respons awal (sesuai standar pesan cepat Basarnas).
-- Konversi koordinat instan antara Derajat Menit Detik (DMS) dan Angka Desimal.
-- Kalkulasi otomatis jarak Nautical Miles (NM) dan radial derajat kompas dari pangkalan/pos tim yang diberangkatkan ke titik LKP beserta perkiraan waktu tempuh (*Estimated Time of Arrival / ETA*).
+- Format baku pesan darurat siaga SAR respons awal resmi Basarnas.
+- Konversi koordinat instan dua arah antara Derajat Menit Detik (DMS) dan Angka Desimal.
+- Kalkulasi otomatis jarak Nautical Miles (NM) / Kilometer dan radial arah derajat kompas dari pangkalan/pos tim yang diberangkatkan ke titik LKP beserta perkiraan waktu tempuh (*Estimated Time of Arrival / ETA*).
 
 ### 2. Tabbed Hub Operasi SAR
-
-- **Tab Ringkasan**: Laporan Awal lengkap, visualisasi status korban (*Selamat, Meninggal Dunia, Dalam Pencarian, Hilang*), tombol salin naskah WhatsApp resmi 1-klik, dan cetak dokumen.
-- **Tab Rencana Operasi (RENOPS)**: Pembuatan Renops H.1, H.2, dst., dengan grid pembagian SRU 1 & SRU 2, batas koordinat area pencarian, alut, dan frekuensi komunikasi.
-- **Tab Laporan Perkembangan (SITREP)**: Entri harian hasil pencarian, cuaca BMKG maritim, faktor penghambat, dan pembaruan korban.
-- **Tab BRA SAR Terkait**: Akses cepat ke naskah telegram radio yang tertaut dengan operasi.
-- **Tab Tactical Map**: Plotting koordinat LKP dengan radar pulse animasi Leaflet.
-- **Tutup & Rollback Operasi**: Fitur penutupan resmi operasi dan pengembalian (*rollback*) status bila ada perkembangan korban baru.
+- **Tab Kronologi & Hierarki**: Timeline hierarkis terpadu runtut waktu (Laporan Awal, Renops H.X, Sitrep H.X, Penutupan) yang dihitung secara dinamis dari tanggal kejadian.
+- **Tab Rencana Operasi (RENOPS)**: Penyusunan Renops harian dengan grid pembagian SRU 1 & SRU 2, batas koordinat area pencarian, alokasi alut, dan frekuensi radio.
+- **Tab Laporan Perkembangan (SITREP)**: Entri harian hasil pencarian, cuaca BMKG maritim, faktor penghambat, dan rekapitulasi korban.
+- **Tab Matriks Korban**: Visualisasi status korban terkini (*Selamat, Meninggal Dunia, Dalam Pencarian, Hilang*) dengan kalkulasi otomatis.
+- **Tab Kekuatan Personel & Alut**: Ringkasan kesiapan personel rescuer, potensi SAR gabungan (TNI/Polri/Masyarakat), dan alut yang dikerahkan.
+- **Tab Berita Radio SAR Terkait**: Akses langsung ke naskah telegram radio yang tertaut dengan operasi.
+- **Tab Cetak Dokumen & Snapshot**: Pusat komando pencetakan PDF resmi (Laporan Awal, Renops, Sitrep, Penutupan) dan manajemen studio capture peta 16:9.
+- **Tutup & Rollback Operasi**: Fitur penutupan resmi operasi dan pengembalian (*rollback*) status jika terdapat informasi korban lanjutan.
 
 ### 3. Berita Radio SAR (BRA) Standar Senkom
-
 - Kategori dokumen: `BRA MAPEL` (Radio Siaran Informasi), `BRA SAR` (Operasi SAR), dan `BRA PERGERAKAN KAPAL` (Pelayaran KN SAR / Rescue Boat).
-- Penomoran atomik: `[NOMOR_URUT]/SAR-304/[BULAN][TAHUN]`.
+- Penomoran atomik resmi: `[NOMOR_URUT]/SAR-304/[BULAN][TAHUN]`.
 - Seksi dinas alfabetis `AAA`, `BBB`, `CCC`, dst., dengan penghitung kata (*live word counter*) otomatis.
-- Format cetak persis dokumen fisik resmi:
-  - Header kop logo & instansi
-  - Label vertikal kiri: `RUANGAN DILUAR GARIS TEBAL DI ISI OLEH DINAS SENKOM`
-  - Tabel 5 kolom Senkom (Panggilan, Jenis, Nr. Stn, Derajat, Instruksi penerusan)
-  - Bagian DARI, AKSI, INFO, TWU, JUMLAH KATA, NO, MENBRA, PERIHAL
-  - Tanda tangan pengirim (SMC) disahkan dengan **Barcode QR Digital Terenkripsi (QR Code with Basarnas Logo Center Emblem)**
-  - 4 Kolom buku komunikasi operator Senkom (T.W.T, T.W.K, SISTEM, PARAF).
+- Format cetak persis dokumen fisik kedinasan Senkom:
+  - Header kop logo & instansi resmi.
+  - Label vertikal kiri: `RUANGAN DILUAR GARIS TEBAL DI ISI OLEH DINAS SENKOM`.
+  - Tabel 5 kolom Senkom (Panggilan, Jenis, Nr. Stn, Derajat, Instruksi penerusan).
+  - Bagian DARI, AKSI, INFO, TWU, JUMLAH KATA, NO, MENBRA, PERIHAL.
+  - Tanda tangan pengirim (SMC) disahkan dengan **Barcode QR Digital Terenkripsi** berlogo Basarnas di tengah.
+  - Tabel 4 kolom buku komunikasi operator Senkom (T.W.T, T.W.K, SISTEM, PARAF).
 
-### 4. Tactical Maritime GIS
+### 4. Verifikasi Keabsahan Dokumen Digital (HMAC QR Code)
+- Setiap dokumen operasional SAR (Laporan Awal, Renops, Sitrep, Penutupan, dan BRA) memiliki token keabsahan digital yang dienkripsi menggunakan algoritma HMAC-SHA256.
+- Barcode QR pada dokumen cetak langsung menautkan publik ke portal verifikasi resmi:  
+  `http://domain/operasi.php?action=verify_public&token=...`
+- Menampilkan rincian integritas dokumen: Judul Resmi, Nomor Dokumen, Timestamp Pengesahan, Nama Pejabat SMC penandatangan, NIP, Pangkat/Jabatan, dan Status Keabsahan Elektronik tanpa mewajibkan pemindai untuk masuk (*login*).
 
-- Pemetaan maritim interaktif berbasis Leaflet dengan dua pilihan layer: Citra Satelit Resolusi Tinggi (Esri World Imagery) dan Peta Vektor OSM.
-- Plotting titik taktis: LKP Kejadian, Kantor SAR, Pos SAR Baubau, Dermaga Sandar, Helipad.
-- Perhitungan luas poligon pencarian (*Search Area*) dalam Nautical Miles persegi (NM²).
+### 5. Studio Capture Peta Taktis 16:9 & Map Snapshot
+- Mode penangkapan layar peta pada antarmuka GIS dengan panduan bingkai rasio 16:9.
+- Algoritma spasial mendeteksi seluruh komponen taktis yang berada di dalam area tangkapan (titik LKP, lokasi korban, poligon sektor pencarian, rute pergerakan kapal).
+- Menghasilkan gambar peta beresolusi tinggi (1280x720) yang tersimpan pada tabel `DokumenPetaSnapshot` dan tersemat rapi pada lembar cetak Laporan Awal, Renops, Sitrep, dan Penutupan Operasi disertai **Tabel Keterangan Komponen**.
+
+### 6. Tactical Maritime GIS & Generator Pola IAMSAR
+- Pemetaan maritim interaktif Leaflet dengan citra Satelit Resolusi Tinggi (Esri World Imagery) dan Peta Vektor OSM.
+- Plotting titik taktis: Titik LKP, Kantor Kansar, Pos SAR, Dermaga Sandar, Helipad, Titik Temu Korban.
+- Perhitungan luas poligon pencarian (*Search Area*) dalam Nautical Miles persegi (NM²) dan Kilometer persegi (Km²).
 - Generator pola pencarian standar maritim **IAMSAR (International Aeronautical and Maritime Search and Rescue)**:
-  - Parallel Sweep Search (PS)
-  - Creeping Line Search (CS)
-  - Expanding Square Search (SS)
-  - Sector Search (VS)
-- Pengukur jarak pelayaran multi-titik (*distance & azimuth bearing*) dengan estimasi durasi tempuh berdasarkan kecepatan knot kapal Basarnas (KN SAR Pacitan 18 knot, RB 210 20 knot, RIB 25 knot, Rubber Boat 10 knot).
+  - *Parallel Sweep Search (PS)*
+  - *Creeping Line Search (CS)*
+  - *Expanding Square Search (SS)*
+  - *Sector Search (VS)*
+- Pengukur jarak pelayaran multi-titik (*distance & azimuth bearing*) dengan estimasi durasi tempuh berdasarkan kecepatan knot armada kapal Basarnas (KN SAR Pacitan 18 knot, RB 210 20 knot, RIB 25 knot, Rubber Boat 10 knot).
 - Ekspor data spasial ke format **GeoJSON** dan **KML (Google Earth)**.
+
+### 7. Official PDF Exporter (Anti-Cut Smart Slicing)
+- Mengonversi lembar naskah dinas HTML menjadi berkas PDF A4 Portrait resmi.
+- Algoritma pemindaian baris piksel kanvas (*safe page-cut detection*) mencegah pemotongan baris teks atau huruf saat pergantian halaman.
+- Margin presisi kedinasan: Halaman 1 (Top 10mm, Bottom 12mm), Halaman 2+ (Top 15mm, Bottom 12mm).
+
+---
+
+## 🧪 Pengujian Otomatis (Automated Test Suites)
+
+Proyek ini dilengkapi **39+ automated test suites** berbasis PHP CLI yang mencakup pengujian unit, integrasi arsitektur, kalkulasi spasial, dan alur end-to-end:
+
+```bash
+# Menjalankan seluruh test suite secara otomatis:
+php tests/run_all.php
+
+# Atau menjalankan modul pengujian spesifik:
+php tests/test_phase4_refactoring_architecture.php
+php tests/test_doc_verify_and_barcode.php
+php tests/test_crud_audit_end_to_end.php
+php tests/test_lkp_routing.php
+```
 
 ---
 
 ## 🛡️ Keamanan & Standar Koding
 
-- **PHP 8 Strict Typing** (`declare(strict_types=1);`).
-- **CSRF Token Protection** di semua form mutasi data.
+- **PHP 8 Strict Typing** (`declare(strict_types=1);` di seluruh berkas controller, model, service, dan helper).
+- **CSRF Token Protection** di seluruh formulir mutasi data.
 - **PDO Prepared Statements** untuk mencegah serangan SQL Injection secara menyeluruh.
 - **XSS Prevention** melalui escaping output (`htmlspecialchars`).
 - **Role-Based Access Control (RBAC)** untuk melindungi aksi penghapusan dan perubahan data vital.
+- **HMAC SHA-256 Cryptographic Tokens** untuk keabsahan barcode QR dokumen digital.
 
 ---
 
 **Basarnas KPP Kendari &bull; AVIGNAM JAGAT SAMAGRAM &bull; Semoga Selamatlah Alam Semesta**
+

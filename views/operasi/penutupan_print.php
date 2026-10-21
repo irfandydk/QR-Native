@@ -94,7 +94,8 @@ $jamKejadian = TemplateHelper::formatJamWITA($operasi['waktu_kejadian'] ?? '');
 $statsKorban = TemplateHelper::hitungStatistikKorban($operasi['korban'] ?? [], (int)($operasi['jumlah_pob'] ?? 0));
 $unsurList = !empty($laporan['detail_unsur']) ? $laporan['detail_unsur'] : ($operasi['detail_unsur'] ?? []);
 
-$verifyUrl = BASE_URL . "/operasi_detail.php?id={$id}&tab=sitrep";
+$verifyUrl = DocVerifyHelper::generateVerifyUrl('penutupan', $operasi, $laporan);
+$logoDataUri = getAppLogoDataUri();
 $fullWaText = $laporan['full_text_wa'] ?? '';
 ?>
 <!DOCTYPE html>
@@ -108,7 +109,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
     <style>
         @page {
             size: A4 portrait;
-            margin: 15mm 15mm 12mm 15mm;
+            margin: 15mm 15mm 15mm 15mm;
         }
         @page :first {
             margin-top: 10mm;
@@ -117,9 +118,9 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
             html, body {
                 background: #ffffff !important;
                 color: #000000 !important;
-                font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
-                font-size: 9.5pt !important;
-                line-height: 1.35 !important;
+                font-family: 'Times New Roman', Times, serif !important;
+                font-size: 12pt !important;
+                line-height: 1.4 !important;
             }
             .no-print, .no-print * {
                 display: none !important;
@@ -128,12 +129,16 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                 box-shadow: none !important;
                 border: none !important;
                 margin: 0 !important;
-                padding: 0 !important;
+                padding: 0 0 25mm 0 !important;
                 width: 100% !important;
                 max-width: 100% !important;
+                font-family: 'Times New Roman', Times, serif !important;
+                font-size: 12pt !important;
+                line-height: 1.4 !important;
             }
-            .break-inside-avoid {
-                page-break-inside: avoid;
+            .break-inside-avoid, .signature-block {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
             a {
                 text-decoration: none !important;
@@ -141,7 +146,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
             }
         }
         body {
-            font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+            font-family: 'Times New Roman', Times, serif;
             background-color: #0f172a;
             color: #000000;
         }
@@ -149,16 +154,32 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
             background-color: #ffffff;
             width: 210mm;
             min-height: 297mm;
-            margin: 1rem auto;
-            padding: 12mm 16mm 14mm 16mm;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
-            border-radius: 2px;
+            margin: 20px auto;
+            padding: 12mm 16mm 25mm 16mm;
             box-sizing: border-box;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
             transition: transform 0.2s ease-in-out;
             overflow-x: hidden;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            line-height: 1.4;
         }
+        .page-sheet p, .page-sheet li, .page-sheet .narrative-text {
+            text-align: justify !important;
+            text-justify: inter-word !important;
+            line-height: 1.45 !important;
+        }
+        .page-sheet table {
+            font-family: 'Times New Roman', Times, serif !important;
+            font-size: 12pt !important;
+        }
+        .page-sheet th, .page-sheet td {
+            font-family: 'Times New Roman', Times, serif !important;
+            font-size: 12pt !important;
+        }
+
         .page-sheet *, .page-sheet *::before, .page-sheet *::after {
             box-sizing: border-box !important;
             max-width: 100%;
@@ -194,7 +215,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
     <header class="no-print sticky top-0 z-50 bg-slate-900/95 backdrop-blur border-b border-slate-800 text-white px-4 py-3 shadow-md">
         <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-3">
-                <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition">
+                <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $id ?>&tab=cetak" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition">
                     <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
                     <span>Kembali ke Detail</span>
                 </a>
@@ -361,61 +382,64 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                 </ol>
             </div>
 
-            <p class="text-[9pt] mb-3">
+            <p class="text-[12pt] mb-3 narrative-text text-justify">
                 Demikian Berita Acara ini dibuat dan ditandatangani dengan sebenar-benarnya tanpa ada paksaan dari pihak manapun, untuk dipergunakan sebagaimana mestinya.
             </p>
 
-            <!-- LEGALISASI & TANDA TANGAN MULTI-PIHAK -->
-            <div class="break-inside-avoid border-t border-black pt-3">
-                <div class="flex justify-end text-[9pt] mb-2">
+            <!-- LEGALISASI & TANDA TANGAN MULTI-PIHAK (ANTI-TERPOTONG) -->
+            <div class="signature-block mt-6 break-inside-avoid border-t border-black pt-3">
+                <div class="flex justify-end text-[12pt] mb-2">
                     <p>Kendari, <span class="font-bold"><?= $tglDebrief ?></span></p>
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 text-center text-[8.5pt]">
+                <div class="grid grid-cols-3 gap-2 text-center text-[12pt]">
                     <!-- Kolom Kiri: Pihak Keluarga Korban -->
-                    <div class="flex flex-col justify-between h-36">
+                    <div class="flex flex-col justify-between min-h-[130px]">
                         <div>
-                            <p class="font-bold uppercase">Perwakilan Keluarga Korban</p>
-                            <p class="text-[7.5pt] text-slate-700">Pihak Korban / Saksi Keluarga</p>
+                            <p class="font-bold uppercase text-[12pt]">Perwakilan Keluarga Korban</p>
+                            <p class="text-[10pt] text-slate-700">Pihak Korban / Saksi Keluarga</p>
                         </div>
-                        <div class="mt-auto">
-                            <p class="font-bold underline uppercase">( ............................................ )</p>
-                            <p class="text-[7.5pt]">Keluarga Korban</p>
+                        <div class="mt-auto pt-6">
+                            <p class="font-bold underline uppercase text-[12pt]">( ............................................ )</p>
+                            <p class="text-[10pt]">Keluarga Korban</p>
                         </div>
                     </div>
 
                     <!-- Kolom Tengah: Saksi Unsur Potensi SAR -->
-                    <div class="flex flex-col justify-between h-36">
+                    <div class="flex flex-col justify-between min-h-[130px]">
                         <div>
-                            <p class="font-bold uppercase">Saksi Unsur Potensi SAR</p>
-                            <p class="text-[7.5pt] text-slate-700">TNI AL / POLAIRUD / BPBD</p>
+                            <p class="font-bold uppercase text-[12pt]">Saksi Unsur Potensi SAR</p>
+                            <p class="text-[10pt] text-slate-700">TNI AL / POLAIRUD / BPBD</p>
                         </div>
-                        <div class="mt-auto">
-                            <p class="font-bold underline uppercase">( ............................................ )</p>
-                            <p class="text-[7.5pt]">Komandan Unsur SAR</p>
+                        <div class="mt-auto pt-6">
+                            <p class="font-bold underline uppercase text-[12pt]">( ............................................ )</p>
+                            <p class="text-[10pt]">Komandan Unsur SAR</p>
                         </div>
                     </div>
 
                     <!-- Kolom Kanan: Search Mission Coordinator (SMC) -->
-                    <div class="flex flex-col justify-between h-36">
+                    <div class="flex flex-col justify-between min-h-[130px]">
                         <div>
-                            <p class="font-bold uppercase">Search Mission Coordinator (SMC)</p>
-                            <p class="text-[7.5pt] text-slate-700"><?= strtoupper(e($defaultSmc['jabatan'] ?? 'KEPALA SEKSI OPERASI DAN SIAGA')) ?></p>
+                            <p class="font-bold uppercase text-[12pt]">Search Mission Coordinator (SMC)</p>
+                            <p class="text-[10pt] text-slate-700"><?= strtoupper(e($defaultSmc['jabatan'] ?? 'KEPALA SEKSI OPERASI DAN SIAGA')) ?></p>
                         </div>
-                        <div class="mt-auto">
-                            <p class="font-bold underline uppercase"><?= strtoupper(e($defaultSmc['nama'] ?? 'AMIRUDDIN A.S., S.Sos.')) ?></p>
-                            <p class="text-[7.5pt]"><?= e($defaultSmc['pangkat'] ?? 'PEMBINA (IV/a)') ?><?= !empty($defaultSmc['nip']) ? ' &bull; NIP. ' . e($defaultSmc['nip']) : '' ?></p>
+                        <div class="mt-auto pt-6">
+                            <p class="font-bold underline uppercase text-[12pt]"><?= strtoupper(e($defaultSmc['nama'] ?? 'AMIRUDDIN A.S., S.Sos.')) ?></p>
+                            <p class="text-[10.5pt]"><?= e($defaultSmc['pangkat'] ?? 'PEMBINA (IV/a)') ?><?= !empty($defaultSmc['nip']) ? ' &bull; NIP. ' . e($defaultSmc['nip']) : '' ?></p>
                         </div>
                     </div>
                 </div>
 
-                <!-- QR CODE VERIFIKASI RESMI -->
-                <div class="flex items-center justify-center gap-3 mt-4 pt-2 border-t border-dashed border-slate-300">
-                    <canvas id="qrCanvasPenutupan" class="w-16 h-16 border border-slate-300"></canvas>
-                    <div class="text-[7.5pt] font-mono leading-tight text-left">
+                <!-- QR CODE VERIFIKASI RESMI DENGAN LOGO HD DI TENGAH -->
+                <div class="flex items-center justify-center gap-3 mt-4 pt-3 border-t border-dashed border-slate-300">
+                    <div class="relative flex items-center justify-center">
+                        <canvas id="qrCanvasPenutupan" class="w-20 h-20 border border-slate-300"></canvas>
+                        <img id="qrImgPenutupan" class="w-20 h-20 border border-slate-300 hidden" alt="QR Code Verifikasi Resmi">
+                    </div>
+                    <div class="text-[8.5pt] font-mono leading-tight text-left">
                         <span class="font-bold text-slate-900 uppercase">BERKAS RESMI DINAS BASARNAS REPUBLIK INDONESIA</span><br>
                         <span class="text-slate-600">Terdaftar pada Sistem Validasi QR-SAR KPP Kendari &bull; Nomor: <?= e($nomorBA) ?></span><br>
-                        <span class="text-slate-400 italic">Dokumen ini sah dan memiliki kekuatan hukum administrasi operasional.</span>
+                        <span class="text-slate-500 italic">Dokumen ini sah dan memiliki kekuatan hukum administrasi operasional.</span>
                     </div>
                 </div>
             </div>
@@ -433,19 +457,78 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const verifyUrl = <?= jsonSafe($verifyUrl) ?>;
+        const logoDataUri = <?= jsonSafe($logoDataUri) ?>;
         const canvas = document.getElementById('qrCanvasPenutupan');
+        const imgEl = document.getElementById('qrImgPenutupan');
+
         if (canvas && typeof QRCode !== 'undefined') {
             QRCode.toCanvas(canvas, verifyUrl, {
-                width: 64,
+                width: 200,
                 margin: 1,
-                color: {
-                    dark: '#000000',
-                    light: '#ffffff'
+                color: { dark: '#000000', light: '#ffffff' },
+                errorCorrectionLevel: 'H'
+            }, function(err) {
+                if (err) {
+                    console.warn('QR code generation error:', err);
+                    return;
                 }
-            }, function (error) {
-                if (error) console.error("QR Code Error:", error);
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+                const size = canvas.width;
+                const logoImg = new Image();
+
+                function drawCenterEmblem() {
+                    const logoSize = Math.floor(size * 0.22);
+                    const center = (size - logoSize) / 2;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(size / 2, size / 2, Math.floor(logoSize / 2) + 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#cbd5e1';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    if (logoImg.naturalWidth > 0) {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(size / 2, size / 2, Math.floor(logoSize / 2), 0, Math.PI * 2);
+                        ctx.clip();
+                        ctx.drawImage(logoImg, center, center, logoSize, logoSize);
+                        ctx.restore();
+                    } else {
+                        ctx.fillStyle = '#ea580c';
+                        ctx.beginPath();
+                        ctx.arc(size / 2, size / 2, Math.floor(logoSize / 2), 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = 'bold ' + Math.floor(logoSize * 0.44) + 'px sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('SAR', size / 2, size / 2 + 1);
+                    }
+
+                    try {
+                        const dataUrl = canvas.toDataURL('image/png');
+                        if (imgEl) {
+                            imgEl.src = dataUrl;
+                            imgEl.classList.remove('hidden');
+                            canvas.classList.add('hidden');
+                        }
+                    } catch (e) {
+                        console.warn('Sync to img error:', e);
+                    }
+                }
+
+                if (logoDataUri) {
+                    logoImg.onload = drawCenterEmblem;
+                    logoImg.onerror = drawCenterEmblem;
+                    logoImg.src = logoDataUri;
+                } else {
+                    drawCenterEmblem();
+                }
             });
         }
+
 
         // Zoom controls
         let currentZoom = 100;

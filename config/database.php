@@ -11,11 +11,11 @@ class Database {
 
     public static function getConnection(): PDO {
         if (self::$instance === null) {
-            $host = getenv('DB_HOST') ?: 'localhost';
+            $host = getenv('DB_HOST') ?: '127.0.0.1';
             $port = getenv('DB_PORT') ?: '3306';
-            $dbname = getenv('DB_DATABASE') ?: 'REDACTED_qrsar';
-            $username = getenv('DB_USERNAME') ?: 'REDACTED_root';
-            $password = getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : 'REDACTED';
+            $dbname = getenv('DB_DATABASE') ?: 'qrsar';
+            $username = getenv('DB_USERNAME') ?: 'root';
+            $password = getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : '';
 
             // Check if .env file exists and parse it if not already in getenv
             $envFile = dirname(__DIR__) . '/.env';
@@ -49,32 +49,14 @@ class Database {
                 self::$instance = new PDO($dsn, $username, $password, $options);
                 self::$instance->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
             } catch (PDOException $e) {
-                // Smart fallback between 'localhost' (unix socket) and '127.0.0.1' (TCP port 3306)
-                $alternateHost = ($host === 'localhost') ? '127.0.0.1' : (($host === '127.0.0.1') ? 'localhost' : null);
-                if ($alternateHost !== null) {
+                // Attempt fallback to 'db_sar_qr' if 'qrsar' fails
+                if ($dbname === 'qrsar') {
                     try {
-                        $altDsn = "mysql:host={$alternateHost};port={$port};dbname={$dbname};charset=utf8mb4";
-                        self::$instance = new PDO($altDsn, $username, $password, $options);
-                        self::$instance->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+                        $dsnFallback = "mysql:host={$host};port={$port};dbname=db_sar_qr;charset=utf8mb4";
+                        self::$instance = new PDO($dsnFallback, $username, $password, $options);
                         return self::$instance;
-                    } catch (PDOException) {
-                        // ignore and fall through to original error handler
-                    }
-                }
-
-                // Attempt local development fallback if database does not exist or user fails
-                if ($dbname === 'REDACTED_qrsar' || $dbname === 'qrsar') {
-                    foreach (['qrsar', 'REDACTED_qrsar'] as $targetDb) {
-                        try {
-                            $dsnFallback = "mysql:host={$host};port={$port};dbname={$targetDb};charset=utf8mb4";
-                            self::$instance = new PDO($dsnFallback, $username, $password, $options);
-                            return self::$instance;
-                        } catch (PDOException) {}
-                        try {
-                            $dsnFallback = "mysql:host=127.0.0.1;port={$port};dbname={$targetDb};charset=utf8mb4";
-                            self::$instance = new PDO($dsnFallback, 'root', '', $options);
-                            return self::$instance;
-                        } catch (PDOException) {}
+                    } catch (PDOException $e2) {
+                        // Throw original error
                     }
                 }
                 error_log("[QR-SAR DB Error] " . $e->getMessage());

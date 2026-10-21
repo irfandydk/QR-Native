@@ -45,7 +45,11 @@ if (!defined('APP_NAME')) {
         </a>
 
         <!-- Tombol Pembersihan / Pruning Log Lama -->
-        <form method="POST" action="<?= BASE_URL ?>/admin.php" class="inline m-0" onsubmit="return confirm('PERINGATAN PEMELIHARAAN LOG AUDIT:\n\nApakah Anda yakin ingin membersihkan seluruh rekaman log audit yang telah berumur lebih dari 180 hari?\n\nTindakan ini akan mengosongkan arsip lama demi menjaga performa basis data.');">
+        <form method="POST" action="<?= BASE_URL ?>/admin.php" class="inline m-0"
+              data-confirm="PERINGATAN PEMELIHARAAN LOG AUDIT: Apakah Anda yakin ingin membersihkan seluruh rekaman log audit yang telah berumur lebih dari 180 hari? Tindakan ini akan mengosongkan arsip lama demi menjaga performa basis data."
+              data-confirm-title="Pangkas Log Audit Lama"
+              data-confirm-btn="Ya, Pangkas Log"
+              data-confirm-danger="true">
           <?= csrfInput() ?>
           <input type="hidden" name="action" value="prune_audit">
           <input type="hidden" name="older_than_days" value="180">

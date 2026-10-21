@@ -173,7 +173,7 @@ class GisModel {
             ':id_ops' => $idOperasi,
             ':lat' => (float)$data['lat'],
             ':lng' => (float)$data['lng'],
-            ':label' => isset($data['label']) ? trim((string)$data['label']) : '',
+            ':label' => isset($data['label']) && $data['label'] !== '' ? trim((string)$data['label']) : (isset($data['name']) ? trim((string)$data['name']) : 'Titik SAR'),
             ':type' => $type,
             ':customIcon' => $customIcon,
             ':desc' => $data['description'] ?? '',
@@ -442,8 +442,9 @@ class GisModel {
             $keptPtIds = [];
             $ptPool = $existingPts;
 
-            if (!empty($data['points']) && is_array($data['points'])) {
-                foreach ($data['points'] as $pt) {
+            $rawPts = !empty($data['points']) ? $data['points'] : (!empty($data['waypoints']) ? $data['waypoints'] : []);
+            if (!empty($rawPts) && is_array($rawPts)) {
+                foreach ($rawPts as $pt) {
                     $lat = (float)$pt['lat'];
                     $lng = (float)$pt['lng'];
                     $label = $pt['label'] ?? '';
@@ -837,5 +838,123 @@ class GisModel {
             'createdAt' => date('Y-m-d H:i') . ' WITA',
             'points' => $points
         ]);
+    }
+
+    /**
+     * Export all GIS tactical layers as standard RFC 7946 GeoJSON FeatureCollection.
+     */
+    public static function exportGeoJson(?int $idOperasi = null, bool $includeGlobal = true): string {
+        $features = [];
+
+        // 1. Points
+        $points = self::getPoints($idOperasi, $includeGlobal);
+        foreach ($points as $pt) {
+            $lat = (float)($pt['lat'] ?? 0);
+            $lng = (float)($pt['lng'] ?? 0);
+            if ($lat == 0.0 && $lng == 0.0) continue;
+            $features[] = [
+                'type' => 'Feature',
+                'geometry' => [
+                    'type' => 'Point',
+                    'coordinates' => [$lng, $lat]
+                ],
+                'properties' => [
+                    'id' => $pt['id'],
+                    'label' => $pt['label'] ?? '',
+                    'pointType' => $pt['pointType'] ?? 'pin_umum',
+                    'category' => $pt['category'] ?? '',
+                    'description' => $pt['description'] ?? '',
+                    'alphabetChar' => $pt['alphabetChar'] ?? '',
+                    'id_operasi' => $pt['id_operasi'] ?? null
+                ]
+            ];
+        }
+
+        // 2. Polygons / Search Areas
+        $polys = self::getPolygons($idOperasi, $includeGlobal);
+        foreach ($polys as $pl) {
+            $rawPts = $pl['points'] ?? [];
+            if (empty($rawPts)) continue;
+            $ring = [];
+            foreach ($rawPts as $p) {
+                $ring[] = [(float)$p['lng'], (float)$p['lat']];
+            }
+            if (!empty($ring) && ($ring[0] !== end($ring))) {
+                $ring[] = $ring[0];
+            }
+            $features[] = [
+                'type' => 'Feature',
+                'geometry' => [
+                    'type' => 'Polygon',
+                    'coordinates' => [$ring]
+                ],
+                'properties' => [
+                    'id' => $pl['id'],
+                    'name' => $pl['name'] ?? 'Search Area',
+                    'shapeType' => $pl['shapeType'] ?? 'polygon',
+                    'areaNm2' => (float)($pl['areaNm2'] ?? 0),
+                    'color' => $pl['color'] ?? '#f97316',
+                    'opacity' => (float)($pl['opacity'] ?? 0.25),
+                    'id_operasi' => $pl['id_operasi'] ?? null
+                ]
+            ];
+        }
+
+        // 3. Routes
+        $routes = self::getRoutes($idOperasi, $includeGlobal);
+        foreach ($routes as $rt) {
+            $rawPts = $rt['points'] ?? [];
+            if (count($rawPts) < 2) continue;
+            $coords = [];
+            foreach ($rawPts as $p) {
+                $coords[] = [(float)$p['lng'], (float)$p['lat']];
+            }
+            $features[] = [
+                'type' => 'Feature',
+                'geometry' => [
+                    'type' => 'LineString',
+                    'coordinates' => $coords
+                ],
+                'properties' => [
+                    'id' => $rt['id'],
+                    'name' => $rt['name'] ?? 'Rute Operasi',
+                    'vesselSpeedKnots' => (float)($rt['vesselSpeedKnots'] ?? 25),
+                    'strokeColor' => $rt['strokeColor'] ?? '#059669',
+                    'id_operasi' => $rt['id_operasi'] ?? null
+                ]
+            ];
+        }
+
+        // 4. Search Patterns
+        $patterns = self::getSearchPatterns($idOperasi, $includeGlobal);
+        foreach ($patterns as $sp) {
+            $rawWp = $sp['waypoints'] ?? [];
+            if (count($rawWp) < 2) continue;
+            $coords = [];
+            foreach ($rawWp as $w) {
+                $coords[] = [(float)$w['lng'], (float)$w['lat']];
+            }
+            $features[] = [
+                'type' => 'Feature',
+                'geometry' => [
+                    'type' => 'LineString',
+                    'coordinates' => $coords
+                ],
+                'properties' => [
+                    'id' => $sp['id'],
+                    'name' => $sp['name'] ?? 'Pola Pencarian',
+                    'patternType' => $sp['patternType'] ?? 'parallel_track',
+                    'trackSpacingNm' => (float)($sp['trackSpacingNm'] ?? 1.0),
+                    'totalDistanceNm' => (float)($sp['totalDistanceNm'] ?? 0),
+                    'color' => $sp['color'] ?? '#0284c7',
+                    'id_operasi' => $sp['id_operasi'] ?? null
+                ]
+            ];
+        }
+
+        return (string)json_encode([
+            'type' => 'FeatureCollection',
+            'features' => $features
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
 }

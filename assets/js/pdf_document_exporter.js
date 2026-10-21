@@ -145,6 +145,13 @@
                 sliceCanvas.width = canvasWidth;
                 var sliceCtx = sliceCanvas.getContext('2d');
 
+                var forbiddenZonesPx = (window.__pdfForbiddenZones || []).map(function (z) {
+                    return {
+                        top: Math.floor(z.topRatio * totalHeightPx),
+                        bottom: Math.ceil(z.bottomRatio * totalHeightPx)
+                    };
+                });
+
                 var currentY = 0;
                 var pageIndex = 0;
 
@@ -161,11 +168,42 @@
                         actualSliceH = remainingH;
                     } else {
                         var targetCutY = currentY + maxSliceH;
-                        var minCutY = currentY + Math.floor(maxSliceH * 0.75);
-                        var safeCutY = mainCtx
-                            ? findSafePageCutY(mainCtx, canvasWidth, targetCutY, minCutY)
-                            : targetCutY;
-                        actualSliceH = Math.max(100, safeCutY - currentY);
+
+                        // Periksa apakah target pemotongan jatuh di dalam blok tanda tangan (zona terlarang)
+                        var insideForbidden = null;
+                        for (var f = 0; f < forbiddenZonesPx.length; f++) {
+                            var zone = forbiddenZonesPx[f];
+                            if (targetCutY > zone.top && targetCutY <= zone.bottom) {
+                                insideForbidden = zone;
+                                break;
+                            }
+                        }
+
+                        if (insideForbidden) {
+                            // Potong persis di atas blok tanda tangan agar seluruh blok tanda tangan
+                            // (judul legalisasi, QR, nama, pangkat, dan NIP SMC) pindah bersama ke halaman berikutnya
+                            if (insideForbidden.top - currentY >= 90) {
+                                actualSliceH = insideForbidden.top - currentY;
+                            } else {
+                                // Jika blok tanda tangan sudah dimulai di awal halaman, pastikan muat hingga batas bawah blok
+                                actualSliceH = Math.min(remainingH, insideForbidden.bottom - currentY);
+                            }
+                        } else {
+                            var minCutY = currentY + Math.floor(maxSliceH * 0.75);
+                            var safeCutY = mainCtx
+                                ? findSafePageCutY(mainCtx, canvasWidth, targetCutY, minCutY)
+                                : targetCutY;
+
+                            // Lindungi agar safeCutY tidak memotong ke dalam zona tanda tangan
+                            for (var f2 = 0; f2 < forbiddenZonesPx.length; f2++) {
+                                var z2 = forbiddenZonesPx[f2];
+                                if (safeCutY > z2.top && safeCutY <= z2.bottom) {
+                                    safeCutY = z2.top;
+                                    break;
+                                }
+                            }
+                            actualSliceH = Math.max(100, safeCutY - currentY);
+                        }
                     }
 
                     var topMarginMm = (pageIndex === 0) ? topMarginPage1 : topMarginPageNext;
@@ -234,9 +272,24 @@
             || 'DOKUMEN_RESMI_BASARNAS';
         const finalFilename = sanitizeFilename(rawName.replace(/\.pdf$/i, '')) + '.pdf';
 
-        const isLaporanAwal = (sheet.id === 'official-laporan-awal-doc');
-        const printFontSize = isLaporanAwal ? '10pt' : '9.5pt';
-        const printLineHeight = (sheet.id === 'official-renops-doc') ? '1.3' : '1.35';
+        // Deteksi koordinat vertikal elemen blok tanda tangan agar dilarang dipotong di tengah
+        const sheetRect = sheet.getBoundingClientRect();
+        const sigBlocks = sheet.querySelectorAll('.signature-block, #signatureBlock, .legalisasi-block, [data-avoid-cut="true"]');
+        const forbiddenZones = [];
+        sigBlocks.forEach(function (sb) {
+            const bRect = sb.getBoundingClientRect();
+            if (sheetRect.height > 0) {
+                forbiddenZones.push({
+                    topRatio: Math.max(0, (bRect.top - sheetRect.top) / sheetRect.height),
+                    bottomRatio: Math.min(1, (bRect.bottom - sheetRect.top) / sheetRect.height)
+                });
+            }
+        });
+        window.__pdfForbiddenZones = forbiddenZones;
+
+        const printFontFamily = "'Times New Roman', Times, serif";
+        const printFontSize = '12pt';
+        const printLineHeight = '1.45';
 
         // 1. Simpan posisi scroll window saat ini dan reset ke (0, 0)
         const prevScrollX = window.scrollX || window.pageXOffset || 0;
@@ -256,12 +309,12 @@
         const prevBoxSizing = sheet.style.boxSizing;
         const prevOverflow = sheet.style.overflow;
         const prevOverflowX = sheet.style.overflowX;
+        const prevFontFamily = sheet.style.fontFamily;
         const prevFontSize = sheet.style.fontSize;
         const prevLineHeight = sheet.style.lineHeight;
 
         // 3. Gunakan width: 100% dari container html2pdf (188mm) dengan padding kanan 24px
-        // sehingga terdapat ruang penyangga putih 24px di sebelah kanan di dalam kanvas itu sendiri.
-        // Ini menjamin border kanan tabel dan huruf paling kanan tidak pernah terpotong oleh html2canvas.
+        // dan padding bawah 25mm sebagai pelindung anti-terpotongnya teks tanda tangan dan NIP SMC.
         sheet.style.width = '100%';
         sheet.style.maxWidth = '100%';
         sheet.style.boxSizing = 'border-box';
@@ -270,18 +323,19 @@
         sheet.style.boxShadow = 'none';
         sheet.style.margin = '0';
         sheet.style.minHeight = 'auto';
-        sheet.style.padding = '0 24px 0 6px';
+        sheet.style.padding = '0 24px 25mm 6px';
         sheet.style.overflow = 'visible';
         sheet.style.overflowX = 'visible';
+        sheet.style.fontFamily = printFontFamily;
         sheet.style.fontSize = printFontSize;
         sheet.style.lineHeight = printLineHeight;
 
         const opt = {
-            margin: [10, 13, 12, 9], // [top, left, bottom, right] dalam mm -> innerWidth = 188mm
+            margin: [10, 13, 15, 9], // [top, left, bottom, right] dalam mm -> bottomMargin = 15mm
             filename: finalFilename,
             image: {
                 type: 'jpeg',
-                quality: 0.92
+                quality: 0.95
             },
             html2canvas: {
                 scale: 2,
@@ -298,7 +352,7 @@
                             html, body {
                                 background: #ffffff !important;
                                 color: #000000 !important;
-                                font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+                                font-family: ${printFontFamily} !important;
                                 font-size: ${printFontSize} !important;
                                 line-height: ${printLineHeight} !important;
                                 margin: 0 !important;
@@ -313,15 +367,25 @@
                                 min-height: auto !important;
                                 box-sizing: border-box !important;
                                 margin: 0 !important;
-                                padding: 0 24px 0 6px !important;
+                                padding: 0 24px 25mm 6px !important;
                                 box-shadow: none !important;
                                 border: none !important;
                                 overflow: visible !important;
                                 overflow-x: visible !important;
                                 word-wrap: break-word !important;
                                 overflow-wrap: break-word !important;
+                                font-family: ${printFontFamily} !important;
                                 font-size: ${printFontSize} !important;
                                 line-height: ${printLineHeight} !important;
+                                text-align: justify !important;
+                                text-justify: inter-word !important;
+                            }
+                            .page-sheet p, .page-sheet li, .page-sheet .narrative-text {
+                                font-family: ${printFontFamily} !important;
+                                font-size: 12pt !important;
+                                text-align: justify !important;
+                                text-justify: inter-word !important;
+                                line-height: 1.45 !important;
                             }
                             .page-sheet *, .page-sheet *::before, .page-sheet *::after {
                                 box-sizing: border-box !important;
@@ -332,12 +396,20 @@
                                 max-width: 100% !important;
                                 table-layout: fixed !important;
                                 border-collapse: collapse !important;
+                                font-family: ${printFontFamily} !important;
+                                font-size: 12pt !important;
                             }
                             .page-sheet th, .page-sheet td {
                                 word-wrap: break-word !important;
                                 overflow-wrap: break-word !important;
                                 word-break: break-word !important;
                                 white-space: normal !important;
+                                font-family: ${printFontFamily} !important;
+                                font-size: 12pt !important;
+                            }
+                            .signature-block, #signatureBlock, .legalisasi-block, [data-avoid-cut="true"] {
+                                page-break-inside: avoid !important;
+                                break-inside: avoid !important;
                             }
                         `;
                         clonedDoc.head.appendChild(styleTag);
@@ -397,6 +469,7 @@
             sheet.style.boxSizing = prevBoxSizing;
             sheet.style.overflow = prevOverflow;
             sheet.style.overflowX = prevOverflowX;
+            sheet.style.fontFamily = prevFontFamily;
             sheet.style.fontSize = prevFontSize;
             sheet.style.lineHeight = prevLineHeight;
 

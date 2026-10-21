@@ -569,6 +569,17 @@ document.addEventListener('submit', (e) => {
     }
 });
 
+// Re-enable submit buttons if navigated back via browser history / bfcache
+window.addEventListener('pageshow', () => {
+    document.querySelectorAll('button[type="submit"]:disabled').forEach(btn => {
+        btn.disabled = false;
+        btn.classList.remove('opacity-80', 'cursor-wait');
+        if (btn.dataset.originalHtml) {
+            btn.innerHTML = btn.dataset.originalHtml;
+        }
+    });
+});
+
 // ==========================================
 // GLOBAL HTML SANITIZATION UTILITY
 // ==========================================

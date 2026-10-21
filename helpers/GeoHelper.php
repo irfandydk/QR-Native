@@ -90,7 +90,7 @@ class GeoHelper {
         if ($shapeType === 'circle' && $radiusNm !== null && $radiusNm > 0) {
             return round(M_PI * $radiusNm * $radiusNm, 2);
         }
-        if ($shapeType === 'box' && $boxWidthNm !== null && $boxHeightNm !== null && $boxWidthNm > 0 && $boxHeightNm > 0) {
+        if (($shapeType === 'box' || $shapeType === 'rectangle') && $boxWidthNm !== null && $boxHeightNm !== null && $boxWidthNm > 0 && $boxHeightNm > 0) {
             return round($boxWidthNm * $boxHeightNm, 2);
         }
         if (empty($points) || count($points) < 3) {

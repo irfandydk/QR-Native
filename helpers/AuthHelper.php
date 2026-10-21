@@ -17,7 +17,10 @@ class AuthHelper {
                 @session_start();
             }
             if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && !empty($_SERVER['REQUEST_URI'])) {
-                $_SESSION['redirect_url'] = $_SERVER['REQUEST_URI'];
+                $uri = (string)$_SERVER['REQUEST_URI'];
+                if (!str_contains($uri, 'login.php')) {
+                    $_SESSION['redirect_url'] = self::sanitizeRedirectUrl($uri, BASE_URL . '/index.php');
+                }
             }
             if (function_exists('setFlash')) {
                 setFlash('error', 'Sesi login diperlukan untuk mengakses sistem ini.');
@@ -364,21 +367,51 @@ class AuthHelper {
         ];
     }
 
-    public static function setSession(array $user): void {
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            session_regenerate_id(true);
+    public static function sanitizeRedirectUrl(?string $url, string $default = ''): string {
+        if (empty($default)) {
+            $default = BASE_URL . '/index.php';
         }
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['username'] = $user['username'];
-        $_SESSION['nama'] = $user['nama'];
-        $_SESSION['nip'] = $user['nip'];
-        $_SESSION['role'] = $user['role'];
-        $_SESSION['role_title'] = $user['roleTitle'];
-        $_SESSION['pangkat'] = $user['pangkat'];
-        $_SESSION['jabatan'] = $user['jabatan'];
-        $_SESSION['email'] = $user['email'];
-        $_SESSION['no_hp'] = $user['no_hp'];
-        $_SESSION['login_at'] = $user['loginAt'];
+        if (empty($url)) {
+            return $default;
+        }
+        $url = trim($url);
+        // Tolak URL berbasis protocol-relative (//evil.com atau /\evil.com)
+        if (str_starts_with($url, '//') || str_starts_with($url, '/\\')) {
+            return $default;
+        }
+        // Tolak skema semu javascript:, data:, vbscript:
+        if (preg_match('#^(javascript|data|vbscript):#i', $url)) {
+            return $default;
+        }
+        // Jika URL absolut HTTP/HTTPS, wajib diawali dengan BASE_URL
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            if (!str_starts_with($url, BASE_URL)) {
+                return $default;
+            }
+            return $url;
+        }
+        // Path relatif internal harus berawalan slash tunggal
+        if (str_starts_with($url, '/')) {
+            return $url;
+        }
+        return $default;
+    }
+
+    public static function setSession(array $user): void {
+        if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
+            @session_regenerate_id(true);
+        }
+        $_SESSION['user_id'] = $user['id'] ?? null;
+        $_SESSION['username'] = $user['username'] ?? 'system';
+        $_SESSION['nama'] = $user['nama'] ?? 'Petugas SAR';
+        $_SESSION['nip'] = $user['nip'] ?? '-';
+        $_SESSION['role'] = $user['role'] ?? 'USER';
+        $_SESSION['role_title'] = $user['roleTitle'] ?? ($user['role_title'] ?? 'Petugas SAR');
+        $_SESSION['pangkat'] = $user['pangkat'] ?? '-';
+        $_SESSION['jabatan'] = $user['jabatan'] ?? 'Petugas SAR';
+        $_SESSION['email'] = $user['email'] ?? '';
+        $_SESSION['no_hp'] = $user['no_hp'] ?? '';
+        $_SESSION['login_at'] = $user['loginAt'] ?? ($user['login_at'] ?? date('Y-m-d H:i:s'));
         $_SESSION['user'] = $user;
     }
 
@@ -387,14 +420,16 @@ class AuthHelper {
             AuditHelper::log('AUTH_LOGOUT', "Pengguna {$_SESSION['username']} keluar dari sesi sistem.", 'AUTH', $_SESSION['user_id'] ?? null);
         }
         $_SESSION = [];
-        if (ini_get("session.use_cookies")) {
+        if (ini_get("session.use_cookies") && !headers_sent()) {
             $params = session_get_cookie_params();
             setcookie(session_name(), '', time() - 42000,
                 $params["path"], $params["domain"],
                 $params["secure"], $params["httponly"]
             );
         }
-        session_destroy();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_destroy();
+        }
     }
 
     public static function csrfToken(): string {

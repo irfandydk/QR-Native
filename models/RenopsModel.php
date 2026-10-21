@@ -132,7 +132,8 @@ class RenopsModel {
 
             $fullTextWa = TemplateHelper::generateRenopsWA($ops, $data, $srus, $ops['korban'], $unsur, $alut);
 
-            $satuanJarak = in_array(strtoupper(trim((string)($data['satuan_jarak'] ?? 'NM'))), ['KM', 'M', 'NM']) ? strtoupper(trim((string)$data['satuan_jarak'])) : 'NM';
+            $satuanRaw = strtoupper(trim((string)($data['satuan_jarak'] ?? 'NM')));
+            $satuanJarak = in_array($satuanRaw, ['KM', 'M', 'NM']) ? $satuanRaw : 'NM';
             $hasSatuanCol = false;
             try {
                 $hasSatuanCol = !empty($db->query("SHOW COLUMNS FROM Renops LIKE 'satuan_jarak'")->fetchAll());
