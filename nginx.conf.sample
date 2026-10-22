@@ -1,113 +1,59 @@
 # ==============================================================================
-# QR-SAR - Production Nginx Configuration Guide
+# QR-SAR - Production Nginx Server Block Configuration Guide
 # Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
 # Arsitektur PHP Native Modern dengan Dual-Mode Deployment (Public / Root Docroot)
 # ==============================================================================
 
-# ------------------------------------------------------------------------------
-# OPSI A (SANGAT DIREKOMENDASIKAN): Modern Architecture (Public Document Root)
-# Direktori privat (config, models, helpers, views, database) berada 100% di luar DocRoot.
-# ------------------------------------------------------------------------------
 server {
     listen 80;
-    listen [::]:80;
-    server_name qrsar.basarnas.go.id; # Sesuaikan nama domain instansi
+    server_name qrsar.basarnas.go.id;
 
-    # Document Root mengarah langsung ke folder /public
+    # OPSI A (SANGAT DIREKOMENDASIKAN): Document Root mengarah langsung ke folder /public
+    # Direktori privat (config, models, controllers, services, helpers, views, database)
+    # berada 100% di luar DocRoot web server.
     root /var/www/html/QR-SAR/public;
     index index.php index.html;
 
-    client_max_body_size 64M;
-    disable_symlinks off; # Mengizinkan Nginx mengikuti symlink public/assets -> ../assets
+    # Charset
+    charset utf-8;
 
-    # Security Headers Terstandarisasi
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    # Log Files
+    access_log /var/log/nginx/qrsar_access.log;
+    error_log /var/log/nginx/qrsar_error.log;
 
-    # 1. Blokir akses langsung ke file tersembunyi & file sensitif (.env, .git, dll.)
-    location ~ /\.(?!well-known).* {
-        deny all;
-        return 404;
-    }
+    # Security: Disable logging for favicon and robots.txt
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
 
-    # 2. Blokir eksekusi skrip PHP di dalam folder uploads
-    location ^~ /uploads/ {
-        location ~ \.php$ {
-            deny all;
-            return 404;
-        }
-    }
-
-    # 3. Static Assets Caching (CSS, JS, Gambar, Font)
-    # Mencoba berkas statis langsung dari public/assets; jika tidak ditemukan, fallback ke index.php
-    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|webp|woff|woff2|ttf|eot)$ {
-        expires 7d;
-        add_header Cache-Control "public, no-transform";
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    # 4. REST API Routing
-    location /api/ {
-        try_files $uri $uri/ /index.php?$query_string;
-    }
-
-    # 5. Clean URLs & Front Controller Fallback
+    # Front Controller Routing
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
-    # 6. Pemrosesan FastCGI PHP
+    # PHP-FPM FastCGI Configuration
     location ~ \.php$ {
-        include snippets/fastcgi-php.conf;
-        fastcgi_pass unix:/run/php/php8.2-fpm.sock; # Sesuaikan socket PHP FPM server
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
+        fastcgi_read_timeout 300;
+    }
+
+    # Keamanan Direktori Uploads (Cegah Eksekusi Skrip PHP pada File Unggahan)
+    location ~* ^/uploads/.*\.php$ {
+        deny all;
+        return 403;
+    }
+
+    # Proteksi Berkas Tersembunyi (.env, .git, .htaccess)
+    location ~ /\.(?!well-known).* {
+        deny all;
+        return 403;
+    }
+
+    # Optimasi Caching untuk Asset Statis (CSS, JS, Fonts, Images)
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
     }
 }
-
-# ------------------------------------------------------------------------------
-# OPSI B (KOMPATIBILITAS PENUH): Standard Root Document Root
-# Gunakan jika server Anda tidak dapat mengubah direktori document root ke /public.
-# ------------------------------------------------------------------------------
-# server {
-#     listen 80;
-#     server_name qrsar-legacy.basarnas.go.id;
-#     root /var/www/html/QR-SAR;
-#     index index.php;
-#
-#     client_max_body_size 64M;
-#
-#     location ~* \.(sql|sqlite|db|env|log|md|gitignore|htaccess|sample)$ {
-#         deny all;
-#         return 404;
-#     }
-#
-#     location ~ ^/(database|config|models|controllers|services|helpers|views|storage|tests|cli|scratch)/ {
-#         deny all;
-#         return 404;
-#     }
-#
-#     location ^~ /uploads/ {
-#         location ~ \.php$ {
-#             deny all;
-#             return 404;
-#         }
-#     }
-#
-#     location /api/ {
-#         try_files $uri $uri/ /api/index.php?$query_string;
-#     }
-#
-#     location ~ \.php$ {
-#         include snippets/fastcgi-php.conf;
-#         fastcgi_pass unix:/run/php/php8.2-fpm.sock;
-#         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-#         include fastcgi_params;
-#     }
-#
-#     location / {
-#         try_files $uri $uri/ /index.php?$query_string;
-#     }
-# }

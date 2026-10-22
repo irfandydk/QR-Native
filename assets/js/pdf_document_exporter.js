@@ -382,30 +382,108 @@
                             }
                             .page-sheet p, .page-sheet li, .page-sheet .narrative-text {
                                 font-family: ${printFontFamily} !important;
-                                font-size: 12pt !important;
+                                font-size: 10.5pt !important;
                                 text-align: justify !important;
                                 text-justify: inter-word !important;
-                                line-height: 1.45 !important;
+                                line-height: 1.4 !important;
+                            }
+                            .page-sheet h1, .page-sheet h2, .page-sheet h3 {
+                                font-family: ${printFontFamily} !important;
+                                font-size: 12pt !important;
                             }
                             .page-sheet *, .page-sheet *::before, .page-sheet *::after {
                                 box-sizing: border-box !important;
                                 max-width: 100% !important;
                             }
-                            .page-sheet table {
+                            .page-sheet table:not(.kop-table):not(.kop-contact-table):not(.kop-contact-row):not(.kop-phone-table) {
                                 width: 100% !important;
                                 max-width: 100% !important;
                                 table-layout: fixed !important;
                                 border-collapse: collapse !important;
                                 font-family: ${printFontFamily} !important;
-                                font-size: 12pt !important;
+                            }
+                            .page-sheet .kop-table {
+                                width: 100% !important;
+                                border-collapse: collapse !important;
+                                table-layout: auto !important;
+                                border: none !important;
+                                font-family: Arial, Helvetica, sans-serif !important;
+                            }
+                            .page-sheet .kop-table td, .page-sheet .kop-table th {
+                                border: none !important;
+                                font-family: Arial, Helvetica, sans-serif !important;
+                            }
+                            .page-sheet .kop-contact-row {
+                                width: 100% !important;
+                                max-width: 100% !important;
+                                table-layout: auto !important;
+                                border-collapse: collapse !important;
+                                border: none !important;
+                                margin: 0 !important;
+                            }
+                            .page-sheet .kop-contact-row td {
+                                border: none !important;
+                                font-family: Arial, Helvetica, sans-serif !important;
+                            }
+                            .page-sheet .kop-contact-table, .page-sheet .kop-phone-table {
+                                width: auto !important;
+                                max-width: none !important;
+                                table-layout: auto !important;
+                                border-collapse: collapse !important;
+                                border: none !important;
+                                margin-left: auto !important;
+                                margin-right: 0 !important;
+                            }
+                            .page-sheet .kop-contact-table td, .page-sheet .kop-phone-table td {
+                                border: none !important;
+                                padding: 0.5px 3px !important;
+                                font-size: 8pt !important;
+                                line-height: 1.35 !important;
+                                font-family: Arial, Helvetica, sans-serif !important;
+                                white-space: nowrap !important;
+                            }
+                            .kop-surat-container, .kop-surat-container * {
+                                font-family: Arial, Helvetica, sans-serif !important;
+                            }
+                            .table-dinas {
+                                font-size: 9pt !important;
+                            }
+                            .table-dinas th {
+                                border: 1px solid #000000 !important;
+                                background-color: #f1f5f9 !important;
+                                font-weight: bold !important;
+                                font-size: 8.5pt !important;
+                                padding: 4px 6px !important;
+                                text-align: center !important;
+                                vertical-align: middle !important;
+                                text-transform: uppercase !important;
+                                font-family: ${printFontFamily} !important;
+                            }
+                            .table-dinas td {
+                                border: 1px solid #000000 !important;
+                                font-size: 9pt !important;
+                                padding: 4px 6px !important;
+                                vertical-align: top !important;
+                                line-height: 1.3 !important;
+                                word-wrap: break-word !important;
+                                overflow-wrap: break-word !important;
+                                word-break: break-word !important;
+                                font-family: ${printFontFamily} !important;
+                            }
+                            .table-borderless td {
+                                font-family: ${printFontFamily} !important;
+                                font-size: 9.5pt !important;
+                                padding: 2.5px 4px !important;
+                                vertical-align: top !important;
+                                line-height: 1.35 !important;
+                                word-wrap: break-word !important;
+                                overflow-wrap: break-word !important;
                             }
                             .page-sheet th, .page-sheet td {
                                 word-wrap: break-word !important;
                                 overflow-wrap: break-word !important;
                                 word-break: break-word !important;
-                                white-space: normal !important;
                                 font-family: ${printFontFamily} !important;
-                                font-size: 12pt !important;
                             }
                             .signature-block, #signatureBlock, .legalisasi-block, [data-avoid-cut="true"] {
                                 page-break-inside: avoid !important;

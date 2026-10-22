@@ -163,39 +163,97 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
         .page-sheet p, .page-sheet li, .page-sheet .narrative-text {
             text-align: justify !important;
             text-justify: inter-word !important;
-            line-height: 1.45 !important;
+            line-height: 1.4 !important;
+            font-size: 10.5pt;
         }
-        .page-sheet table {
+        .page-sheet table:not(.kop-table):not(.kop-contact-row):not(.kop-phone-table):not(.kop-contact-table) {
             font-family: 'Times New Roman', Times, serif !important;
-            font-size: 12pt !important;
-        }
-        .page-sheet th, .page-sheet td {
-            font-family: 'Times New Roman', Times, serif !important;
-            font-size: 12pt !important;
-        }
-
-        .page-sheet *, .page-sheet *::before, .page-sheet *::after {
-            box-sizing: border-box !important;
-            max-width: 100%;
-        }
-        .page-sheet table {
             width: 100% !important;
             max-width: 100% !important;
             table-layout: fixed !important;
             border-collapse: collapse !important;
         }
-        .table-dinas th, .table-dinas td {
-            border: 1px solid #000000;
-            padding: 4px 6px;
+        .page-sheet .kop-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            table-layout: auto !important;
+            border: none !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+        }
+        .page-sheet .kop-table td, .page-sheet .kop-table th {
+            border: none !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+        }
+        .page-sheet .kop-contact-row {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: auto !important;
+            border-collapse: collapse !important;
+            border: none !important;
+            margin: 0 !important;
+        }
+        .page-sheet .kop-contact-row td {
+            border: none !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+        }
+        .page-sheet .kop-contact-table, .page-sheet .kop-phone-table {
+            width: auto !important;
+            max-width: none !important;
+            table-layout: auto !important;
+            border-collapse: collapse !important;
+            border: none !important;
+            margin-left: auto !important;
+            margin-right: 0 !important;
+        }
+        .page-sheet .kop-contact-table td, .page-sheet .kop-phone-table td {
+            border: none !important;
+            padding: 0.5px 3px !important;
+            font-size: 8pt !important;
+            line-height: 1.35 !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+            white-space: nowrap !important;
+        }
+        .kop-surat-container, .kop-surat-container * {
+            font-family: Arial, Helvetica, sans-serif !important;
+        }
+        .page-sheet th:not(.kop-table th):not(.kop-contact-row th):not(.kop-phone-table th),
+        .page-sheet td:not(.kop-table td):not(.kop-contact-row td):not(.kop-phone-table td):not(.kop-contact-table td) {
+            font-family: 'Times New Roman', Times, serif !important;
+        }
+        .table-dinas {
+            font-size: 8.5pt !important;
+        }
+        .table-dinas th {
+            border: 1px solid #000000 !important;
+            background-color: #f1f5f9 !important;
+            font-weight: bold !important;
+            font-size: 8.5pt !important;
+            padding: 4px 5px !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+            text-transform: uppercase !important;
+        }
+        .table-dinas td {
+            border: 1px solid #000000 !important;
+            font-size: 8.5pt !important;
+            padding: 4px 5px !important;
+            vertical-align: top !important;
+            line-height: 1.25 !important;
             word-wrap: break-word !important;
             overflow-wrap: break-word !important;
             word-break: break-word !important;
         }
         .table-borderless td {
-            padding: 2px 4px;
-            vertical-align: top;
+            font-size: 9.5pt !important;
+            padding: 2.5px 4px !important;
+            vertical-align: top !important;
+            line-height: 1.35 !important;
             word-wrap: break-word !important;
             overflow-wrap: break-word !important;
+        }
+        .page-sheet *, .page-sheet *::before, .page-sheet *::after {
+            box-sizing: border-box !important;
+            max-width: 100%;
         }
         .text-justify {
             text-align: justify !important;
@@ -254,38 +312,53 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
 
     <!-- OFFICIAL BASARNAS PAPER DOCUMENT SHEET -->
     <main class="flex-1 flex justify-center py-4 px-2">
-        <article id="official-renops-doc" class="page-sheet text-black text-[10pt] leading-normal font-sans">
+        <article id="official-renops-doc" class="page-sheet text-black text-[10pt] leading-normal font-serif">
             
-            <!-- KOP SURAT RESMI BASARNAS -->
-            <div class="relative flex items-center justify-between gap-4 pb-2 text-black border-b-2 border-black">
-                <div class="w-20 h-20 shrink-0 flex items-center justify-center">
-                    <?php if (!empty($customLogo)): ?>
-                        <img src="<?= htmlspecialchars($customLogo) ?>" alt="Logo Basarnas" class="w-full h-full object-contain">
-                    <?php else: ?>
-                        <img src="<?= BASE_URL ?>/assets/images/logo_basarnas.svg" alt="Logo Basarnas" class="w-full h-full object-contain">
-                    <?php endif; ?>
-                </div>
+            <!-- KOP SURAT RESMI BASARNAS SESUAI STANDAR TERBARU -->
+            <div class="kop-surat-container w-full mb-3 text-black" style="font-family: Arial, Helvetica, sans-serif !important;">
+                <table class="kop-table" style="width: 100% !important; border: none !important; border-collapse: collapse !important; table-layout: auto !important; margin: 0 !important; padding: 0 !important;">
+                    <tr>
+                        <!-- Kolom Kiri: Logo Basarnas Sirkular (Tanpa Teks BASARNAS di Bawahnya) -->
+                        <td style="width: 80px; vertical-align: middle; text-align: center; border: none !important; padding: 0 !important;">
+                            <div style="width: 75px; height: 75px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                                <?php if (!empty($customLogo)): ?>
+                                    <img src="<?= htmlspecialchars($customLogo) ?>" alt="Logo Basarnas" style="width: 100%; height: 100%; object-fit: contain;">
+                                <?php else: ?>
+                                    <img src="<?= BASE_URL ?>/assets/images/logo_basarnas.svg" alt="Logo Basarnas" style="width: 100%; height: 100%; object-fit: contain;">
+                                <?php endif; ?>
+                            </div>
+                        </td>
 
-                <div class="text-center flex-1 px-2">
-                    <h2 class="text-[11.5pt] font-bold tracking-wider uppercase leading-snug m-0 p-0 text-black">
-                        BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
-                    </h2>
-                    <h1 class="text-[13.5pt] font-black tracking-wider uppercase leading-tight m-0 mt-0.5 p-0 text-black">
-                        KANTOR PENCARIAN DAN PERTOLONGAN KENDARI
-                    </h1>
-                    <p class="text-[8pt] leading-tight m-0 mt-1 text-slate-800">
-                        Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sulawesi Tenggara 93116
-                    </p>
-                    <p class="text-[8pt] leading-tight m-0 text-slate-800">
-                        Telepon: (0401) 3196557 &bull; Faksimile: (0401) 3196558 &bull; Emergency Call: 115
-                    </p>
-                    <p class="text-[7.5pt] italic leading-tight m-0 text-slate-700">
-                        Laman: kendari.basarnas.go.id &bull; Pos-el: sar304kendari@gmail.com
-                    </p>
-                </div>
+                        <!-- Kolom Tengah: Teks Kop Surat Lengkap Rata Tengah -->
+                        <td style="vertical-align: middle; text-align: center; border: none !important; padding: 0 4px !important;">
+                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 13pt !important; font-weight: bold !important; text-transform: uppercase !important; line-height: 1.25; color: #000000; letter-spacing: 0.02em;">
+                                BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
+                            </div>
+                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 14pt !important; font-weight: bold !important; text-transform: uppercase !important; line-height: 1.25; color: #000000; margin-top: 1px; letter-spacing: 0.02em;">
+                                KANTOR PENCARIAN DAN PERTOLONGAN
+                            </div>
+                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 16pt !important; font-weight: 900 !important; text-transform: uppercase !important; line-height: 1.2; color: #000000; margin-top: 1px; letter-spacing: 0.04em;">
+                                KENDARI
+                            </div>
+                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 8.5pt !important; font-weight: normal !important; line-height: 1.35; color: #000000; margin-top: 4px; white-space: nowrap !important;">
+                                Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sulawesi Tenggara 93116
+                            </div>
+                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 8.5pt !important; font-weight: normal !important; line-height: 1.35; color: #000000; white-space: nowrap !important;">
+                                Telepon: (0401) 3196557 &bull; Faksimile: (0401) 3196558 &bull; Emergency Call: 115
+                            </div>
+                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 8.5pt !important; font-style: italic !important; line-height: 1.35; color: #000000; white-space: nowrap !important;">
+                                Website: kendari.basarnas.go.id &bull; Email: sar304kendari@gmail.com
+                            </div>
+                        </td>
 
-                <div class="w-20 h-20 shrink-0 hidden sm:flex items-center justify-center">
-                    <img src="<?= BASE_URL ?>/assets/images/logo_basarnas.svg" alt="Logo Basarnas" class="w-full h-full object-contain opacity-0">
+                        <!-- Kolom Kanan: Spacer Penyeimbang (Sama Lebar dengan Kolom Logo agar Teks Tepat di Tengah Halaman) -->
+                        <td style="width: 80px; vertical-align: middle; border: none !important; padding: 0 !important;"></td>
+                    </tr>
+                </table>
+
+                <!-- GARIS GANDA KOP DINAS (Double Horizontal Line) -->
+                <div style="width: 100% !important; margin-top: 6px; margin-bottom: 12px; border-bottom: 2.5px solid #000000; padding-bottom: 1.5px;">
+                    <div style="border-bottom: 1px solid #000000;"></div>
                 </div>
             </div>
 
@@ -468,25 +541,28 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
 
             <!-- LEGALISASI, TANDA TANGAN & QR CODE VERIFIKASI (ANTI-TERPOTONG) -->
             <div class="signature-block mt-6 break-inside-avoid border-t border-black pt-3">
-                <div class="flex justify-end text-[12pt] mb-2">
-                    <p>Dikeluarkan di : <span class="font-bold">Kendari</span><br>Pada Tanggal : <span class="font-bold"><?= $tglBriefing ?></span></p>
+                <div class="flex justify-end text-[10.5pt] mb-2 font-serif">
+                    <div class="text-left leading-tight">
+                        <div>Dikeluarkan di : <span class="font-bold">Kendari</span></div>
+                        <div>Pada Tanggal : <span class="font-bold"><?= $tglBriefing ?></span></div>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 text-center text-[12pt]">
-                    <!-- Kolom Kiri: Koordinator Lapangan / OSC -->
-                    <div class="flex flex-col justify-between min-h-[130px]">
+                <div class="grid grid-cols-3 gap-3 text-left text-[11pt] font-serif">
+                    <!-- Kolom Kiri: On Scene Commander (OSC) (Align Left) -->
+                    <div class="flex flex-col justify-between min-h-[140px] text-left">
                         <div>
-                            <p class="font-bold uppercase text-[12pt]">On Scene Commander (OSC)</p>
-                            <p class="text-[10pt] text-slate-700">Komandan Lapangan KPP Kendari</p>
+                            <p class="font-bold uppercase text-[11pt] leading-tight m-0">On Scene Commander (OSC),</p>
+                            <p class="text-[9.5pt] text-slate-700 leading-tight m-0 mt-0.5">Komandan Lapangan KPP Kendari</p>
                         </div>
-                        <div class="mt-auto pt-6">
-                            <p class="font-bold underline uppercase text-[12pt]">KOMANDAN TIM RESCUE</p>
-                            <p class="text-[10pt]">KPP Kendari</p>
+                        <div class="mt-auto pt-6 leading-tight">
+                            <p class="font-bold underline uppercase text-[11pt] m-0">KOMANDAN TIM RESCUE</p>
+                            <p class="text-[9.5pt] m-0 mt-0.5">KPP Kendari</p>
                         </div>
                     </div>
 
                     <!-- Kolom Tengah: QR Code Verifikasi Digital dengan Logo HD di Tengah -->
-                    <div class="flex flex-col items-center justify-center p-1">
+                    <div class="flex flex-col items-center justify-center p-1 text-center">
                         <div class="relative flex items-center justify-center">
                             <canvas id="qrCanvasRenops" class="w-24 h-24 border border-slate-300"></canvas>
                             <img id="qrImgRenops" class="w-24 h-24 border border-slate-300 hidden" alt="QR Code Verifikasi Resmi">
@@ -498,15 +574,15 @@ $alutList = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi[
                         </div>
                     </div>
 
-                    <!-- Kolom Kanan: SAR Mission Coordinator (SMC) -->
-                    <div class="flex flex-col justify-between min-h-[130px]">
+                    <!-- Kolom Kanan: SAR Mission Coordinator (SMC) (Align Left) -->
+                    <div class="flex flex-col justify-between min-h-[140px] text-left">
                         <div>
-                            <p class="font-bold uppercase text-[12pt]">SAR Mission Coordinator (SMC)</p>
-                            <p class="text-[10pt] text-slate-700"><?= strtoupper(e($defaultSmc['jabatan'] ?? 'KEPALA SEKSI OPERASI DAN SIAGA')) ?></p>
+                            <p class="font-bold uppercase text-[11pt] leading-tight m-0">SAR Mission Coordinator (SMC),</p>
+                            <p class="text-[9.5pt] text-slate-700 leading-tight m-0 mt-0.5"><?= strtoupper(e($defaultSmc['jabatan'] ?? 'KEPALA SEKSI OPERASI DAN SIAGA')) ?></p>
                         </div>
-                        <div class="mt-auto pt-6">
-                            <p class="font-bold underline uppercase text-[12pt]"><?= strtoupper(e($defaultSmc['nama'] ?? 'AMIRUDDIN A.S., S.Sos.')) ?></p>
-                            <p class="text-[10.5pt]"><?= e($defaultSmc['pangkat'] ?? 'PEMBINA (IV/a)') ?><?= !empty($defaultSmc['nip']) ? ' &bull; NIP. ' . e($defaultSmc['nip']) : '' ?></p>
+                        <div class="mt-auto pt-6 leading-tight">
+                            <p class="font-bold underline uppercase text-[11pt] m-0"><?= strtoupper(e($defaultSmc['nama'] ?? 'AMIRUDDIN A.S., S.Sos.')) ?></p>
+                            <p class="text-[9.5pt] m-0 mt-0.5"><?= e($defaultSmc['pangkat'] ?? 'PEMBINA (IV/a)') ?><?= !empty($defaultSmc['nip']) ? '<br>NIP. ' . e($defaultSmc['nip']) : '' ?></p>
                         </div>
                     </div>
                 </div>
