@@ -13,6 +13,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 require_once __DIR__ . '/../config/app.php';
 
 echo "========================================================================================\n";
@@ -347,9 +349,9 @@ try {
     assertTest('E2E_HTTP', 'Tampilan verifikasi memuat status operasi AKTIF (OPEN)',
         str_contains($resAwal['body'], 'AKTIF (OPEN)')
     );
-    assertTest('E2E_HTTP', 'Tampilan verifikasi memuat tombol unduh / cetak naskah dinas resmi',
-        str_contains($resAwal['body'], 'Buka Lembar Naskah Dinas Resmi (Cetak / PDF)') &&
-        str_contains($resAwal['body'], "action=print_laporan_awal&amp;id={$idTestOps}")
+    assertTest('E2E_HTTP', 'Tampilan verifikasi publik (tamu) tidak menautkan lembar cetak berisi data pribadi',
+        !str_contains($resAwal['body'], 'Buka Lembar Naskah Dinas Resmi (Cetak / PDF)') &&
+        !str_contains($resAwal['body'], "action=print_laporan_awal&amp;id={$idTestOps}")
     );
 
     // Skenario B: Verifikasi Sah RENOPS
@@ -365,8 +367,8 @@ try {
     assertTest('E2E_HTTP', 'Tampilan verifikasi RENOPS memuat judul Rencana Operasi SAR (RENOPS) H.1',
         str_contains($resRenops['body'], 'Rencana Operasi SAR (RENOPS) H.1')
     );
-    assertTest('E2E_HTTP', 'Tampilan verifikasi RENOPS menyertakan tautan cetak dengan parameter id_renops',
-        str_contains($resRenops['body'], "action=print_renops&amp;id={$idTestOps}&amp;id_renops={$idTestRenops}")
+    assertTest('E2E_HTTP', 'Tampilan verifikasi RENOPS publik (tamu) tidak menautkan lembar cetak berisi data pribadi',
+        !str_contains($resRenops['body'], "action=print_renops&amp;id={$idTestOps}&amp;id_renops={$idTestRenops}")
     );
 
     // Skenario C: Penerbitan Dokumen Penutupan Operasi & Transisi Otomatis ke Status CLOSED

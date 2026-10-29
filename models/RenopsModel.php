@@ -111,6 +111,44 @@ class RenopsModel {
         return $renops;
     }
 
+    /**
+     * Snapshot unsur & alut RENOPS: input form, lalu RENOPS tersimpan (mode edit), lalu data operasi.
+     */
+    public static function resolveUnsurAlut(array $ops, array $data, ?array $existing = null): array {
+        $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : (($existing['detail_unsur'] ?? null) ?: ($ops['detail_unsur'] ?? []));
+        $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : (($existing['detail_alut'] ?? null) ?: ($ops['detail_alut'] ?? []));
+        return [$unsur, $alut];
+    }
+
+    /**
+     * Normalisasi baris SRU dari input form (baris tanpa nama SRU diabaikan).
+     */
+    public static function normalizeInputSrus(array $rawSrus): array {
+        $srus = [];
+        foreach ($rawSrus as $s) {
+            if (!is_array($s) || empty($s['nama_sru'])) continue;
+            $srus[] = [
+                'id_sru' => !empty($s['id_sru']) ? (int)$s['id_sru'] : null,
+                'nama_sru' => trim($s['nama_sru']),
+                'koordinat_area' => trim($s['koordinat_area'] ?? ''),
+                'luas_area' => trim($s['luas_area'] ?? ''),
+                'pola_pencarian' => trim($s['pola_pencarian'] ?? ''),
+                'total_sapuan' => trim($s['total_sapuan'] ?? ''),
+                'track_spacing' => trim($s['track_spacing'] ?? '')
+            ];
+        }
+        return $srus;
+    }
+
+    /**
+     * Pratinjau naskah WA RENOPS dari isi form (tanpa menyimpan), generator sama dengan create/update.
+     */
+    public static function buildPreviewWa(array $ops, array $data, ?array $existing = null): string {
+        [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $existing);
+        $srus = $data['srus'] ?? ($existing['srus'] ?? []);
+        return TemplateHelper::generateRenopsWA($ops, $data, $srus, $ops['korban'] ?? [], $unsur, $alut);
+    }
+
     public static function create(array $data): int {
         $db = getDB();
         $db->beginTransaction();
@@ -123,8 +161,7 @@ class RenopsModel {
             }
 
             $srus = $data['srus'] ?? [];
-            $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : ($ops['detail_unsur'] ?? []);
-            $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : ($ops['detail_alut'] ?? []);
+            [$unsur, $alut] = self::resolveUnsurAlut($ops, $data);
             
             // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
             $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($ops['unsur_terlibat'] ?? ''));
@@ -180,7 +217,7 @@ class RenopsModel {
                 ':tanggal_laporan' => $tglLaporan,
                 ':waktu_briefing' => $waktuBriefing,
                 ':waktu_mulai_ops' => $waktuMulaiOps,
-                ':cuaca' => $data['cuaca'] ?? ($ops['cuaca'] ?: 'Cerah Berawan'),
+                ':cuaca' => $data['cuaca'] ?? ($ops['cuaca'] ?? ''),
                 ':unsur_text' => $unsurText,
                 ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
@@ -238,8 +275,7 @@ class RenopsModel {
                 throw new RuntimeException("Operasi SAR telah berstatus DITUTUP (CLOSED). Rencana Operasi tidak dapat diubah kecuali operasi dibuka kembali.");
             }
             $srus = $data['srus'] ?? $renops['srus'];
-            $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : ($renops['detail_unsur'] ?: ($ops['detail_unsur'] ?? []));
-            $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : ($renops['detail_alut'] ?: ($ops['detail_alut'] ?? []));
+            [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $renops);
 
             // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
             $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($renops['unsur_text'] ?: ($ops['unsur_terlibat'] ?? '')));
@@ -376,7 +412,6 @@ class RenopsModel {
                 $db->commit();
             }
             if (!empty($toDelete)) {
-                self::syncAutoIncrement('RenopsSRU');
             }
             return true;
         } catch (Throwable $e) {
@@ -393,10 +428,10 @@ class RenopsModel {
         try {
             $db->prepare("DELETE FROM RenopsSRU WHERE id_renops = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM Renops WHERE id_renops = :id")->execute([':id' => $id]);
+            DocVerifyHelper::forgetDocTokens([DocVerifyHelper::TYPE_RENOPS], $id);
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement();
             return true;
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
@@ -406,33 +441,4 @@ class RenopsModel {
         }
     }
 
-    /**
-     * Synchronize and reset Renops & RenopsSRU AUTO_INCREMENT to strictly MAX(id) + 1.
-     * If $table is specified ('Renops' or 'RenopsSRU'), only that table will be checked and updated.
-     */
-    public static function syncAutoIncrement(?string $table = null): void {
-        $db = getDB();
-        if ($db->inTransaction()) {
-            return;
-        }
-        try {
-            if ($table === null || $table === 'Renops') {
-                $stmtRen = $db->query("SELECT COALESCE(MAX(id_renops), 0) FROM Renops");
-                $maxRenops = (int)$stmtRen->fetchColumn();
-                $stmtRen->closeCursor();
-                $nextRenops = max(1, $maxRenops + 1);
-                $db->exec("ALTER TABLE Renops AUTO_INCREMENT = {$nextRenops}");
-            }
-
-            if ($table === null || $table === 'RenopsSRU') {
-                $stmtSru = $db->query("SELECT COALESCE(MAX(id_sru), 0) FROM RenopsSRU");
-                $maxSru = (int)$stmtSru->fetchColumn();
-                $stmtSru->closeCursor();
-                $nextSru = max(1, $maxSru + 1);
-                $db->exec("ALTER TABLE RenopsSRU AUTO_INCREMENT = {$nextSru}");
-            }
-        } catch (Throwable) {
-            // Silently continue
-        }
-    }
 }

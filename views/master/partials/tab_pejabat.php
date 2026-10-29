@@ -8,37 +8,48 @@ if (!defined('APP_NAME')) {
     http_response_code(403);
     exit('Akses langsung ditolak.');
 }
+
+$isAdmin = AuthHelper::isAdmin();
 ?>
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  <!-- Left Column: Add New Pejabat Form -->
+  <!-- Left Column: Add New Pejabat Form (Admin) or Access Info Card (User) -->
   <div class="card p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
     <div class="flex items-center gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
       <span class="p-1.5 rounded-lg text-orange-600 dark:text-orange-400" style="background-color: var(--primary-light); color: var(--primary);">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
       </span>
-      <h2 class="text-sm font-bold text-slate-900 dark:text-white uppercase">Tambah Pejabat Baru</h2>
+      <h2 class="text-sm font-bold text-slate-900 dark:text-white"><?= $isAdmin ? 'Tambah Pejabat Baru' : 'Otoritas Pejabat & SMC' ?></h2>
     </div>
 
+    <?php if ($isAdmin): ?>
     <form method="POST" action="<?= BASE_URL ?>/master.php?action=add_pejabat" class="space-y-3.5">
       <?= csrfInput() ?>
       <div>
-        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Nama Lengkap Pejabat <span class="text-red-500">*</span></label>
-        <input type="text" name="nama" required placeholder="Contoh: AMIRUDDIN AS, S.Sos." class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+        <div class="field">
+          <label class="field-label">Nama Lengkap Pejabat <span class="text-red-500">*</span></label>
+          <input type="text" name="nama" required placeholder="Contoh: AMIRUDDIN AS, S.Sos." class="field-input w-full font-medium">
+        </div>
       </div>
 
       <div>
-        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Jabatan Resmi <span class="text-red-500">*</span></label>
-        <input type="text" name="jabatan" required placeholder="Contoh: KEPALA KANTOR / SMC KPP KENDARI" class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+        <div class="field">
+          <label class="field-label">Jabatan Resmi <span class="text-red-500">*</span></label>
+          <input type="text" name="jabatan" required placeholder="Contoh: KEPALA KANTOR / SMC KPP KENDARI" class="field-input w-full font-medium">
+        </div>
       </div>
 
       <div class="grid grid-cols-2 gap-2.5">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Pangkat / Golongan</label>
-          <input type="text" name="pangkat" placeholder="PEMBINA (IV/a)" class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+          <div class="field">
+            <label class="field-label">Pangkat / Golongan</label>
+            <input type="text" name="pangkat" placeholder="PEMBINA (IV/a)" class="field-input w-full font-medium">
+          </div>
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">NIP</label>
-          <input type="text" name="nip" placeholder="197405101998031002" class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+          <div class="field">
+            <label class="field-label">NIP</label>
+            <input type="text" name="nip" placeholder="197405101998031002" class="field-input w-full font-medium">
+          </div>
         </div>
       </div>
 
@@ -54,17 +65,32 @@ if (!defined('APP_NAME')) {
         <span>Simpan Data Pejabat</span>
       </button>
     </form>
+    <?php else: ?>
+    <div class="space-y-3">
+      <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+        Anda saat ini masuk dengan hak akses <span class="inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 text-[11px]">OPERATOR SAR</span>.
+      </p>
+      <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/80 dark:border-slate-800 text-[11px] text-slate-500 dark:text-slate-400 space-y-2">
+        <div class="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200">
+          <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/></svg>
+          <span>Mode Baca (Read-Only)</span>
+        </div>
+        <p>• Data Pejabat Berwenang dan SMC digunakan untuk validasi penandatangan resmi pada dokumen BRA, RENOPS, dan Laporan Penutupan SAR.</p>
+        <p>• Penetapan Default SMC serta perubahan susunan pejabat penandatangan hanya dapat dilakukan oleh <strong>Administrator Utama</strong>.</p>
+      </div>
+    </div>
+    <?php endif; ?>
   </div>
 
   <!-- Right Column: Pejabat List Table -->
   <div class="lg:col-span-2 card p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
       <div>
-        <h2 class="text-sm font-bold text-slate-900 dark:text-white uppercase">Daftar Pejabat Berwenang & Penandatangan SMC</h2>
+        <h2 class="text-sm font-bold text-slate-900 dark:text-white">Daftar Pejabat Berwenang & Penandatangan SMC</h2>
         <p class="text-[11px] text-slate-400">Total terdata: <?= count($pejabatList ?? []) ?> pejabat berwenang penandatangan BRA dan Renops</p>
       </div>
       <div>
-        <input type="text" id="filterMasterPejabat" value="<?= e($searchQ ?? '') ?>" placeholder="Cari nama pejabat..." onkeyup="filterTable('filterMasterPejabat', 'tableMasterPejabat')" class="px-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-orange-500 transition w-48">
+        <input type="text" id="filterMasterPejabat" value="<?= e($searchQ ?? '') ?>" placeholder="Cari nama pejabat..." onkeyup="filterTable('filterMasterPejabat', 'tableMasterPejabat')" class="control control-sm w-48">
       </div>
     </div>
 
@@ -75,7 +101,9 @@ if (!defined('APP_NAME')) {
             <th class="py-2.5 px-3">Pejabat & Jabatan</th>
             <th class="py-2.5 px-3">NIP / Pangkat</th>
             <th class="py-2.5 px-3">Status SMC</th>
+            <?php if ($isAdmin): ?>
             <th class="py-2.5 px-3 text-right">Aksi</th>
+            <?php endif; ?>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
@@ -83,27 +111,30 @@ if (!defined('APP_NAME')) {
             <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
               <td class="py-2.5 px-3">
                 <div class="font-bold text-slate-800 dark:text-slate-100"><?= e($p['nama']) ?></div>
-                <div class="text-[10px] text-slate-400 font-semibold"><?= e($p['jabatan']) ?></div>
+                <div class="text-[11px] text-slate-400 font-semibold"><?= e($p['jabatan']) ?></div>
               </td>
               <td class="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-mono text-[11px]">
                 <div><?= e($p['pangkat'] ?: '-') ?></div>
-                <div class="text-[10px] text-slate-400">NIP: <?= e($p['nip'] ?: '-') ?></div>
+                <div class="text-[11px] text-slate-400">NIP: <?= e($p['nip'] ?: '-') ?></div>
               </td>
               <td class="py-2.5 px-3">
                 <?php if (!empty($p['is_default_smc'])): ?>
-                  <span class="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-                    ⭐ DEFAULT SMC
+                  <span class="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                    DEFAULT SMC
                   </span>
-                <?php else: ?>
+                <?php elseif ($isAdmin): ?>
                   <form method="POST" action="<?= BASE_URL ?>/master.php?action=toggle_smc" class="inline-block">
                     <?= csrfInput() ?>
                     <input type="hidden" name="id" value="<?= e((string)$p['id']) ?>">
-                    <button type="submit" class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-orange-500 border border-slate-200 dark:border-slate-700 transition cursor-pointer" title="Jadikan default SMC">
+                    <button type="submit" class="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-orange-500 border border-slate-200 dark:border-slate-700 transition cursor-pointer" title="Jadikan default SMC">
                       Set Default
                     </button>
                   </form>
+                <?php else: ?>
+                  <span class="text-slate-400 text-[11px] italic">-</span>
                 <?php endif; ?>
               </td>
+              <?php if ($isAdmin): ?>
               <td class="py-2.5 px-3 text-right">
                 <div class="inline-flex items-center gap-1 justify-end">
                   <button type="button" onclick="openEditPejabatModal('<?= e(addslashes((string)$p['id'])) ?>', '<?= e(addslashes($p['nama'])) ?>', '<?= e(addslashes($p['jabatan'])) ?>', '<?= e(addslashes($p['pangkat'] ?? '')) ?>', '<?= e(addslashes($p['nip'] ?? '')) ?>', <?= !empty($p['is_default_smc']) ? 'true' : 'false' ?>)" class="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Edit Pejabat">
@@ -118,11 +149,12 @@ if (!defined('APP_NAME')) {
                   </form>
                 </div>
               </td>
+              <?php endif; ?>
             </tr>
           <?php endforeach; ?>
           <?php if (empty($pejabatList)): ?>
             <tr>
-              <td colspan="4" class="py-8 text-center text-slate-400 italic">Belum ada data Pejabat.</td>
+              <td colspan="<?= $isAdmin ? 4 : 3 ?>" class="py-8 text-center text-slate-400 italic">Belum ada data Pejabat.</td>
             </tr>
           <?php endif; ?>
         </tbody>

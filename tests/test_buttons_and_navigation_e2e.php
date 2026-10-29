@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/bootstrap.php';
 /**
  * Test Buttons, Navigation & End-to-End Safety Audit
  * Quick Report SAR System - Basarnas KPP Kendari
@@ -103,8 +104,8 @@ assertCondition(
 // 3.2 Master Index shortcut button
 $masterContent = file_get_contents(ROOT_DIR . '/views/master/index.php');
 assertCondition(
-    "views/master/index.php memiliki shortcut kembali ke Dashboard",
-    str_contains($masterContent, 'href="<?= BASE_URL ?>/index.php"') && str_contains($masterContent, 'Dashboard')
+    "views/master/index.php tanpa tombol kembali/segarkan duplikat (navigasi lewat sidebar)",
+    !str_contains($masterContent, '<span>Segarkan</span>') && !str_contains($masterContent, '<span>Dashboard</span>')
 );
 
 // 3.3 GIS Tactical Operational return link

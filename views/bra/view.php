@@ -98,20 +98,20 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
         <span class="hidden sm:inline">HTML</span>
       </button>
 
-      <button type="button" onclick="window.downloadBraDocumentPdf()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition" title="Unduh Lembar Resmi Format PDF A4 Beresolusi Tinggi">
+      <button type="button" onclick="window.downloadBraDocumentPdf()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition" title="PDF berbentuk gambar (teks tidak bisa dicari). Untuk naskah resmi gunakan Cetak / Simpan PDF.">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        <span>Unduh PDF (A4)</span>
+        <span>PDF Gambar</span>
       </button>
 
-      <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 rounded-lg shadow-md transition" title="Cetak atau Simpan PDF">
+      <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg shadow-md transition" title="Naskah resmi: teks tajam &amp; bisa dicari. Pilih &quot;Simpan sebagai PDF&quot; pada dialog cetak.">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-        <span>Cetak</span>
+        <span>Cetak / Simpan PDF</span>
       </button>
     </div>
   </div>
 
   <!-- Official Digital Verification Certificate Banner (Public & Authenticated) -->
-  <div class="print:hidden rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-50 to-teal-50/50 dark:from-emerald-950/40 dark:to-slate-900/60 p-4 sm:p-5 shadow-sm space-y-3">
+  <div class="print:hidden rounded-2xl border border-emerald-500/40 bg-emerald-6000/50 dark:from-emerald-950/40 dark:to-slate-900/60 p-4 sm:p-5 shadow-sm space-y-3">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-200 dark:border-emerald-800/60">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -119,7 +119,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded text-[10px] font-black <?= $verifyMode === 'VERIFIED_SIGNATURE' ? 'bg-emerald-600 text-white' : 'bg-teal-600 text-white' ?> tracking-wider uppercase">
+            <span class="px-2 py-0.5 rounded text-[11px] font-black <?= $verifyMode === 'VERIFIED_SIGNATURE' ? 'bg-emerald-600 text-white' : 'bg-teal-600 text-white' ?> tracking-wider uppercase">
               <?= $verifyMode === 'VERIFIED_SIGNATURE' ? 'TERVALIDASI DIGITAL • TANDA TANGAN SAH' : 'TERVALIDASI RESMI • ARSIP BASARNAS' ?>
             </span>
             <span class="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">HASH: <?= htmlspecialchars($docHash) ?></span>
@@ -131,7 +131,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
       </div>
       <div class="text-left sm:text-right">
         <span class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 block">BASARNAS KPP KENDARI</span>
-        <span class="text-[10px] text-slate-500 dark:text-slate-400">
+        <span class="text-[11px] text-slate-500 dark:text-slate-400">
           <?= $verifyMode === 'VERIFIED_SIGNATURE' ? 'Integritas: ASLI & SAH (Tanda Tangan Kriptografis)' : 'Integritas: ASLI & SAH (Tercatat Dalam Arsip)' ?>
         </span>
       </div>
@@ -140,19 +140,19 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
     <!-- Verification Metadata Grid -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
       <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Nomor Registrasi</span>
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Nomor Registrasi</span>
         <span class="font-bold font-mono text-slate-800 dark:text-slate-200 mt-0.5 block truncate"><?= htmlspecialchars($bra['no_bra']) ?></span>
       </div>
       <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Waktu Sandi (TWU)</span>
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Waktu Sandi (TWU)</span>
         <span class="font-bold font-mono text-slate-800 dark:text-slate-200 mt-0.5 block truncate"><?= htmlspecialchars($bra['twu']) ?></span>
       </div>
       <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Penandatangan (SMC)</span>
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Penandatangan (SMC)</span>
         <span class="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block truncate"><?= htmlspecialchars($bra['nama_smc'] ?: 'KEPALA KANSAR KENDARI') ?></span>
       </div>
       <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Derajat Kecepatan</span>
+        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Derajat Kecepatan</span>
         <span class="font-bold font-mono text-slate-800 dark:text-slate-200 mt-0.5 block"><?= htmlspecialchars($bra['derajat'] ?? 'SGR') ?> (SEGERA)</span>
       </div>
     </div>
@@ -201,19 +201,19 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
           <div class="bra-top-header grid grid-cols-5 divide-x-2 divide-black text-center font-bold bg-white text-black">
             <div class="py-1 px-1">
               <div>Panggilan</div>
-              <div class="font-mono text-[10px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
+              <div class="font-mono text-[11px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
                 <?= htmlspecialchars($bra['panggilan'] ?: '—') ?>
               </div>
             </div>
             <div class="py-1 px-1">
               <div>Jenis</div>
-              <div class="font-mono text-[10px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
+              <div class="font-mono text-[11px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
                 <?= htmlspecialchars($bra['jenis'] ?: 'SAR') ?>
               </div>
             </div>
             <div class="py-1 px-1">
               <div>Nr. Stn</div>
-              <div class="font-mono text-[10px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
+              <div class="font-mono text-[11px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
                 <?= htmlspecialchars($bra['nr_stn'] ?: '—') ?>
               </div>
             </div>
@@ -225,7 +225,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
             </div>
             <div class="py-1 px-1">
               <div>Instruksi penerusan</div>
-              <div class="font-mono text-[10px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
+              <div class="font-mono text-[11px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
                 <?= htmlspecialchars($bra['instruksi_penerusan'] ?: '—') ?>
               </div>
             </div>
@@ -255,7 +255,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
             <!-- Right Column: Tanggal Waktu TWU & Jumlah Kata -->
             <div class="col-span-5 sm:col-span-4 divide-y-2 divide-black flex flex-col justify-between bg-white text-black">
               <div class="p-1.5 sm:p-2 flex items-center justify-center text-center min-h-[30px] bg-white">
-                <span class="font-bold uppercase text-[9.5px] sm:text-[10.5px] tracking-wider text-center text-black">
+                <span class="font-bold uppercase text-[11px] sm:text-[11px] tracking-wider text-center text-black">
                   TANGGAL WAKTU
                 </span>
               </div>
@@ -268,7 +268,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
                 </span>
               </div>
               <div class="p-1.5 sm:p-2 flex items-center justify-between min-h-[30px] bg-white">
-                <span class="font-bold uppercase text-[9.5px] sm:text-[10.5px] text-black">
+                <span class="font-bold uppercase text-[11px] sm:text-[11px] text-black">
                   JUMLAH KATA
                 </span>
                 <span class="font-bold text-xs uppercase text-black">
@@ -395,15 +395,15 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
               <div class="mt-2 pt-2 border-t border-black">
                 <div class="flex items-start justify-between">
                   <div>
-                    <span class="font-bold uppercase text-[10px] sm:text-[11px] block text-black">Tanda Tangan :</span>
-                    <span class="text-[9px] font-mono block mt-0.5 text-gray-600">(Barcode Digital Terverifikasi)</span>
+                    <span class="font-bold uppercase text-[11px] sm:text-[11px] block text-black">Tanda Tangan :</span>
+                    <span class="text-[11px] font-mono block mt-0.5 text-gray-600">(Barcode Digital Terverifikasi)</span>
                   </div>
                   <div class="flex flex-col items-center">
                     <div class="p-0.5 bg-white border border-black rounded shadow-xs" style="width: 82px; height: 82px; display: flex; align-items: center; justify-content: center;">
                       <canvas id="braQrCanvas" width="180" height="180" style="width: 76px; height: 76px; max-width: 76px; max-height: 76px;" class="w-19 h-19 print:w-16 print:h-16 object-contain"></canvas>
                       <img id="braQrImage" style="width: 76px; height: 76px; max-width: 76px; max-height: 76px;" class="w-19 h-19 print:w-16 print:h-16 object-contain hidden" alt="Barcode QR Verifikasi" />
                     </div>
-                    <div class="text-[8px] font-mono text-center mt-0.5 text-gray-700">SCAN UNTUK VERIFIKASI</div>
+                    <div class="text-[11px] font-mono text-center mt-0.5 text-gray-700">SCAN UNTUK VERIFIKASI</div>
                   </div>
                 </div>
               </div>
@@ -411,17 +411,17 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
 
             <!-- Right Column: SENKOM Processing Columns -->
             <div class="col-span-5 sm:col-span-5 flex flex-col justify-between">
-              <div class="grid grid-cols-4 divide-x-2 divide-black border-b-2 border-black text-center font-bold py-1 text-[10px] sm:text-[11px] bg-white text-black">
+              <div class="grid grid-cols-4 divide-x-2 divide-black border-b-2 border-black text-center font-bold py-1 text-[11px] sm:text-[11px] bg-white text-black">
                 <div>T. W. T</div>
                 <div>T. W. K</div>
                 <div>SISTEM</div>
                 <div>PARAF</div>
               </div>
               <div class="grid grid-cols-4 divide-x-2 divide-black flex-1 min-h-[110px] bg-white text-black">
-                <div class="p-1 text-center font-mono text-[10px] text-black"><?= htmlspecialchars($bra['twt'] ?? '') ?></div>
-                <div class="p-1 text-center font-mono text-[10px] text-black"><?= htmlspecialchars($bra['twk'] ?? '') ?></div>
-                <div class="p-1 text-center font-mono text-[10px] text-black"><?= htmlspecialchars($bra['sistem'] ?? '') ?></div>
-                <div class="p-1 text-center font-mono text-[10px] text-black"><?= htmlspecialchars($bra['paraf'] ?? '') ?></div>
+                <div class="p-1 text-center font-mono text-[11px] text-black"><?= htmlspecialchars($bra['twt'] ?? '') ?></div>
+                <div class="p-1 text-center font-mono text-[11px] text-black"><?= htmlspecialchars($bra['twk'] ?? '') ?></div>
+                <div class="p-1 text-center font-mono text-[11px] text-black"><?= htmlspecialchars($bra['sistem'] ?? '') ?></div>
+                <div class="p-1 text-center font-mono text-[11px] text-black"><?= htmlspecialchars($bra['paraf'] ?? '') ?></div>
               </div>
             </div>
           </div>
@@ -429,7 +429,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
       </div>
 
       <!-- Footer tiny note -->
-      <div class="mt-2 text-right text-[8px] font-mono text-gray-600">
+      <div class="mt-2 text-right text-[11px] font-mono text-gray-600">
         KANTOR PENCARIAN DAN PERTOLONGAN KENDARI &bull; SISTEM TELEGRAM RADIO ELEKTRONIK FILE AKTIF
       </div>
     </div>
@@ -438,8 +438,8 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
 </div>
 
 <!-- QR Code & PDF Libraries (Local Offline Vendor) -->
-<script src="<?= BASE_URL ?>/assets/vendor/qrcode/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
-<script src="<?= BASE_URL ?>/assets/vendor/html2pdf/html2pdf.bundle.min.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/vendor/qrcode/qrcode.min.js') ?>"></script>
+<script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>"></script>
 <script>
 (function() {
   const verifyUrl = <?= jsonSafe($verifyUrl) ?>;
@@ -684,7 +684,8 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
       filename: `BRA-SAR-${cleanNo}.pdf`,
       image: { type: 'jpeg', quality: 0.85 },
       html2canvas: {
-        scale: 2,
+        // Turunkan skala untuk naskah panjang agar kanvas di bawah batas ~16,7 juta piksel Safari iOS
+        scale: Math.max(1, Math.min(2, Math.sqrt(16000000 / Math.max(1, doc.scrollWidth * doc.scrollHeight)))),
         useCORS: true,
         letterRendering: true,
         scrollX: 0,

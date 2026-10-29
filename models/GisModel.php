@@ -322,7 +322,6 @@ class GisModel {
                 $db->commit();
             }
             if (!empty($toDeletePts)) {
-                self::syncAutoIncrement('GisPolygonPoint');
             }
             return $id;
         } catch (Throwable $e) {
@@ -342,7 +341,6 @@ class GisModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement('GisPolygonPoint');
             return true;
         } catch (Throwable) {
             if ($db->inTransaction()) {
@@ -470,7 +468,6 @@ class GisModel {
                 $db->commit();
             }
             if (!empty($toDeletePts)) {
-                self::syncAutoIncrement('GisRoutePoint');
             }
             return $id;
         } catch (Throwable $e) {
@@ -490,7 +487,6 @@ class GisModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement('GisRoutePoint');
             return true;
         } catch (Throwable) {
             if ($db->inTransaction()) {
@@ -617,7 +613,6 @@ class GisModel {
                 $db->commit();
             }
             if (!empty($toDeleteWps)) {
-                self::syncAutoIncrement('GisSearchPatternWaypoint');
             }
             return $id;
         } catch (Throwable $e) {
@@ -637,51 +632,12 @@ class GisModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            self::syncAutoIncrement('GisSearchPatternWaypoint');
             return true;
         } catch (Throwable) {
             if ($db->inTransaction()) {
                 $db->rollBack();
             }
             return false;
-        }
-    }
-
-    /**
-     * Synchronize and reset GIS point/waypoint table AUTO_INCREMENT values to strictly MAX(id) + 1.
-     * If $table is specified, only that table will be checked and updated.
-     */
-    public static function syncAutoIncrement(?string $table = null): void {
-        $db = getDB();
-        if ($db->inTransaction()) {
-            return;
-        }
-        try {
-            if ($table === null || $table === 'GisPolygonPoint') {
-                $stmtPolyPt = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisPolygonPoint");
-                $maxPolyPt = (int)$stmtPolyPt->fetchColumn();
-                $stmtPolyPt->closeCursor();
-                $nextPolyPt = max(1, $maxPolyPt + 1);
-                $db->exec("ALTER TABLE GisPolygonPoint AUTO_INCREMENT = {$nextPolyPt}");
-            }
-
-            if ($table === null || $table === 'GisRoutePoint') {
-                $stmtRoutePt = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisRoutePoint");
-                $maxRoutePt = (int)$stmtRoutePt->fetchColumn();
-                $stmtRoutePt->closeCursor();
-                $nextRoutePt = max(1, $maxRoutePt + 1);
-                $db->exec("ALTER TABLE GisRoutePoint AUTO_INCREMENT = {$nextRoutePt}");
-            }
-
-            if ($table === null || $table === 'GisSearchPatternWaypoint') {
-                $stmtWp = $db->query("SELECT COALESCE(MAX(id), 0) FROM GisSearchPatternWaypoint");
-                $maxWp = (int)$stmtWp->fetchColumn();
-                $stmtWp->closeCursor();
-                $nextWp = max(1, $maxWp + 1);
-                $db->exec("ALTER TABLE GisSearchPatternWaypoint AUTO_INCREMENT = {$nextWp}");
-            }
-        } catch (Throwable) {
-            // Silently continue
         }
     }
 

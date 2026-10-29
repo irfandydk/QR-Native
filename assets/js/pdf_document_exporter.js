@@ -330,6 +330,12 @@
         sheet.style.fontSize = printFontSize;
         sheet.style.lineHeight = printLineHeight;
 
+        // Satu kanvas untuk seluruh dokumen: Safari iOS membatasi ~16,7 juta piksel (lebih besar = halaman kosong).
+        // Turunkan skala untuk dokumen panjang agar tetap di bawah batas (skala 2 hanya untuk dokumen pendek).
+        const MAX_CANVAS_PIXELS = 16000000;
+        const sheetArea = Math.max(1, sheet.scrollWidth * sheet.scrollHeight);
+        const canvasScale = Math.max(1, Math.min(2, Math.sqrt(MAX_CANVAS_PIXELS / sheetArea)));
+
         const opt = {
             margin: [10, 13, 15, 9], // [top, left, bottom, right] dalam mm -> bottomMargin = 15mm
             filename: finalFilename,
@@ -338,7 +344,7 @@
                 quality: 0.95
             },
             html2canvas: {
-                scale: 2,
+                scale: canvasScale,
                 useCORS: true,
                 letterRendering: true,
                 scrollX: 0,

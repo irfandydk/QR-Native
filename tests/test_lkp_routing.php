@@ -6,6 +6,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../models/OperasiModel.php';
 require_once __DIR__ . '/../models/GisModel.php';
@@ -50,7 +52,7 @@ assertTest(strpos($formContent, 'id="lkp_inline_map"') !== false, "views/operasi
 assertTest(strpos($formContent, 'id="modal-fullscreen-map"') !== false, "views/operasi/form.php contains Fullscreen Map Modal (#modal-fullscreen-map)");
 assertTest(strpos($formContent, 'id="lkp_modal_map"') !== false, "Fullscreen modal contains #lkp_modal_map Leaflet container");
 assertTest(strpos($formContent, 'btn-mode-direct') !== false && strpos($formContent, 'btn-mode-manual') !== false, "form.php contains Route Mode toggle buttons (Direct vs Manual Waypoints)");
-assertTest(strpos($formContent, 'id="select_speed_preset"') !== false, "form.php contains Speed & Terrain preset dropdown (#select_speed_preset)");
+assertTest(strpos($formContent, 'id="select_speed_preset"') === false && strpos($formContent, 'id="input_vessel_speed_num"') !== false, "form.php: preset kecepatan dihapus, kecepatan diisi manual (#input_vessel_speed_num)");
 assertTest(strpos($formContent, 'id="input_vessel_speed_num"') !== false, "form.php contains Manual Vessel Speed input (#input_vessel_speed_num)");
 assertTest(strpos($formContent, 'id="select_speed_unit"') !== false, "form.php contains Speed Unit selector (#select_speed_unit for Knots / KM/h)");
 assertTest(strpos($formContent, 'applyTacticalRouteToForm()') !== false, "form.php has button to apply calculated distance, radial, and ETA to form");
@@ -247,9 +249,9 @@ assertTest(strpos($jsContentUpdated, 'const directLkp = calculateDistanceAndBear
 assertTest(strpos($jsContentUpdated, 'const departureRadial = Math.round(directLkp.bearing);') !== false, "operasi_form.js computes departureRadial from directLkp.bearing");
 
 // Speed presets & units
-assertTest(strpos($formContentUpdated, 'value="4" data-unit="kmh"') !== false, "form.php speed preset includes Rescuer Jalan Kaki with native 4 km/h value and data-unit='kmh'");
-assertTest(strpos($formContentUpdated, 'value="60" data-unit="kmh"') !== false, "form.php speed preset includes Rescue Car with native 60 km/h value and data-unit='kmh'");
-assertTest(strpos($formContentUpdated, 'value="25" data-unit="knots"') !== false, "form.php speed preset includes RIB Basarnas with 25 knots value and data-unit='knots'");
+// Preset kecepatan armada dihapus (redesain UI): kecepatan diisi manual.
+// Preset kecepatan armada dihapus (redesain UI): kecepatan diisi manual.
+// Preset kecepatan armada dihapus (redesain UI): kecepatan diisi manual.
 assertTest(strpos($jsContentUpdated, "opt.getAttribute('data-unit')") !== false, "operasi_form.js handleSpeedPresetChange extracts data-unit attribute from selected option");
 assertTest(strpos($jsContentUpdated, "unitSelect.value = unit") !== false, "operasi_form.js handleSpeedPresetChange dynamically switches speed unit select to preset unit");
 

@@ -26,39 +26,6 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
 ?>
 
 <div class="space-y-6">
-  <!-- Top Header Banner -->
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 shadow-lg text-white" style="background: linear-gradient(135deg, var(--primary) 0%, #ea580c 50%, #f59e0b 100%);">
-    <div class="flex items-center gap-3.5">
-      <div class="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white shrink-0 shadow-inner">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
-      </div>
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white uppercase">
-            Master Data Operasional SAR
-          </h1>
-          <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-white/25 text-white font-bold tracking-wider">
-            DATABASE UTAMA
-          </span>
-        </div>
-        <p class="text-xs text-orange-100 mt-0.5">
-          Kelola master armada Alut & Palsar, unsur potensi SAR, serta data pejabat penandatangan resmi & SMC.
-        </p>
-      </div>
-    </div>
-
-    <div class="flex items-center gap-2 self-end sm:self-auto">
-      <a href="<?= BASE_URL ?>/index.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 text-white transition shadow-sm" title="Kembali ke Dashboard">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
-        <span>Dashboard</span>
-      </a>
-      <a href="<?= BASE_URL ?>/master.php?tab=<?= urlencode($activeTab) ?>" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 text-white transition shadow-sm" title="Segarkan Data">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-        <span>Segarkan</span>
-      </a>
-    </div>
-  </div>
-
   <!-- Master Tabs Switcher (Strictly 3 Sub-menus with Dynamic Theme Accent) -->
   <div class="p-1.5 rounded-2xl flex flex-wrap items-center gap-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
     <a href="<?= BASE_URL ?>/master.php?tab=alut" class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer <?= $activeTab === 'alut' ? 'text-white shadow-md' : 'text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-800' ?>" style="<?= $activeTab === 'alut' ? 'background-color: var(--primary); box-shadow: 0 4px 12px var(--primary-glow);' : '' ?>">
@@ -89,5 +56,7 @@ $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPe
   ?>
 </div>
 
-<!-- Edit Modals Partial View -->
-<?php renderPartial('master/partials/modals', get_defined_vars()); ?>
+<!-- Edit Modals Partial View (Hanya dirender untuk Administrator) -->
+<?php if (AuthHelper::isAdmin()): ?>
+  <?php renderPartial('master/partials/modals', get_defined_vars()); ?>
+<?php endif; ?>

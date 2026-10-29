@@ -7,7 +7,7 @@
 <div id="tab-content-sitrep" class="tab-pane space-y-4" style="display: <?= ($activeTab === 'sitrep' || $activeTab === 'laporan') ? 'block' : 'none' ?>;">
 
     <div class="flex items-center justify-between gap-3 mb-2">
-        <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+        <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
             <span>Daftar Laporan Perkembangan (LAPBANG / SITREP) &bull; <?= $countSitrep ?> Dokumen</span>
         </h3>
@@ -85,7 +85,7 @@
             <!-- Sitrep Header -->
             <div class="p-3.5 sm:p-4 border-b <?= $isPenutupan ? 'bg-red-50/40 dark:bg-red-950/20 border-red-200/50 dark:border-red-900/40' : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800' ?> flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="px-2.5 py-0.5 rounded-lg font-mono font-black text-xs <?= $isPenutupan ? 'bg-red-500 text-white shadow-xs' : 'bg-blue-600 text-white shadow-xs' ?>">
+                    <span class="px-2.5 py-0.5 rounded-lg font-mono font-bold text-xs <?= $isPenutupan ? 'bg-red-500 text-white shadow-xs' : 'bg-blue-600 text-white shadow-xs' ?>">
                         <?= $isPenutupan ? 'PENUTUPAN OPERASI' : "LAPBANG " . e($dynamicHariKeLap) ?>
                     </span>
                     <span class="text-xs font-bold text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5">
@@ -125,7 +125,7 @@
 
                     <?php if ($isOpen): ?>
                     <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>&id_laporan=<?= $lap['id_laporan'] ?>" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer">
-                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"/></svg>
+                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"/></svg>
                         <span>Edit</span>
                     </a>
                     <?php endif; ?>
@@ -177,7 +177,7 @@
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         <div>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Potensi SAR Gabungan:</span>
+                            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Potensi SAR Gabungan:</span>
                             <div class="space-y-1">
                                 <?php if (empty($snapUnsur)): ?>
                                 <span class="text-slate-400 text-xs italic">Tidak ada catatan unsur</span>
@@ -191,7 +191,7 @@
                         </div>
 
                         <div>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Armada Alut & Palsar:</span>
+                            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Armada Alut & Palsar:</span>
                             <div class="space-y-1">
                                 <?php if (empty($snapAlut)): ?>
                                 <span class="text-slate-400 text-xs italic">Tidak ada catatan alut</span>

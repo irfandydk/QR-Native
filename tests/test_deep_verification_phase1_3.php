@@ -6,6 +6,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 require_once dirname(__DIR__) . '/config/app.php';
 
 if (!defined('BASE_PATH')) {
@@ -86,7 +88,7 @@ $vendorAssets = [
     'assets/vendor/leaflet/leaflet.min.css',
     'assets/vendor/sweetalert2/sweetalert2.all.min.js',
     'assets/vendor/sweetalert2/sweetalert2.min.css',
-    'assets/vendor/tailwind/tailwind.min.js',
+    'assets/css/tailwind.css',
     'assets/vendor/qrcode/qrcode.min.js',
     'assets/vendor/jszip/jszip.min.js'
 ];

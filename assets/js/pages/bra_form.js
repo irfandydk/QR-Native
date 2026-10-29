@@ -1443,6 +1443,8 @@ function initBraForm() {
   reindexSections();
   syncLivePreview();
   updateLiveQrCode();
+  // QR digambar ulang setelah semua aset (pustaka QRCode) termuat
+  window.addEventListener('load', updateLiveQrCode);
 }
 
 if (document.readyState === 'loading') {
@@ -1450,6 +1452,3 @@ if (document.readyState === 'loading') {
 } else {
   initBraForm();
 }
-window.addEventListener('load', function() {
-  updateLiveQrCode();
-});

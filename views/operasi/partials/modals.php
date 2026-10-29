@@ -17,7 +17,7 @@
                 </h3>
                 <p class="text-[11px] text-slate-400 mt-0.5"><?= e($operasi['nama_operasi']) ?></p>
             </div>
-            <button type="button" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" onclick="closeModal('modal-view-wa-awal')">✕</button>
+            <button type="button" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" onclick="closeModal('modal-view-wa-awal')"></button>
         </div>
         <?php
             $awalWa = trim((string)($operasi['full_text_wa'] ?? ''));
@@ -56,7 +56,7 @@
                 <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
                 <span>Tutup Operasi SAR Resmi</span>
             </h3>
-            <button type="button" class="btn btn-secondary btn-sm" data-close-modal>✕</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-close-modal></button>
         </div>
         <form method="POST" action="<?= BASE_URL ?>/operasi.php?action=close">
             <?= csrfInput() ?>
@@ -66,8 +66,10 @@
                     <?= e($operasi['nama_operasi']) ?>
                 </p>
                 <div class="form-group">
-                    <label class="form-label text-xs">Waktu Debriefing Selesai (WITA):</label>
-                    <input type="datetime-local" name="waktu_selesai" class="form-control text-xs" required value="<?= date('Y-m-d\TH:i') ?>">
+                    <div class="field">
+                      <label class="field-label">Waktu Debriefing Selesai (WITA):</label>
+                      <input placeholder=" " type="datetime-local" name="waktu_selesai" class="field-input form-control" required value="<?= date('Y-m-d\TH:i') ?>">
+                    </div>
                 </div>
                 <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-xs text-slate-500">
                     Seluruh unsur SAR yang terlibat diusulkan kembali ke kesatuannya masing-masing dengan ucapan terima kasih. Status operasi akan menjadi <strong>CLOSED</strong>.

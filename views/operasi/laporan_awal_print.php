@@ -83,7 +83,7 @@ if (empty($fullWaText)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Laporan Awal Operasi SAR - <?= e($operasi['nama_operasi']) ?> - BASARNAS</title>
     <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/images/logo_basarnas.svg">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="<?= assetUrl('assets/css/tailwind.css') ?>">
     <style>
         @page {
             size: A4 portrait;
@@ -273,7 +273,7 @@ if (empty($fullWaText)) {
                 </div>
 
                 <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=LAPORAN_AWAL" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-xs font-bold text-white transition no-underline" title="Ambil atau Perbarui Capture Peta 16:9 untuk Laporan Awal">
-                    <span>📸 Capture Peta 16:9</span>
+                    <span>Capture Peta 16:9</span>
                 </a>
 
                 <button type="button" onclick="copyWaText()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition" title="Salin Naskah WhatsApp Laporan Awal">
@@ -281,14 +281,14 @@ if (empty($fullWaText)) {
                     <span class="hidden sm:inline">Salin WA</span>
                 </button>
 
-                <button type="button" id="btnDownloadPdf" data-pdf-filename="LAPORAN_AWAL_OPS_<?= (int)$id ?>_<?= e($operasi['nama_operasi']) ?>" onclick="downloadOfficialPdf(null, this)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="Download Dokumen Elektronik PDF (Ukuran Optimal A4 Portrait)">
+                <button type="button" id="btnDownloadPdf" data-pdf-filename="LAPORAN_AWAL_OPS_<?= (int)$id ?>_<?= e($operasi['nama_operasi']) ?>" onclick="downloadOfficialPdf(null, this)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="PDF berbentuk gambar (teks tidak bisa dicari). Untuk naskah resmi gunakan Cetak / Simpan PDF.">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-                    <span>Download PDF</span>
+                    <span>PDF Gambar</span>
                 </button>
 
-                <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-sm cursor-pointer">
+                <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="Naskah resmi: teks tajam &amp; bisa dicari. Pilih &quot;Simpan sebagai PDF&quot; pada dialog cetak.">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
-                    <span>Cetak Dokumen</span>
+                    <span>Cetak / Simpan PDF</span>
                 </button>
             </div>
         </div>
@@ -298,70 +298,19 @@ if (empty($fullWaText)) {
     <main class="flex-1 flex justify-center py-4 px-2">
         <article id="official-laporan-awal-doc" class="page-sheet text-black text-[10.5pt] leading-normal font-serif">
             
-            <!-- KOP SURAT RESMI BASARNAS SESUAI STANDAR TERBARU -->
-            <div class="kop-surat-container w-full mb-3 text-black" style="font-family: Arial, Helvetica, sans-serif !important;">
-                <table class="kop-table" style="width: 100% !important; border: none !important; border-collapse: collapse !important; table-layout: auto !important; margin: 0 !important; padding: 0 !important;">
-                    <tr>
-                        <!-- Kolom Kiri: Logo Basarnas Sirkular (Tanpa Teks BASARNAS di Bawahnya) -->
-                        <td style="width: 80px; vertical-align: middle; text-align: center; border: none !important; padding: 0 !important;">
-                            <div style="width: 75px; height: 75px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-                                <?php if (!empty($customLogo)): ?>
-                                    <img src="<?= htmlspecialchars($customLogo) ?>" alt="Logo Basarnas" style="width: 100%; height: 100%; object-fit: contain;">
-                                <?php else: ?>
-                                    <img src="<?= BASE_URL ?>/assets/images/logo_basarnas.svg" alt="Logo Basarnas" style="width: 100%; height: 100%; object-fit: contain;">
-                                <?php endif; ?>
-                            </div>
-                        </td>
-
-                        <!-- Kolom Tengah: Teks Kop Surat Lengkap Rata Tengah -->
-                        <td style="vertical-align: middle; text-align: center; border: none !important; padding: 0 4px !important;">
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 13pt !important; font-weight: bold !important; text-transform: uppercase !important; line-height: 1.25; color: #000000; letter-spacing: 0.02em;">
-                                BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
-                            </div>
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 14pt !important; font-weight: bold !important; text-transform: uppercase !important; line-height: 1.25; color: #000000; margin-top: 1px; letter-spacing: 0.02em;">
-                                KANTOR PENCARIAN DAN PERTOLONGAN
-                            </div>
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 16pt !important; font-weight: 900 !important; text-transform: uppercase !important; line-height: 1.2; color: #000000; margin-top: 1px; letter-spacing: 0.04em;">
-                                KENDARI
-                            </div>
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 8.5pt !important; font-weight: normal !important; line-height: 1.35; color: #000000; margin-top: 4px; white-space: nowrap !important;">
-                                Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sulawesi Tenggara 93116
-                            </div>
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 8.5pt !important; font-weight: normal !important; line-height: 1.35; color: #000000; white-space: nowrap !important;">
-                                Telepon: (0401) 3196557 &bull; Faksimile: (0401) 3196558 &bull; Emergency Call: 115
-                            </div>
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 8.5pt !important; font-style: italic !important; line-height: 1.35; color: #000000; white-space: nowrap !important;">
-                                Website: kendari.basarnas.go.id &bull; Email: sar304kendari@gmail.com
-                            </div>
-                        </td>
-
-                        <!-- Kolom Kanan: Spacer Penyeimbang (Sama Lebar dengan Kolom Logo agar Teks Tepat di Tengah Halaman) -->
-                        <td style="width: 80px; vertical-align: middle; border: none !important; padding: 0 !important;"></td>
-                    </tr>
-                </table>
-
-                <!-- GARIS GANDA KOP DINAS (Double Horizontal Line) -->
-                <div style="width: 100% !important; margin-top: 6px; margin-bottom: 12px; border-bottom: 2.5px solid #000000; padding-bottom: 1.5px;">
-                    <div style="border-bottom: 1px solid #000000;"></div>
-                </div>
-            </div>
+            <!-- KOP SURAT RESMI BASARNAS (partial bersama) -->
+            <?php include __DIR__ . '/partials/print_kop.php'; ?>
 
             <!-- JUDUL DOKUMEN -->
             <div class="text-center mb-4">
-                <h3 class="text-[13pt] font-black uppercase tracking-wider underline underline-offset-4 m-0 p-0">
-                    LAPORAN AWAL OPERASI SAR
-                </h3>
-                <div class="text-[10pt] font-mono font-bold tracking-wide mt-1">
-                    NOMOR: <?= htmlspecialchars($nomorLapAwal) ?>
-                </div>
-                <div class="text-[10.5pt] font-bold uppercase mt-1">
-                    TENTANG: <?= e($operasi['nama_operasi']) ?>
-                </div>
+                <h2 class="doc-title">LAPORAN AWAL OPERASI SAR</h2>
+                <div class="doc-number">Nomor : <?= htmlspecialchars($nomorLapAwal) ?></div>
+                <div class="doc-sub">TENTANG: <?= e($operasi['nama_operasi']) ?></div>
             </div>
 
             <!-- I. DATA INFORMASI AWAL KEJADIAN -->
             <div class="mb-3 break-inside-avoid">
-                <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5">
+                <div class="doc-section">
                     I. SUMBER INFORMASI & LAPORAN KEJADIAN
                 </div>
                 <table class="w-full table-borderless text-[10pt]">
@@ -378,7 +327,7 @@ if (empty($fullWaText)) {
                     <tr>
                         <td class="font-bold">3. Hubungan / Status</td>
                         <td class="text-center">:</td>
-                        <td><?= e($operasi['hubungan_pelapor'] ?: 'Masyarakat') ?></td>
+                        <td><?= e($operasi['hubungan_pelapor'] ?: '-') ?></td>
                     </tr>
                     <tr>
                         <td class="font-bold">4. Nomor Telepon / Kontak</td>
@@ -395,7 +344,7 @@ if (empty($fullWaText)) {
 
             <!-- II. KRONOLOGI KEJADIAN -->
             <div class="mb-3" style="page-break-inside: auto; break-inside: auto;">
-                <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5" style="page-break-after: avoid; break-after: avoid;">
+                <div class="doc-section" style="page-break-after: avoid; break-after: avoid;">
                     II. KRONOLOGI KEJADIAN
                 </div>
                 <div class="p-2 border border-black text-[10pt] leading-relaxed text-justify" style="page-break-inside: auto; break-inside: auto;">
@@ -405,7 +354,7 @@ if (empty($fullWaText)) {
 
             <!-- III. LOKASI KEJADIAN & DATA NAVIGASI (LKP) -->
             <div class="mb-3 break-inside-avoid">
-                <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5">
+                <div class="doc-section">
                     III. LOKASI KEJADIAN & LAST KNOWN POSITION (LKP)
                 </div>
                 <table class="w-full table-borderless text-[10pt]">
@@ -441,7 +390,7 @@ if (empty($fullWaText)) {
 
             <!-- IV. DATA KORBAN / PEOPLE ON BOARD (POB) -->
             <div class="mb-3 break-inside-avoid">
-                <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5 flex justify-between items-center">
+                <div class="doc-section flex justify-between items-center">
                     <span>IV. DATA KORBAN / PEOPLE ON BOARD (POB)</span>
                     <span class="font-mono text-[9.5pt]">TOTAL POB: <?= (int)$statsKorban['total'] ?> ORANG</span>
                 </div>
@@ -449,19 +398,19 @@ if (empty($fullWaText)) {
                 <!-- Mini Status Table -->
                 <div class="grid grid-cols-4 gap-1 text-center font-bold text-[9pt] mb-2">
                     <div class="border border-black p-1 bg-white">
-                        <span class="block text-slate-600 text-[8pt]">SELAMAT (S)</span>
+                        <span class="block text-black text-[8pt]">SELAMAT (S)</span>
                         <span class="text-[11pt]"><?= (int)$statsKorban['s'] ?> Org</span>
                     </div>
                     <div class="border border-black p-1 bg-white">
-                        <span class="block text-slate-600 text-[8pt]">MENINGGAL (MD)</span>
+                        <span class="block text-black text-[8pt]">MENINGGAL (MD)</span>
                         <span class="text-[11pt]"><?= (int)$statsKorban['md'] ?> Org</span>
                     </div>
                     <div class="border border-black p-1 bg-white">
-                        <span class="block text-slate-600 text-[8pt]">PENCARIAN (DP)</span>
+                        <span class="block text-black text-[8pt]">PENCARIAN (DP)</span>
                         <span class="text-[11pt]"><?= (int)$statsKorban['dp'] ?> Org</span>
                     </div>
                     <div class="border border-black p-1 bg-white">
-                        <span class="block text-slate-600 text-[8pt]">HILANG / NIHIL (H)</span>
+                        <span class="block text-black text-[8pt]">HILANG / NIHIL (H)</span>
                         <span class="text-[11pt]"><?= (int)$statsKorban['h'] ?> Org</span>
                     </div>
                 </div>
@@ -481,7 +430,7 @@ if (empty($fullWaText)) {
                     <tbody>
                         <?php if (empty($operasi['korban']) && empty($statsKorban['unrecorded_dp'])): ?>
                         <tr>
-                            <td colspan="6" class="text-center py-2 text-slate-500 italic">Data korban nihil atau belum terdata secara spesifik.</td>
+                            <td colspan="6" class="text-center py-2 text-black italic">Data korban nihil atau belum terdata secara spesifik.</td>
                         </tr>
                         <?php else: ?>
                             <?php foreach (($operasi['korban'] ?? []) as $idx => $k): ?>
@@ -515,7 +464,7 @@ if (empty($fullWaText)) {
 
             <!-- V. PELAKSANAAN SAR, UNSUR & ALUT -->
             <div class="mb-3 break-inside-avoid">
-                <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5">
+                <div class="doc-section">
                     V. PELAKSANAAN SAR, TIM & ALUT DIKERAHKAN
                 </div>
                 <table class="w-full table-borderless text-[10pt] mb-2">
@@ -527,7 +476,7 @@ if (empty($fullWaText)) {
                     <tr>
                         <td class="font-bold">2. Tim SAR Diberangkatkan</td>
                         <td class="text-center">:</td>
-                        <td class="font-bold"><?= e($operasi['tim_berangkat'] ?: 'Tim Rescue Kansar Kendari') ?></td>
+                        <td class="font-bold"><?= e($operasi['tim_berangkat'] ?: '-') ?></td>
                     </tr>
                 </table>
 
@@ -542,7 +491,7 @@ if (empty($fullWaText)) {
                                 <?php endforeach; ?>
                             </ul>
                         <?php else: ?>
-                            <p class="whitespace-pre-line text-justify"><?= e($operasi['unsur_terlibat'] ?: '• Tim Rescue Kansar Kendari') ?></p>
+                            <p class="whitespace-pre-line text-justify"><?= e($operasi['unsur_terlibat'] ?: '-') ?></p>
                         <?php endif; ?>
                     </div>
 
@@ -556,7 +505,7 @@ if (empty($fullWaText)) {
                                 <?php endforeach; ?>
                             </ul>
                         <?php else: ?>
-                            <p class="whitespace-pre-line text-justify"><?= e($operasi['alut_palsar'] ?: '• 1 Unit Rescue Car\n• 1 Unit Rubber Boat') ?></p>
+                            <p class="whitespace-pre-line text-justify"><?= e($operasi['alut_palsar'] ?: '-') ?></p>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -564,24 +513,24 @@ if (empty($fullWaText)) {
 
             <!-- VI. KONDISI METEOROLOGI & FAKTOR PENGHAMBAT -->
             <div class="mb-4 break-inside-avoid">
-                <div class="font-bold text-[10.5pt] uppercase bg-slate-100 px-2 py-0.5 border border-black mb-1.5">
+                <div class="doc-section">
                     VI. KONDISI CUACA & FAKTOR PENGHAMBAT
                 </div>
                 <table class="w-full table-borderless text-[10pt]">
                     <tr>
                         <td class="w-48 font-bold">1. Cuaca di Lapangan</td>
                         <td class="w-3 text-center">:</td>
-                        <td><?= e($operasi['cuaca'] ?: 'Cerah Berawan') ?></td>
+                        <td><?= e($operasi['cuaca'] ?: '-') ?></td>
                     </tr>
                     <tr>
                         <td class="font-bold">2. Tinggi Gelombang</td>
                         <td class="text-center">:</td>
-                        <td><?= e($operasi['gelombang'] ?: '0.5 - 1.25 Meter') ?></td>
+                        <td><?= e($operasi['gelombang'] ?: '-') ?></td>
                     </tr>
                     <tr>
                         <td class="font-bold">3. Kecepatan & Arah Angin</td>
                         <td class="text-center">:</td>
-                        <td><?= e($operasi['angin'] ?: 'Barat Daya, 5 - 15 Knots') ?></td>
+                        <td><?= e($operasi['angin'] ?: '-') ?></td>
                     </tr>
                     <tr>
                         <td class="font-bold">4. Faktor Penghambat</td>
@@ -605,7 +554,7 @@ if (empty($fullWaText)) {
                     <div class="flex flex-col justify-between min-h-[140px] text-left">
                         <div>
                             <p class="font-bold uppercase text-[11pt] leading-tight m-0">Petugas Siaga Komunikasi,</p>
-                            <p class="text-[9.5pt] text-slate-700 leading-tight m-0 mt-0.5">Dinas Senkom KPP Kendari</p>
+                            <p class="text-[9.5pt] text-black leading-tight m-0 mt-0.5">Dinas Senkom KPP Kendari</p>
                         </div>
                         <div class="mt-auto pt-6 leading-tight">
                             <p class="font-bold underline uppercase text-[11pt] m-0">SENKOM SIAGA</p>
@@ -621,8 +570,8 @@ if (empty($fullWaText)) {
                         </div>
                         <div class="text-[8pt] font-mono font-bold uppercase mt-1.5 leading-tight text-center">
                             TERVERIFIKASI SISTEM QR-SAR<br>
-                            <span class="text-slate-600">KPP KENDARI &bull; OPS-#<?= $id ?></span><br>
-                            <span class="text-slate-500 font-normal">Sah Secara Elektronik</span>
+                            <span class="text-black">KPP KENDARI &bull; OPS-#<?= $id ?></span><br>
+                            <span class="text-black font-normal">Sah Secara Elektronik</span>
                         </div>
                     </div>
 
@@ -630,7 +579,7 @@ if (empty($fullWaText)) {
                     <div class="flex flex-col justify-between min-h-[140px] text-left">
                         <div>
                             <p class="font-bold uppercase text-[11pt] leading-tight m-0">SAR Mission Coordinator (SMC),</p>
-                            <p class="text-[9.5pt] text-slate-700 leading-tight m-0 mt-0.5"><?= strtoupper(e($defaultSmc['jabatan'] ?? 'KEPALA SEKSI OPERASI DAN SIAGA')) ?></p>
+                            <p class="text-[9.5pt] text-black leading-tight m-0 mt-0.5"><?= strtoupper(e($defaultSmc['jabatan'] ?? 'KEPALA SEKSI OPERASI DAN SIAGA')) ?></p>
                         </div>
                         <div class="mt-auto pt-6 leading-tight">
                             <p class="font-bold underline uppercase text-[11pt] m-0"><?= strtoupper(e($defaultSmc['nama'] ?? 'AMIRUDDIN A.S., S.Sos.')) ?></p>
@@ -647,9 +596,9 @@ if (empty($fullWaText)) {
     <div id="raw-wa-text-holder" class="hidden"><?= htmlspecialchars($fullWaText) ?></div>
 
     <!-- QR Code & PDF Exporter Scripts -->
-    <script src="<?= BASE_URL ?>/assets/vendor/qrcode/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
-    <script src="<?= BASE_URL ?>/assets/vendor/html2pdf/html2pdf.bundle.min.js?v=<?= APP_VERSION ?>"></script>
-    <script src="<?= BASE_URL ?>/assets/js/pdf_document_exporter.js?v=<?= APP_VERSION ?>_<?= @filemtime(dirname(__DIR__, 2) . '/assets/js/pdf_document_exporter.js') ?: time() ?>"></script>
+    <script src="<?= assetUrl('assets/vendor/qrcode/qrcode.min.js') ?>"></script>
+    <script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>"></script>
+    <script src="<?= assetUrl('assets/js/pdf_document_exporter.js') ?>"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const verifyUrl = <?= jsonSafe($verifyUrl) ?>;

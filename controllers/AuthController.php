@@ -66,6 +66,8 @@ class AuthController extends BaseController {
 
     /**
      * Direct user to appropriate profile management based on privileges.
+     * Admin is redirected to the central admin panel, while regular operators
+     * manage their personal credentials through a dedicated self-service profile page.
      */
     public function profile(): void {
         $this->requireLogin();
@@ -74,6 +76,52 @@ class AuthController extends BaseController {
             $this->redirect('/admin.php?tab=admin');
         }
 
-        $this->redirect('/master.php?tab=alut');
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        $currentUser = AuthHelper::getCurrentUser();
+
+        // Handle POST: Self-service password change for operational users
+        if ($method === 'POST') {
+            if (!$this->validateCsrf($_POST['csrf_token'] ?? null)) {
+                $this->setFlash('error', 'Token keamanan CSRF tidak valid atau sesi Anda telah kedaluwarsa. Silakan muat ulang halaman.');
+                $this->redirect('/profile.php');
+            }
+
+            $action = $_POST['action'] ?? '';
+            if ($action === 'change_password') {
+                $oldPass = (string)($_POST['old_password'] ?? '');
+                $newPass = (string)($_POST['new_password'] ?? '');
+                $confirmPass = (string)($_POST['confirm_password'] ?? '');
+
+                if ($oldPass === '') {
+                    $this->setFlash('error', 'Silakan masukkan kata sandi saat ini / sandi lama.');
+                } elseif (strlen($newPass) < 8) {
+                    $this->setFlash('error', 'Kata sandi baru minimal harus 8 karakter demi standar keamanan akun.');
+                } elseif ($newPass !== $confirmPass) {
+                    $this->setFlash('error', 'Konfirmasi kata sandi baru tidak cocok.');
+                } else {
+                    $role = $currentUser['role'] ?? 'USER';
+                    $res = SettingsModel::changePassword($role, $oldPass, $newPass);
+                    if ($res['success']) {
+                        $this->setFlash('success', 'Kata sandi akun Anda berhasil diperbarui! Gunakan sandi baru untuk login selanjutnya.');
+                    } else {
+                        $this->setFlash('error', $res['error'] ?? 'Gagal mengubah kata sandi: Kredensial lama tidak cocok.');
+                    }
+                }
+                $this->redirect('/profile.php');
+            }
+        }
+
+        // GET: Render dedicated profile view
+        $this->render('auth/profile', [
+            'currentUser' => $currentUser,
+            'pageTitle' => 'Profil Pengguna & Keamanan Akun',
+            'navbarTitle' => 'PROFIL PENGGUNA OPERASIONAL SAR',
+            'navbarSubtitle' => 'INFORMASI AKUN & PENGATURAN KATA SANDI OPERATOR SIAGA',
+            'currentRoute' => 'profile'
+        ], [
+            'layout' => 'default',
+            'title' => 'Profil Pengguna - QR SAR',
+            'route' => 'profile'
+        ]);
     }
 }

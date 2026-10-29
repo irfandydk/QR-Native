@@ -191,8 +191,6 @@ class OperasiRelationService {
 
             if (!$inTx) {
                 $db->commit();
-                if ($delUnsur) self::syncChildAutoIncrements('DetailUnsur');
-                if ($delAlut) self::syncChildAutoIncrements('DetailAlut');
             }
         } catch (Throwable $e) {
             if (!$inTx && $db->inTransaction()) {
@@ -202,59 +200,4 @@ class OperasiRelationService {
         }
     }
 
-    /**
-     * Synchronize and reset Operasi table AUTO_INCREMENT to strictly MAX(id_operasi) + 1.
-     */
-    public static function syncAutoIncrement(): void {
-        try {
-            $db = getDB();
-            if ($db->inTransaction()) {
-                return; // DDL causes implicit commit; never run inside an active transaction
-            }
-            $stmtMax = $db->query("SELECT COALESCE(MAX(id_operasi), 0) + 1 FROM Operasi");
-            $nextAuto = max(1, (int)$stmtMax->fetchColumn());
-            $stmtMax->closeCursor();
-            $db->exec("ALTER TABLE Operasi AUTO_INCREMENT = {$nextAuto}");
-        } catch (Throwable $e) {
-            // Silently ignore if insufficient DB DDL privileges
-        }
-    }
-
-    /**
-     * Synchronize and reset child table AUTO_INCREMENT values to MAX(id) + 1.
-     */
-    public static function syncChildAutoIncrements(?string $onlyTable = null): void {
-        $db = getDB();
-        if ($db->inTransaction()) {
-            return; // DDL causes implicit commit; never run inside an active transaction
-        }
-        $childTables = [
-            'DetailAlut' => 'id_detail_alut',
-            'DetailUnsur' => 'id_detail_unsur',
-            'DetailTimBerangkat' => 'id_detail_tim',
-            'MasterTim' => 'id_tim',
-            'Korban' => 'id_korban',
-            'RenopsSRU' => 'id_sru',
-            'BraSection' => 'id',
-            'GisPolygonPoint' => 'id',
-            'GisRoutePoint' => 'id',
-            'GisSearchPatternWaypoint' => 'id',
-            'LoginThrottle' => 'id'
-        ];
-        $targets = $onlyTable !== null ? (isset($childTables[$onlyTable]) ? [$onlyTable => $childTables[$onlyTable]] : []) : $childTables;
-        if (empty($targets)) {
-            return;
-        }
-        foreach ($targets as $table => $col) {
-            try {
-                $stmt = $db->query("SELECT COALESCE(MAX({$col}), 0) FROM {$table}");
-                $max = (int)$stmt->fetchColumn();
-                $stmt->closeCursor();
-                $next = max(1, $max + 1);
-                $db->exec("ALTER TABLE {$table} AUTO_INCREMENT = {$next}");
-            } catch (Throwable) {
-                // Silently continue
-            }
-        }
-    }
 }

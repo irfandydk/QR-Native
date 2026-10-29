@@ -10,7 +10,6 @@ const RENOPS_DRAFT_KEY = 'qr_sar_renops_draft_' + idOperasi;
 const OPERASI_START_DATE = renopsCfg.operasiStartDate || null;
 const OPERASI_REOPEN_DATE = renopsCfg.operasiReopenDate || null;
 const OPERASI_BASE_HARI_REOPEN = renopsCfg.operasiBaseHariReopen || 0;
-const defaultKoordinat = renopsCfg.koordinat || '-';
 
 // Escape HTML utility (Unified with QrSarUtils)
 const escapeHtml = (window.QrSarUtils && window.QrSarUtils.escapeHtml) || function(str) {
@@ -324,7 +323,7 @@ function renderSruList() {
           <span class="px-2 py-0.5 rounded font-mono font-bold text-xs bg-blue-500/15 text-blue-600 dark:text-blue-400">
             SRU ${idx + 1}
           </span>
-          <input type="text" name="srus[${idx}][nama_sru]" value="${escapeHtml(s.nama_sru || '')}" placeholder="Nama SRU (contoh: SRU 1 Kapal RIB)" required class="text-xs font-bold px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:border-blue-500" onchange="currentSrus[${idx}].nama_sru = this.value">
+          <input type="text" name="srus[${idx}][nama_sru]" value="${escapeHtml(s.nama_sru || '')}" placeholder="Nama SRU (contoh: SRU 1 Kapal RIB)" required class="control control-sm font-bold" onchange="currentSrus[${idx}].nama_sru = this.value">
           <button type="button" onclick="openGisImportModal(${idx})" class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/25 transition cursor-pointer shadow-2xs" title="Buka modal import GIS lengkap untuk SRU ini">
             <span>🗺️</span>
             <span>Import Plotting</span>
@@ -337,11 +336,11 @@ function renderSruList() {
 
       <!-- Quick Sector Linking Dropdown (Deteksi Langsung Search Area Baru) -->
       <div class="flex items-center gap-2 p-2 rounded-xl bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/20 text-xs">
-        <span class="font-bold text-[10px] text-orange-600 dark:text-orange-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+        <span class="font-bold text-[11px] text-orange-600 dark:text-orange-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
           <span>📐</span>
           <span>Sektor Plotting GIS:</span>
         </span>
-        <select onchange="applySektorToPlotting(${idx}, this.value)" class="flex-1 text-xs px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 cursor-pointer">
+        <select onchange="applySektorToPlotting(${idx}, this.value)" class="control control-sm flex-1 cursor-pointer">
           ${polyOptionsHtml}
         </select>
       </div>
@@ -353,7 +352,7 @@ function renderSruList() {
             📐
           </div>
           <div class="min-w-0">
-            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Luas Area Pencarian</span>
+            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Luas Area Pencarian</span>
             <span class="font-mono font-bold text-xs ${luasVal ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 italic'}">
               ${luasVal ? `✓ ${escapeHtml(luasVal)}` : 'Belum Terdeteksi'}
             </span>
@@ -365,7 +364,7 @@ function renderSruList() {
             ⚡
           </div>
           <div class="min-w-0">
-            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Pola Pencarian</span>
+            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Pola Pencarian</span>
             <span class="font-bold text-xs text-orange-600 dark:text-orange-400 truncate block">
               ✓ ${escapeHtml(polaVal)}
             </span>
@@ -377,7 +376,7 @@ function renderSruList() {
             🔁
           </div>
           <div class="min-w-0">
-            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Sapuan / Lintasan</span>
+            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Sapuan / Lintasan</span>
             <span class="font-mono font-semibold text-[11px] ${sapuanVal ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 italic'} truncate block" title="${escapeHtml(sapuanVal)}">
               ${sapuanVal ? `✓ ${escapeHtml(sapuanVal)}` : 'Otomatis dari Pola SAR'}
             </span>
@@ -394,12 +393,12 @@ function renderSruList() {
 
       <div>
         <div class="flex items-center justify-between mb-1">
-          <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             Koordinat Batas Sektor & Rincian Tugas
           </label>
-          <span class="text-[10px] text-slate-400 font-mono">Format Standar Basarnas DMS</span>
+          <span class="text-[11px] text-slate-400 font-mono">Format Standar Basarnas DMS</span>
         </div>
-        <textarea name="srus[${idx}][koordinat_area]" rows="3" placeholder="Koordinat batas sektor / tugas penyisiran (Otomatis diambil dari peta plotting)..." class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-mono leading-relaxed focus:outline-none focus:border-blue-500" onchange="currentSrus[${idx}].koordinat_area = this.value">${escapeHtml(s.koordinat_area || '')}</textarea>
+        <textarea name="srus[${idx}][koordinat_area]" rows="3" placeholder="Koordinat batas sektor / tugas penyisiran (Otomatis diambil dari peta plotting)..." class="control control-sm w-full font-mono leading-relaxed" onchange="currentSrus[${idx}].koordinat_area = this.value">${escapeHtml(s.koordinat_area || '')}</textarea>
       </div>
     `;
     container.appendChild(card);
@@ -554,7 +553,7 @@ function renderUnsurList() {
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <div class="flex items-center gap-1">
-            <input type="number" min="1" max="999" value="${jml}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="w-12 px-1.5 py-1 text-xs font-bold text-center rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 focus:outline-none focus:border-orange-500" />
+            <input type="number" min="1" max="999" value="${jml}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-purple-600 dark:text-purple-400" />
             <span class="text-xs font-medium text-slate-400">Org</span>
           </div>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
@@ -673,8 +672,8 @@ function renderAlutList() {
           <input type="text" value="${escapeHtml(item.nama_alut || '')}" onchange="updateAlutItem(${idx}, 'nama_alut', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-orange-500 focus:outline-none text-slate-900 dark:text-white" />
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <input type="number" min="1" max="999" value="${jml}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="w-12 px-1.5 py-1 text-xs font-bold text-center rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-orange-500" />
-          <select onchange="updateAlutItem(${idx}, 'satuan', this.value)" class="px-1.5 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none">
+          <input type="number" min="1" max="999" value="${jml}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-emerald-600 dark:text-emerald-400" />
+          <select onchange="updateAlutItem(${idx}, 'satuan', this.value)" class="control control-sm">
             <option value="Unit" ${item.satuan === 'Unit' ? 'selected' : ''}>Unit</option>
             <option value="Set" ${item.satuan === 'Set' ? 'selected' : ''}>Set</option>
             <option value="Buah" ${item.satuan === 'Buah' ? 'selected' : ''}>Buah</option>
@@ -777,137 +776,20 @@ function syncAlutFields() {
 }
 
 // ── WhatsApp Preview Modal ──
-function cleanSruCoordinates(koor) {
-  if (!koor) return '';
-  return koor
-    .split('\n')
-    .filter(line => {
-      const trim = line.trim();
-      return !/^(pola\s*pencarian\s*:|total\s*sapuan\s*:|\[pola\s*sar|tipe\s*:)/i.test(trim);
-    })
-    .join('\n')
-    .trim();
-}
 
-function previewRenopsWa() {
-  const hariKe = document.getElementById('renops_hari_ke')?.value || 'H.1';
-  const tgl = document.getElementById('renops_tanggal_laporan')?.value || '';
-  const briefing = document.getElementById('renops_waktu_briefing')?.value || '';
-  const mulai = document.getElementById('renops_waktu_mulai_ops')?.value || '';
-  const cuaca = document.getElementById('renops_cuaca')?.value || 'Cerah Berawan';
-
-  const tglStr = window.formatTanggalIndo ? window.formatTanggalIndo(tgl) : tgl;
-  const namaOps = renopsCfg.namaOperasi || '';
-
-  function formatTw(dtStr) {
-    if (!dtStr) return 'TW 0000 0000 H';
-    const d = new Date(dtStr);
-    if (isNaN(d.getTime())) return 'TW 0000 0000 H';
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    const hh = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    return `TW ${mm}${dd} ${hh}${min} H`;
-  }
-
-  let sruList = [];
-  if (currentSrus.length === 0) {
-    const defaultLuas = formatRenopsAreaShort(10);
-    sruList.push(`*SRU 1 Tim Rescue Kansar Kendari* melakukan penyisiran dgn koordinat :\nA: ${defaultKoordinat}\nLuas area pencarian : ${defaultLuas}\nPola pencarian : Parallel Track Search`);
-  } else {
-    currentSrus.forEach((s) => {
-      const rawName = (s.nama_sru || 'SRU').replace(/^\*+|\*+$/g, '').trim();
-      const cleanName = rawName || 'SRU 1';
-      const nameFormatted = `*${cleanName}* melakukan penyisiran dgn koordinat :`;
-
-      const koor = cleanSruCoordinates(s.koordinat_area) || defaultKoordinat;
-      const pola = s.pola_pencarian || 'Parallel Track Search';
-
-      const lines = [nameFormatted, koor];
-      if (s.luas_area && s.luas_area.trim()) {
-        const luasVal = s.luas_area.trim();
-        if (!/^luas\s*area/i.test(luasVal)) {
-          lines.push(`Luas area pencarian : ${luasVal}`);
-        } else {
-          lines.push(luasVal);
-        }
-      }
-      lines.push(`Pola pencarian : ${pola}`);
-      if (s.total_sapuan && s.total_sapuan.trim()) {
-        const sapuanVal = s.total_sapuan.trim();
-        if (!/^total\s*sapuan\s*:/i.test(sapuanVal)) {
-          lines.push(`Total sapuan : ${sapuanVal}`);
-        } else {
-          lines.push(sapuanVal);
-        }
-      }
-      sruList.push(lines.join('\n'));
-    });
-  }
-  const sruOutput = sruList.join('\n\n');
-  const sruCount = currentSrus.length || 1;
-
-  const unsurText = currentUnsurList.map(u => `• ${u.nama_unsur} : ${u.jumlah_personil || 1} Orang`).join('\n') || '• Tim Rescue Kansar Kendari : 7 Orang';
-  const alutText = currentAlutList.map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n') || '• 1 Unit Rescue Car\n• 1 Unit Rubber Boat';
-
-  const header = `FILE AKTIF
-____
-
-SEMANGAT QUICK ACTION SEARCH AND RESCUE
-SATU JIWA SATU RASA
-WE ARE FAMILY
-PROFESIONAL MODERN TERUJI
-RENCANA OPS SAR ${hariKe.toUpperCase()}
-
-KANTOR PENCARIAN DAN PERTOLONGAN KENDARI
-${tglStr}
-
-YTH : KABASARNAS
-CC : PIMTI MADYA & PRATAMA
-
-Dengan hormat, mohon ijin melaporkan Rencana Ops ${namaOps}.
-__________________________________________________`;
-
-  const footer = `Demikian kami laporkan, mohon petunjuk dan arahan
-
-Ttd
-
-KKS Kendari
-===========================
-🏢 Kantor Pencarian Dan Pertolongan Kendari
-📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116
-☎️ Telp. : (0401) 3196557
-📠 Fax. : (0401) 3196558
-📱 WhatsApp : +62811-4034-115
-🚨 Emergency Call : 115
-🌐 Website : Www.Kendari.Basarnas.go.id
-📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id
-📲 Medsos : @Basarnaskendari`;
-
-  const preview = `${header}
-
-Rencana Ops ${hariKe.toUpperCase()} :
-
-• PD ${formatTw(briefing)} Tim SAR Gabungan Melaksanakan Brifing Operasi.
-• Pada ${formatTw(mulai)} Tim SAR Gabungan Melanjutkan Operasi Pencarian ${hariKe.toUpperCase()} Sesuai Rencana Operasi ${hariKe.toUpperCase()} dengan Tim SAR gabungan menuju ke entri point masing-masing.
-Dengan Tim dibagi ${sruCount} SRU dengan area pencarian sbb :
-
-${sruOutput}
-
-1. Unsur SAR Terlibat :
-${unsurText}
-
-2. Alut dan Palsar :
-${alutText}
-
-3. Kondisi Cuaca :
-• Cuaca: ${cuaca}
-(Sumber BMKG)
-
-${footer}`;
-
-  document.getElementById('renops-wa-preview-content').textContent = preview;
+async function previewRenopsWa() {
+  const form = document.getElementById('form-renops');
+  const el = document.getElementById('renops-wa-preview-content');
+  if (!form || !el) return;
+  // Samakan dengan sinkronisasi saat submit agar pratinjau = naskah yang tersimpan
+  syncUnsurFields();
+  syncAlutFields();
   openModal('modal-preview-renops-wa');
+  try {
+    el.textContent = await window.QrSarUtils.fetchWaPreview(form, 'renops');
+  } catch (err) {
+    el.textContent = err.message;
+  }
 }
 
 function copyRenopsWa() {
@@ -1069,33 +951,11 @@ async function refreshGisBundle(showToastAlert = false) {
 }
 
 function formatDmsCoordPart(val, isLat) {
-  if (window.QrSarUtils) {
-    return window.QrSarUtils.formatDmsPart(val, isLat);
-  }
-  const abs = Math.abs(val);
-  let deg = Math.floor(abs);
-  const minFloat = (abs - deg) * 60;
-  let min = Math.floor(minFloat);
-  let sec = Number(((minFloat - min) * 60).toFixed(1));
-  if (sec >= 60.0) {
-    sec = 0.0;
-    min += 1;
-    if (min >= 60) {
-      min = 0;
-      deg += 1;
-    }
-  }
-  const dir = isLat ? (val >= 0 ? 'U' : 'S') : (val >= 0 ? 'T' : 'B');
-  const degPad = isLat ? String(deg).padStart(2, '0') : String(deg).padStart(3, '0');
-  const secStr = sec.toFixed(1).padStart(4, '0');
-  return `${degPad}° ${String(min).padStart(2, '0')}' ${secStr}" ${dir}`;
+  return window.QrSarUtils.formatDmsPart(val, isLat);
 }
 
 function formatDmsPair(lat, lng) {
-  if (window.QrSarUtils) {
-    return window.QrSarUtils.formatDmsPair(lat, lng);
-  }
-  return `${formatDmsCoordPart(lat, true)} - ${formatDmsCoordPart(lng, false)}`;
+  return window.QrSarUtils.formatDmsPair(lat, lng);
 }
 
 function calculatePolygonAreaNm2(poly) {
@@ -1278,7 +1138,7 @@ function renderGisImportModalContent() {
             <div class="flex items-center gap-2">
               <span class="w-3.5 h-3.5 rounded-full" style="background-color: ${p.strokeColor || '#2563eb'};"></span>
               <span class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">${escapeHtml(p.name || 'Sektor Pencarian')}</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
                 ${isBaseMap ? 'Base Map / Wilayah Kerja' : 'Operasi Ini'}
               </span>
             </div>
@@ -1294,7 +1154,7 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
               📋 Salin Koordinat
             </button>
             <div class="flex items-center gap-2">
-              <select id="${selId}" class="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+              <select id="${selId}" class="control control-sm">
                 ${getSruOptionsHtml()}
               </select>
               <button type="button" onclick="handleImportPolyClick('${p.id}', '${selId}')" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-500 text-white shadow-xs transition cursor-pointer">
@@ -1342,10 +1202,10 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
             <div class="flex items-center gap-2">
               <span class="w-3.5 h-3.5 rounded-full" style="background-color: ${p.color || '#ea580c'};"></span>
               <span class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">${escapeHtml(p.name || 'Pola Lintasan SAR')}</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                 ${escapeHtml(typeLabel)}
               </span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
                 ${isBaseMap ? 'Base Map' : 'Operasi Ini'}
               </span>
             </div>
@@ -1359,7 +1219,7 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
             <span>Lintasan/Sapu: <strong>${p.legsCount || '-'}</strong></span>
           </div>
           <div class="flex flex-wrap items-center justify-end gap-2 pt-1">
-            <select id="${selId}" class="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+            <select id="${selId}" class="control control-sm">
               ${getSruOptionsHtml()}
             </select>
             <button type="button" onclick="handleImportPatternClick('${p.id}', '${selId}')" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-500 text-white shadow-xs transition cursor-pointer">
@@ -1398,7 +1258,7 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
             <div class="flex items-center gap-2">
               <span class="w-3.5 h-3.5 rounded-full" style="background-color: ${r.strokeColor || '#059669'};"></span>
               <span class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">${escapeHtml(r.name || 'Jalur Operasi')}</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
                 ${isBaseMap ? 'Base Map' : 'Operasi Ini'}
               </span>
             </div>
@@ -1410,7 +1270,7 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
             <span>Jumlah Waypoint: <strong>${pts.length} titik koordinat</strong></span>
           </div>
           <div class="flex flex-wrap items-center justify-end gap-2 pt-1">
-            <select id="${selId}" class="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+            <select id="${selId}" class="control control-sm">
               ${getSruOptionsHtml()}
             </select>
             <button type="button" onclick="handleImportRouteClick('${r.id}', '${selId}')" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition cursor-pointer">
@@ -1447,10 +1307,10 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
             <div class="flex items-center gap-2">
               <span class="text-base">📍</span>
               <span class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">${escapeHtml(pt.label || 'Titik Taktis')}</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                 ${escapeHtml(pt.category || 'Taktis')}
               </span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
                 ${isBaseMap ? 'Base Map' : 'Operasi Ini'}
               </span>
             </div>
@@ -1464,7 +1324,7 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
               📋 Salin DMS
             </button>
             <div class="flex items-center gap-2">
-              <select id="${selId}" class="px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+              <select id="${selId}" class="control control-sm">
                 ${getSruOptionsHtml()}
               </select>
               <button type="button" onclick="handleImportPointClick('${pt.id}', '${selId}')" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-xs transition cursor-pointer">
@@ -1534,14 +1394,14 @@ function getPatternDetails(matchedPattern) {
   return { pola, totalSapuan, spacing, detailText };
 }
 
-function importAllPolygonsToSrus() {
+async function importAllPolygonsToSrus() {
   const polys = SAR_GIS_BUNDLE.polygons || [];
   if (polys.length === 0) {
     if (typeof showToast === 'function') showToast('Tidak ada Search Area (Poligon) yang tersimpan di peta plotting.', 'info');
     return;
   }
   
-  if (currentSrus.length > 0 && !confirm(`Ditemukan ${polys.length} Search Area di peta plotting. Apakah Anda ingin mengonversi seluruh Search Area ini menjadi unit SRU RENOPS?`)) {
+  if (currentSrus.length > 0 && !(await confirmAction('Konversi Search Area', `Ditemukan ${polys.length} Search Area di peta plotting. Apakah Anda ingin mengonversi seluruh Search Area ini menjadi unit SRU RENOPS?`, 'Ya, Konversi'))) {
     return;
   }
   

@@ -99,20 +99,6 @@ class DocumentNumberService {
     }
 
     /**
-     * Alias formatter nomor RENOPS.
-     */
-    public static function formatNomorRenops(array $renops, array $ops = [], ?string $satkerKode = null): string {
-        return self::generateNomorRenops($ops, $renops, $satkerKode);
-    }
-
-    /**
-     * Alias formatter nomor SITREP.
-     */
-    public static function formatNomorSitrep(array $laporan, array $ops = [], ?string $satkerKode = null): string {
-        return self::generateNomorSitrep($ops, $laporan, $satkerKode);
-    }
-
-    /**
      * Penomoran Berita Acara Penutupan Operasi SAR:
      * Format: BA-TUTUP-[TANGGAL]-[URUT]/OPS-SAR/[KODE_SATKER]/[BULAN][TAHUN]
      */

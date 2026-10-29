@@ -215,51 +215,29 @@ class OperasiModel {
         $db->beginTransaction();
 
         try {
-            // Strict Sequential ID Calculation:
-            // Calculate the next ID strictly as MAX(id_operasi) + 1 with pessimistic row lock to prevent irregular jumping
-            $stmtMax = $db->query("SELECT COALESCE(MAX(id_operasi), 0) + 1 AS next_id FROM Operasi FOR UPDATE");
-            $nextId = (int)$stmtMax->fetchColumn();
-            if ($nextId < 1) $nextId = 1;
 
-            // Build full_text_wa & SSOT plain text representations
-            $korbanData = $data['korban'] ?? [];
-            $unsurData = $data['detail_unsur'] ?? [];
-            $alutData = $data['detail_alut'] ?? [];
-
-            // ISSUE-LAPAWAL-01: SSOT Generator for plain text columns from relational detail arrays
-            $unsurText = self::formatUnsurText($unsurData, $data['unsur_terlibat'] ?? '');
-            $alutText = self::formatAlutText($alutData, $data['alut_palsar'] ?? '');
-
-            // ISSUE-LAPAWAL-02: Ensure jumlah_pob is at least count(korbanData)
-            $effectivePob = max((int)($data['jumlah_pob'] ?? 0), count($korbanData));
-
+            // Build full_text_wa & SSOT plain text representations (sumber sama dengan pratinjau WA di form)
             $now = date('Y-m-d H:i:s');
-            // ISSUE-LAPAWAL-03: Temporal Normalization (DATETIME standard Y-m-d H:i:s)
-            $wKejadian = self::normalizeDateTime($data['waktu_kejadian'] ?? $now);
-            $wLapor = self::normalizeDateTime($data['waktu_lapor'] ?? $now);
-            $wBerangkat = self::normalizeDateTime($data['waktu_berangkat'] ?? $now);
-            $wEta = self::normalizeDateTime($data['eta_tiba'] ?? $now);
-
-            $opsDataForWa = array_merge($data, [
-                'waktu_kejadian' => $wKejadian,
-                'waktu_lapor' => $wLapor,
-                'waktu_berangkat' => $wBerangkat,
-                'eta_tiba' => $wEta,
-                'unsur_terlibat' => $unsurText,
-                'alut_palsar' => $alutText,
-                'jumlah_pob' => $effectivePob
-            ]);
+            $prep = self::prepareLaporanAwal($data);
+            $opsDataForWa = $prep['ops'];
+            [$korbanData, $unsurData, $alutData] = [$prep['korban'], $prep['unsur'], $prep['alut']];
+            $unsurText = $opsDataForWa['unsur_terlibat'];
+            $alutText = $opsDataForWa['alut_palsar'];
+            $effectivePob = $opsDataForWa['jumlah_pob'];
+            $wKejadian = $opsDataForWa['waktu_kejadian'];
+            $wLapor = $opsDataForWa['waktu_lapor'];
+            $wBerangkat = $opsDataForWa['waktu_berangkat'];
+            $wEta = $opsDataForWa['eta_tiba'];
             $fullTextWa = TemplateHelper::generateLaporanAwalWA($opsDataForWa, $korbanData, $unsurData, $alutData);
 
+            // ID dari AUTO_INCREMENT: ID operasi yang dihapus tidak dipakai ulang (link, QR & nomor dokumen lama tetap unik)
             $stmt = $db->prepare("INSERT INTO Operasi (
-                id_operasi,
                 nama_operasi, nama_pelapor, hubungan_pelapor, no_telp_pelapor,
                 waktu_kejadian, waktu_lapor, waktu_berangkat, tim_berangkat, eta_tiba,
                 lokasi_kejadian, koordinat, jarak, radial, eta_lokasi, kronologi, jumlah_pob,
                 unsur_terlibat, alut_palsar, faktor_penghambat, cuaca, gelombang, angin,
                 status, full_text_wa, created_at
             ) VALUES (
-                :id_operasi,
                 :nama_operasi, :nama_pelapor, :hubungan_pelapor, :no_telp_pelapor,
                 :waktu_kejadian, :waktu_lapor, :waktu_berangkat, :tim_berangkat, :eta_tiba,
                 :lokasi_kejadian, :koordinat, :jarak, :radial, :eta_lokasi, :kronologi, :jumlah_pob,
@@ -268,7 +246,6 @@ class OperasiModel {
             )");
 
             $stmt->execute([
-                ':id_operasi' => $nextId,
                 ':nama_operasi' => $data['nama_operasi'],
                 ':nama_pelapor' => $data['nama_pelapor'] ?? '',
                 ':hubungan_pelapor' => $data['hubungan_pelapor'] ?? '',
@@ -276,7 +253,7 @@ class OperasiModel {
                 ':waktu_kejadian' => $wKejadian,
                 ':waktu_lapor' => $wLapor,
                 ':waktu_berangkat' => $wBerangkat,
-                ':tim_berangkat' => $data['tim_berangkat'] ?? 'Tim Rescue Kansar Kendari',
+                ':tim_berangkat' => $data['tim_berangkat'] ?? '',
                 ':eta_tiba' => $wEta,
                 ':lokasi_kejadian' => $data['lokasi_kejadian'] ?? '',
                 ':koordinat' => $data['koordinat'] ?? '',
@@ -288,14 +265,14 @@ class OperasiModel {
                 ':unsur_terlibat' => $unsurText,
                 ':alut_palsar' => $alutText,
                 ':faktor_penghambat' => $data['faktor_penghambat'] ?? 'Nihil',
-                ':cuaca' => $data['cuaca'] ?? 'Cerah Berawan',
-                ':gelombang' => $data['gelombang'] ?? '0.5 - 1.25 M',
-                ':angin' => $data['angin'] ?? 'Barat Daya - Barat Laut, 5 - 15 Knots',
+                ':cuaca' => $data['cuaca'] ?? '',
+                ':gelombang' => $data['gelombang'] ?? '',
+                ':angin' => $data['angin'] ?? '',
                 ':full_text_wa' => $fullTextWa,
                 ':created_at' => $now
             ]);
 
-            $idOperasi = $nextId;
+            $idOperasi = (int)$db->lastInsertId();
 
             // Insert Korban
             if (!empty($korbanData)) {
@@ -405,32 +382,17 @@ class OperasiModel {
                 throw new RuntimeException('Operasi SAR telah berstatus DITUTUP (CLOSED). Data Laporan Awal terkunci dan tidak dapat diubah kecuali status operasi dibuka kembali.');
             }
 
-            $korbanData = $data['korban'] ?? $ops['korban'];
-            $unsurData = $data['detail_unsur'] ?? $ops['detail_unsur'];
-            $alutData = $data['detail_alut'] ?? $ops['detail_alut'];
-
-            // ISSUE-LAPAWAL-01: SSOT Generator for plain text columns from relational detail arrays
-            $unsurText = self::formatUnsurText($unsurData, $data['unsur_terlibat'] ?? $ops['unsur_terlibat']);
-            $alutText = self::formatAlutText($alutData, $data['alut_palsar'] ?? $ops['alut_palsar']);
-
-            // ISSUE-LAPAWAL-02: Effective POB
-            $effectivePob = max(isset($data['jumlah_pob']) ? (int)$data['jumlah_pob'] : (int)$ops['jumlah_pob'], count($korbanData));
-
-            // ISSUE-LAPAWAL-03: Temporal Normalization (DATETIME standard Y-m-d H:i:s)
-            $wKejadian = self::normalizeDateTime($data['waktu_kejadian'] ?? $ops['waktu_kejadian']);
-            $wLapor = self::normalizeDateTime($data['waktu_lapor'] ?? $ops['waktu_lapor']);
-            $wBerangkat = self::normalizeDateTime($data['waktu_berangkat'] ?? $ops['waktu_berangkat']);
-            $wEta = self::normalizeDateTime($data['eta_tiba'] ?? $ops['eta_tiba']);
-
-            $mergedOps = array_merge($ops, $data, [
-                'waktu_kejadian' => $wKejadian,
-                'waktu_lapor' => $wLapor,
-                'waktu_berangkat' => $wBerangkat,
-                'eta_tiba' => $wEta,
-                'unsur_terlibat' => $unsurText,
-                'alut_palsar' => $alutText,
-                'jumlah_pob' => $effectivePob
-            ]);
+            // Sumber sama dengan pratinjau WA di form
+            $prep = self::prepareLaporanAwal($data, $ops);
+            $mergedOps = $prep['ops'];
+            [$korbanData, $unsurData, $alutData] = [$prep['korban'], $prep['unsur'], $prep['alut']];
+            $unsurText = $mergedOps['unsur_terlibat'];
+            $alutText = $mergedOps['alut_palsar'];
+            $effectivePob = $mergedOps['jumlah_pob'];
+            $wKejadian = $mergedOps['waktu_kejadian'];
+            $wLapor = $mergedOps['waktu_lapor'];
+            $wBerangkat = $mergedOps['waktu_berangkat'];
+            $wEta = $mergedOps['eta_tiba'];
             $fullTextWa = TemplateHelper::generateLaporanAwalWA($mergedOps, $korbanData, $unsurData, $alutData);
 
             $stmt = $db->prepare("UPDATE Operasi SET
@@ -567,10 +529,6 @@ class OperasiModel {
             }
 
             $db->commit();
-            if (!empty($delKorban)) self::syncChildAutoIncrements('Korban');
-            if ($delUnsur) self::syncChildAutoIncrements('DetailUnsur');
-            if ($delAlut) self::syncChildAutoIncrements('DetailAlut');
-            if ($delTim) self::syncChildAutoIncrements('DetailTimBerangkat');
 
             // Synchronize GIS LKP Point & Tactical Nautical Route
             try {
@@ -627,6 +585,7 @@ class OperasiModel {
             // 3. Delete Laporan Harian (SITREP)
             $stmtDelLap = $db->prepare("DELETE FROM LaporanHarian WHERE id_operasi = :id");
             $stmtDelLap->execute([':id' => $id]);
+            DocVerifyHelper::forgetOperasiTokens($id);
 
             // 4. Detach linked BRA SAR (set id_operasi = NULL to preserve archive telegram)
             $stmtDetachBra = $db->prepare("UPDATE BraSar SET id_operasi = NULL WHERE id_operasi = :id");
@@ -693,6 +652,35 @@ class OperasiModel {
             $aLines[] = "• {$jmlA} {$satA} {$namaA}";
         }
         return !empty($aLines) ? implode("\n", $aLines) : trim($fallback);
+    }
+
+    /**
+     * Satu sumber data Laporan Awal untuk simpan (create/update) dan pratinjau WA di form.
+     * $ops = data operasi tersimpan (mode edit) atau null (operasi baru).
+     *
+     * @return array{ops: array, korban: array, unsur: array, alut: array}
+     */
+    public static function prepareLaporanAwal(array $data, ?array $ops = null): array {
+        $base = $ops ?? [];
+        $now = date('Y-m-d H:i:s');
+        // ISSUE-LAPAWAL-01: SSOT Generator for plain text columns from relational detail arrays
+        $korban = array_values($data['korban'] ?? ($base['korban'] ?? []));
+        $unsur = $data['detail_unsur'] ?? ($base['detail_unsur'] ?? []);
+        $alut = $data['detail_alut'] ?? ($base['detail_alut'] ?? []);
+        $pob = isset($data['jumlah_pob']) ? (int)$data['jumlah_pob'] : (int)($base['jumlah_pob'] ?? 0);
+
+        // ISSUE-LAPAWAL-02/03: POB efektif & normalisasi DATETIME (Y-m-d H:i:s)
+        $merged = array_merge($base, $data, [
+            'waktu_kejadian' => self::normalizeDateTime($data['waktu_kejadian'] ?? ($ops ? $ops['waktu_kejadian'] : $now)),
+            'waktu_lapor' => self::normalizeDateTime($data['waktu_lapor'] ?? ($ops ? $ops['waktu_lapor'] : $now)),
+            'waktu_berangkat' => self::normalizeDateTime($data['waktu_berangkat'] ?? ($ops ? $ops['waktu_berangkat'] : $now)),
+            'eta_tiba' => self::normalizeDateTime($data['eta_tiba'] ?? ($ops ? $ops['eta_tiba'] : $now)),
+            'unsur_terlibat' => self::formatUnsurText($unsur, $data['unsur_terlibat'] ?? ($base['unsur_terlibat'] ?? '')),
+            'alut_palsar' => self::formatAlutText($alut, $data['alut_palsar'] ?? ($base['alut_palsar'] ?? '')),
+            'jumlah_pob' => max($pob, count($korban))
+        ]);
+
+        return ['ops' => $merged, 'korban' => $korban, 'unsur' => $unsur, 'alut' => $alut];
     }
 
     public static function normalizeDateTime(?string $raw, bool $allowNull = false): ?string {
@@ -834,12 +822,5 @@ class OperasiModel {
         OperasiRelationService::syncUnsurAlut($idOperasi, $unsurData, $alutData);
     }
 
-    public static function syncAutoIncrement(): void {
-        OperasiRelationService::syncAutoIncrement();
-    }
-
-    public static function syncChildAutoIncrements(?string $onlyTable = null): void {
-        OperasiRelationService::syncChildAutoIncrements($onlyTable);
-    }
 }
 

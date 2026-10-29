@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   QR-SAR Design System (komponen bersama seluruh halaman)
+   ========================================================================== */
+
+@layer components {
+  /* ---------- Floating label field ----------
+     Markup: <div class="field"><label class="field-label">Nama</label><input class="field-input" placeholder="contoh"></div>
+     Kosong & tidak fokus: label tampil seperti placeholder. Terisi / fokus: label naik kecil di atas nilai. */
+  .field {
+    @apply relative block;
+  }
+  .field > .field-label {
+    @apply pointer-events-none absolute left-3.5 top-2 z-[1] max-w-[calc(100%-1.75rem)] truncate text-[11px] font-semibold leading-none text-slate-500 transition-all duration-150 dark:text-slate-400;
+  }
+  .field-input {
+    @apply block w-full rounded-xl border border-slate-300 bg-white px-3.5 pb-2 pt-6 text-sm text-slate-900 transition-colors duration-150 placeholder:text-transparent focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+  }
+  .field-input:focus::placeholder {
+    @apply text-slate-400 dark:text-slate-500;
+  }
+  textarea.field-input {
+    @apply min-h-[5.5rem] leading-relaxed;
+  }
+  .field:has(> .field-input:placeholder-shown:not(:focus)) > .field-label {
+    @apply top-[1.05rem] text-sm font-normal text-slate-400 dark:text-slate-500;
+  }
+  .field:has(> textarea.field-input:placeholder-shown:not(:focus)) > .field-label {
+    @apply top-4;
+  }
+  .field:focus-within > .field-label {
+    @apply text-orange-600 dark:text-orange-400;
+  }
+  .field-input:disabled,
+  .field-input[readonly] {
+    @apply bg-slate-50 text-slate-500 dark:bg-slate-800/60 dark:text-slate-400;
+  }
+
+  /* ---------- Input tanpa label (cari, qty, dsb.): cukup placeholder. Lebar diatur kelas w-* di markup ---------- */
+  .control {
+    @apply rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 transition-colors duration-150 placeholder:text-slate-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500;
+  }
+  .control-sm {
+    @apply rounded-lg px-2.5 py-1.5 text-xs;
+  }
+
+  /* ---------- Tombol ---------- */
+  .btn {
+    @apply inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-2.5 text-sm font-semibold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/40 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-sm {
+    @apply gap-1.5 rounded-lg px-3 py-1.5 text-xs;
+  }
+  .btn-primary {
+    @apply bg-orange-600 text-white hover:bg-orange-700;
+  }
+  .btn-secondary {
+    @apply border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+  }
+  .btn-ghost {
+    @apply text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800;
+  }
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+
+  /* ---------- Naskah dinas cetak (Laporan Awal, RENOPS, SITREP, BA): hitam-putih, ukuran pt seragam ---------- */
+  .doc-title {
+    @apply m-0 text-[12pt] font-bold uppercase tracking-wide text-black underline underline-offset-4;
+  }
+  .doc-sub {
+    @apply m-0 mt-1 text-[10pt] font-bold uppercase text-black;
+  }
+  .doc-number {
+    @apply m-0 mt-0.5 text-[10pt] font-bold text-black;
+  }
+  .doc-section {
+    @apply mb-1.5 border border-black bg-slate-100 px-2 py-0.5 text-[10pt] font-bold uppercase text-black;
+  }
+
+  /* ---------- Kartu ---------- */
+  .surface {
+    @apply rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900;
+  }
+}
+
+/* ---------- Transisi pindah halaman: ringan, tanpa JS ----------
+   Browser modern: cross-fade dokumen (View Transitions). Semua browser: konten halaman muncul halus. */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 160ms;
+}
+.page-body {
+  animation: page-enter 180ms ease-out both;
+}
+/* Konten tidak pernah mulai transparan: halaman berat (GIS) tidak tampak kosong saat JS/peta sedang dimuat */
+@keyframes page-enter {
+  from { opacity: 0.85; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+/* GIS layar penuh: tanpa animasi apa pun (peta berat, prioritas stabil); latar peta netral sebelum tile termuat.
+   Indikator loading berputar tetap jalan sebagai umpan balik. Transisi zoom Leaflet memakai transition, tidak terdampak. */
+.route-gis .page-body { animation: none; }
+.route-gis *:not(.animate-spin):not(.animate-spin *) { animation: none !important; }
+.leaflet-container { background: #e5e7eb; }
+.dark .leaflet-container { background: #1f2937; }
+@media (prefers-reduced-motion: reduce) {
+  .page-body { animation: none; }
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation: none; }
+}
+@media print {
+  .page-body { animation: none; }
+}

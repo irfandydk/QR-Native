@@ -175,12 +175,12 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <span class="text-orange-600 dark:text-orange-400 font-bold"><?= $editMode ? 'Edit Operasi' : 'Inisiasi Laporan Awal' ?></span>
       </div>
       <div class="flex flex-wrap items-center gap-2.5">
-        <h1 class="text-lg sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+        <h1 class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
           <?= $editMode ? 'Edit Laporan Awal Operasi SAR' : 'Form Inisiasi Laporan Awal Operasi SAR' ?>
         </h1>
-        <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full <?= $editMode ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' : 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30' ?> uppercase tracking-wider shrink-0">
-          <?= $editMode ? 'MODE PERBAIKAN' : 'FILE AKTIF' ?>
-        </span>
+        <?php if ($editMode): ?>
+        <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">Mode perbaikan</span>
+        <?php endif; ?>
       </div>
       <?php if ($editMode && !empty($operasi['nama_operasi'])): ?>
         <p class="text-xs font-semibold text-slate-700 dark:text-slate-300 line-clamp-1 max-w-2xl">
@@ -192,16 +192,6 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       </p>
     </div>
 
-    <!-- Quick Action Buttons -->
-    <div class="flex items-center gap-2.5 shrink-0 self-end sm:self-auto">
-      <button type="button" onclick="previewWhatsApp()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
-        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-        <span>Pratinjau Format WA</span>
-      </button>
-      <a href="<?= $editMode ? (BASE_URL . '/operasi_detail.php?id=' . (int)($operasi['id_operasi'] ?? 0)) : (BASE_URL . '/index.php') ?>" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
-        Batal
-      </a>
-    </div>
   </div>
 
   <!-- LocalStorage Draft Restore Banner (Only in Create Mode) -->
@@ -233,17 +223,17 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center font-black text-xs">
+          <div class="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-xs">
             01
           </div>
           <div>
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white">
               1. Identitas Operasi & Sumber Informasi
             </h2>
             <p class="text-xs text-slate-500 dark:text-slate-400">Nama operasi SAR dan data lengkap pelapor pertama</p>
           </div>
         </div>
-        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
           SUMBER INFO
         </span>
       </div>
@@ -251,28 +241,27 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <div class="space-y-4">
         <!-- Nama Operasi SAR -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Nama Operasi SAR <span class="text-red-500">*</span>
-          </label>
-          <input type="text" name="nama_operasi" id="nama_operasi" required
+          <div class="field">
+            <label class="field-label">Nama Operasi SAR <span class="text-red-500">*</span></label>
+            <input class="field-input w-full font-semibold" type="text" name="nama_operasi" id="nama_operasi" required
             placeholder="Contoh: Operasi SAR Kecelakaan Kapal KM Sumber Bahagia di Perairan Saponda Kab. Konawe"
-            value="<?= e($operasi['nama_operasi'] ?? '') ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors" />
+            value="<?= e($operasi['nama_operasi'] ?? '') ?>"  />
+          </div>
           
           <!-- Preset Nama Operasi Pills -->
           <div class="flex flex-wrap items-center gap-1.5 mt-2">
             <span class="text-[11px] font-semibold text-slate-400 mr-1">Preset Cepat:</span>
             <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan Kapal Longboat Mati Mesin di Perairan ')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-              🚢 Kapal Mati Mesin
+              Kapal Mati Mesin
             </button>
             <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan Kapal Terbalik di Perairan ')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-              🌊 Kapal Terbalik
+              Kapal Terbalik
             </button>
             <button type="button" onclick="setPresetOps('Operasi SAR Kondisi Membahayakan Manusia (KMM) 1 Orang Hilang di Hutan ')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-              🌲 KMM Hutan
+              KMM Hutan
             </button>
             <button type="button" onclick="setPresetOps('Operasi SAR Kondisi Membahayakan Manusia (KMM) 1 Orang Tenggelam di Sungai ')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-              🏊 KMM Sungai
+              KMM Sungai
             </button>
           </div>
         </div>
@@ -280,33 +269,30 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <!-- Data Pelapor Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
           <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Nama Pelapor <span class="text-red-500">*</span>
-            </label>
-            <input type="text" name="nama_pelapor" id="nama_pelapor" required
+            <div class="field">
+              <label class="field-label">Nama Pelapor <span class="text-red-500">*</span></label>
+              <input class="field-input w-full" type="text" name="nama_pelapor" id="nama_pelapor" required
               placeholder="Contoh: Bpk. La Ode Ridwan"
-              value="<?= e($operasi['nama_pelapor'] ?? '') ?>"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              value="<?= e($operasi['nama_pelapor'] ?? '') ?>"  />
+            </div>
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Hubungan Pelapor / Instansi
-            </label>
-            <input type="text" name="hubungan_pelapor" id="hubungan_pelapor"
+            <div class="field">
+              <label class="field-label">Hubungan Pelapor / Instansi</label>
+              <input class="field-input w-full" type="text" name="hubungan_pelapor" id="hubungan_pelapor"
               placeholder="Contoh: Keluarga Korban / Polsek / Polairud"
-              value="<?= e($operasi['hubungan_pelapor'] ?? '') ?>"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              value="<?= e($operasi['hubungan_pelapor'] ?? '') ?>"  />
+            </div>
           </div>
 
           <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              No. Telepon / WhatsApp Pelapor
-            </label>
-            <input type="text" name="no_telp_pelapor" id="no_telp_pelapor"
+            <div class="field">
+              <label class="field-label">No. Telepon / WhatsApp Pelapor</label>
+              <input class="field-input w-full font-mono" type="text" name="no_telp_pelapor" id="no_telp_pelapor"
               placeholder="Contoh: 0812-3456-7890"
-              value="<?= e($operasi['no_telp_pelapor'] ?? '') ?>"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
+              value="<?= e($operasi['no_telp_pelapor'] ?? '') ?>"  />
+            </div>
           </div>
         </div>
       </div>
@@ -316,56 +302,52 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-xs">
+          <div class="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
             02
           </div>
           <div>
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white">
               2. Kronologi Waktu & Perjalanan Tim (WITA / UTC+8)
             </h2>
             <p class="text-xs text-slate-500 dark:text-slate-400">Waktu kejadian, waktu terima laporan, keberangkatan tim, dan estimasi tiba di LKP</p>
           </div>
         </div>
-        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
           WAKTU & PERGERAKAN
         </span>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Waktu Kejadian (WITA) <span class="text-red-500">*</span>
-          </label>
-          <input type="datetime-local" name="waktu_kejadian" id="waktu_kejadian" required
-            value="<?= !empty($operasi['waktu_kejadian']) ? date('Y-m-d\TH:i', strtotime($operasi['waktu_kejadian'])) : '' ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono" />
+          <div class="field">
+            <label class="field-label">Waktu Kejadian (WITA) <span class="text-red-500">*</span></label>
+            <input placeholder=" " class="field-input w-full font-mono" type="datetime-local" name="waktu_kejadian" id="waktu_kejadian" required
+            value="<?= !empty($operasi['waktu_kejadian']) ? date('Y-m-d\TH:i', strtotime($operasi['waktu_kejadian'])) : '' ?>"  />
+          </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Waktu Lapor Diterima (WITA) <span class="text-red-500">*</span>
-          </label>
-          <input type="datetime-local" name="waktu_lapor" id="waktu_lapor" required
-            value="<?= !empty($operasi['waktu_lapor']) ? date('Y-m-d\TH:i', strtotime($operasi['waktu_lapor'])) : date('Y-m-d\TH:i') ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono" />
+          <div class="field">
+            <label class="field-label">Waktu Lapor Diterima (WITA) <span class="text-red-500">*</span></label>
+            <input placeholder=" " class="field-input w-full font-mono" type="datetime-local" name="waktu_lapor" id="waktu_lapor" required
+            value="<?= !empty($operasi['waktu_lapor']) ? date('Y-m-d\TH:i', strtotime($operasi['waktu_lapor'])) : date('Y-m-d\TH:i') ?>"  />
+          </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Waktu Berangkat Tim (WITA) <span class="text-red-500">*</span>
-          </label>
-          <input type="datetime-local" name="waktu_berangkat" id="waktu_berangkat" required
-            value="<?= !empty($operasi['waktu_berangkat']) ? date('Y-m-d\TH:i', strtotime($operasi['waktu_berangkat'])) : date('Y-m-d\TH:i') ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono" />
+          <div class="field">
+            <label class="field-label">Waktu Berangkat Tim (WITA) <span class="text-red-500">*</span></label>
+            <input placeholder=" " class="field-input w-full font-mono" type="datetime-local" name="waktu_berangkat" id="waktu_berangkat" required
+            value="<?= !empty($operasi['waktu_berangkat']) ? date('Y-m-d\TH:i', strtotime($operasi['waktu_berangkat'])) : date('Y-m-d\TH:i') ?>"  />
+          </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Estimasi Tiba (ETA LKP WITA) <span class="text-red-500">*</span>
-          </label>
-          <input type="datetime-local" name="eta_tiba" id="eta_tiba" required
-            value="<?= !empty($operasi['eta_tiba']) ? date('Y-m-d\TH:i', strtotime($operasi['eta_tiba'])) : '' ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono" />
+          <div class="field">
+            <label class="field-label">Estimasi Tiba (ETA LKP WITA) <span class="text-red-500">*</span></label>
+            <input placeholder=" " class="field-input w-full font-mono" type="datetime-local" name="eta_tiba" id="eta_tiba" required
+            value="<?= !empty($operasi['eta_tiba']) ? date('Y-m-d\TH:i', strtotime($operasi['eta_tiba'])) : '' ?>"  />
+          </div>
         </div>
 
         <div class="sm:col-span-2">
@@ -392,17 +374,17 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             }
           ?>
           <div class="space-y-2">
-            <select id="select_tim_berangkat" onchange="handleSelectTimBerangkat(this)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium">
+            <select id="select_tim_berangkat" onchange="handleSelectTimBerangkat(this)" class="control control-sm w-full font-medium">
               <option value="">-- Pilih Tim Penyelamat dari Master Data --</option>
               <?php foreach ($masterTim as $mt): 
                 $isSel = (strcasecmp(trim($mt['nama_tim']), $currentTimVal) === 0);
               ?>
                 <option value="<?= e($mt['nama_tim']) ?>" data-id="<?= (int)$mt['id_tim'] ?>" <?= $isSel ? 'selected' : '' ?>>
-                  🏢 <?= e($mt['nama_tim']) ?>
+                  <?= e($mt['nama_tim']) ?>
                 </option>
               <?php endforeach; ?>
               <option value="__CUSTOM__" <?= (!$matchedTim && !empty($currentTimVal)) ? 'selected' : '' ?>>
-                ✏️ + Ketik Nama Tim Kustom / Lainnya...
+                + Ketik Nama Tim Kustom / Lainnya...
               </option>
             </select>
 
@@ -411,31 +393,21 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                 placeholder="Ketik nama tim yang diberangkatkan..."
                 value="<?= e($currentTimVal) ?>"
                 oninput="updateWaPreview()"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium" />
-              <p class="text-[10px] text-slate-400 mt-1 italic">* Masukkan nama tim atau unsur khusus jika tidak terdaftar di Master Tim.</p>
+                class="control control-sm w-full font-medium" />
+              <p class="text-[11px] text-slate-400 mt-1 italic">* Masukkan nama tim atau unsur khusus jika tidak terdaftar di Master Tim.</p>
             </div>
             <input type="hidden" name="id_tim_berangkat" id="id_tim_berangkat" value="<?= $selectedIdTim ?>" />
           </div>
         </div>
 
         <div class="sm:col-span-2">
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Estimasi Waktu Tempuh (ETA Lokasi Teks)
-          </label>
-          <input type="text" name="eta_lokasi" id="eta_lokasi"
+          <div class="field">
+            <label class="field-label">Estimasi Waktu Tempuh (ETA Lokasi Teks)</label>
+            <input class="field-input w-full" type="text" name="eta_lokasi" id="eta_lokasi"
             placeholder="Contoh: 1 Jam 30 Menit"
-            value="<?= e($operasi['eta_lokasi'] ?? '') ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
-          
-          <!-- ETA Quick Pills matching reference -->
-          <div class="flex flex-wrap items-center gap-1.5 mt-2">
-            <span class="text-[11px] font-semibold text-slate-400 mr-1">Preset Cepat:</span>
-            <?php foreach (['15 Menit', '30 Menit', '45 Menit', '1 Jam', '1 Jam 30 Menit', '2 Jam', '3 Jam'] as $et): ?>
-              <button type="button" onclick="setEtaPreset('<?= $et ?>')" class="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-                <?= $et ?>
-              </button>
-            <?php endforeach; ?>
+            value="<?= e($operasi['eta_lokasi'] ?? '') ?>"  />
           </div>
+          
         </div>
       </div>
     </div>
@@ -444,11 +416,11 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-black text-xs">
+          <div class="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
             03
           </div>
           <div>
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white">
               3. Lokasi Kejadian & Titik Koordinat (LKP)
             </h2>
             <p class="text-xs text-slate-500 dark:text-slate-400">Deskripsi wilayah, koordinat format baku Basarnas (DMS), dan kalkulasi jarak radial</p>
@@ -458,13 +430,12 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 
       <div class="space-y-4">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Deskripsi Lokasi / Wilayah Kejadian <span class="text-red-500">*</span>
-          </label>
-          <input type="text" name="lokasi_kejadian" id="lokasi_kejadian" required
+          <div class="field">
+            <label class="field-label">Deskripsi Lokasi / Wilayah Kejadian <span class="text-red-500">*</span></label>
+            <input class="field-input w-full font-semibold" type="text" name="lokasi_kejadian" id="lokasi_kejadian" required
             placeholder="Contoh: Perairan Saponda, Kec. Soropia, Kab. Konawe, Sulawesi Tenggara"
-            value="<?= e($operasi['lokasi_kejadian'] ?? '') ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            value="<?= e($operasi['lokasi_kejadian'] ?? '') ?>"  />
+          </div>
         </div>
 
         <!-- Dedicated DMS Coordinate Inputs (No manual degree/minute symbols required) -->
@@ -473,7 +444,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             <label class="block text-xs font-bold text-slate-800 dark:text-slate-200">
               Titik Koordinat LKP (Format DMS Derajat-Menit-Detik) <span class="text-red-500">*</span>
             </label>
-            <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Cukup masukkan angka saja & arah</span>
+            <span class="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">Cukup masukkan angka saja & arah</span>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -482,18 +453,18 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
               <span class="text-[11px] font-bold text-slate-600 dark:text-slate-400 block uppercase tracking-wider">Lintang (Latitude):</span>
               <div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                 <div class="flex items-center gap-1">
-                  <input type="number" id="dms_lat_deg" min="0" max="90" value="<?= e($latDeg) ?>" placeholder="04" class="w-14 px-2 py-1.5 text-xs text-center font-bold font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" title="Derajat Lintang (0-90)">
+                  <input type="number" id="dms_lat_deg" min="0" max="90" value="<?= e($latDeg) ?>" placeholder="04" class="control control-sm w-14 text-center font-bold font-mono" title="Derajat Lintang (0-90)">
                   <span class="font-bold text-xs text-slate-400">°</span>
                 </div>
                 <div class="flex items-center gap-1">
-                  <input type="number" id="dms_lat_min" min="0" max="59" value="<?= e($latMin) ?>" placeholder="02" class="w-14 px-2 py-1.5 text-xs text-center font-bold font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" title="Menit Lintang (0-59)">
+                  <input type="number" id="dms_lat_min" min="0" max="59" value="<?= e($latMin) ?>" placeholder="02" class="control control-sm w-14 text-center font-bold font-mono" title="Menit Lintang (0-59)">
                   <span class="font-bold text-xs text-slate-400">'</span>
                 </div>
                 <div class="flex items-center gap-1">
-                  <input type="number" id="dms_lat_sec" min="0" max="59.99" step="any" value="<?= e($latSec) ?>" placeholder="16" class="w-16 px-2 py-1.5 text-xs text-center font-bold font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" title="Detik Lintang (0-59)">
+                  <input type="number" id="dms_lat_sec" min="0" max="59.99" step="any" value="<?= e($latSec) ?>" placeholder="16" class="control control-sm w-16 text-center font-bold font-mono" title="Detik Lintang (0-59)">
                   <span class="font-bold text-xs text-slate-400">"</span>
                 </div>
-                <select id="dms_lat_dir" class="px-2 py-1.5 text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <select id="dms_lat_dir" class="control control-sm font-bold">
                   <option value="S" <?= $latDir === 'S' ? 'selected' : '' ?>>S (LS - Selatan)</option>
                   <option value="N" <?= $latDir === 'N' ? 'selected' : '' ?>>N (LU - Utara)</option>
                 </select>
@@ -505,18 +476,18 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
               <span class="text-[11px] font-bold text-slate-600 dark:text-slate-400 block uppercase tracking-wider">Bujur (Longitude):</span>
               <div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                 <div class="flex items-center gap-1">
-                  <input type="number" id="dms_lng_deg" min="0" max="180" value="<?= e($lngDeg) ?>" placeholder="122" class="w-16 px-2 py-1.5 text-xs text-center font-bold font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" title="Derajat Bujur (0-180)">
+                  <input type="number" id="dms_lng_deg" min="0" max="180" value="<?= e($lngDeg) ?>" placeholder="122" class="control control-sm w-16 text-center font-bold font-mono" title="Derajat Bujur (0-180)">
                   <span class="font-bold text-xs text-slate-400">°</span>
                 </div>
                 <div class="flex items-center gap-1">
-                  <input type="number" id="dms_lng_min" min="0" max="59" value="<?= e($lngMin) ?>" placeholder="29" class="w-14 px-2 py-1.5 text-xs text-center font-bold font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" title="Menit Bujur (0-59)">
+                  <input type="number" id="dms_lng_min" min="0" max="59" value="<?= e($lngMin) ?>" placeholder="29" class="control control-sm w-14 text-center font-bold font-mono" title="Menit Bujur (0-59)">
                   <span class="font-bold text-xs text-slate-400">'</span>
                 </div>
                 <div class="flex items-center gap-1">
-                  <input type="number" id="dms_lng_sec" min="0" max="59.99" step="any" value="<?= e($lngSec) ?>" placeholder="12" class="w-16 px-2 py-1.5 text-xs text-center font-bold font-mono rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500" title="Detik Bujur (0-59)">
+                  <input type="number" id="dms_lng_sec" min="0" max="59.99" step="any" value="<?= e($lngSec) ?>" placeholder="12" class="control control-sm w-16 text-center font-bold font-mono" title="Detik Bujur (0-59)">
                   <span class="font-bold text-xs text-slate-400">"</span>
                 </div>
-                <select id="dms_lng_dir" class="px-2 py-1.5 text-xs font-bold rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <select id="dms_lng_dir" class="control control-sm font-bold">
                   <option value="E" <?= $lngDir === 'E' ? 'selected' : '' ?>>E (BT - Timur)</option>
                   <option value="W" <?= $lngDir === 'W' ? 'selected' : '' ?>>W (BB - Barat)</option>
                 </select>
@@ -539,17 +510,17 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <label class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                <span>📍 Pangkalan / Pos Awal Pemberangkatan (Origin):</span>
+                <span>Pangkalan / Pos Awal Pemberangkatan (Origin):</span>
               </label>
               <p class="text-[11px] text-slate-500 dark:text-slate-400">Titik tolak tim penyelamat (Pos SAR / Kansar / USS / Dermaga) untuk perhitungan jarak & heading radial ke LKP</p>
             </div>
             <button type="button" onclick="calculateDistanceAndRadial(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-500/10 hover:bg-orange-600 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/20 hover:border-orange-600 transition cursor-pointer shadow-xs shrink-0" title="Hitung ulang jarak nautical miles dan bearing derajat kompas dari pangkalan ini ke LKP">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              <span>⚡ Hitung Jarak & Radial Otomatis</span>
+              <span>Hitung Jarak & Radial Otomatis</span>
             </button>
           </div>
           
-          <select id="origin_base_select" onchange="handleOriginBaseChange()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500">
+          <select id="origin_base_select" onchange="handleOriginBaseChange()" class="control control-sm w-full font-semibold">
             <?php foreach ($sarUnits as $unit): 
                 $cat = $unit['category'] ?? $unit['jenis_unit'] ?? 'POS SAR';
                 $name = $unit['nama_unit'] ?? $unit['label'] ?? '';
@@ -582,16 +553,16 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <input type="hidden" name="origin_point_type" id="origin_point_type" value="" />
 
         <!-- PETA INTERAKTIF PENENTUAN LKP & PLOTTING JALUR MANUAL (ROUTING) -->
-        <div id="tactical-map-card" class="p-4 sm:p-5 rounded-2xl border border-orange-500/30 bg-gradient-to-b from-orange-500/5 to-slate-50 dark:to-slate-900/60 space-y-4 shadow-xs transition-all duration-300">
+        <div id="tactical-map-card" class="p-4 sm:p-5 rounded-2xl border border-orange-500/30 bg-slate-50 dark:to-slate-900/60 space-y-4 shadow-xs transition-all duration-300">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-orange-500/10">
             <div class="space-y-0.5">
               <div class="flex items-center gap-2">
-                <span class="w-6 h-6 rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-black">
+                <span class="w-6 h-6 rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold">
                   🗺️
                 </span>
-                <label class="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+                <label class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
                   <span>Peta Taktis LKP & Plotting Jalur Tempuh</span>
-                  <span id="route-mode-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                  <span id="route-mode-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
                     GARIS LURUS
                   </span>
                 </label>
@@ -604,17 +575,17 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             <!-- Toolbar Buttons -->
             <div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap shrink-0">
               <button type="button" onclick="centerMapOnLkp()" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs flex items-center gap-1" title="Fokuskan peta ke titik koordinat LKP">
-                <span>🎯 Ke LKP</span>
+                <span>Ke LKP</span>
               </button>
               <button type="button" onclick="centerMapOnOrigin()" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs flex items-center gap-1" title="Fokuskan peta ke pangkalan asal">
-                <span>🏢 Ke Pangkalan</span>
+                <span>Ke Pangkalan</span>
               </button>
               <button type="button" onclick="openFullscreenMapModal()" class="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-orange-600 hover:bg-orange-500 text-white transition cursor-pointer shadow-xs flex items-center gap-1" title="Buka peta ukuran penuh untuk plotting waypoint lebih leluasa">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                 <span>Perbesar Peta</span>
               </button>
               <button type="button" id="btn-toggle-map-minimize" onclick="toggleTacticalMapMinimize()" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs flex items-center gap-1" title="Minimize / sembunyikan tampilan peta untuk menghemat ruang">
-                <span id="btn-minimize-icon">🔽</span>
+                <span id="btn-minimize-icon"></span>
                 <span id="btn-minimize-text">Minimize</span>
               </button>
             </div>
@@ -624,30 +595,30 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
           <div id="tactical-map-minimized-strip" class="hidden flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-orange-500/10 dark:bg-slate-800/80 border border-orange-500/20 text-xs">
             <div class="flex items-center gap-3 sm:gap-4 flex-wrap text-xs">
               <div class="flex items-center gap-1.5">
-                <span class="text-base">🚨</span>
+                <span class="text-base"></span>
                 <div>
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400 block font-semibold">Koordinat LKP:</span>
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-semibold">Koordinat LKP:</span>
                   <strong id="strip-summary-lkp" class="font-mono text-orange-600 dark:text-orange-400 font-bold">-</strong>
                 </div>
               </div>
 
               <div class="border-l border-orange-500/20 pl-3 sm:pl-4">
-                <span class="text-[10px] text-slate-500 dark:text-slate-400 block font-semibold">Jarak Tempuh:</span>
+                <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-semibold">Jarak Tempuh:</span>
                 <strong id="strip-summary-dist" class="font-mono text-slate-800 dark:text-slate-200 font-bold">0.0 NM</strong>
               </div>
 
               <div class="border-l border-orange-500/20 pl-3 sm:pl-4">
-                <span class="text-[10px] text-slate-500 dark:text-slate-400 block font-semibold">Estimasi Waktu (ETA):</span>
+                <span class="text-[11px] text-slate-500 dark:text-slate-400 block font-semibold">Estimasi Waktu (ETA):</span>
                 <strong id="strip-summary-eta" class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">-</strong>
               </div>
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
               <button type="button" onclick="applyTacticalRouteToForm()" class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[11px] shadow-xs transition cursor-pointer flex items-center gap-1" title="Terapkan jarak & estimasi waktu ke isian form">
-                <span>⚡ Terapkan</span>
+                <span>Terapkan</span>
               </button>
               <button type="button" onclick="toggleTacticalMapMinimize(false)" class="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-[11px] border border-slate-200 dark:border-slate-600 shadow-xs transition cursor-pointer flex items-center gap-1">
-                <span>🔼 Tampilkan Peta</span>
+                <span>Tampilkan Peta</span>
               </button>
             </div>
           </div>
@@ -660,7 +631,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
               
               <!-- Floating Quick Instructions overlay -->
               <div id="map-routing-instruction" class="absolute top-2.5 left-2.5 z-[1000] px-3 py-1.5 rounded-xl bg-slate-900/85 backdrop-blur-md text-white text-[11px] font-semibold border border-white/20 shadow-lg pointer-events-none transition-all flex items-center gap-1.5">
-                <span>💡</span>
+                <span></span>
                 <span id="map-instruction-text">Geser pin merah 🚨 untuk mengatur LKP, atau klik peta untuk pindah posisi.</span>
               </div>
             </div>
@@ -674,22 +645,22 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                 </label>
                 <div class="inline-flex p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/70 dark:border-slate-700">
                   <button type="button" id="btn-mode-direct" onclick="setRoutingMode('direct')" class="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
-                    <span>📐 Garis Lurus (Direct)</span>
+                    <span>Garis Lurus (Direct)</span>
                   </button>
                   <button type="button" id="btn-mode-manual" onclick="setRoutingMode('manual')" class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer">
-                    <span>🧭 Jalur Manual (Waypoint)</span>
+                    <span>Jalur Manual (Waypoint)</span>
                   </button>
                 </div>
 
                 <!-- Waypoint Actions (shown when manual mode active) -->
                 <div id="manual-route-actions" class="hidden flex items-center gap-1.5 mt-1">
                   <button type="button" onclick="undoLastWaypoint()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-300 hover:text-white border border-amber-500/20 transition cursor-pointer flex items-center gap-1">
-                    <span>↩️ Undo Titik</span>
+                    <span>Undo Titik</span>
                   </button>
                   <button type="button" onclick="clearManualRouteWaypoints()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/10 hover:bg-red-500 text-red-600 dark:text-red-400 hover:text-white border border-red-500/20 transition cursor-pointer flex items-center gap-1">
-                    <span>🗑️ Reset Jalur</span>
+                    <span>Reset Jalur</span>
                   </button>
-                  <span id="waypoint-count-pill" class="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                  <span id="waypoint-count-pill" class="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
                     0 Waypoint
                   </span>
                 </div>
@@ -699,30 +670,14 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
               <div class="lg:col-span-7 flex flex-col gap-1.5">
                 <label class="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center justify-between">
                   <span>Kecepatan Alut & Kondisi Medan:</span>
-                  <span class="text-[10px] text-slate-400 font-normal italic">Preset atau input manual</span>
                 </label>
 
                 <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                  <!-- Preset Dropdown -->
-                  <div class="sm:col-span-7">
-                    <select id="select_speed_preset" onchange="handleSpeedPresetChange(this)" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-orange-500">
-                      <option value="25" data-unit="knots" selected>🚤 25 Knots — RIB Basarnas (Normal)</option>
-                      <option value="18" data-unit="knots">🚢 18 Knots — KN SAR Pacitan / KRI</option>
-                      <option value="15" data-unit="knots">🌊 15 Knots — RIB (Ombak / Cuaca Buruk)</option>
-                      <option value="20" data-unit="knots">🛥️ 20 Knots — Speedboat Polairud</option>
-                      <option value="10" data-unit="knots">🛶 10 Knots — Rubber Boat / Mopel 40 PK</option>
-                      <option value="7" data-unit="knots">⛵ 7 Knots — Longboat Nelayan</option>
-                      <option value="60" data-unit="kmh">🚙 60 Km/j — Rescue Car (Jalan Aspal)</option>
-                      <option value="40" data-unit="kmh">🚛 40 Km/j — Truk SAR (Medan Sedang)</option>
-                      <option value="4" data-unit="kmh">🚶 4 Km/j — Rescuer Jalan Kaki (Hutan)</option>
-                      <option value="__CUSTOM__">✏️ Custom / Input Manual...</option>
-                    </select>
-                  </div>
 
                   <!-- Manual Speed Input with Unit Toggle -->
-                  <div class="sm:col-span-5 flex items-center gap-1">
-                    <input type="number" step="any" min="0.1" id="input_vessel_speed_num" value="<?= e((string)($existingRoute['vesselSpeedKnots'] ?? '25')) ?>" oninput="handleManualSpeedInput(this.value)" class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold text-center focus:outline-none focus:ring-1 focus:ring-orange-500" placeholder="25" title="Ketik kecepatan wahana secara manual" />
-                    <select id="select_speed_unit" onchange="handleSpeedUnitChange(this.value)" class="px-2 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 text-xs font-bold focus:outline-none shrink-0">
+                  <div class="sm:col-span-12 flex items-center gap-1">
+                    <input type="number" step="any" min="0.1" id="input_vessel_speed_num" value="<?= e((string)($existingRoute['vesselSpeedKnots'] ?? '25')) ?>" oninput="handleManualSpeedInput(this.value)" class="control control-sm w-full font-bold text-center" placeholder="25" title="Ketik kecepatan wahana secara manual" />
+                    <select id="select_speed_unit" onchange="handleSpeedUnitChange(this.value)" class="control control-sm font-bold shrink-0">
                       <option value="knots">Kts</option>
                       <option value="kmh">Km/j</option>
                     </select>
@@ -733,22 +688,22 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                 <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20 mt-0.5">
                   <div class="flex items-center gap-3 text-xs flex-wrap">
                     <div>
-                      <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Jarak Tempuh:</span>
+                      <span class="text-[11px] text-slate-500 dark:text-slate-400 block">Jarak Tempuh:</span>
                       <strong id="tactical-summary-dist" class="font-mono text-orange-600 dark:text-orange-400 font-bold">0.0 NM</strong>
-                      <span id="tactical-summary-km" class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">(0.0 KM)</span>
+                      <span id="tactical-summary-km" class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">(0.0 KM)</span>
                     </div>
                     <div class="border-l border-orange-500/20 pl-3">
-                      <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Radial / Heading:</span>
+                      <span class="text-[11px] text-slate-500 dark:text-slate-400 block">Radial / Heading:</span>
                       <strong id="tactical-summary-radial" class="font-mono text-slate-800 dark:text-slate-200 font-bold">000°</strong>
                     </div>
                     <div class="border-l border-orange-500/20 pl-3">
-                      <span class="text-[10px] text-slate-500 dark:text-slate-400 block">Estimasi Waktu (ETA):</span>
+                      <span class="text-[11px] text-slate-500 dark:text-slate-400 block">Estimasi Waktu (ETA):</span>
                       <strong id="tactical-summary-eta" class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">-</strong>
                     </div>
                   </div>
 
                   <button type="button" onclick="applyTacticalRouteToForm()" class="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5 ml-auto" title="Terapkan jarak, radial, dan estimasi waktu tempuh dari kalkulasi peta ini ke isian form laporan awal">
-                    <span>⚡ Terapkan ke Form</span>
+                    <span>Terapkan ke Form</span>
                   </button>
                 </div>
               </div>
@@ -767,8 +722,8 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                 placeholder="Contoh: 15.5"
                 value="<?= e($jarakVal) ?>"
                 oninput="syncJarakDanRadial()"
-                class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
-              <select id="jarak_unit" onchange="handleJarakUnitChange(this.value)" class="px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-orange-500">
+                class="control control-sm flex-1 font-semibold" />
+              <select id="jarak_unit" onchange="handleJarakUnitChange(this.value)" class="control control-sm font-bold">
                 <option value="NM" <?= $jarakUnit === 'NM' ? 'selected' : '' ?>>NM</option>
                 <option value="KM" <?= $jarakUnit === 'KM' ? 'selected' : '' ?>>KM</option>
               </select>
@@ -786,11 +741,11 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                 placeholder="Contoh: 045"
                 value="<?= e($radialVal) ?>"
                 oninput="syncJarakDanRadial()"
-                class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                class="control control-sm w-full font-semibold pl-3.5 pr-10" />
               <span class="absolute right-3.5 text-xs font-bold text-slate-400 select-none">°</span>
             </div>
             <input type="hidden" name="radial" id="radial" value="<?= e($operasi['radial'] ?? '') ?>">
-            <span class="text-[10px] text-slate-400 block mt-1">Sudut bearing kompas dari pangkalan asal (0° - 360°)</span>
+            <span class="text-[11px] text-slate-400 block mt-1">Sudut bearing kompas dari pangkalan asal (0° - 360°)</span>
           </div>
         </div>
       </div>
@@ -800,11 +755,11 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center font-black text-xs">
+          <div class="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
             04
           </div>
           <div>
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white">
               4. Kronologi Kejadian
             </h2>
             <p class="text-xs text-slate-500 dark:text-slate-400">Deskripsi urutan kronologis kejadian musibah / kecelakaan</p>
@@ -813,7 +768,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <div class="flex items-center gap-2">
           <button type="button" id="btn-quick-draft-ai" onclick="quickDraftAiKronologi(this)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-500/10 hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white border border-purple-500/20 hover:border-purple-600 shadow-sm transition cursor-pointer" title="Susun narasi kronologi resmi secara instan dengan AI Gemini">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-            <span class="btn-text">✨ Draf Cepat AI</span>
+            <span class="btn-text">Draf Cepat AI</span>
           </button>
           <button type="button" id="btn-open-ai-modal" onclick="openAiKronologiModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition cursor-pointer" title="Buka dialog interaktif Asisten AI untuk menyusun narasi kronologi">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
@@ -825,7 +780,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <div class="space-y-3">
         <textarea name="kronologi" id="kronologi" rows="4" required
           placeholder="Tuliskan kronologi kejadian secara runtut, lugas, dan baku sesuai format Basarnas..."
-          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-orange-500"><?= e($operasi['kronologi'] ?? '') ?></textarea>
+          class="control control-sm w-full leading-relaxed"><?= e($operasi['kronologi'] ?? '') ?></textarea>
       </div>
     </div>
 
@@ -833,11 +788,11 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black text-xs">
+          <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs">
             05
           </div>
           <div>
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white">
               5. Data Korban Dinamis (Person On Board / POB)
             </h2>
             <p class="text-xs text-slate-500 dark:text-slate-400">Daftar identitas korban, usia, jenis kelamin, serta status pencarian</p>
@@ -846,7 +801,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <div class="flex items-center gap-3">
           <div class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
             <span>Total POB:</span>
-            <input type="number" name="jumlah_pob" id="jumlah_pob" min="1" value="<?= e($operasi['jumlah_pob'] ?? '1') ?>" class="w-16 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-center font-mono font-bold text-xs" />
+            <input type="number" name="jumlah_pob" id="jumlah_pob" min="1" value="<?= e($operasi['jumlah_pob'] ?? '1') ?>" class="control control-sm w-16 text-center font-mono font-bold" />
           </div>
           <button type="button" onclick="addKorbanRow()" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
@@ -880,27 +835,27 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
               <td class="row-num py-3 px-2 text-center font-mono font-bold text-slate-400"><?= $idx + 1 ?></td>
               <td class="py-3 px-3">
                 <input type="hidden" name="korban[<?= $idx ?>][id_korban]" value="<?= (int)($k['id_korban'] ?? 0) ?>" />
-                <input type="text" name="korban[<?= $idx ?>][nama_korban]" required placeholder="Nama korban..." value="<?= e($k['nama_korban']) ?>" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-orange-500" />
+                <input type="text" name="korban[<?= $idx ?>][nama_korban]" required placeholder="Nama korban..." value="<?= e($k['nama_korban']) ?>" class="control control-sm w-full font-semibold" />
               </td>
               <td class="py-3 px-3">
-                <input type="text" name="korban[<?= $idx ?>][umur]" placeholder="Contoh: 35 Thn" value="<?= e($k['umur']) ?>" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-orange-500" />
+                <input type="text" name="korban[<?= $idx ?>][umur]" placeholder="Contoh: 35 Thn" value="<?= e($k['umur']) ?>" class="control control-sm w-full" />
               </td>
               <td class="py-3 px-3">
-                <select name="korban[<?= $idx ?>][jk]" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-orange-500">
+                <select name="korban[<?= $idx ?>][jk]" class="control control-sm w-full">
                   <option value="Laki-laki" <?= ($k['jk'] ?? '') === 'Laki-laki' ? 'selected' : '' ?>>Laki-laki</option>
                   <option value="Perempuan" <?= ($k['jk'] ?? '') === 'Perempuan' ? 'selected' : '' ?>>Perempuan</option>
                 </select>
               </td>
               <td class="py-3 px-3">
-                <select name="korban[<?= $idx ?>][status_korban]" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold focus:outline-none focus:ring-1 focus:ring-orange-500">
-                  <option value="DP" <?= ($k['status_korban'] ?? 'DP') === 'DP' ? 'selected' : '' ?>>🟡 Dalam Pencarian (DP)</option>
-                  <option value="S" <?= ($k['status_korban'] ?? '') === 'S' ? 'selected' : '' ?>>🟢 Selamat (S)</option>
-                  <option value="MD" <?= ($k['status_korban'] ?? '') === 'MD' ? 'selected' : '' ?>>🔴 Meninggal Dunia (MD)</option>
-                  <option value="H" <?= ($k['status_korban'] ?? '') === 'H' ? 'selected' : '' ?>>⚪ Hilang / Nihil (H)</option>
+                <select name="korban[<?= $idx ?>][status_korban]" class="control control-sm w-full font-bold">
+                  <option value="DP" <?= ($k['status_korban'] ?? 'DP') === 'DP' ? 'selected' : '' ?>>Dalam Pencarian (DP)</option>
+                  <option value="S" <?= ($k['status_korban'] ?? '') === 'S' ? 'selected' : '' ?>>Selamat (S)</option>
+                  <option value="MD" <?= ($k['status_korban'] ?? '') === 'MD' ? 'selected' : '' ?>>Meninggal Dunia (MD)</option>
+                  <option value="H" <?= ($k['status_korban'] ?? '') === 'H' ? 'selected' : '' ?>>Hilang / Nihil (H)</option>
                 </select>
               </td>
               <td class="py-3 px-3">
-                <input type="text" name="korban[<?= $idx ?>][alamat]" placeholder="Alamat domisili..." value="<?= e($k['alamat']) ?>" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-orange-500" />
+                <input type="text" name="korban[<?= $idx ?>][alamat]" placeholder="Alamat domisili..." value="<?= e($k['alamat']) ?>" class="control control-sm w-full" />
               </td>
               <td class="py-3 px-2 text-center">
                 <button type="button" onclick="removeKorbanRow(this)" class="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition cursor-pointer" title="Hapus Korban">
@@ -921,26 +876,25 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4 transition-colors">
         <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center font-black text-xs">
+            <div class="w-7 h-7 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-xs">
               06
             </div>
             <div>
-              <h3 class="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white">
                 6. Unsur SAR Terlibat
               </h3>
               <p class="text-[11px] text-slate-500 dark:text-slate-400">Pilih dari Master Data Tim Basarnas, atur jumlah personil, dan susun urutan prioritas</p>
             </div>
           </div>
-          <span class="text-[10px] font-mono text-slate-400">Personil & Satuan</span>
+          <span class="text-[11px] font-mono text-slate-400">Personil & Satuan</span>
         </div>
 
         <!-- Master Data Selector (Tanpa Rekomendasi Cepat Sesuai Permintaan) -->
         <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 space-y-3">
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <label class="text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
-              Pilih Master Tim / Unsur:
-            </label>
-            <select id="select-master-tim" onchange="pickMasterTim(this.value)" class="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <div class="field">
+              <label class="field-label">Pilih Master Tim / Unsur:</label>
+              <select id="select-master-tim" onchange="pickMasterTim(this.value)" class="field-input flex-1">
               <option value="">-- Cari / Pilih dari Master Data Tim Basarnas --</option>
               <?php foreach ($masterTim as $mt): ?>
                 <option value="<?= htmlspecialchars(json_encode(['id_tim' => $mt['id_tim'], 'nama_tim' => $mt['nama_tim']]), ENT_QUOTES, 'UTF-8') ?>">
@@ -948,6 +902,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                 </option>
               <?php endforeach; ?>
             </select>
+            </div>
           </div>
         </div>
 
@@ -955,10 +910,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40">
           <input type="hidden" id="unsur-input-id" value="">
           <div class="sm:col-span-8">
-            <input type="text" id="unsur-input-nama" placeholder="Ketik nama unsur (contoh: Tim Rescue KPP Kendari, Polairud)..." class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <input type="text" id="unsur-input-nama" placeholder="Ketik nama unsur (contoh: Tim Rescue KPP Kendari, Polairud)..." class="control control-sm w-full">
           </div>
           <div class="sm:col-span-3 flex items-center gap-1.5">
-            <input type="number" id="unsur-input-jml" min="1" max="999" value="1" placeholder="Qty" class="w-full px-2 py-2 text-xs text-center font-bold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <input type="number" id="unsur-input-jml" min="1" max="999" value="1" placeholder="Qty" class="control control-sm w-full text-center font-bold">
             <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">Org</span>
           </div>
           <div class="sm:col-span-1">
@@ -982,26 +937,25 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4 transition-colors">
         <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center font-black text-xs">
+            <div class="w-7 h-7 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-xs">
               07
             </div>
             <div>
-              <h3 class="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white">
                 7. Alut & Palsar Terlibat
               </h3>
               <p class="text-[11px] text-slate-500 dark:text-slate-400">Pilih dari Master Data Alut Basarnas, atur jumlah, dan susun urutan prioritas</p>
             </div>
           </div>
-          <span class="text-[10px] font-mono text-slate-400">Armada & Alat</span>
+          <span class="text-[11px] font-mono text-slate-400">Armada & Alat</span>
         </div>
 
         <!-- Master Data Selector & Preset Chips -->
         <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 space-y-3">
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-            <label class="text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">
-              Pilih Master Alut:
-            </label>
-            <select id="select-master-alut" onchange="pickMasterAlut(this.value)" class="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <div class="field">
+              <label class="field-label">Pilih Master Alut:</label>
+              <select id="select-master-alut" onchange="pickMasterAlut(this.value)" class="field-input flex-1">
               <option value="">-- Cari / Pilih dari Master Data Alut Basarnas --</option>
               <?php foreach ($masterAlut as $ma): ?>
                 <option value="<?= htmlspecialchars(json_encode(['id_alut' => $ma['id_alut'], 'nama_alut' => $ma['nama_alut'], 'satuan' => $ma['satuan'] ?? 'Unit', 'kategori' => $ma['kategori'] ?? 'ALUT']), ENT_QUOTES, 'UTF-8') ?>">
@@ -1009,6 +963,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                 </option>
               <?php endforeach; ?>
             </select>
+            </div>
           </div>
         </div>
 
@@ -1016,13 +971,13 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40">
           <input type="hidden" id="alut-input-id" value="">
           <div class="sm:col-span-7">
-            <input type="text" id="alut-input-nama" placeholder="Ketik nama alut / palsar (contoh: Mobil Rescue, RIB 01)..." class="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <input type="text" id="alut-input-nama" placeholder="Ketik nama alut / palsar (contoh: Mobil Rescue, RIB 01)..." class="control control-sm w-full">
           </div>
           <div class="sm:col-span-2">
-            <input type="number" id="alut-input-jml" min="1" max="999" value="1" placeholder="Qty" class="w-full px-2 py-2 text-xs text-center font-bold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <input type="number" id="alut-input-jml" min="1" max="999" value="1" placeholder="Qty" class="control control-sm w-full text-center font-bold">
           </div>
           <div class="sm:col-span-2">
-            <select id="alut-input-satuan" class="w-full px-2 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <select id="alut-input-satuan" class="control control-sm w-full">
               <option value="Unit">Unit</option>
               <option value="Set">Set</option>
               <option value="Buah">Buah</option>
@@ -1054,92 +1009,60 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-black text-xs">
+          <div class="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold text-xs">
             08
           </div>
           <div>
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+            <h2 class="text-sm font-bold text-slate-900 dark:text-white">
               8. Kondisi Cuaca & Faktor Penghambat
             </h2>
             <p class="text-xs text-slate-500 dark:text-slate-400">Data meteorologi BMKG dan kendala operasional di lapangan</p>
           </div>
         </div>
-        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30">
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30">
           BMKG & KENDALA
         </span>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Kondisi Cuaca (BMKG)
-          </label>
-          <input type="text" name="cuaca" id="cuaca"
+          <div class="field">
+            <label class="field-label">Kondisi Cuaca (BMKG)</label>
+            <input class="field-input w-full" type="text" name="cuaca" id="cuaca"
             placeholder="Contoh: Cerah Berawan"
-            value="<?= e($operasi['cuaca'] ?? 'Cerah Berawan') ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
-          
-          <div class="flex flex-wrap items-center gap-1 mt-1.5">
-            <?php foreach (['Cerah Berawan', 'Berawan', 'Hujan Ringan', 'Hujan Sedang'] as $c): ?>
-              <button type="button" onclick="document.getElementById('cuaca').value='<?= $c ?>'" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-orange-500">
-                <?= $c ?>
-              </button>
-            <?php endforeach; ?>
+            value="<?= e($operasi['cuaca'] ?? '') ?>"  />
           </div>
+          
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Tinggi Gelombang
-          </label>
-          <input type="text" name="gelombang" id="gelombang"
+          <div class="field">
+            <label class="field-label">Tinggi Gelombang</label>
+            <input class="field-input w-full" type="text" name="gelombang" id="gelombang"
             placeholder="Contoh: 0.5 - 1.25 M"
-            value="<?= e($operasi['gelombang'] ?? '0.5 - 1.25 M') ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
-          
-          <div class="flex flex-wrap items-center gap-1 mt-1.5">
-            <?php foreach (['0.5 - 1.25 M', '1.25 - 2.5 M', '2.5 - 4.0 M'] as $g): ?>
-              <button type="button" onclick="document.getElementById('gelombang').value='<?= $g ?>'" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-orange-500">
-                <?= $g ?>
-              </button>
-            <?php endforeach; ?>
+            value="<?= e($operasi['gelombang'] ?? '') ?>"  />
           </div>
+          
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Arah & Kecepatan Angin
-          </label>
-          <input type="text" name="angin" id="angin"
+          <div class="field">
+            <label class="field-label">Arah & Kecepatan Angin</label>
+            <input class="field-input w-full" type="text" name="angin" id="angin"
             placeholder="Contoh: Barat Daya, 5 - 15 Knots"
-            value="<?= e($operasi['angin'] ?? 'Barat Daya, 5 - 15 Knots') ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
-          
-          <div class="flex flex-wrap items-center gap-1 mt-1.5">
-            <?php foreach (['Barat Daya, 5-15 Knots', 'Timur Laut, 10-20 Knots', 'Selatan, 5-10 Knots'] as $a): ?>
-              <button type="button" onclick="document.getElementById('angin').value='<?= $a ?>'" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-orange-500">
-                <?= $a ?>
-              </button>
-            <?php endforeach; ?>
+            value="<?= e($operasi['angin'] ?? '') ?>"  />
           </div>
+          
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Faktor Penghambat
-          </label>
-          <input type="text" name="faktor_penghambat" id="faktor_penghambat"
+          <div class="field">
+            <label class="field-label">Faktor Penghambat</label>
+            <input class="field-input w-full" type="text" name="faktor_penghambat" id="faktor_penghambat"
             placeholder="Contoh: Nihil / Arus Deras"
-            value="<?= e($operasi['faktor_penghambat'] ?? 'Nihil') ?>"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
-          
-          <div class="flex flex-wrap items-center gap-1 mt-1.5">
-            <?php foreach (['Nihil', 'Arus Deras', 'Jarak Pandang Terbatas', 'Blank Spot'] as $fp): ?>
-              <button type="button" onclick="document.getElementById('faktor_penghambat').value='<?= $fp ?>'" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-orange-500">
-                <?= $fp ?>
-              </button>
-            <?php endforeach; ?>
+            value="<?= e($operasi['faktor_penghambat'] ?? 'Nihil') ?>"  />
           </div>
+          
         </div>
       </div>
     </div>
@@ -1156,7 +1079,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
           <span>Pratinjau Format WA</span>
         </button>
 
-        <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-95 text-white font-black text-xs shadow-lg shadow-orange-600/30 transition cursor-pointer">
+        <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-95 text-white font-bold text-xs transition cursor-pointer">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           <span><?= $editMode ? 'Simpan Perubahan' : 'Inisiasi & Terbitkan Laporan Awal' ?></span>
         </button>
@@ -1176,7 +1099,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Pratinjau Format WhatsApp Resmi</h3>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Pratinjau Format WhatsApp Resmi</h3>
           <p class="text-[11px] text-slate-400">Format pesan baku FILE AKTIF Basarnas Kendari</p>
         </div>
       </div>
@@ -1212,7 +1135,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Asisten AI Kronologi Basarnas</h3>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Asisten AI Kronologi Basarnas</h3>
           <p class="text-[11px] text-slate-400">Menyusun ulang dan merapikan kalimat laporan mentah menjadi format narasi resmi</p>
         </div>
       </div>
@@ -1223,38 +1146,25 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 
     <div class="p-6 space-y-4 overflow-y-auto">
       <div>
-        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Laporan / Catatan Mentah dari Pelapor:
-        </label>
-        <textarea id="ai-draft-input" rows="4" placeholder="Tuliskan cerita/laporan mentah kejadian di sini (contoh: kemarin sore sekitar jam 5 terjadi kapal mati mesin di selat buton, korban 2 orang...)" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"></textarea>
-        <p class="text-[10px] text-purple-600 dark:text-purple-400 mt-1">💡 Asisten AI berfokus penuh menyusun ulang kalimat laporan mentah di atas tanpa mengubah waktu atau alur kejadian yang Anda tulis.</p>
-
-        <!-- Presets inside modal -->
-        <div class="flex flex-wrap items-center gap-1.5 mt-2">
-          <span class="text-[10px] text-slate-400 font-semibold mr-1">Preset Cepat:</span>
-          <button type="button" onclick="setAiDraftInput('Perahu nelayan/longboat dengan mesin mati dilaporkan terombang-ambing di perairan akibat cuaca buruk dan kehabisan bahan bakar. Korban meminta pertolongan SAR.')" class="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition cursor-pointer">
-            🚢 Mesin Mati di Laut
-          </button>
-          <button type="button" onclick="setAiDraftInput('Korban pergi melaut seorang diri menggunakan perahu nelayan, namun hingga waktu yang ditentukan korban belum kembali ke dermaga. Perahu ditemukan dalam keadaan kosong.')" class="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition cursor-pointer">
-            🎣 Nelayan Belum Kembali
-          </button>
-          <button type="button" onclick="setAiDraftInput('Korban berenang/mandi di pantai/sungai kemudian terseret ombak dan arus deras lalu tenggelam. Warga sempat mencari namun hasil masih nihil.')" class="px-2 py-0.5 rounded-lg text-[10px] font-medium bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 transition cursor-pointer">
-            🌊 Korban Tenggelam
-          </button>
+        <div class="field">
+          <label class="field-label">Laporan / Catatan Mentah dari Pelapor:</label>
+          <textarea id="ai-draft-input" rows="4" placeholder="Tuliskan cerita/laporan mentah kejadian di sini (contoh: kemarin sore sekitar jam 5 terjadi kapal mati mesin di selat buton, korban 2 orang...)" class="field-input w-full"></textarea>
         </div>
+        <p class="text-[11px] text-purple-600 dark:text-purple-400 mt-1">Asisten AI berfokus penuh menyusun ulang kalimat laporan mentah di atas tanpa mengubah waktu atau alur kejadian yang Anda tulis.</p>
+
       </div>
 
       <div class="flex justify-end">
         <button type="button" id="btn-generate-ai" onclick="generateAiKronologi()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm transition cursor-pointer">
-          ⚡ Susun Narasi Resmi
+          Susun Narasi Resmi
         </button>
       </div>
 
       <div>
-        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-          Hasil Narasi Kronologi Resmi Basarnas:
-        </label>
-        <textarea id="ai-result-output" rows="4" placeholder="Hasil olahan narasi AI akan muncul di sini..." class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs leading-relaxed font-mono focus:outline-none"></textarea>
+        <div class="field">
+          <label class="field-label">Hasil Narasi Kronologi Resmi Basarnas:</label>
+          <textarea id="ai-result-output" rows="4" placeholder="Hasil olahan narasi AI akan muncul di sini..." class="field-input w-full leading-relaxed font-mono"></textarea>
+        </div>
       </div>
     </div>
 
@@ -1275,13 +1185,13 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     <!-- Modal Header -->
     <div class="px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/80 shrink-0">
       <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center text-base font-black">
+        <div class="w-9 h-9 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center text-base font-bold">
           🗺️
         </div>
         <div>
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <span>Peta Taktis LKP & Plotting Jalur Tempuh SAR (Fullscreen)</span>
-            <span id="map-modal-route-mode-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+            <span id="map-modal-route-mode-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
               GARIS LURUS
             </span>
           </h3>
@@ -1292,10 +1202,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <!-- Quick Actions & Close -->
       <div class="flex items-center gap-2 shrink-0">
         <button type="button" onclick="centerMapOnLkp(true)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
-          🎯 Ke LKP
+          Ke LKP
         </button>
         <button type="button" onclick="centerMapOnOrigin(true)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
-          🏢 Ke Pangkalan
+          Ke Pangkalan
         </button>
         <button type="button" onclick="closeFullscreenMapModal()" class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
           ✕
@@ -1323,17 +1233,17 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
           </div>
           <div id="map-modal-manual-actions" class="hidden flex items-center gap-1.5 pt-1 border-t border-white/10">
             <button type="button" onclick="undoLastWaypoint()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-white border border-amber-500/30 transition cursor-pointer">
-              ↩️ Undo Titik
+              Undo Titik
             </button>
             <button type="button" onclick="clearManualRouteWaypoints()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/30 transition cursor-pointer">
-              🗑️ Reset Jalur
+              Reset Jalur
             </button>
-            <span id="map-modal-waypoint-count-pill" class="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">
+            <span id="map-modal-waypoint-count-pill" class="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">
               0 WP
             </span>
           </div>
-          <p class="text-[10px] text-slate-300 leading-tight">
-            💡 Pada mode manual, klik di atas peta laut untuk menambah waypoint belokan. Titik LKP dapat digeser kapan saja.
+          <p class="text-[11px] text-slate-300 leading-tight">
+            Pada mode manual, klik di atas peta laut untuk menambah waypoint belokan. Titik LKP dapat digeser kapan saja.
           </p>
         </div>
       </div>
@@ -1341,16 +1251,16 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <!-- Floating Live Metrics Pill -->
       <div class="absolute bottom-4 left-4 z-[1000] p-3 rounded-2xl bg-slate-900/90 backdrop-blur-md border border-white/20 shadow-xl text-white flex items-center gap-4 pointer-events-auto">
         <div>
-          <span class="text-[10px] text-slate-400 block">Jarak Total:</span>
+          <span class="text-[11px] text-slate-400 block">Jarak Total:</span>
           <strong id="map-modal-tactical-dist" class="font-mono text-sm text-orange-400 font-bold">0.0 NM</strong>
           <span id="map-modal-tactical-km" class="text-[11px] text-slate-400 font-mono">(0.0 KM)</span>
         </div>
         <div class="border-l border-white/15 pl-3">
-          <span class="text-[10px] text-slate-400 block">Radial / Heading:</span>
+          <span class="text-[11px] text-slate-400 block">Radial / Heading:</span>
           <strong id="map-modal-tactical-radial" class="font-mono text-sm text-slate-200 font-bold">000°</strong>
         </div>
         <div class="border-l border-white/15 pl-3">
-          <span class="text-[10px] text-slate-400 block">Estimasi ETA:</span>
+          <span class="text-[11px] text-slate-400 block">Estimasi ETA:</span>
           <strong id="map-modal-tactical-eta" class="font-mono text-sm text-emerald-400 font-bold">-</strong>
         </div>
       </div>
@@ -1361,7 +1271,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <button type="button" onclick="closeFullscreenMapModal()" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
         Tutup
       </button>
-      <button type="button" onclick="applyAndCloseFullscreenMapModal()" class="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-md transition cursor-pointer">
+      <button type="button" onclick="applyAndCloseFullscreenMapModal()" class="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition cursor-pointer">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
         <span>Terapkan Hasil Plotting & Tutup</span>
       </button>
@@ -1381,5 +1291,5 @@ window.__OPS_FORM_CONFIG__ = <?= jsonSafe([
     'initialCoord' => !empty($operasi['koordinat']) ? $operasi['koordinat'] : '04° 02\' 16" S - 122° 29\' 12" E'
 ]) ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/pages/operasi_form_map.js?v=<?= APP_VERSION ?>"></script>
-<script src="<?= BASE_URL ?>/assets/js/pages/operasi_form.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/js/pages/operasi_form_map.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/pages/operasi_form.js') ?>"></script>

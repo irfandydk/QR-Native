@@ -65,6 +65,31 @@ class LaporanModel {
         return $row;
     }
 
+    /**
+     * Snapshot unsur & alut SITREP: input form, lalu SITREP tersimpan (mode edit), lalu data operasi.
+     */
+    public static function resolveUnsurAlut(array $ops, array $data, ?array $existing = null): array {
+        $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : (($existing['detail_unsur'] ?? null) ?: ($ops['detail_unsur'] ?? []));
+        $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : (($existing['detail_alut'] ?? null) ?: ($ops['detail_alut'] ?? []));
+        return [$unsur, $alut];
+    }
+
+    /**
+     * Pratinjau naskah WA SITREP/Penutupan dari isi form (tanpa menyimpan), generator sama dengan create/update.
+     * Status korban dari form (update_korban) diterapkan di memori saja, sama seperti sebelum WA dibuat saat simpan.
+     */
+    public static function buildPreviewWa(array $ops, array $data, ?array $existing = null): string {
+        $statusBaru = is_array($data['update_korban'] ?? null) ? $data['update_korban'] : [];
+        foreach ($ops['korban'] ?? [] as $i => $k) {
+            if (isset($statusBaru[$k['id_korban']])) {
+                $ops['korban'][$i]['status_korban'] = strtoupper(trim((string)$statusBaru[$k['id_korban']]));
+            }
+        }
+        [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $existing);
+        $isPenutupan = strtoupper($data['jenis_laporan'] ?? ($existing['jenis_laporan'] ?? '')) === 'PENUTUPAN';
+        return TemplateHelper::generateLapbangWA($ops, $data, $ops['korban'] ?? [], $unsur, $alut, $isPenutupan);
+    }
+
     public static function create(array $data): int {
         $db = getDB();
         $db->beginTransaction();
@@ -99,8 +124,7 @@ class LaporanModel {
             }
 
             $isPenutupan = strtoupper($data['jenis_laporan'] ?? '') === 'PENUTUPAN';
-            $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : ($ops['detail_unsur'] ?? []);
-            $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : ($ops['detail_alut'] ?? []);
+            [$unsur, $alut] = self::resolveUnsurAlut($ops, $data);
             
             // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
             $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($ops['unsur_terlibat'] ?? ''));
@@ -136,7 +160,7 @@ class LaporanModel {
                 ':jenis_laporan' => $isPenutupan ? 'PENUTUPAN' : 'PERKEMBANGAN',
                 ':isi_laporan' => $data['isi_laporan'] ?? '',
                 ':waktu_debrief' => $waktuDebrief,
-                ':cuaca' => $data['cuaca'] ?? ($ops['cuaca'] ?: 'Cerah Berawan'),
+                ':cuaca' => $data['cuaca'] ?? ($ops['cuaca'] ?? ''),
                 ':unsur_text' => $unsurText,
                 ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
@@ -203,8 +227,7 @@ class LaporanModel {
                 }
             }
 
-            $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : ($lap['detail_unsur'] ?: ($ops['detail_unsur'] ?? []));
-            $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : ($lap['detail_alut'] ?: ($ops['detail_alut'] ?? []));
+            [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $lap);
 
             // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
             $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($lap['unsur_text'] ?: ($ops['unsur_terlibat'] ?? '')));
@@ -241,7 +264,7 @@ class LaporanModel {
                 ':jenis_laporan' => $isPenutupan ? 'PENUTUPAN' : 'PERKEMBANGAN',
                 ':isi_laporan' => $data['isi_laporan'] ?? $lap['isi_laporan'],
                 ':waktu_debrief' => $waktuDebrief,
-                ':cuaca' => $data['cuaca'] ?? ($lap['cuaca'] ?: ($ops['cuaca'] ?: 'Cerah Berawan')),
+                ':cuaca' => $data['cuaca'] ?? ($lap['cuaca'] ?: ($ops['cuaca'] ?? '')),
                 ':unsur_text' => $unsurText,
                 ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
@@ -268,6 +291,8 @@ class LaporanModel {
     public static function delete(int $id): bool {
         $db = getDB();
         $stmt = $db->prepare("DELETE FROM LaporanHarian WHERE id_laporan = :id");
-        return $stmt->execute([':id' => $id]);
+        $ok = $stmt->execute([':id' => $id]);
+        DocVerifyHelper::forgetDocTokens([DocVerifyHelper::TYPE_SITREP, DocVerifyHelper::TYPE_PENUTUPAN], $id);
+        return $ok;
     }
 }

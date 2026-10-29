@@ -42,7 +42,7 @@ $logoUrl = $logoUrl ?? getAppLogoUrl();
               <span>Pilih Berkas Logo</span>
               <input type="file" name="logo_file" accept="image/*" class="hidden" onchange="previewLogoFile(this)" />
             </label>
-            <input type="text" name="logo_url" value="<?= e($settings['logo_url'] ?? '') ?>" placeholder="Atau tempel URL gambar logo..." class="flex-1 min-w-[200px] px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <input type="text" name="logo_url" value="<?= e($settings['logo_url'] ?? '') ?>" placeholder="Atau tempel URL gambar logo..." class="control control-sm flex-1 min-w-[200px]" />
           </div>
         </div>
       </div>
@@ -51,58 +51,58 @@ $logoUrl = $logoUrl ?? getAppLogoUrl();
         
         <!-- Kode Satker -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Kode Satuan Kerja (Satker) <span class="text-red-500">*</span>
-          </label>
-          <input type="text" name="satker_kode" value="<?= e($settings['satker_kode'] ?? 'SAR-304') ?>" required placeholder="SAR-304" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Kode Satuan Kerja (Satker) <span class="text-red-500">*</span></label>
+            <input class="field-input w-full font-mono font-bold" type="text" name="satker_kode" value="<?= e($settings['satker_kode'] ?? 'SAR-304') ?>" required placeholder="SAR-304"  />
+          </div>
         </div>
 
         <!-- Call Sign Radio -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Call Sign Radio Kantor
-          </label>
-          <input type="text" name="call_sign" value="<?= e($settings['call_sign'] ?? 'KANSAR KENDARI') ?>" placeholder="KANSAR KENDARI" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Call Sign Radio Kantor</label>
+            <input class="field-input w-full font-mono font-bold" type="text" name="call_sign" value="<?= e($settings['call_sign'] ?? 'KANSAR KENDARI') ?>" placeholder="KANSAR KENDARI"  />
+          </div>
         </div>
 
         <!-- Nama Satker Lengkap -->
         <div class="sm:col-span-2">
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Nama Satuan Kerja Lengkap <span class="text-red-500">*</span>
-          </label>
-          <input type="text" name="satker_nama" value="<?= e($settings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI') ?>" required placeholder="KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-bold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Nama Satuan Kerja Lengkap <span class="text-red-500">*</span></label>
+            <input class="field-input w-full font-bold" type="text" name="satker_nama" value="<?= e($settings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI') ?>" required placeholder="KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI"  />
+          </div>
         </div>
 
         <!-- Alamat Lengkap -->
         <div class="sm:col-span-2">
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Alamat Kantor & Wilayah Kerja
-          </label>
-          <textarea name="alamat" rows="2" placeholder="Alamat lengkap kantor..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500"><?= e($settings['alamat'] ?? 'Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan, Sulawesi Tenggara') ?></textarea>
+          <div class="field">
+            <label class="field-label">Alamat Kantor & Wilayah Kerja</label>
+            <textarea name="alamat" rows="2" placeholder="Alamat lengkap kantor..." class="field-input w-full"><?= e($settings['alamat'] ?? 'Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan, Sulawesi Tenggara') ?></textarea>
+          </div>
         </div>
 
         <!-- No Telepon / Emergency -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Telepon Kantor / Emergency Call Center
-          </label>
-          <input type="text" name="no_telp" value="<?= e($settings['no_telp'] ?? '(0401) 3122115 / Emergency 115') ?>" placeholder="(0401) 3122115 / Emergency 115" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Telepon Kantor / Emergency Call Center</label>
+            <input class="field-input w-full" type="text" name="no_telp" value="<?= e($settings['no_telp'] ?? '(0401) 3122115 / Emergency 115') ?>" placeholder="(0401) 3122115 / Emergency 115"  />
+          </div>
         </div>
 
         <!-- Frekuensi Default -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Frekuensi Komunikasi SAR Default
-          </label>
-          <input type="text" name="frekuensi_default" value="<?= e($settings['frekuensi_default'] ?? '115.000 MHz / 5827 kHz') ?>" placeholder="115.000 MHz / 5827 kHz" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Frekuensi Komunikasi SAR Default</label>
+            <input class="field-input w-full font-mono" type="text" name="frekuensi_default" value="<?= e($settings['frekuensi_default'] ?? '115.000 MHz / 5827 kHz') ?>" placeholder="115.000 MHz / 5827 kHz"  />
+          </div>
         </div>
 
         <!-- Email Kantor -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Email Resmi Kantor SAR
-          </label>
-          <input type="email" name="email" value="<?= e($settings['email'] ?? 'sar_kendari@basarnas.go.id') ?>" placeholder="sar_kendari@basarnas.go.id" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Email Resmi Kantor SAR</label>
+            <input class="field-input w-full" type="email" name="email" value="<?= e($settings['email'] ?? 'sar_kendari@basarnas.go.id') ?>" placeholder="sar_kendari@basarnas.go.id"  />
+          </div>
         </div>
 
         <!-- Gemini AI API Key (Versi Terbaru Gemini 2.5 Flash) -->
@@ -111,11 +111,35 @@ $logoUrl = $logoUrl ?? getAppLogoUrl();
             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
               Google Gemini API Key (AI Assistant)
             </label>
-            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">
+            <span class="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">
               GEMINI 2.5 FLASH
             </span>
           </div>
-          <input type="password" name="gemini_api_key" value="<?= e($settings['gemini_api_key'] ?? '') ?>" placeholder="AIzaSy... (Opsional, untuk asisten narasi pintar)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <input type="password" name="gemini_api_key" value="<?= e($settings['gemini_api_key'] ?? '') ?>" placeholder="AIzaSy... (Opsional, untuk asisten narasi pintar)" class="control control-sm w-full font-mono" />
+        </div>
+
+        <!-- Gaya Tampilan Aplikasi (Klasik / Minimal Glass) -->
+        <?php $uiThemeSel = (($settings['ui_theme'] ?? 'klasik') === 'minimal') ? 'minimal' : 'klasik'; ?>
+        <div class="sm:col-span-2 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 space-y-3">
+          <div>
+            <p class="text-xs font-bold text-slate-900 dark:text-white">Gaya Tampilan Aplikasi</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Mengubah tampilan seluruh halaman (login hingga semua modul) untuk semua petugas. Alur kerja dan data tidak berubah.</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <?php foreach ([
+              'klasik' => ['Klasik', 'Tampilan standar QR-SAR saat ini.', 'linear-gradient(135deg,#f8fafc 0%,#f8fafc 60%,#ea580c 60%)'],
+              'minimal' => ['Minimal Glass', 'Minimalis & membulat, font Inter, sidebar kaca dengan animasi halus.', 'linear-gradient(135deg,rgba(255,255,255,.9) 0%,#eef0f3 55%,#ea6a1f 55%)'],
+            ] as $val => [$nama, $desc, $swatch]): ?>
+            <label class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all <?= $uiThemeSel === $val ? 'border-orange-500 bg-orange-500/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900' ?>">
+              <input type="radio" name="ui_theme" value="<?= $val ?>" <?= $uiThemeSel === $val ? 'checked' : '' ?> class="text-orange-500 focus:ring-orange-500">
+              <span class="w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0" style="background: <?= $swatch ?>;" aria-hidden="true"></span>
+              <span class="flex-1">
+                <span class="block text-xs font-bold text-slate-900 dark:text-white"><?= $nama ?></span>
+                <span class="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5"><?= $desc ?></span>
+              </span>
+            </label>
+            <?php endforeach; ?>
+          </div>
         </div>
 
         <!-- Pengaturan Tema Global Sistem -->
@@ -129,7 +153,7 @@ $logoUrl = $logoUrl ?? getAppLogoUrl();
                 Pilihan tema yang berlaku secara global di seluruh modul (Dashboard, Form SAR, Ploting Peta, BRA SAR, hingga Pengaturan Admin).
               </p>
             </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
               SINKRON OTOMATIS
             </span>
           </div>
@@ -140,10 +164,10 @@ $logoUrl = $logoUrl ?? getAppLogoUrl();
               <input type="radio" name="default_theme" value="dark" <?= ($settings['default_theme'] ?? 'dark') === 'dark' ? 'checked' : '' ?> class="text-orange-500 focus:ring-orange-500" onchange="if(window.setAppTheme) window.setAppTheme('dark', true)" />
               <div class="flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="text-xs font-bold text-slate-900 dark:text-white">🌙 Mode Gelap (Dark Mode)</span>
-                  <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">Default</span>
+                  <span class="text-xs font-bold text-slate-900 dark:text-white">Mode Gelap (Dark Mode)</span>
+                  <span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-bold">Default</span>
                 </div>
-                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Standar taktis Basarnas untuk siaga operasional 24 jam</p>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Standar taktis Basarnas untuk siaga operasional 24 jam</p>
               </div>
             </label>
 
@@ -152,9 +176,9 @@ $logoUrl = $logoUrl ?? getAppLogoUrl();
               <input type="radio" name="default_theme" value="light" <?= ($settings['default_theme'] ?? 'dark') === 'light' ? 'checked' : '' ?> class="text-orange-500 focus:ring-orange-500" onchange="if(window.setAppTheme) window.setAppTheme('light', true)" />
               <div class="flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="text-xs font-bold text-slate-900 dark:text-white">☀️ Mode Terang (Light Mode)</span>
+                  <span class="text-xs font-bold text-slate-900 dark:text-white">Mode Terang (Light Mode)</span>
                 </div>
-                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Latar bersih kontras tinggi cocok untuk cetak dan luar ruangan</p>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Latar bersih kontras tinggi cocok untuk cetak dan luar ruangan</p>
               </div>
             </label>
           </div>
@@ -163,7 +187,7 @@ $logoUrl = $logoUrl ?? getAppLogoUrl();
       </div>
 
       <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md shadow-orange-600/30 transition-all cursor-pointer">
+        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs transition-all cursor-pointer">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           <span>Simpan Pengaturan Satker</span>
         </button>

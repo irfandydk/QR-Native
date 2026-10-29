@@ -105,7 +105,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Berita Acara Penutupan - <?= e($operasi['nama_operasi']) ?> - BASARNAS</title>
     <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/images/logo_basarnas.svg">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="<?= assetUrl('assets/css/tailwind.css') ?>">
     <style>
         @page {
             size: A4 portrait;
@@ -295,17 +295,17 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                 </div>
 
                 <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=PENUTUPAN" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-950/60 hover:bg-orange-900/70 border border-orange-700/60 text-xs font-semibold text-orange-300 transition" title="Capture / Perbarui Area Peta 16:9 untuk Berita Acara Penutupan ini (1x)">
-                    <span>📸 Capture Peta 16:9</span>
+                    <span>Capture Peta 16:9</span>
                 </a>
 
-                <button type="button" id="btnDownloadPdf" data-pdf-filename="BERITA_ACARA_PENUTUPAN_OPS_<?= (int)$id ?>_<?= e($operasi['nama_operasi']) ?>" onclick="downloadOfficialPdf(null, this)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="Download Dokumen Elektronik PDF (Ukuran Optimal A4 Portrait)">
+                <button type="button" id="btnDownloadPdf" data-pdf-filename="BERITA_ACARA_PENUTUPAN_OPS_<?= (int)$id ?>_<?= e($operasi['nama_operasi']) ?>" onclick="downloadOfficialPdf(null, this)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="PDF berbentuk gambar (teks tidak bisa dicari). Untuk naskah resmi gunakan Cetak / Simpan PDF.">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-                    <span>Download PDF</span>
+                    <span>PDF Gambar</span>
                 </button>
 
-                <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-sm cursor-pointer">
+                <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="Naskah resmi: teks tajam &amp; bisa dicari. Pilih &quot;Simpan sebagai PDF&quot; pada dialog cetak.">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
-                    <span>Cetak Berita Acara</span>
+                    <span>Cetak / Simpan PDF</span>
                 </button>
             </div>
         </div>
@@ -315,62 +315,13 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
     <main class="flex-1 flex justify-center py-4 px-2">
         <article id="official-penutupan-doc" class="page-sheet text-black text-[10pt] leading-relaxed font-serif">
             
-            <!-- KOP SURAT RESMI BASARNAS SESUAI STANDAR TERBARU -->
-            <div class="kop-surat-container w-full mb-3 text-black" style="font-family: Arial, Helvetica, sans-serif !important;">
-                <table class="kop-table" style="width: 100% !important; border: none !important; border-collapse: collapse !important; table-layout: auto !important; margin: 0 !important; padding: 0 !important;">
-                    <tr>
-                        <!-- Kolom Kiri: Logo Basarnas Sirkular (Tanpa Teks BASARNAS di Bawahnya) -->
-                        <td style="width: 80px; vertical-align: middle; text-align: center; border: none !important; padding: 0 !important;">
-                            <div style="width: 75px; height: 75px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
-                                <?php if (!empty($customLogo)): ?>
-                                    <img src="<?= htmlspecialchars($customLogo) ?>" alt="Logo Basarnas" style="width: 100%; height: 100%; object-fit: contain;">
-                                <?php else: ?>
-                                    <img src="<?= BASE_URL ?>/assets/images/logo_basarnas.svg" alt="Logo Basarnas" style="width: 100%; height: 100%; object-fit: contain;">
-                                <?php endif; ?>
-                            </div>
-                        </td>
-
-                        <!-- Kolom Tengah: Teks Kop Surat Lengkap Rata Tengah -->
-                        <td style="vertical-align: middle; text-align: center; border: none !important; padding: 0 4px !important;">
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 13pt !important; font-weight: bold !important; text-transform: uppercase !important; line-height: 1.25; color: #000000; letter-spacing: 0.02em;">
-                                BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
-                            </div>
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 14pt !important; font-weight: bold !important; text-transform: uppercase !important; line-height: 1.25; color: #000000; margin-top: 1px; letter-spacing: 0.02em;">
-                                KANTOR PENCARIAN DAN PERTOLONGAN
-                            </div>
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 16pt !important; font-weight: 900 !important; text-transform: uppercase !important; line-height: 1.2; color: #000000; margin-top: 1px; letter-spacing: 0.04em;">
-                                KENDARI
-                            </div>
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 8.5pt !important; font-weight: normal !important; line-height: 1.35; color: #000000; margin-top: 4px; white-space: nowrap !important;">
-                                Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sulawesi Tenggara 93116
-                            </div>
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 8.5pt !important; font-weight: normal !important; line-height: 1.35; color: #000000; white-space: nowrap !important;">
-                                Telepon: (0401) 3196557 &bull; Faksimile: (0401) 3196558 &bull; Emergency Call: 115
-                            </div>
-                            <div style="font-family: Arial, Helvetica, sans-serif !important; font-size: 8.5pt !important; font-style: italic !important; line-height: 1.35; color: #000000; white-space: nowrap !important;">
-                                Website: kendari.basarnas.go.id &bull; Email: sar304kendari@gmail.com
-                            </div>
-                        </td>
-
-                        <!-- Kolom Kanan: Spacer Penyeimbang (Sama Lebar dengan Kolom Logo agar Teks Tepat di Tengah Halaman) -->
-                        <td style="width: 80px; vertical-align: middle; border: none !important; padding: 0 !important;"></td>
-                    </tr>
-                </table>
-
-                <!-- GARIS GANDA KOP DINAS (Double Horizontal Line) -->
-                <div style="width: 100% !important; margin-top: 6px; margin-bottom: 12px; border-bottom: 2.5px solid #000000; padding-bottom: 1.5px;">
-                    <div style="border-bottom: 1px solid #000000;"></div>
-                </div>
-            </div>
+            <!-- KOP SURAT RESMI BASARNAS (partial bersama) -->
+            <?php include __DIR__ . '/partials/print_kop.php'; ?>
 
             <!-- JUDUL DOKUMEN & NOMOR DINAS -->
             <div class="text-center my-4">
-                <h2 class="text-[11.5pt] font-black uppercase tracking-wide underline underline-offset-4 m-0">
-                    BERITA ACARA PENGUSULAN PENUTUPAN OPERASI PENCARIAN DAN PERTOLONGAN
-                </h2>
-                <p class="text-[9.5pt] font-mono font-bold text-slate-800 mt-1 m-0">
-                    Nomor : <?= e($nomorBA) ?>
-                </p>
+                <h2 class="doc-title">BERITA ACARA PENGUSULAN PENUTUPAN OPERASI PENCARIAN DAN PERTOLONGAN</h2>
+                <div class="doc-number mt-1">Nomor : <?= e($nomorBA) ?></div>
             </div>
 
             <!-- PARAGRAF PEMBUKA -->
@@ -408,9 +359,10 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                         <td class="text-center">:</td>
                         <td class="font-bold">
                             Total <?= $statsKorban['total_pob'] ?> Orang &mdash; 
-                            <span class="text-emerald-700 font-semibold">Selamat: <?= $statsKorban['selamat'] ?> Orang</span>, 
-                            <span class="text-rose-700 font-semibold">Meninggal Dunia: <?= $statsKorban['meninggal'] ?> Orang</span>, 
-                            <span class="text-amber-700 font-semibold">Hilang / DP: <?= $statsKorban['dalam_pencarian'] ?> Orang</span>
+                            <span class="text-black font-semibold">Selamat: <?= $statsKorban['selamat'] ?> Orang</span>, 
+                            <span class="text-black font-semibold">Meninggal Dunia: <?= $statsKorban['meninggal'] ?> Orang</span>,
+                            <span class="text-black font-semibold">Dalam Pencarian: <?= $statsKorban['dalam_pencarian'] ?> Orang</span>,
+                            <span class="text-black font-semibold">Hilang: <?= $statsKorban['hilang'] ?> Orang</span>
                         </td>
                     </tr>
                 </table>
@@ -422,7 +374,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                     HASIL EVALUASI DAN PERTIMBANGAN PENUTUPAN:
                 </p>
                 <div class="border border-slate-300 bg-slate-50 p-2.5 rounded text-[9pt] leading-normal mb-2 italic" style="page-break-inside: auto; break-inside: auto;">
-                    <?= nl2br(e($laporan['isi_laporan'] ?? 'Seluruh sektor pencarian telah disisir secara optimal oleh Tim SAR Gabungan sesuai Rencana Operasi. Korban telah berhasil dievakuasi dan diserahterimakan kepada pihak keluarga/rumah sakit setempat.')) ?>
+                    <?= nl2br(e(($laporan['isi_laporan'] ?? '') ?: '-')) ?>
                 </div>
 
                 <?php
@@ -473,11 +425,11 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                     <div class="flex flex-col justify-between min-h-[140px] text-left">
                         <div>
                             <p class="font-bold uppercase text-[10.5pt] leading-tight m-0">PIHAK PERTAMA,</p>
-                            <p class="text-[9.5pt] text-slate-700 leading-tight m-0 mt-0.5">Perwakilan Keluarga Korban</p>
+                            <p class="text-[9.5pt] text-black leading-tight m-0 mt-0.5">Perwakilan Keluarga Korban</p>
                         </div>
                         <div class="mt-auto pt-6 leading-tight">
                             <p class="font-bold underline uppercase text-[10.5pt] m-0">( ............................................ )</p>
-                            <p class="text-[9pt] text-slate-600 m-0 mt-0.5">Tanda Tangan & Nama Jelas</p>
+                            <p class="text-[9pt] text-black m-0 mt-0.5">Tanda Tangan & Nama Jelas</p>
                         </div>
                     </div>
 
@@ -485,11 +437,11 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                     <div class="flex flex-col justify-between min-h-[140px] text-left">
                         <div>
                             <p class="font-bold uppercase text-[10.5pt] leading-tight m-0">PIHAK KEDUA,</p>
-                            <p class="text-[9.5pt] text-slate-700 leading-tight m-0 mt-0.5">Saksi / Komandan Potensi SAR</p>
+                            <p class="text-[9.5pt] text-black leading-tight m-0 mt-0.5">Saksi / Komandan Potensi SAR</p>
                         </div>
                         <div class="mt-auto pt-6 leading-tight">
                             <p class="font-bold underline uppercase text-[10.5pt] m-0">( ............................................ )</p>
-                            <p class="text-[9pt] text-slate-600 m-0 mt-0.5">Instansi / Potensi Terkait</p>
+                            <p class="text-[9pt] text-black m-0 mt-0.5">Instansi / Potensi Terkait</p>
                         </div>
                     </div>
 
@@ -497,7 +449,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                     <div class="flex flex-col justify-between min-h-[140px] text-left">
                         <div>
                             <p class="font-bold uppercase text-[10.5pt] leading-tight m-0">MENGETAHUI / MENGESAHKAN:</p>
-                            <p class="text-[9.5pt] text-slate-700 leading-tight m-0 mt-0.5">SAR Mission Coordinator (SMC)</p>
+                            <p class="text-[9.5pt] text-black leading-tight m-0 mt-0.5">SAR Mission Coordinator (SMC)</p>
                         </div>
                         <div class="mt-auto pt-6 leading-tight">
                             <p class="font-bold underline uppercase text-[10.5pt] m-0"><?= strtoupper(e($defaultSmc['nama'] ?? 'AMIRUDDIN A.S., S.Sos.')) ?></p>
@@ -513,9 +465,9 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                         <img id="qrImgPenutupan" class="w-20 h-20 border border-slate-300 hidden" alt="QR Code Verifikasi Resmi">
                     </div>
                     <div class="text-[8.5pt] font-mono leading-tight text-left">
-                        <span class="font-bold text-slate-900 uppercase">BERKAS RESMI DINAS BASARNAS REPUBLIK INDONESIA</span><br>
-                        <span class="text-slate-600">Terdaftar pada Sistem Validasi QR-SAR KPP Kendari &bull; Nomor: <?= e($nomorBA) ?></span><br>
-                        <span class="text-slate-500 italic">Dokumen ini sah dan memiliki kekuatan hukum administrasi operasional.</span>
+                        <span class="font-bold text-black uppercase">BERKAS RESMI DINAS BASARNAS REPUBLIK INDONESIA</span><br>
+                        <span class="text-black">Terdaftar pada Sistem Validasi QR-SAR KPP Kendari &bull; Nomor: <?= e($nomorBA) ?></span><br>
+                        <span class="text-black italic">Dokumen ini sah dan memiliki kekuatan hukum administrasi operasional.</span>
                     </div>
                 </div>
             </div>
@@ -527,9 +479,9 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
     <div id="raw-wa-text-holder" class="hidden"><?= htmlspecialchars($fullWaText) ?></div>
 
     <!-- QR Code & PDF Exporter Scripts -->
-    <script src="<?= BASE_URL ?>/assets/vendor/qrcode/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
-    <script src="<?= BASE_URL ?>/assets/vendor/html2pdf/html2pdf.bundle.min.js?v=<?= APP_VERSION ?>"></script>
-    <script src="<?= BASE_URL ?>/assets/js/pdf_document_exporter.js?v=<?= APP_VERSION ?>_<?= @filemtime(dirname(__DIR__, 2) . '/assets/js/pdf_document_exporter.js') ?: time() ?>"></script>
+    <script src="<?= assetUrl('assets/vendor/qrcode/qrcode.min.js') ?>"></script>
+    <script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>"></script>
+    <script src="<?= assetUrl('assets/js/pdf_document_exporter.js') ?>"></script>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const verifyUrl = <?= jsonSafe($verifyUrl) ?>;

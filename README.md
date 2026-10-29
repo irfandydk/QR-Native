@@ -130,7 +130,7 @@ QR-SAR/
 │   │   └── style.css        # Basarnas Design System, Glassmorphism, Dark Mode, Print Sheet CSS
 │   └── images/              # Logo resmi Basarnas, ikon maritim & grafis instansi
 ├── database/                # Skrip Migrasi & Pangkalan Data
-│   └── migrate.php          # CLI Database Migration Runner (Zero runtime locking, auto-increment sync)
+│   └── migrate.php          # CLI Database Migration Runner (skema dasar + migrasi SQL bertahap)
 ├── storage/                 # Direktori Penyimpanan Terproteksi (.htaccess blocked)
 │   ├── logs/                # Berkas log aplikasi & audit trail
 │   ├── backups/             # Berkas cadangan dump SQL & snapshot JSON
@@ -183,12 +183,18 @@ DB_DATABASE=qrsar
 DB_USERNAME=root
 DB_PASSWORD=
 APP_ENV=development
-APP_KEY=SAR-304-KENDARI-SECRET-KEY
+APP_KEY=
+```
+
+Isi `APP_KEY` dengan kunci acak unik per server (kunci ini menandatangani seluruh Barcode QR dokumen):
+
+```bash
+php -r 'echo bin2hex(random_bytes(32)), PHP_EOL;'
 ```
 
 ### 3. Migrasi Otomatis Skema Basis Data
 
-Sistem QR-SAR dilengkapi **CLI Database Migration Runner** yang secara otomatis membuat dan menyinkronkan seluruh tabel pangkalan data, indeks komposit, data awal 9 Pangkalan SarUnit Sultra, serta penataan auto-increment tanpa perlu import file SQL manual:
+Sistem QR-SAR dilengkapi **CLI Database Migration Runner** yang secara otomatis membuat dan menyinkronkan seluruh tabel pangkalan data, indeks komposit, data awal 9 Pangkalan SarUnit Sultra, serta akun awal admin/user tanpa perlu import file SQL manual (skema dasar ada di `database/migrations/0000_base_schema.sql`):
 
 ```bash
 # Pastikan database sudah dibuat di MySQL:
@@ -230,24 +236,29 @@ php cli/sync_assets.php --symlink
 php cli/sync_assets.php --mirror
 ```
 
+#### Build CSS Tailwind
+Kelas Tailwind dikompilasi menjadi berkas statis `assets/css/tailwind.css` (tidak ada kompilasi di browser). Build ulang setiap kali menambah kelas baru di view atau JS, lalu ikutkan hasilnya saat deploy:
+
+```bash
+npx tailwindcss@3.4.17 -c tailwind.config.js -i assets/css/tailwind.src.css -o assets/css/tailwind.css --minify
+```
+
 Buka peramban (*browser*) dan akses:  
 👉 **`http://localhost:8000`**
 
 ---
 
-## 🔐 Akun Masuk Sistem (Default Credentials)
+## 🔐 Akun Masuk Sistem
 
 Sistem dilengkapi dua tingkatan peran (*Role-Based Access Control*):
 
 1. **Administrator Utama (SMC)**
-   - **Username**: `admin`
-   - **Password**: `Kendari304` *(atau `admin123`)*
    - **Kewenangan**: Hak penuh mengelola Operasi, menerbitkan naskah BRA, menghapus arsip, konfigurasi master alut/tim/pejabat, profil satker, backup database, dan inspeksi audit log.
 
 2. **Operator Siaga SAR & Senkom**
-   - **Username**: `user`
-   - **Password**: `Kendari304` *(atau `user123`)*
    - **Kewenangan**: Entri Laporan Awal, pembuatan Renops, Sitrep harian, drafting Berita Radio SAR, dan plotting peta taktikal GIS.
+
+Kredensial akun tidak dicantumkan di repositori. Segera ganti kata sandi bawaan setelah instalasi melalui menu **Admin → Manajemen User**.
 
 ---
 

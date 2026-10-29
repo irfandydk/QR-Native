@@ -1,0 +1,319 @@
+/**
+ * QR-SAR - Tema "Minimal Glass"
+ * Aktif bila <html data-ui="minimal"> (dipilih admin di Pengaturan Satker). Hanya tampilan:
+ * memetakan ulang warna, radius, bayangan, font, tabel & sidebar kaca tanpa mengubah markup/logic.
+ * Lembar cetak resmi tidak memakai berkas ini.
+ */
+
+/* ---------- Font Inter (offline, variable 100-900) ---------- */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../fonts/inter/inter-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../fonts/inter/inter-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* ---------- Token warna ---------- */
+html[data-ui="minimal"] {
+  --m-bg: #F7F7F8;
+  --m-surface: #FFFFFF;
+  --m-surface-2: #F2F3F5;
+  --m-border: rgba(17, 24, 39, 0.08);
+  --m-border-strong: rgba(17, 24, 39, 0.15);
+  --m-text: #111827;
+  --m-text-2: #374151;
+  --m-muted: #6B7280;
+  --m-accent: #EA6A1F;
+  --m-accent-hover: #D35A12;
+  --m-accent-text: #C2540F;
+  --m-accent-soft: rgba(234, 106, 31, 0.10);
+  --m-accent-ring: rgba(234, 106, 31, 0.22);
+  --m-glass: rgba(255, 255, 255, 0.62);
+  --m-glass-border: rgba(255, 255, 255, 0.75);
+  --m-shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --m-shadow-md: 0 6px 20px rgba(17, 24, 39, 0.06);
+  --m-shadow-lg: 0 24px 60px rgba(17, 24, 39, 0.16);
+  --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Variabel lama style.css ikut tema */
+  --primary: var(--m-accent);
+  --primary-hover: var(--m-accent-hover);
+  --primary-light: var(--m-accent-soft);
+  --primary-glow: var(--m-accent-ring);
+  --bg-body: var(--m-bg);
+  --bg-sidebar: var(--m-glass);
+  --bg-card: var(--m-surface);
+  --bg-card-subtle: var(--m-surface-2);
+  --bg-input: var(--m-surface);
+  --border-color: var(--m-border-strong);
+  --border-focus: var(--m-accent);
+  --text-main: var(--m-text);
+  --text-muted: var(--m-muted);
+  --shadow-sm: var(--m-shadow-sm);
+  --shadow-md: var(--m-shadow-md);
+  --shadow-lg: var(--m-shadow-lg);
+  --shadow-glow: 0 0 0 3px var(--m-accent-ring);
+  color-scheme: light;
+}
+html[data-ui="minimal"].dark,
+html[data-ui="minimal"][data-theme="dark"] {
+  --m-bg: #0E1116;
+  --m-surface: #161A21;
+  --m-surface-2: #1C212A;
+  --m-border: rgba(255, 255, 255, 0.07);
+  --m-border-strong: rgba(255, 255, 255, 0.13);
+  --m-text: #E5E7EB;
+  --m-text-2: #D1D5DB;
+  --m-muted: #9CA3AF;
+  --m-accent-text: #F59A5E;
+  --m-accent-soft: rgba(234, 106, 31, 0.16);
+  --m-glass: rgba(22, 26, 33, 0.58);
+  --m-glass-border: rgba(255, 255, 255, 0.08);
+  --m-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --m-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --m-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+/* ---------- Dasar & tipografi ---------- */
+html[data-ui="minimal"] body {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  background-color: var(--m-bg) !important;
+  color: var(--m-text);
+  -webkit-font-smoothing: antialiased;
+}
+/* Cahaya ambient lembut di belakang kaca (statis, tanpa biaya animasi) */
+html[data-ui="minimal"] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40rem 28rem at 0% 0%, rgba(234, 106, 31, 0.10), transparent 60%),
+    radial-gradient(36rem 26rem at 100% 100%, rgba(59, 130, 246, 0.07), transparent 60%);
+}
+html[data-ui="minimal"] .font-sans { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+html[data-ui="minimal"] .font-mono,
+html[data-ui="minimal"] code { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+html[data-ui="minimal"] h1,
+html[data-ui="minimal"] h2,
+html[data-ui="minimal"] h3 { letter-spacing: -0.015em; }
+html[data-ui="minimal"] .font-bold { font-weight: 650; }
+html[data-ui="minimal"] .font-semibold { font-weight: 560; }
+html[data-ui="minimal"] ::selection { background: var(--m-accent-soft); }
+
+/* ---------- Permukaan, border, teks (pemetaan kelas Tailwind) ---------- */
+html[data-ui="minimal"]:not(.dark) .bg-slate-50,
+html[data-ui="minimal"]:not(.dark) .bg-slate-50\/70,
+html[data-ui="minimal"]:not(.dark) .bg-slate-50\/80,
+html[data-ui="minimal"]:not(.dark) .bg-slate-100 { background-color: var(--m-surface-2); }
+
+html[data-ui="minimal"].dark .dark\:bg-slate-900,
+html[data-ui="minimal"].dark .dark\:bg-slate-900\/90,
+html[data-ui="minimal"].dark .dark\:bg-slate-900\/95 { background-color: var(--m-surface); }
+html[data-ui="minimal"].dark .dark\:bg-slate-950,
+html[data-ui="minimal"].dark .dark\:bg-slate-950\/40,
+html[data-ui="minimal"].dark .dark\:bg-slate-950\/60,
+html[data-ui="minimal"].dark .dark\:bg-slate-950\/70,
+html[data-ui="minimal"].dark .dark\:bg-slate-950\/80 { background-color: var(--m-bg); }
+html[data-ui="minimal"].dark .dark\:bg-slate-800,
+html[data-ui="minimal"].dark .dark\:bg-slate-800\/40,
+html[data-ui="minimal"].dark .dark\:bg-slate-800\/50,
+html[data-ui="minimal"].dark .dark\:bg-slate-800\/60,
+html[data-ui="minimal"].dark .dark\:bg-slate-800\/80 { background-color: var(--m-surface-2); }
+
+html[data-ui="minimal"]:not(.dark) .border-slate-100,
+html[data-ui="minimal"]:not(.dark) .border-slate-200,
+html[data-ui="minimal"]:not(.dark) .border-slate-200\/80,
+html[data-ui="minimal"]:not(.dark) .divide-slate-100 > * + *,
+html[data-ui="minimal"]:not(.dark) .divide-slate-200 > * + * { border-color: var(--m-border); }
+html[data-ui="minimal"]:not(.dark) .border-slate-300 { border-color: var(--m-border-strong); }
+html[data-ui="minimal"].dark .dark\:border-slate-800,
+html[data-ui="minimal"].dark .dark\:border-slate-800\/80,
+html[data-ui="minimal"].dark .dark\:divide-slate-800 > * + * { border-color: var(--m-border); }
+html[data-ui="minimal"].dark .dark\:border-slate-700,
+html[data-ui="minimal"].dark .dark\:border-slate-700\/60,
+html[data-ui="minimal"].dark .dark\:border-slate-700\/80 { border-color: var(--m-border-strong); }
+
+html[data-ui="minimal"]:not(.dark) .text-slate-900 { color: var(--m-text); }
+html[data-ui="minimal"]:not(.dark) .text-slate-800,
+html[data-ui="minimal"]:not(.dark) .text-slate-700 { color: var(--m-text-2); }
+html[data-ui="minimal"]:not(.dark) .text-slate-600,
+html[data-ui="minimal"]:not(.dark) .text-slate-500,
+html[data-ui="minimal"]:not(.dark) .text-slate-400 { color: var(--m-muted); }
+html[data-ui="minimal"].dark .dark\:text-white,
+html[data-ui="minimal"].dark .dark\:text-slate-100 { color: var(--m-text); }
+html[data-ui="minimal"].dark .dark\:text-slate-200,
+html[data-ui="minimal"].dark .dark\:text-slate-300 { color: var(--m-text-2); }
+html[data-ui="minimal"].dark .dark\:text-slate-400,
+html[data-ui="minimal"].dark .dark\:text-slate-500 { color: var(--m-muted); }
+
+/* ---------- Aksen oranye lembut ---------- */
+html[data-ui="minimal"] .bg-orange-500,
+html[data-ui="minimal"] .bg-orange-600 { background-color: var(--m-accent); }
+html[data-ui="minimal"] .hover\:bg-orange-500:hover,
+html[data-ui="minimal"] .hover\:bg-orange-600:hover,
+html[data-ui="minimal"] .hover\:bg-orange-700:hover { background-color: var(--m-accent-hover); }
+html[data-ui="minimal"] .text-orange-500,
+html[data-ui="minimal"] .text-orange-600,
+html[data-ui="minimal"] .text-orange-700 { color: var(--m-accent-text); }
+html[data-ui="minimal"].dark .dark\:text-orange-300,
+html[data-ui="minimal"].dark .dark\:text-orange-400,
+html[data-ui="minimal"].dark .dark\:text-orange-500 { color: var(--m-accent-text); }
+html[data-ui="minimal"] .bg-orange-50,
+html[data-ui="minimal"] .bg-orange-500\/5,
+html[data-ui="minimal"] .bg-orange-500\/10,
+html[data-ui="minimal"] .bg-orange-500\/15,
+html[data-ui="minimal"].dark .dark\:bg-orange-500\/15 { background-color: var(--m-accent-soft); }
+html[data-ui="minimal"] .border-orange-200,
+html[data-ui="minimal"] .border-orange-500,
+html[data-ui="minimal"] .border-orange-500\/20,
+html[data-ui="minimal"] .border-orange-500\/30,
+html[data-ui="minimal"].dark .dark\:border-orange-500\/30 { border-color: color-mix(in srgb, var(--m-accent) 45%, transparent); }
+html[data-ui="minimal"] .hover\:border-orange-500:hover { border-color: var(--m-accent); }
+
+/* ---------- Bentuk membulat & bayangan halus ---------- */
+html[data-ui="minimal"] .rounded-md { border-radius: 8px; }
+html[data-ui="minimal"] .rounded-lg { border-radius: 10px; }
+html[data-ui="minimal"] .rounded-xl { border-radius: 14px; }
+html[data-ui="minimal"] .rounded-2xl { border-radius: 20px; }
+html[data-ui="minimal"] .rounded-3xl { border-radius: 26px; }
+html[data-ui="minimal"] .shadow-xs,
+html[data-ui="minimal"] .shadow-sm,
+html[data-ui="minimal"] .shadow { box-shadow: var(--m-shadow-sm); }
+html[data-ui="minimal"] .shadow-md { box-shadow: var(--m-shadow-md); }
+html[data-ui="minimal"] .shadow-lg,
+html[data-ui="minimal"] .shadow-xl,
+html[data-ui="minimal"] .shadow-2xl { box-shadow: var(--m-shadow-lg); }
+
+/* ---------- Kontrol form & tombol ---------- */
+html[data-ui="minimal"] .field-input,
+html[data-ui="minimal"] .control,
+html[data-ui="minimal"] .bra-control {
+  border-radius: 14px;
+  border-color: var(--m-border-strong);
+  background-color: var(--m-surface);
+  color: var(--m-text);
+  transition: border-color 160ms var(--m-ease), box-shadow 160ms var(--m-ease);
+}
+html[data-ui="minimal"] .control-sm { border-radius: 10px; }
+html[data-ui="minimal"] .field-input:focus,
+html[data-ui="minimal"] .control:focus,
+html[data-ui="minimal"] .bra-control:focus {
+  border-color: var(--m-accent);
+  box-shadow: 0 0 0 4px var(--m-accent-ring);
+  outline: none;
+}
+html[data-ui="minimal"] .field:focus-within > .field-label { color: var(--m-accent-text); }
+html[data-ui="minimal"] button,
+html[data-ui="minimal"] a {
+  transition-timing-function: var(--m-ease);
+}
+html[data-ui="minimal"] button:not(:disabled):active,
+html[data-ui="minimal"] .btn:not(:disabled):active { transform: scale(0.98); }
+html[data-ui="minimal"] .btn { border-radius: 12px; }
+
+/* ---------- Tabel konsisten ---------- */
+html[data-ui="minimal"] .page-body table { border-collapse: separate; border-spacing: 0; }
+html[data-ui="minimal"] .page-body table thead th {
+  background-color: var(--m-surface-2);
+  color: var(--m-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--m-border);
+}
+html[data-ui="minimal"] .page-body table thead th:first-child { border-top-left-radius: 12px; }
+html[data-ui="minimal"] .page-body table thead th:last-child { border-top-right-radius: 12px; }
+html[data-ui="minimal"] .page-body table tbody td { border-bottom: 1px solid var(--m-border); }
+html[data-ui="minimal"] .page-body table tbody tr:last-child td { border-bottom: 0; }
+html[data-ui="minimal"] .page-body table tbody tr { transition: background-color 140ms var(--m-ease); }
+html[data-ui="minimal"] .page-body table tbody tr:hover { background-color: color-mix(in srgb, var(--m-surface-2) 70%, transparent); }
+
+/* ---------- Navbar & sidebar kaca ---------- */
+html[data-ui="minimal"] .top-navbar {
+  background-color: color-mix(in srgb, var(--m-bg) 72%, transparent) !important;
+  border-color: var(--m-border) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  backdrop-filter: blur(16px) saturate(170%);
+}
+html[data-ui="minimal"] #mainAppSidebar {
+  background-color: var(--m-glass) !important;
+  border-color: var(--m-glass-border) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  backdrop-filter: blur(22px) saturate(180%);
+  box-shadow: inset -1px 0 0 var(--m-border), 8px 0 30px rgba(17, 24, 39, 0.04);
+}
+html[data-ui="minimal"] #mainAppSidebar .border-inherit { border-color: var(--m-border) !important; }
+html[data-ui="minimal"] #mainAppSidebar .sidebar-nav-item {
+  position: relative;
+  z-index: 1;
+  border-radius: 14px;
+  transition: color 200ms var(--m-ease), background-color 200ms var(--m-ease);
+}
+/* Saat indikator liquid aktif (JS jalan), sorotan item diberikan oleh pil kaca */
+html[data-ui="minimal"] #sidebarNavArea.has-liquid .sidebar-nav-item,
+html[data-ui="minimal"] #sidebarNavArea.has-liquid .sidebar-nav-item:hover,
+html[data-ui="minimal"] #sidebarNavArea.has-liquid .sidebar-nav-item.sidebar-active {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+html[data-ui="minimal"] #mainAppSidebar .sidebar-nav-item.sidebar-active { color: var(--m-accent-text) !important; }
+html[data-ui="minimal"] .nav-liquid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.5)) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.95), color-mix(in srgb, var(--m-accent) 35%, transparent)) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 8px 22px rgba(234, 106, 31, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition:
+    transform 420ms cubic-bezier(0.34, 1.35, 0.64, 1),
+    width 320ms var(--m-ease),
+    height 320ms var(--m-ease),
+    opacity 220ms var(--m-ease);
+  will-change: transform;
+}
+html[data-ui="minimal"].dark .nav-liquid {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.04)) padding-box,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), color-mix(in srgb, var(--m-accent) 40%, transparent)) border-box;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+/* Palet warna lain tidak dipakai di tema ini (aksen tetap oranye Basarnas) */
+html[data-ui="minimal"] #sidebarPaletteBtn,
+html[data-ui="minimal"] #sidebarPalettePopover { display: none !important; }
+
+/* ---------- Modal, toast & SweetAlert ---------- */
+html[data-ui="minimal"] .modal-overlay,
+html[data-ui="minimal"] .swal2-container.swal2-backdrop-show {
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+html[data-ui="minimal"] .swal2-popup { border-radius: 22px !important; font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important; }
+html[data-ui="minimal"] .swal2-styled { border-radius: 12px !important; }
+
+/* ---------- Gerak minimal ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html[data-ui="minimal"] .nav-liquid { transition: none; }
+  html[data-ui="minimal"] button:active,
+  html[data-ui="minimal"] .btn:active { transform: none; }
+}

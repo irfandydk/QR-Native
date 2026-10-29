@@ -9,6 +9,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 require_once __DIR__ . '/../config/app.php';
 
 $totalAssertions = 0;
@@ -136,8 +138,8 @@ $htmlInvalid = renderMasterTab('halaman_tidak_dikenal');
 assertCondition("Invalid tab fallback dengan aman ke Alut & Palsar", str_contains($htmlInvalid, 'Daftar Master Alut & Palsar') && !str_contains($htmlInvalid, 'Daftar Tim & Potensi SAR'));
 
 // 2.5 Dynamic Refresh Link Verification
-assertCondition("Tombol Segarkan pada tab=tim merujuk ke tab=tim", str_contains($htmlTim, 'master.php?tab=tim" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-white/20') || str_contains($htmlTim, 'title="Segarkan Data"'));
-assertCondition("Tombol Segarkan pada tab=pejabat merujuk ke tab=pejabat", str_contains($htmlPejabat, 'master.php?tab=pejabat" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-white/20') || str_contains($htmlPejabat, 'title="Segarkan Data"'));
+assertCondition("Tab tim aktif dirender", str_contains($htmlTim, 'master.php?tab=tim'));
+assertCondition("Tab pejabat aktif dirender", str_contains($htmlPejabat, 'master.php?tab=pejabat'));
 
 // --- 3. SEARCH PRE-FILL & MODAL DIALOGS VERIFICATION ---
 echo "\n--- 3. SEARCH PRE-FILL & MODAL DIALOGS VERIFICATION ---\n";

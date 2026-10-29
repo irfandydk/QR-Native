@@ -23,7 +23,7 @@ $errTrace = isset($exception) && $exception instanceof Throwable ? $exception->g
     <title>500 - Gangguan Sistem Internal | QR-SAR Basarnas Kendari</title>
     <link rel="icon" type="image/png" href="<?= BASE_URL ?>/favicon.png">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
-    <script src="<?= BASE_URL ?>/assets/vendor/tailwind/tailwind.min.js"></script>
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/tailwind.css">
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -53,10 +53,10 @@ $errTrace = isset($exception) && $exception instanceof Throwable ? $exception->g
                 </svg>
             </div>
             <div>
-                <span class="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                <span class="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-400 border border-orange-500/30">
                     SISTEM OPERASI SAR
                 </span>
-                <h1 class="text-lg font-black text-white tracking-tight mt-0.5">
+                <h1 class="text-lg font-bold text-white tracking-tight mt-0.5">
                     Kantor SAR Kelas A Kendari
                 </h1>
             </div>
@@ -68,7 +68,7 @@ $errTrace = isset($exception) && $exception instanceof Throwable ? $exception->g
                 <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
                 <span>STATUS KODE: HTTP 500</span>
             </div>
-            <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            <h2 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                 Gangguan Sistem Internal
             </h2>
             <p class="text-sm text-slate-400 mt-2 leading-relaxed">
@@ -97,7 +97,7 @@ $errTrace = isset($exception) && $exception instanceof Throwable ? $exception->g
 
         <!-- Action Buttons -->
         <div class="pt-6 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <button onclick="window.location.reload()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-lg shadow-orange-600/30 transition-all cursor-pointer">
+            <button onclick="window.location.reload()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition-all cursor-pointer">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                 <span>Muat Ulang Halaman</span>
             </button>

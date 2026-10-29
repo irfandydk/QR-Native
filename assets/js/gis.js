@@ -405,30 +405,7 @@ class TacticalGisMap {
 
     // DMS Formatter Helper
     formatDms(lat, lng) {
-        if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.decimalToDms === 'function') {
-            return window.QrSarGis.Geodesy.decimalToDms(lat, lng);
-        }
-        function toDms(val, isLat) {
-            const dir = isLat ? (val >= 0 ? 'U' : 'S') : (val >= 0 ? 'T' : 'B');
-            const abs = Math.abs(val);
-            let deg = Math.floor(abs);
-            const minFloat = (abs - deg) * 60;
-            let min = Math.floor(minFloat);
-            let sec = parseFloat(((minFloat - min) * 60).toFixed(1));
-            if (sec >= 60.0) {
-                sec = 0.0;
-                min += 1;
-                if (min >= 60) {
-                    min = 0;
-                    deg += 1;
-                }
-            }
-            const degPad = isLat ? String(deg).padStart(2, '0') : String(deg).padStart(3, '0');
-            const minPad = String(min).padStart(2, '0');
-            const secPad = sec.toFixed(1).padStart(4, '0');
-            return `${degPad}° ${minPad}' ${secPad}" ${dir}`;
-        }
-        return `${toDms(lat, true)} - ${toDms(lng, false)}`;
+        return window.QrSarGis.Geodesy.decimalToDms(lat, lng);
     }
 
     loadOperationBundle(bundle) {

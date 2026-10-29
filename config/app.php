@@ -17,7 +17,8 @@ if (file_exists($envPath) && is_readable($envPath)) {
             [$key, $val] = explode('=', $trimmed, 2);
             $key = trim($key);
             $val = trim($val, " \t\n\r\0\x0B\"'");
-            if (!array_key_exists($key, $_SERVER) && !array_key_exists($key, $_ENV)) {
+            // Variabel environment proses (getenv) menang atas .env, juga di web server yang tidak mengisi $_SERVER dari env
+            if (getenv($key) === false && !array_key_exists($key, $_SERVER) && !array_key_exists($key, $_ENV)) {
                 putenv("{$key}={$val}");
                 $_ENV[$key] = $val;
                 $_SERVER[$key] = $val;
@@ -300,6 +301,15 @@ function e(mixed $value): string {
  */
 function jsonSafe(mixed $value, int $flags = 0): string {
     return json_encode($value, $flags | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+}
+
+/**
+ * URL aset statis dengan versi = waktu ubah berkas.
+ * Aset dikirim dengan cache "immutable", jadi versi harus berganti setiap kali berkas berubah.
+ */
+function assetUrl(string $path): string {
+    $rel = ltrim($path, '/');
+    return BASE_URL . '/' . $rel . '?v=' . (@filemtime(ROOT_DIR . '/' . $rel) ?: APP_VERSION);
 }
 
 // Default initial password fallback for administrative reset routines

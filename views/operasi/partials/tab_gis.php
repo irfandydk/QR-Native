@@ -12,7 +12,7 @@
                 <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
                     <span>Peta Taktis Operasi SAR (Tactical GIS)</span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-mono">
+                    <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-mono">
                         OPS #<?= (int)$operasi['id_operasi'] ?> + BASE MAP
                     </span>
                 </h3>
@@ -25,19 +25,19 @@
             <div class="flex flex-wrap items-center gap-2">
                 <div class="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
                     <button type="button" id="btn-layer-hybrid" onclick="switchDetailMapLayer('hybrid')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-orange-600 text-white shadow-xs font-bold text-[11px] flex items-center gap-1" title="Tampilan Peta Hybrid (Satelit Resolusi Tinggi + Label Jalan & Wilayah)">
-                        <span>🛰️</span>
+                        <span></span>
                         <span>Hybrid</span>
                     </button>
                     <button type="button" id="btn-layer-satellite" onclick="switchDetailMapLayer('satellite')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Citra Satelit Murni Resolusi Tinggi">
-                        <span>🌍</span>
+                        <span></span>
                         <span>Satelit</span>
                     </button>
                     <button type="button" id="btn-layer-roadmap" onclick="switchDetailMapLayer('roadmap')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Peta Jalan Vektor (Roadmap)">
-                        <span>🗺️</span>
+                        <span></span>
                         <span>Roadmap</span>
                     </button>
                     <button type="button" id="btn-layer-terrain" onclick="switchDetailMapLayer('terrain')" class="px-2.5 py-1 rounded-lg transition cursor-pointer bg-transparent text-slate-700 dark:text-slate-300 hover:text-orange-500 font-bold text-[11px] flex items-center gap-1" title="Tampilan Topografi, Elevasi & Kontur Relief (Terrain)">
-                        <span>🏔️</span>
+                        <span></span>
                         <span>Terrain</span>
                     </button>
                 </div>
@@ -49,11 +49,11 @@
 
 
                 <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base=1&capture_doc=LAPORAN_AWAL" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition shadow-xs no-underline" title="Buka Studio Capture Peta 16:9 untuk Dokumen Cetak Resmi">
-                    <span>📸 Capture Peta Dokumen (16:9)</span>
+                    <span>Capture Peta Dokumen (16:9)</span>
                 </a>
 
                 <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base=1" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-blue-500/30 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold text-xs transition shadow-xs" title="Buka Halaman Plotting GIS Penuh dengan fitur Menggambar Search Area & Pola SAR">
-                    <span>✏️ Buka Plotting GIS</span>
+                    <span>Buka Plotting GIS</span>
                     <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
                 </a>
             </div>
@@ -81,7 +81,7 @@
                 </span>
             </div>
             <button type="button" onclick="detailOpsMap && detailOpsMap.fitAllComponents && detailOpsMap.fitAllComponents()" class="text-[11px] font-semibold text-slate-500 hover:text-orange-500 dark:text-slate-400 cursor-pointer flex items-center gap-1">
-                <span>🎯 Reset Tampilan Seluruh Komponen</span>
+                <span>Reset Tampilan Seluruh Komponen</span>
             </button>
         </div>
 
@@ -94,7 +94,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
             <div>
                 <h4 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>📜 Riwayat & Inventaris Komponen Taktis Tersimpan</span>
+                    <span>Riwayat & Inventaris Komponen Taktis Tersimpan</span>
                     <span id="detail-total-badge" class="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                         Total <?= $totalComponents ?>
                     </span>

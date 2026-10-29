@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/bootstrap.php';
 /**
  * Test Dashboard Default Open & Korban Rekap Removal
  */
@@ -51,9 +52,9 @@ assertCondition(
 
 assertCondition(
     "Tab status buttons dinamis berdasarkan initialStatus",
-    strpos($content, '$initialStatus === \'OPEN\' ? \'font-bold bg-gradient-to-r') !== false &&
-    strpos($content, '$initialStatus === \'ALL\' ? \'font-bold bg-gradient-to-r') !== false &&
-    strpos($content, '$initialStatus === \'CLOSED\' ? \'font-bold bg-gradient-to-r') !== false
+    strpos($content, '$initialStatus === \'OPEN\' ? \'font-bold bg-orange-600') !== false &&
+    strpos($content, '$initialStatus === \'ALL\' ? \'font-bold bg-orange-600') !== false &&
+    strpos($content, '$initialStatus === \'CLOSED\' ? \'font-bold bg-orange-600') !== false
 );
 
 assertCondition(
@@ -178,18 +179,18 @@ require_once __DIR__ . '/../helpers/TemplateHelper.php';
 $renderedDefault = renderMockDashboard($rendererCode, null);
 
 assertCondition(
-    "Render Default: Tab OPEN memiliki class gradient aktif",
-    preg_match('/id="tab-status-OPEN"[^>]*bg-gradient-to-r from-orange-500 to-amber-600/', $renderedDefault) === 1
+    "Render Default: Tab OPEN memiliki class aktif (oranye solid)",
+    preg_match('/id="tab-status-OPEN"[^>]*bg-orange-600 text-white/', $renderedDefault) === 1
 );
 
 assertCondition(
-    "Render Default: Tab ALL memiliki class inactive (tidak memiliki gradient)",
-    preg_match('/id="tab-status-ALL"[^>]*bg-gradient-to-r from-orange-500 to-amber-600/', $renderedDefault) === 0
+    "Render Default: Tab ALL memiliki class inactive (bukan oranye solid)",
+    preg_match('/id="tab-status-ALL"[^>]*bg-orange-600 text-white/', $renderedDefault) === 0
 );
 
 assertCondition(
     "Render Default: Tab CLOSED memiliki class inactive",
-    preg_match('/id="tab-status-CLOSED"[^>]*bg-gradient-to-r from-orange-500 to-amber-600/', $renderedDefault) === 0
+    preg_match('/id="tab-status-CLOSED"[^>]*bg-orange-600 text-white/', $renderedDefault) === 0
 );
 
 assertCondition(
@@ -211,13 +212,13 @@ assertCondition(
 $renderedAll = renderMockDashboard($rendererCode, 'ALL');
 
 assertCondition(
-    "Render ?status=ALL: Tab ALL memiliki class gradient aktif",
-    preg_match('/id="tab-status-ALL"[^>]*bg-gradient-to-r from-orange-500 to-amber-600/', $renderedAll) === 1
+    "Render ?status=ALL: Tab ALL memiliki class aktif (oranye solid)",
+    preg_match('/id="tab-status-ALL"[^>]*bg-orange-600 text-white/', $renderedAll) === 1
 );
 
 assertCondition(
     "Render ?status=ALL: Tab OPEN memiliki class inactive",
-    preg_match('/id="tab-status-OPEN"[^>]*bg-gradient-to-r from-orange-500 to-amber-600/', $renderedAll) === 0
+    preg_match('/id="tab-status-OPEN"[^>]*bg-orange-600 text-white/', $renderedAll) === 0
 );
 
 assertCondition(
@@ -229,8 +230,8 @@ assertCondition(
 $renderedClosed = renderMockDashboard($rendererCode, 'CLOSED');
 
 assertCondition(
-    "Render ?status=CLOSED: Tab CLOSED memiliki class gradient aktif",
-    preg_match('/id="tab-status-CLOSED"[^>]*bg-gradient-to-r from-orange-500 to-amber-600/', $renderedClosed) === 1
+    "Render ?status=CLOSED: Tab CLOSED memiliki class aktif (oranye solid)",
+    preg_match('/id="tab-status-CLOSED"[^>]*bg-orange-600 text-white/', $renderedClosed) === 1
 );
 
 assertCondition(

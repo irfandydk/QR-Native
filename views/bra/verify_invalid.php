@@ -28,12 +28,12 @@ $timestamp = date('d F Y, H:i:s') . ' WITA';
         </div>
 
         <!-- Badge Status -->
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-black tracking-wider uppercase mb-3">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold tracking-wider uppercase mb-3">
             <span class="w-2 h-2 rounded-full bg-rose-600 dark:bg-rose-400"></span>
             <span>VERIFIKASI GAGAL &bull; DOKUMEN TIDAK SAH</span>
         </div>
 
-        <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+        <h1 class="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
             <?= htmlspecialchars($invalidTitle ?? 'Naskah Berita Radio SAR Tidak Terverifikasi', ENT_QUOTES, 'UTF-8') ?>
         </h1>
         
@@ -44,21 +44,21 @@ $timestamp = date('d F Y, H:i:s') . ' WITA';
         <!-- Audit Metadata Details Grid -->
         <div class="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
             <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">ID Pelacakan</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">ID Pelacakan</span>
                 <span class="font-mono font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200 mt-0.5 block truncate">
                     <?= !empty($refId) ? $refId : '-' ?>
                 </span>
             </div>
 
             <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Status Kriptografis</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Status Kriptografis</span>
                 <span class="font-mono font-bold text-xs text-rose-600 dark:text-rose-400 mt-0.5 block truncate">
                     <?= !empty($tokenParam) ? 'TOKEN_MISMATCH' : 'RECORD_NOT_FOUND' ?>
                 </span>
             </div>
 
             <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Waktu Pemeriksaan</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Waktu Pemeriksaan</span>
                 <span class="font-mono text-xs text-slate-700 dark:text-slate-300 mt-0.5 block">
                     <?= $timestamp ?>
                 </span>
@@ -80,7 +80,7 @@ $timestamp = date('d F Y, H:i:s') . ' WITA';
 
         <!-- Action Buttons (Safe Public Only, Zero Internal Links) -->
         <div class="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-center gap-3">
-            <a href="tel:115" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 shadow-md transition">
+            <a href="tel:115" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-orange-600 hover:bg-orange-700 transition">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
                 <span>Hubungi Call Center 115 (Darurat Basarnas)</span>
             </a>

@@ -98,7 +98,7 @@ FOOTER;
         $tglBerangkat = SarCalculationService::formatTanggalSimple($ops['waktu_berangkat'] ?? null);
         $jamBerangkat = SarCalculationService::formatJamWITA($ops['waktu_berangkat'] ?? null);
 
-        $waktuEta = $ops['eta_tiba'] ?? ($ops['waktu_berangkat'] ?? null);
+        $waktuEta = $ops['eta_tiba'] ?? null;
         $tglEta = SarCalculationService::formatTanggalSimple($waktuEta);
         $jamEta = SarCalculationService::formatJamWITA($waktuEta);
 
@@ -133,7 +133,7 @@ FOOTER;
 
         // Unsur SAR
         if (empty($unsur)) {
-            $unsurText = "• Tim Rescue KPP Kendari (7 Org)";
+            $unsurText = "• Belum ada data unsur SAR";
         } else {
             $uList = [];
             foreach ($unsur as $u) {
@@ -144,7 +144,7 @@ FOOTER;
 
         // Alut & Palsar
         if (empty($alut)) {
-            $alutText = "• 1 Unit Rescue Car\n• 1 Unit Rubber Boat";
+            $alutText = "• Belum ada data alut";
         } else {
             $aList = [];
             foreach ($alut as $a) {
@@ -154,10 +154,10 @@ FOOTER;
             $alutText = implode("\n", $aList);
         }
 
-        $pelapor = ($ops['nama_pelapor'] ?? '') ?: 'Bpk. Pelapor';
-        $hub = ($ops['hubungan_pelapor'] ?? '') ?: 'Masyarakat';
+        $pelapor = ($ops['nama_pelapor'] ?? '') ?: '-';
+        $hub = ($ops['hubungan_pelapor'] ?? '') ?: '-';
         $hp = ($ops['no_telp_pelapor'] ?? '') ?: '-';
-        $tim = ($ops['tim_berangkat'] ?? '') ?: 'Tim Rescue Kansar Kendari';
+        $tim = ($ops['tim_berangkat'] ?? '') ?: 'Tim SAR';
 
         $jarakStr = ($ops['jarak'] ?? '') ?: '-';
         if (!empty($ops['radial'])) {
@@ -169,9 +169,9 @@ FOOTER;
         $etaLokasi = ($ops['eta_lokasi'] ?? '') ?: '-';
         $kronologi = ($ops['kronologi'] ?? '') ?: '-';
         $faktorPenghambat = ($ops['faktor_penghambat'] ?? '') ?: 'Nihil';
-        $cuacaOps = ($ops['cuaca'] ?? '') ?: 'Cerah Berawan';
-        $gelombangOps = ($ops['gelombang'] ?? '') ?: '0.5 - 1.25 M';
-        $anginOps = ($ops['angin'] ?? '') ?: 'Barat Daya 5 - 15 Knots';
+        $cuacaOps = ($ops['cuaca'] ?? '') ?: '-';
+        $gelombangOps = ($ops['gelombang'] ?? '') ?: '-';
+        $anginOps = ($ops['angin'] ?? '') ?: '-';
 
         $dataKorbanHeader = "5. Data Korban: {$stats['total']} orang";
         if ($stats['unrecorded_dp'] > 0) {
@@ -238,10 +238,7 @@ BODY;
 
         // SRUs
         if (empty($srus)) {
-            $koorOps = $ops['koordinat'] ?: '03° 58\' 30" S - 122° 35\' 12" E';
-            $unit = strtoupper(trim((string)($renops['satuan_jarak'] ?? 'NM')));
-            $defaultArea = $unit === 'KM' ? '34.30 KM² (10.00 NM²)' : ($unit === 'M' ? '34.299.040 m² (10.00 NM²)' : '10.00 NM² (34.30 KM²)');
-            $sruText = "*SRU 1 Tim Rescue Kansar Kendari* melakukan penyisiran dgn koordinat :\nA: {$koorOps}\nLuas area pencarian : {$defaultArea}\nPola pencarian : Parallel Track Search";
+            $sruText = "Pembagian SRU dan area pencarian belum ditetapkan.";
         } else {
             $sList = [];
             foreach ($srus as $s) {
@@ -249,8 +246,8 @@ BODY;
                 $cleanName = trim($rawName, "* \t\n\r\0\x0B") ?: 'SRU';
                 $nameFormatted = "*{$cleanName}* melakukan penyisiran dgn koordinat :";
 
-                $koor = self::cleanSruCoordinates($s['koordinat_area'] ?? '') ?: ($ops['koordinat'] ?: '-');
-                $pola = !empty($s['pola_pencarian']) ? $s['pola_pencarian'] : 'Parallel Track Search';
+                $koor = self::cleanSruCoordinates($s['koordinat_area'] ?? '') ?: (($ops['koordinat'] ?? '') ?: '-');
+                $pola = !empty($s['pola_pencarian']) ? $s['pola_pencarian'] : '-';
                 
                 $lines = [
                     $nameFormatted,
@@ -283,7 +280,7 @@ BODY;
         }
 
         if (empty($unsur)) {
-            $unsurText = "• Tim Rescue Kansar Kendari : 7 Orang";
+            $unsurText = "• Belum ada data unsur SAR";
         } else {
             $uList = [];
             foreach ($unsur as $u) {
@@ -293,7 +290,7 @@ BODY;
         }
 
         if (empty($alut)) {
-            $alutText = "• 1 Unit Rescue Car\n• 1 Unit Rubber Boat";
+            $alutText = "• Belum ada data alut";
         } else {
             $aList = [];
             foreach ($alut as $a) {
@@ -303,8 +300,8 @@ BODY;
             $alutText = implode("\n", $aList);
         }
 
-        $cuaca = !empty($renops['cuaca']) ? $renops['cuaca'] : (!empty($ops['cuaca']) ? $ops['cuaca'] : 'Cerah Berawan');
-        $sruCount = count($srus) ?: 1;
+        $cuaca = !empty($renops['cuaca']) ? $renops['cuaca'] : (!empty($ops['cuaca']) ? $ops['cuaca'] : '-');
+        $sruCount = count($srus);
 
         $body = <<<BODY
 Rencana Ops {$hariKe} :
@@ -343,7 +340,7 @@ BODY;
 
         $klausulPenutupan = '';
         if ($isPenutupan) {
-            $waktuDebrief = $laporan['waktu_debrief'] ?: ($laporan['waktu_laporan'] ?: date('Y-m-d H:i:s'));
+            $waktuDebrief = ($laporan['waktu_debrief'] ?? '') ?: (($laporan['waktu_laporan'] ?? '') ?: date('Y-m-d H:i:s'));
             $tglDebrief = SarCalculationService::formatTanggalSimple($waktuDebrief);
             $jamDebrief = SarCalculationService::formatJamWITA($waktuDebrief);
             $klausulPenutupan = "\n\n• Pada tanggal {$tglDebrief} Pukul {$jamDebrief} WITA, Tim SAR Gabungan melakukan debriefing penutupan Ops SAR terhadap {$namaOps}, selanjutnya operasi SAR diusulkan ditutup dan unsur SAR yang terlibat kembali ke kesatuannya masing-masing dengan ucapan terima kasih.";
@@ -377,7 +374,7 @@ BODY;
         }
 
         if (empty($unsur)) {
-            $unsurText = "• Tim Rescue Kansar Kendari : 7 Orang";
+            $unsurText = "• Belum ada data unsur SAR";
         } else {
             $uList = [];
             foreach ($unsur as $u) {
@@ -387,7 +384,7 @@ BODY;
         }
 
         if (empty($alut)) {
-            $alutText = "• 1 Unit Rescue Car\n• 1 Unit Rubber Boat";
+            $alutText = "• Belum ada data alut";
         } else {
             $aList = [];
             foreach ($alut as $a) {
@@ -397,7 +394,7 @@ BODY;
             $alutText = implode("\n", $aList);
         }
 
-        $isi = !empty($laporan['isi_laporan']) ? $laporan['isi_laporan'] : 'Pencarian telah dilaksanakan oleh Tim SAR Gabungan sesuai Renops.';
+        $isi = !empty($laporan['isi_laporan']) ? $laporan['isi_laporan'] : '-';
 
         $dataKorbanHeader = "1. Data Korban: {$stats['total']} Orang";
         if ($stats['unrecorded_dp'] > 0) {

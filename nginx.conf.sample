@@ -39,10 +39,14 @@ server {
         fastcgi_read_timeout 300;
     }
 
-    # Keamanan Direktori Uploads (Cegah Eksekusi Skrip PHP pada File Unggahan)
-    location ~* ^/uploads/.*\.php$ {
-        deny all;
-        return 403;
+    # Keamanan Direktori Uploads (Cegah Eksekusi Skrip PHP & skrip SVG pada File Unggahan)
+    location ^~ /uploads/ {
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Content-Security-Policy "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox" always;
+        location ~* \.php$ {
+            deny all;
+            return 403;
+        }
     }
 
     # Proteksi Berkas Tersembunyi (.env, .git, .htaccess)

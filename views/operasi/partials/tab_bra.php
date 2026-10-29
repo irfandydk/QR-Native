@@ -7,7 +7,7 @@
 <div id="tab-content-bra" class="tab-pane space-y-4" style="display: <?= $activeTab === 'bra' ? 'block' : 'none' ?>;">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-            <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
                 <span>Berita Radio SAR (BRA) &bull; <?= $countBra ?> Dokumen</span>
             </h3>
@@ -39,7 +39,7 @@
                 <span class="px-2.5 py-0.5 rounded-lg bg-orange-500 text-white font-mono font-bold text-xs">
                     <?= in_array(strtoupper($bra['kategori']), ['SAR_UMUM', 'OPERASI_SAR']) ? 'BRA OPERASI SAR' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? 'BRA KAPAL' : 'BRA MAPEL') ?>
                 </span>
-                <span class="font-mono font-black text-sm text-slate-900 dark:text-white">
+                <span class="font-mono font-bold text-sm text-slate-900 dark:text-white">
                     NO: <?= e($bra['no_bra']) ?>
                 </span>
             </div>
@@ -49,7 +49,7 @@
                     <span>Lihat Dokumen</span>
                 </a>
                 <a href="<?= BASE_URL ?>/bra.php?action=edit&id=<?= $bra['id_bra'] ?>" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-100 dark:hover:bg-slate-700 transition">
-                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"/></svg>
+                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"/></svg>
                     <span>Edit</span>
                 </a>
             </div>
@@ -68,7 +68,7 @@
 
         <?php if (!empty($bra['sections'])): ?>
         <div class="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800 font-mono text-[11px] space-y-1">
-            <div class="font-bold text-orange-600 dark:text-orange-400 uppercase text-[10px] mb-1">Naskah Telegram (Preview):</div>
+            <div class="font-bold text-orange-600 dark:text-orange-400 uppercase text-[11px] mb-1">Naskah Telegram (Preview):</div>
             <?php foreach (array_slice($bra['sections'], 0, 4) as $sec): ?>
                 <div class="text-slate-700 dark:text-slate-300">
                     <span class="font-bold"><?= e($sec['kode']) ?> :</span>

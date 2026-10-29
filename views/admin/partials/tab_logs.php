@@ -21,7 +21,7 @@ if (!defined('APP_NAME')) {
         <div>
           <h2 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <span>Log Aktivitas & Jejak Audit (Audit Trail)</span>
-            <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+            <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
               REAL-TIME
             </span>
           </h2>
@@ -74,8 +74,9 @@ if (!defined('APP_NAME')) {
 
       <!-- Filter Kategori Aksi -->
       <div class="sm:col-span-4">
-        <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Kategori Aksi Operasional</label>
-        <select name="log_action" class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-orange-500 focus:outline-none">
+        <div class="field">
+          <label class="field-label">Kategori Aksi Operasional</label>
+          <select name="log_action" class="field-input w-full font-medium">
           <option value="">Semua Kategori Aksi</option>
           <optgroup label="Autentikasi & Akun">
             <option value="LOGIN_SUCCESS" <?= $logActionFilter === 'LOGIN_SUCCESS' ? 'selected' : '' ?>>LOGIN_SUCCESS (Login Berhasil)</option>
@@ -101,13 +102,14 @@ if (!defined('APP_NAME')) {
             <option value="DATABASE_RESTORE" <?= $logActionFilter === 'DATABASE_RESTORE' ? 'selected' : '' ?>>DATABASE_RESTORE (Pemulihan Database)</option>
           </optgroup>
         </select>
+        </div>
       </div>
 
       <!-- Pencarian Teks Bebas -->
       <div class="sm:col-span-6">
         <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Cari Keterangan / Pengguna / IP / Sasaran</label>
         <div class="relative">
-          <input type="text" name="log_search" value="<?= e($logSearch ?? '') ?>" placeholder="Ketik kata kunci pencarian..." class="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:ring-2 focus:ring-orange-500 focus:outline-none" />
+          <input type="text" name="log_search" value="<?= e($logSearch ?? '') ?>" placeholder="Ketik kata kunci pencarian..." class="control control-sm w-full pl-9 pr-3" />
           <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         </div>
       </div>
@@ -126,7 +128,7 @@ if (!defined('APP_NAME')) {
   <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
     <div class="overflow-x-auto">
       <table class="w-full text-left text-xs">
-        <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 uppercase font-black tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800">
+        <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider text-[11px] border-b border-slate-100 dark:border-slate-800">
           <tr>
             <th class="py-3 px-4">Waktu (WITA)</th>
             <th class="py-3 px-4">Aktor / Otoritas</th>
@@ -167,7 +169,7 @@ if (!defined('APP_NAME')) {
                   <div class="font-mono text-[11px] font-bold text-slate-900 dark:text-white">
                     <?= date('d/m/Y H:i:s', strtotime($log['created_at'])) ?>
                   </div>
-                  <div class="text-[10px] text-slate-400 font-sans">
+                  <div class="text-[11px] text-slate-400 font-sans">
                     <?= date('l', strtotime($log['created_at'])) ?>
                   </div>
                 </td>
@@ -177,14 +179,14 @@ if (!defined('APP_NAME')) {
                   <div class="font-bold text-slate-900 dark:text-white">
                     <?= e($log['username'] ?? 'system') ?>
                   </div>
-                  <span class="inline-flex items-center text-[9px] font-black uppercase px-2 py-0.2 rounded-full mt-0.5 <?= ($log['role'] ?? '') === 'ADMIN' ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' ?>">
+                  <span class="inline-flex items-center text-[11px] font-bold uppercase px-2 py-0.2 rounded-full mt-0.5 <?= ($log['role'] ?? '') === 'ADMIN' ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' ?>">
                     <?= e($log['role'] ?? 'GUEST') ?>
                   </span>
                 </td>
 
                 <!-- Kolom Aksi -->
                 <td class="py-3 px-4 whitespace-nowrap">
-                  <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-black border tracking-wide font-mono <?= $badgeClass ?>">
+                  <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold border tracking-wide font-mono <?= $badgeClass ?>">
                     <?= e($action) ?>
                   </span>
                 </td>
@@ -196,7 +198,7 @@ if (!defined('APP_NAME')) {
                       <?= e($log['target_type']) ?>
                     </div>
                     <?php if (!empty($log['target_id'])): ?>
-                      <div class="text-[10px] font-mono text-slate-400">
+                      <div class="text-[11px] font-mono text-slate-400">
                         #<?= e($log['target_id']) ?>
                       </div>
                     <?php endif; ?>
@@ -218,7 +220,7 @@ if (!defined('APP_NAME')) {
                     <?= e($log['ip_address'] ?? '127.0.0.1') ?>
                   </div>
                   <?php if (!empty($log['user_agent'])): ?>
-                    <div class="text-[10px] text-slate-400 truncate max-w-[140px]" title="<?= e($log['user_agent']) ?>">
+                    <div class="text-[11px] text-slate-400 truncate max-w-[140px]" title="<?= e($log['user_agent']) ?>">
                       <?= e(substr($log['user_agent'], 0, 30)) ?>...
                     </div>
                   <?php endif; ?>

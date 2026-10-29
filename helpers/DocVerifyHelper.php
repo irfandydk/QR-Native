@@ -159,19 +159,101 @@ class DocVerifyHelper {
         }
         $cleanToken = strtoupper(trim($token));
 
-        // 1. Verifikasi token utama
+        // 1. Token yang tersimpan saat dokumen pertama kali dicetak (tidak berubah walau SMC / nama operasi diganti)
+        $stored = self::getStoredToken($type, $operasi, $docData);
+        if ($stored !== null && hash_equals($stored, $cleanToken)) {
+            return true;
+        }
+
+        // 2. Token dihitung dari data terkini (SMC default saat ini)
         $expected = self::generateToken($type, $operasi, $docData);
         if (hash_equals($expected, $cleanToken)) {
             return true;
         }
 
-        // 2. Fallback token legacy
-        $expectedLegacy = self::generateLegacyToken($type, $operasi, $docData);
-        if (hash_equals($expectedLegacy, $cleanToken)) {
-            return true;
+        // 3. Dokumen cetakan lama: token dibuat dengan SMC default saat itu, coba semua pejabat terdaftar
+        try {
+            foreach (PejabatModel::getAll() as $pejabat) {
+                if (!empty($pejabat['nama']) && hash_equals(self::generateToken($type, $operasi, $docData, (string)$pejabat['nama']), $cleanToken)) {
+                    return true;
+                }
+            }
+        } catch (Throwable) {
+            // Tabel Pejabat tidak tersedia: lanjut ke fallback berikutnya
         }
 
-        return false;
+        // 4. Fallback token legacy
+        $expectedLegacy = self::generateLegacyToken($type, $operasi, $docData);
+        return hash_equals($expectedLegacy, $cleanToken);
+    }
+
+    /**
+     * ID baris dokumen: id_operasi (Laporan Awal), id_renops (RENOPS), id_laporan (SITREP / Penutupan).
+     */
+    private static function getRefId(string $normType, array $operasi, ?array $docData): int {
+        return match ($normType) {
+            self::TYPE_RENOPS => (int)($docData['id_renops'] ?? 0),
+            self::TYPE_SITREP, self::TYPE_PENUTUPAN => (int)($docData['id_laporan'] ?? 0),
+            default => (int)($operasi['id_operasi'] ?? 0),
+        };
+    }
+
+    /**
+     * Token tersimpan untuk dokumen ini, atau null bila belum pernah dicetak / tabel belum dimigrasi.
+     */
+    public static function getStoredToken(string $type, array $operasi, ?array $docData = null): ?string {
+        $normType = self::normalizeType($type);
+        $refId = self::getRefId($normType, $operasi, $docData);
+        if ($refId <= 0) return null;
+        try {
+            $stmt = getDB()->prepare("SELECT token FROM DokumenToken WHERE doc_type = :t AND ref_id = :r AND id_operasi = :o LIMIT 1");
+            $stmt->execute([':t' => $normType, ':r' => $refId, ':o' => (int)($operasi['id_operasi'] ?? 0)]);
+            $token = $stmt->fetchColumn();
+            return $token !== false ? (string)$token : null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Token untuk QR dokumen: pakai token tersimpan, atau terbitkan & simpan token baru saat cetak pertama.
+     */
+    public static function issueToken(string $type, array $operasi, ?array $docData = null): string {
+        $stored = self::getStoredToken($type, $operasi, $docData);
+        if ($stored !== null) return $stored;
+
+        $normType = self::normalizeType($type);
+        $token = self::generateToken($normType, $operasi, $docData);
+        $refId = self::getRefId($normType, $operasi, $docData);
+        if ($refId <= 0) return $token;
+        try {
+            getDB()->prepare("INSERT IGNORE INTO DokumenToken (doc_type, ref_id, id_operasi, token, issued_at) VALUES (:t, :r, :o, :k, :at)")
+                ->execute([':t' => $normType, ':r' => $refId, ':o' => (int)($operasi['id_operasi'] ?? 0), ':k' => $token, ':at' => date('Y-m-d H:i:s')]);
+        } catch (Throwable) {
+            return $token; // Tabel belum dimigrasi: tetap pakai token terhitung
+        }
+        // Bila dua cetak bersamaan, pakai token yang menang INSERT
+        return self::getStoredToken($normType, $operasi, $docData) ?? $token;
+    }
+
+    /**
+     * Hapus token tersimpan saat dokumen dihapus, agar ID yang dipakai ulang tidak mewarisi token lama.
+     */
+    public static function forgetOperasiTokens(int $idOperasi): void {
+        self::deleteTokens("DELETE FROM DokumenToken WHERE id_operasi = ?", [$idOperasi]);
+    }
+
+    public static function forgetDocTokens(array $docTypes, int $refId): void {
+        $in = implode(',', array_fill(0, count($docTypes), '?'));
+        self::deleteTokens("DELETE FROM DokumenToken WHERE doc_type IN ({$in}) AND ref_id = ?", [...$docTypes, $refId]);
+    }
+
+    private static function deleteTokens(string $sql, array $params): void {
+        try {
+            getDB()->prepare($sql)->execute($params);
+        } catch (Throwable) {
+            // Tabel belum dimigrasi: tidak ada token tersimpan
+        }
     }
 
     /**
@@ -180,7 +262,7 @@ class DocVerifyHelper {
     public static function generateVerifyUrl(string $type, array $operasi, ?array $docData = null): string {
         $normType = self::normalizeType($type);
         $idOps = (int)($operasi['id_operasi'] ?? 0);
-        $token = self::generateToken($normType, $operasi, $docData);
+        $token = self::issueToken($normType, $operasi, $docData);
 
         $params = [
             'action' => 'verify',

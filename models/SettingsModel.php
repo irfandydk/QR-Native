@@ -20,12 +20,12 @@ class SettingsModel {
             $defaultHash = password_hash(defined('DEFAULT_RESET_PASSWORD') ? DEFAULT_RESET_PASSWORD : 'Kendari304', PASSWORD_DEFAULT);
             $stmtInit = $db->prepare("INSERT INTO AppSettings (
                 id, satker_kode, satker_nama, 
-                admin_username, admin_password, admin_nama, admin_role,
-                user_username, user_password, user_nama, user_role
+                admin_username, admin_password, admin_nama,
+                user_username, user_password, user_nama
             ) VALUES (
                 1, 'SAR-304', 'Kantor Pencarian dan Pertolongan Kelas A Kendari',
-                'admin', :pa, 'AMIRUDDIN AS, S.Sos.', 'ADMIN',
-                'user', :pu, 'Petugas Siaga SAR', 'USER'
+                'admin', :pa, 'AMIRUDDIN AS, S.Sos.',
+                'user', :pu, 'Petugas Siaga SAR'
             )");
             $stmtInit->execute([':pa' => $defaultHash, ':pu' => $defaultHash]);
             $stmt = $db->query("SELECT * FROM AppSettings WHERE id = 1 LIMIT 1");
@@ -68,14 +68,16 @@ class SettingsModel {
         $db = getDB();
         $fields = [
             'satker_kode', 'satker_nama', 'alamat', 'no_telp', 'email',
-            'call_sign', 'frekuensi_default', 'default_theme', 'logo_url', 'gemini_api_key'
+            'call_sign', 'frekuensi_default', 'default_theme', 'ui_theme', 'logo_url', 'gemini_api_key'
         ];
 
         $sets = [];
         $params = [':id' => 1];
+        // Kolom yang ditambah lewat migrasi (mis. ui_theme) dilewati bila migrasi belum dijalankan, agar simpan tidak error 500
+        $existing = array_flip($db->query("SHOW COLUMNS FROM AppSettings")->fetchAll(PDO::FETCH_COLUMN));
 
         foreach ($fields as $f) {
-            if (array_key_exists($f, $data)) {
+            if (array_key_exists($f, $data) && isset($existing[$f])) {
                 $sets[] = "{$f} = :{$f}";
                 $params[":{$f}"] = $data[$f];
             }

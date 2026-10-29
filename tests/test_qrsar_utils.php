@@ -6,6 +6,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 require_once dirname(__DIR__) . '/config/app.php';
 
 $totalAssertions = 0;
@@ -69,11 +71,11 @@ results.dmsLat_dir = dmsLat.dir === 'S';
 const dmsLng = u.decimalToDms(122.428389, false);
 results.dmsLng_deg = dmsLng.deg === 122;
 results.dmsLng_min = dmsLng.min === 25;
-results.dmsLng_dir = dmsLng.dir === 'T';
+results.dmsLng_dir = dmsLng.dir === 'E';
 
 // Test formatDmsPair
 const pairStr = u.formatDmsPair(-4.084194, 122.428389);
-results.formatDmsPair = pairStr.includes('04° 05\'') && pairStr.includes('S') && pairStr.includes('122° 25\'') && pairStr.includes('T');
+results.formatDmsPair = pairStr.includes('04° 05\'') && pairStr.includes('S') && pairStr.includes('122° 25\'') && pairStr.includes('E');
 
 // Test dmsToDecimal
 const roundTripLat = u.dmsToDecimal(4, 5, 3.1, 'S');

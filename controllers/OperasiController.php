@@ -164,6 +164,11 @@ class OperasiController extends BaseController {
             $this->redirect('/index.php');
         }
 
+        // Lembar cetak memuat data pribadi korban & pelapor: wajib login (publik cukup lewat portal verifikasi)
+        if (str_starts_with((string)$action, 'print_') || str_starts_with((string)$action, 'cetak_')) {
+            $this->requireLogin();
+        }
+
         // Lembar Berkas Cetak Resmi Laporan Awal Operasi SAR
         if ($action === 'print_laporan_awal' || $action === 'cetak_laporan_awal') {
             require VIEWS_DIR . '/operasi/laporan_awal_print.php';
@@ -431,23 +436,7 @@ class OperasiController extends BaseController {
             }
 
             // Process SRUs from input arrays if submitted
-            $srus = [];
-            if (!empty($_POST['srus']) && is_array($_POST['srus'])) {
-                foreach ($_POST['srus'] as $s) {
-                    if (!empty($s['nama_sru'])) {
-                        $srus[] = [
-                            'id_sru' => !empty($s['id_sru']) ? (int)$s['id_sru'] : null,
-                            'nama_sru' => trim($s['nama_sru']),
-                            'koordinat_area' => trim($s['koordinat_area'] ?? ''),
-                            'luas_area' => trim($s['luas_area'] ?? ''),
-                            'pola_pencarian' => trim($s['pola_pencarian'] ?? 'Parallel Track Search'),
-                            'total_sapuan' => trim($s['total_sapuan'] ?? ''),
-                            'track_spacing' => trim($s['track_spacing'] ?? '')
-                        ];
-                    }
-                }
-            }
-            $_POST['srus'] = $srus;
+            $_POST['srus'] = RenopsModel::normalizeInputSrus(is_array($_POST['srus'] ?? null) ? $_POST['srus'] : []);
 
             $satuanJarak = in_array(strtoupper(trim((string)($_POST['satuan_jarak'] ?? 'NM'))), ['KM', 'M', 'NM']) ? strtoupper(trim((string)$_POST['satuan_jarak'])) : 'NM';
             $_POST['satuan_jarak'] = $satuanJarak;

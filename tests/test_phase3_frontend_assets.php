@@ -13,6 +13,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../helpers/ViewHelper.php';
 
@@ -53,7 +55,7 @@ $vendorFiles = [
     'assets/vendor/sweetalert2/sweetalert2.min.css',
     'assets/vendor/sweetalert2/sweetalert2.all.min.js',
     'assets/vendor/qrcode/qrcode.min.js',
-    'assets/vendor/tailwind/tailwind.min.js',
+    'assets/css/tailwind.css',
     'assets/vendor/jszip/jszip.min.js'
 ];
 
@@ -138,10 +140,10 @@ runTest("Layout header conditionally loads Leaflet CSS", function() {
         && strpos($headerContent, '!empty($useGis)') !== false;
 });
 
-runTest("Layout header uses vendor SweetAlert2 and Tailwind", function() {
+runTest("Layout header uses vendor SweetAlert2 and static Tailwind CSS", function() {
     $headerContent = file_get_contents(VIEWS_DIR . '/layout/header.php');
     return strpos($headerContent, 'assets/vendor/sweetalert2/sweetalert2.min.css') !== false
-        && strpos($headerContent, 'assets/vendor/tailwind/tailwind.min.js') !== false;
+        && strpos($headerContent, 'assets/css/tailwind.css') !== false;
 });
 
 runTest("Layout header DOES NOT contain redundant QRCode script", function() {

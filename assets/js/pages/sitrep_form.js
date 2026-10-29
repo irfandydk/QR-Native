@@ -279,7 +279,7 @@ function renderUnsurList() {
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <div class="flex items-center gap-1">
-            <input type="number" min="1" max="999" value="${jml}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="w-12 px-1.5 py-1 text-xs font-bold text-center rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 focus:outline-none focus:border-blue-500" />
+            <input type="number" min="1" max="999" value="${jml}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-purple-600 dark:text-purple-400" />
             <span class="text-xs font-medium text-slate-400">Org</span>
           </div>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
@@ -398,8 +398,8 @@ function renderAlutList() {
           <input type="text" value="${escapeHtml(item.nama_alut || '')}" onchange="updateAlutItem(${idx}, 'nama_alut', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-blue-500 focus:outline-none text-slate-900 dark:text-white" />
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <input type="number" min="1" max="999" value="${jml}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="w-12 px-1.5 py-1 text-xs font-bold text-center rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 focus:outline-none focus:border-blue-500" />
-          <select onchange="updateAlutItem(${idx}, 'satuan', this.value)" class="px-1.5 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none">
+          <input type="number" min="1" max="999" value="${jml}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-emerald-600 dark:text-emerald-400" />
+          <select onchange="updateAlutItem(${idx}, 'satuan', this.value)" class="control control-sm">
             <option value="Unit" ${item.satuan === 'Unit' ? 'selected' : ''}>Unit</option>
             <option value="Set" ${item.satuan === 'Set' ? 'selected' : ''}>Set</option>
             <option value="Buah" ${item.satuan === 'Buah' ? 'selected' : ''}>Buah</option>
@@ -502,104 +502,19 @@ function syncAlutFields() {
 }
 
 // ── WhatsApp Preview Modal ──
-function previewSitrepWa() {
-  const hariKe = document.getElementById('sitrep_hari_ke')?.value || 'H.1';
-  const waktuLap = document.getElementById('sitrep_waktu_laporan')?.value || '';
-  const isPenutupan = document.querySelector('input[name="jenis_laporan"]:checked')?.value === 'PENUTUPAN';
-  const waktuDebrief = document.getElementById('sitrep_waktu_debrief')?.value || '';
-  const cuaca = document.getElementById('sitrep_cuaca')?.value || 'Cerah Berawan';
-  const isi = document.getElementById('sitrep_isi_laporan')?.value || '-';
-
-  const tglStr = window.formatTanggalIndo ? window.formatTanggalIndo(waktuLap) : waktuLap;
-  // namaOps initialized above from sitrepFormCfg
-  // korbanList initialized above from sitrepFormCfg
-
-  const unsurText = currentUnsurList.map(u => `• ${u.nama_unsur} : ${u.jumlah_personil || 1} Orang`).join('\n') || '• Tim Rescue Kansar Kendari : 7 Orang';
-  const alutText = currentAlutList.map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n') || '• 1 Unit Rescue Car\n• 1 Unit Rubber Boat';
-
-  let sCount = 0, mdCount = 0, dpCount = 0, hCount = 0;
-  const kList = [];
-  korbanList.forEach((k, idx) => {
-    const rowSelect = document.querySelector(`select[name="update_korban[${k.id_korban}]"]`) || document.querySelector(`select[name="update_korban[${k.id_korban}][status_korban]"]`);
-    const st = (rowSelect ? rowSelect.value : (k.status_korban || 'DP')).toUpperCase();
-    if (st === 'S') sCount++;
-    else if (st === 'MD') mdCount++;
-    else if (st === 'DP') dpCount++;
-    else if (st === 'H') hCount++;
-    else dpCount++;
-    const label = st === 'S' ? 'Selamat (S)' : (st === 'MD' ? 'Meninggal Dunia (MD)' : (st === 'H' ? 'Hilang / Nihil (H)' : 'Dalam Pencarian (DP)'));
-    kList.push(`${idx + 1}. Nama : ${k.nama_korban || '-'} [Status: ${label}]\n   Umur : ${k.umur || '-'}\n   Jenis Kelamin : ${k.jk || '-'}\n   Alamat : ${k.alamat || '-'}`);
-  });
-  const identitasText = kList.length > 0 ? kList.join('\n\n') : '1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -';
-
-  let klausulPenutupan = '';
-  if (isPenutupan) {
-    const tglDeb = window.formatTanggalSimple ? window.formatTanggalSimple(waktuDebrief) : (window.formatTanggalIndo ? window.formatTanggalIndo(waktuDebrief) : waktuDebrief);
-    const jamDeb = window.formatJamWita ? window.formatJamWita(waktuDebrief) : waktuDebrief;
-    klausulPenutupan = `\n\n• Pada tanggal ${tglDeb} Pukul ${jamDeb} WITA, Tim SAR Gabungan melakukan debriefing penutupan Ops SAR terhadap ${namaOps}, selanjutnya operasi SAR diusulkan ditutup dan unsur SAR yang terlibat kembali ke kesatuannya masing-masing dengan ucapan terima kasih.`;
-  }
-
-  const headerTitle = isPenutupan ? `LAPBANG OPS SAR ${hariKe.toUpperCase()} DAN PENUTUPAN` : `LAPBANG OPS SAR ${hariKe.toUpperCase()}`;
-
-  const header = `FILE AKTIF
-____
-
-SEMANGAT QUICK ACTION SEARCH AND RESCUE
-SATU JIWA SATU RASA
-WE ARE FAMILY
-PROFESIONAL MODERN TERUJI
-${headerTitle}
-
-KANTOR PENCARIAN DAN PERTOLONGAN KENDARI
-${tglStr}
-
-YTH : KABASARNAS
-CC : PIMTI MADYA & PRATAMA
-
-Dengan hormat, mohon ijin melaporkan Perkembangan Ops ${namaOps}.
-__________________________________________________`;
-
-  const footer = `Demikian kami laporkan, mohon petunjuk dan arahan
-
-Ttd
-
-KKS Kendari
-===========================
-🏢 Kantor Pencarian Dan Pertolongan Kendari
-📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116
-☎️ Telp. : (0401) 3196557
-📠 Fax. : (0401) 3196558
-📱 WhatsApp : +62811-4034-115
-🚨 Emergency Call : 115
-🌐 Website : Www.Kendari.Basarnas.go.id
-📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id
-📲 Medsos : @Basarnaskendari`;
-
-  const preview = `${header}
-
-Hasil Ops SAR ${hariKe.toUpperCase()}:
-
-${isi}${klausulPenutupan}
-
-1. Data Korban: ${korbanList.length} Orang
-• S : ${sCount} ORANG
-• MD : ${mdCount} ORANG
-• DP : ${dpCount} ORANG
-• H : ${hCount} ORANG
-
-2. Identitas Korban
-${identitasText}
-
-3. Unsur SAR Terlibat
-${unsurText}
-
-4. Alut dan Palsar
-${alutText}
-
-${footer}`;
-
-  document.getElementById('sitrep-wa-preview-content').textContent = preview;
+async function previewSitrepWa() {
+  const form = document.getElementById('form-sitrep');
+  const el = document.getElementById('sitrep-wa-preview-content');
+  if (!form || !el) return;
+  // Samakan dengan sinkronisasi saat submit agar pratinjau = naskah yang tersimpan
+  syncUnsurFields();
+  syncAlutFields();
   openModal('modal-preview-sitrep-wa');
+  try {
+    el.textContent = await window.QrSarUtils.fetchWaPreview(form, 'sitrep');
+  } catch (err) {
+    el.textContent = err.message;
+  }
 }
 
 function copySitrepWa() {

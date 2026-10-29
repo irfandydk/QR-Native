@@ -21,7 +21,7 @@ if (!defined('APP_NAME')) {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Edit Master Alut & Palsar</h3>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Edit Master Alut & Palsar</h3>
           <p class="text-[11px] text-slate-400">Perbarui spesifikasi nama armada atau satuan perlengkapan</p>
         </div>
       </div>
@@ -36,13 +36,17 @@ if (!defined('APP_NAME')) {
 
       <div class="p-6 space-y-4 overflow-y-auto">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Nama Alut / Peralatan SAR <span class="text-red-500">*</span></label>
-          <input type="text" name="nama_alut" id="edit_nama_alut" required class="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+          <div class="field">
+            <label class="field-label">Nama Alut / Peralatan SAR <span class="text-red-500">*</span></label>
+            <input placeholder=" " type="text" name="nama_alut" id="edit_nama_alut" required class="field-input w-full font-medium">
+          </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Satuan Ukuran</label>
-          <input type="text" name="satuan" id="edit_satuan_alut" placeholder="Unit, Set, Buah, dsb." class="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+          <div class="field">
+            <label class="field-label">Satuan Ukuran</label>
+            <input type="text" name="satuan" id="edit_satuan_alut" placeholder="Unit, Set, Buah, dsb." class="field-input w-full font-medium">
+          </div>
         </div>
       </div>
 
@@ -70,7 +74,7 @@ if (!defined('APP_NAME')) {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Edit Tim / Potensi SAR</h3>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Edit Tim / Potensi SAR</h3>
           <p class="text-[11px] text-slate-400">Perbarui nama tim penyelamat Basarnas atau instansi potensi SAR gabungan</p>
         </div>
       </div>
@@ -85,8 +89,10 @@ if (!defined('APP_NAME')) {
 
       <div class="p-6 space-y-4 overflow-y-auto">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Nama Tim Penyelamat / Potensi SAR <span class="text-red-500">*</span></label>
-          <input type="text" name="nama_tim" id="edit_nama_tim" required class="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+          <div class="field">
+            <label class="field-label">Nama Tim Penyelamat / Potensi SAR <span class="text-red-500">*</span></label>
+            <input placeholder=" " type="text" name="nama_tim" id="edit_nama_tim" required class="field-input w-full font-medium">
+          </div>
         </div>
       </div>
 
@@ -114,7 +120,7 @@ if (!defined('APP_NAME')) {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">Edit Data Pejabat Penandatangan / SMC</h3>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Edit Data Pejabat Penandatangan / SMC</h3>
           <p class="text-[11px] text-slate-400">Perbarui identitas pejabat resmi penandatangan berkas operasional SAR</p>
         </div>
       </div>
@@ -129,23 +135,31 @@ if (!defined('APP_NAME')) {
 
       <div class="p-6 space-y-3.5 overflow-y-auto">
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Nama Lengkap Pejabat <span class="text-red-500">*</span></label>
-          <input type="text" name="nama" id="edit_nama_pejabat" required class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+          <div class="field">
+            <label class="field-label">Nama Lengkap Pejabat <span class="text-red-500">*</span></label>
+            <input placeholder=" " type="text" name="nama" id="edit_nama_pejabat" required class="field-input w-full font-medium">
+          </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Jabatan Resmi <span class="text-red-500">*</span></label>
-          <input type="text" name="jabatan" id="edit_jabatan_pejabat" required class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+          <div class="field">
+            <label class="field-label">Jabatan Resmi <span class="text-red-500">*</span></label>
+            <input placeholder=" " type="text" name="jabatan" id="edit_jabatan_pejabat" required class="field-input w-full font-medium">
+          </div>
         </div>
 
         <div class="grid grid-cols-2 gap-2.5">
           <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Pangkat / Golongan</label>
-            <input type="text" name="pangkat" id="edit_pangkat_pejabat" placeholder="PEMBINA (IV/a)" class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+            <div class="field">
+              <label class="field-label">Pangkat / Golongan</label>
+              <input type="text" name="pangkat" id="edit_pangkat_pejabat" placeholder="PEMBINA (IV/a)" class="field-input w-full font-medium">
+            </div>
           </div>
           <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">NIP</label>
-            <input type="text" name="nip" id="edit_nip_pejabat" placeholder="197405101998031002" class="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500 dark:focus:border-orange-400 transition font-medium">
+            <div class="field">
+              <label class="field-label">NIP</label>
+              <input type="text" name="nip" id="edit_nip_pejabat" placeholder="197405101998031002" class="field-input w-full font-medium">
+            </div>
           </div>
         </div>
 

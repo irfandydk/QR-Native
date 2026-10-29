@@ -57,18 +57,18 @@
         }
       }
 
-      // Direction: standard Indonesian Basarnas (U/S for Lat, T/B for Lng)
-      const dir = isLat ? (numVal >= 0 ? 'U' : 'S') : (numVal >= 0 ? 'T' : 'B');
+      // Format standar seragam dengan GeoHelper PHP (WA & dokumen): arah N/S/E/W, detik 1 desimal
+      const dir = isLat ? (numVal >= 0 ? 'N' : 'S') : (numVal >= 0 ? 'E' : 'W');
       const degPad = String(deg).padStart(isLat ? 2 : 3, '0');
       const minPad = String(min).padStart(2, '0');
-      const secStr = (sec % 1 === 0 ? Math.floor(sec).toString().padStart(2, '0') : sec.toFixed(1)).padStart(2, '0');
+      const secStr = sec.toFixed(1).padStart(4, '0');
 
       return { deg, min, sec, dir, degPad, minPad, secStr };
     },
 
     /**
      * Format a single coordinate part into standard Basarnas DMS format:
-     * e.g. 04° 00' 52.0" S or 122° 33' 09.0" T
+     * e.g. 04° 00' 52.0" S or 122° 33' 09.0" E
      * @param {number} val
      * @param {boolean} isLat
      * @returns {string}
@@ -80,7 +80,7 @@
 
     /**
      * Format a pair of coordinates (lat, lng) into standard Basarnas DMS pair:
-     * e.g. 04° 00' 52.0" S - 122° 33' 09.0" T
+     * e.g. 04° 00' 52.0" S - 122° 33' 09.0" E
      * @param {number} lat
      * @param {number} lng
      * @returns {string}
@@ -214,6 +214,30 @@
         return words.length;
       }
     }
+  };
+
+  /**
+   * Ambil pratinjau naskah WA dari server untuk isi form saat ini.
+   * Memakai generator PHP yang sama dengan saat simpan, jadi pratinjau = naskah tersimpan.
+   * @param {HTMLFormElement} form
+   * @param {'laporan_awal'|'renops'|'sitrep'} doc
+   * @returns {Promise<string>}
+   */
+  QrSarUtils.fetchWaPreview = async function (form, doc) {
+    const fd = new FormData(form);
+    // id_operasi / id / id_renops / id_laporan ada di query action form
+    new URL(form.getAttribute('action') || '', global.location.href).searchParams.forEach((v, k) => fd.set(k, v));
+    fd.set('doc', doc);
+    const res = await fetch((global.BASE_URL || '') + '/api/index.php?path=/operasi/wa-preview', {
+      method: 'POST',
+      body: fd,
+      credentials: 'same-origin'
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.success) {
+      throw new Error(json.message || 'Gagal memuat pratinjau naskah WA.');
+    }
+    return json.text;
   };
 
   // Export to global window namespace

@@ -26,7 +26,7 @@ foreach ($opsMapSnapshots as $snap) {
                 <p class="text-xs text-slate-500 dark:text-slate-400">Pilih berkas resmi yang ingin dicetak / diunduh PDF, atau ambil cuplikan peta taktis 16:9 untuk Laporan Awal (1x), RENOPS (per hari), dan Penutupan (1x):</p>
             </div>
             <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=LAPORAN_AWAL" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition no-underline shrink-0">
-                <span>📸 Studio Capture Peta 16:9</span>
+                <span>Studio Capture Peta 16:9</span>
             </a>
         </div>
 
@@ -39,9 +39,9 @@ foreach ($opsMapSnapshots as $snap) {
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
                         </div>
                         <?php if ($hasSnapLaporanAwal): ?>
-                            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">✓ Peta 16:9 Siap (1x)</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">Peta 16:9 Siap (1x)</span>
                         <?php else: ?>
-                            <span class="px-2 py-0.5 rounded-full text-[9px] font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-500">Tanpa Peta</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-500">Tanpa Peta</span>
                         <?php endif; ?>
                     </div>
                     <h4 class="font-bold text-xs text-slate-900 dark:text-white">1. Berkas Laporan Awal</h4>
@@ -59,7 +59,7 @@ foreach ($opsMapSnapshots as $snap) {
                         </a>
                     </div>
                     <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=LAPORAN_AWAL" class="w-full py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] transition flex items-center justify-center gap-1 no-underline">
-                        <span>📸 <?= $hasSnapLaporanAwal ? 'Perbarui Peta 16:9 (1x)' : 'Capture Peta 16:9 (1x)' ?></span>
+                        <span><?= $hasSnapLaporanAwal ? 'Perbarui Peta 16:9 (1x)' : 'Capture Peta 16:9 (1x)' ?></span>
                     </a>
                 </div>
             </div>
@@ -72,9 +72,9 @@ foreach ($opsMapSnapshots as $snap) {
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
                         </div>
                         <?php if ($hasSnapRenops): ?>
-                            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">✓ Peta Harian Siap</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">Peta Harian Siap</span>
                         <?php else: ?>
-                            <span class="px-2 py-0.5 rounded-full text-[9px] font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-500">Tanpa Peta</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-500">Tanpa Peta</span>
                         <?php endif; ?>
                     </div>
                     <h4 class="font-bold text-xs text-slate-900 dark:text-white">2. Rencana Operasi SAR</h4>
@@ -96,11 +96,11 @@ foreach ($opsMapSnapshots as $snap) {
                             </a>
                         </div>
                         <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=RENOPS&capture_ref=<?= $singleRenopsId ?>" class="w-full py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] transition flex items-center justify-center gap-1 no-underline">
-                            <span>📸 <?= $hasSnapRenops ? 'Perbarui Peta RENOPS' : 'Capture Peta RENOPS' ?></span>
+                            <span><?= $hasSnapRenops ? 'Perbarui Peta RENOPS' : 'Capture Peta RENOPS' ?></span>
                         </a>
                         <?php else: ?>
                         <div class="space-y-1.5">
-                            <select id="select-renops-cetak" class="w-full text-xs p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+                            <select id="select-renops-cetak" class="control control-sm w-full">
                                 <?php foreach ($operasi['renops'] as $r): ?>
                                 <option value="<?= (int)$r['id_renops'] ?>"><?= e($r['hari_ke']) ?> &bull; <?= TemplateHelper::formatTanggalSimple($r['tanggal_laporan']) ?></option>
                                 <?php endforeach; ?>
@@ -116,7 +116,7 @@ foreach ($opsMapSnapshots as $snap) {
                                 </button>
                             </div>
                             <button type="button" onclick="const rid = document.getElementById('select-renops-cetak').value; window.location.href='<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=RENOPS&capture_ref=' + rid;" class="w-full py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer">
-                                <span>📸 Capture Peta Hari Terpilih</span>
+                                <span>Capture Peta Hari Terpilih</span>
                             </button>
                         </div>
                         <?php endif; ?>
@@ -143,7 +143,7 @@ foreach ($opsMapSnapshots as $snap) {
                     </a>
                     <?php else: ?>
                     <div class="space-y-1.5">
-                        <select id="select-bra-cetak" class="w-full text-xs p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+                        <select id="select-bra-cetak" class="control control-sm w-full">
                             <?php foreach ($operasi['bra_sar'] as $b): ?>
                             <option value="<?= (int)$b['id_bra'] ?>">BRA #<?= (int)$b['id_bra'] ?> &bull; <?= e(!empty($b['no_bra']) ? $b['no_bra'] : $b['perihal']) ?></option>
                             <?php endforeach; ?>
@@ -167,9 +167,9 @@ foreach ($opsMapSnapshots as $snap) {
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
                         </div>
                         <?php if ($hasSnapPenutupan): ?>
-                            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">✓ Peta Penutupan Siap (1x)</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">Peta Penutupan Siap (1x)</span>
                         <?php else: ?>
-                            <span class="px-2 py-0.5 rounded-full text-[9px] font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-500">Tanpa Peta</span>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-500">Tanpa Peta</span>
                         <?php endif; ?>
                     </div>
                     <h4 class="font-bold text-xs text-slate-900 dark:text-white">4. Perkembangan &amp; Penutupan</h4>
@@ -177,10 +177,10 @@ foreach ($opsMapSnapshots as $snap) {
                 </div>
                 <div class="space-y-1.5">
                     <div class="grid grid-cols-2 gap-1.5">
-                        <a href="<?= BASE_URL ?>/operasi.php?action=print_penutupan&id=<?= $id ?>" target="_blank" class="py-1.5 px-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-[10.5px] transition shadow-xs cursor-pointer flex items-center justify-center gap-1 no-underline">
+                        <a href="<?= BASE_URL ?>/operasi.php?action=print_penutupan&id=<?= $id ?>" target="_blank" class="py-1.5 px-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] transition shadow-xs cursor-pointer flex items-center justify-center gap-1 no-underline">
                             <span>Cetak Penutupan</span>
                         </a>
-                        <a href="<?= BASE_URL ?>/operasi.php?action=print_penutupan&id=<?= $id ?>&download_pdf=1" target="_blank" class="py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10.5px] transition shadow-xs cursor-pointer flex items-center justify-center gap-1 no-underline" title="Download PDF Berita Acara Penutupan">
+                        <a href="<?= BASE_URL ?>/operasi.php?action=print_penutupan&id=<?= $id ?>&download_pdf=1" target="_blank" class="py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition shadow-xs cursor-pointer flex items-center justify-center gap-1 no-underline" title="Download PDF Berita Acara Penutupan">
                             <span>PDF Penutupan</span>
                         </a>
                     </div>
@@ -189,33 +189,33 @@ foreach ($opsMapSnapshots as $snap) {
                             $singleLapId = (int)$operasi['laporan_harian'][0]['id_laporan'];
                         ?>
                         <div class="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200 dark:border-slate-700/60">
-                            <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= $singleLapId ?>" target="_blank" class="py-1.5 px-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-[10.5px] transition flex items-center justify-center gap-1 no-underline">
+                            <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= $singleLapId ?>" target="_blank" class="py-1.5 px-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-[11px] transition flex items-center justify-center gap-1 no-underline">
                                 <span>Cetak SITREP</span>
                             </a>
-                            <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= $singleLapId ?>&download_pdf=1" target="_blank" class="py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10.5px] transition flex items-center justify-center gap-1 no-underline" title="Download PDF SITREP">
+                            <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= $singleLapId ?>&download_pdf=1" target="_blank" class="py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center justify-center gap-1 no-underline" title="Download PDF SITREP">
                                 <span>PDF SITREP</span>
                             </a>
                         </div>
                         <?php else: ?>
                         <div class="space-y-1 pt-1 border-t border-slate-200 dark:border-slate-700/60">
-                            <select id="select-sitrep-cetak" class="w-full text-xs p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200">
+                            <select id="select-sitrep-cetak" class="control control-sm w-full">
                                 <?php foreach ($operasi['laporan_harian'] as $lh): ?>
                                 <option value="<?= (int)$lh['id_laporan'] ?>"><?= e($lh['hari_ke']) ?> &bull; <?= strtoupper($lh['jenis_laporan']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                             <div class="grid grid-cols-2 gap-1.5">
-                                <button type="button" onclick="const lid = document.getElementById('select-sitrep-cetak').value; window.open('<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=' + lid, '_blank');" class="py-1.5 px-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-[10.5px] transition flex items-center justify-center gap-1 cursor-pointer">
+                                <button type="button" onclick="const lid = document.getElementById('select-sitrep-cetak').value; window.open('<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=' + lid, '_blank');" class="py-1.5 px-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer">
                                     <span>Cetak SITREP</span>
                                 </button>
-                                <button type="button" onclick="const lid = document.getElementById('select-sitrep-cetak').value; window.open('<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=' + lid + '&download_pdf=1', '_blank');" class="py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10.5px] transition flex items-center justify-center gap-1 cursor-pointer" title="Download PDF SITREP Terpilih">
+                                <button type="button" onclick="const lid = document.getElementById('select-sitrep-cetak').value; window.open('<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=' + lid + '&download_pdf=1', '_blank');" class="py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer" title="Download PDF SITREP Terpilih">
                                     <span>PDF SITREP</span>
                                 </button>
                             </div>
                         </div>
                         <?php endif; ?>
                     <?php endif; ?>
-                    <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=PENUTUPAN" class="w-full py-1.5 px-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-[10.5px] transition flex items-center justify-center gap-1 no-underline text-center">
-                        <span>📸 <?= $hasSnapPenutupan ? 'Perbarui Peta Penutupan (1x)' : 'Capture Peta Penutupan (1x)' ?></span>
+                    <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$id ?>&include_base=1&capture_doc=PENUTUPAN" class="w-full py-1.5 px-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold text-[11px] transition flex items-center justify-center gap-1 no-underline text-center">
+                        <span><?= $hasSnapPenutupan ? 'Perbarui Peta Penutupan (1x)' : 'Capture Peta Penutupan (1x)' ?></span>
                     </a>
                 </div>
             </div>

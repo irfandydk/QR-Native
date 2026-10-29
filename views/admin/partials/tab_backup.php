@@ -23,7 +23,7 @@ if (!defined('APP_NAME')) {
           <p class="text-xs text-slate-500 dark:text-slate-400">Ringkasan entitas data operasional yang tersimpan di server MySQL</p>
         </div>
       </div>
-      <span class="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+      <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
         STATUS: AKTIF & TERSINKRON
       </span>
     </div>
@@ -32,63 +32,63 @@ if (!defined('APP_NAME')) {
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 mt-5">
       
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Operasi SAR</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_operasi'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Operasi SAR</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_operasi'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Data Korban</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_korban'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Data Korban</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_korban'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Dokumen BRA</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_bra_sar'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Dokumen BRA</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_bra_sar'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Renops SAR</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_renops'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Renops SAR</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_renops'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Laporan Harian</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_laporan_harian'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Laporan Harian</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_laporan_harian'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Master Alut</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_master_alut'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Master Alut</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_master_alut'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Master Potensi</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_master_tim'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Master Potensi</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_master_tim'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Pangkalan SAR</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_sar_units'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Pangkalan SAR</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_sar_units'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Pejabat & SMC</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_pejabat'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Pejabat & SMC</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_pejabat'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Titik GIS Map</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_gis_points'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Titik GIS Map</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_gis_points'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Polygon Area</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_gis_polygons'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Polygon Area</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_gis_polygons'] ?? 0) ?></p>
       </div>
 
       <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
-        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Rute Jarak GIS</span>
-        <p class="text-xl font-black text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_gis_routes'] ?? 0) ?></p>
+        <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">Rute Jarak GIS</span>
+        <p class="text-xl font-bold text-slate-900 dark:text-white mt-1"><?= (int)($dbStats['total_gis_routes'] ?? 0) ?></p>
       </div>
 
     </div>
@@ -114,14 +114,14 @@ if (!defined('APP_NAME')) {
           <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div class="space-y-1">
               <div class="flex items-center gap-2">
-                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">FORMAT RESMI .SQL</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">FORMAT RESMI .SQL</span>
                 <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">MySQL Database Dump File</h4>
               </div>
               <p class="text-[11px] text-slate-500 dark:text-slate-400">
                 Mencakup seluruh skrip DDL (struktur tabel) dan DML (seluruh record data) dari 23 tabel entitas operasional SAR, BRA, Renops, Korban, hingga konfigurasi sistem.
               </p>
             </div>
-            <a href="<?= BASE_URL ?>/admin.php?action=export_sql" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md shadow-orange-600/30 transition-all shrink-0 cursor-pointer">
+            <a href="<?= BASE_URL ?>/admin.php?action=export_sql" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md transition-all shrink-0 cursor-pointer">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
               <span>Unduh Cadangan SQL</span>
             </a>
@@ -171,7 +171,7 @@ if (!defined('APP_NAME')) {
         </div>
 
         <div class="pt-2">
-          <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md shadow-orange-600/30 transition-all cursor-pointer">
+          <button type="submit" class="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs transition-all cursor-pointer">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
             <span>Pulihkan Database dari SQL Sekarang</span>
           </button>

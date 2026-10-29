@@ -19,41 +19,44 @@ $requiresBra = !empty($useBra) || in_array($currentRoute ?? '', ['bra', 'bra_vie
 </div> <!-- end app-container -->
 
 <!-- Core Vendor Scripts (Global) -->
-<script src="<?= BASE_URL ?>/assets/vendor/sweetalert2/sweetalert2.all.min.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/vendor/sweetalert2/sweetalert2.all.min.js') ?>"></script>
 
 <!-- Conditional Vendor Scripts -->
 <?php if ($requiresGis): ?>
-<script src="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.min.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/vendor/leaflet/leaflet.min.js') ?>"></script>
 <?php endif; ?>
 
 <?php if ($requiresQr): ?>
-<script src="<?= BASE_URL ?>/assets/vendor/qrcode/qrcode.min.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/vendor/qrcode/qrcode.min.js') ?>"></script>
 <?php endif; ?>
 
 <!-- Core App Scripts -->
-<script src="<?= BASE_URL ?>/assets/js/utils/common.js?v=<?= APP_VERSION ?>"></script>
-<script src="<?= BASE_URL ?>/assets/js/app.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/js/utils/common.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/app.js') ?>"></script>
+<?php if (($uiTheme ?? ((SettingsModel::getSettings()['ui_theme'] ?? 'klasik'))) === 'minimal'): ?>
+<script src="<?= assetUrl('assets/js/theme-minimal.js') ?>"></script>
+<?php endif; ?>
 
 <!-- Conditional Feature Scripts -->
 <?php if ($requiresBra): ?>
-<script src="<?= BASE_URL ?>/assets/js/bra.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/js/bra.js') ?>"></script>
 <?php endif; ?>
 
 <?php if ($requiresGis): ?>
-<script src="<?= BASE_URL ?>/assets/js/gis/geodesy.js?v=<?= APP_VERSION ?>"></script>
-<script src="<?= BASE_URL ?>/assets/js/gis/markers.js?v=<?= APP_VERSION ?>"></script>
-<script src="<?= BASE_URL ?>/assets/js/gis/patterns.js?v=<?= APP_VERSION ?>"></script>
-<script src="<?= BASE_URL ?>/assets/js/gis/export.js?v=<?= APP_VERSION ?>"></script>
-<script src="<?= BASE_URL ?>/assets/js/gis.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/js/gis/geodesy.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/gis/markers.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/gis/patterns.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/gis/export.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/gis.js') ?>"></script>
 <?php endif; ?>
 
 <!-- Dedicated Page-Specific Scripts -->
 <?php if (!empty($pageScript)): ?>
-<script src="<?= BASE_URL ?>/assets/js/<?= ltrim($pageScript, '/') ?>?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/js/' . ltrim($pageScript, '/')) ?>"></script>
 <?php endif; ?>
 <?php if (!empty($pageScripts) && is_array($pageScripts)): ?>
     <?php foreach ($pageScripts as $script): ?>
-<script src="<?= BASE_URL ?>/assets/js/<?= ltrim($script, '/') ?>?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/js/' . ltrim($script, '/')) ?>"></script>
     <?php endforeach; ?>
 <?php endif; ?>
 

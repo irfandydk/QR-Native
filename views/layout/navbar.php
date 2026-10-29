@@ -28,14 +28,11 @@ $headerSubtitle = $navbarSubtitle ?? 'KANTOR PENCARIAN DAN PERTOLONGAN (KPP) KEL
 
                 <div class="min-w-0">
                     <div class="flex items-center gap-2">
-                        <span class="font-extrabold text-sm sm:text-base tracking-wide uppercase truncate text-slate-900 dark:text-slate-100">
+                        <span class="font-bold text-sm sm:text-base tracking-tight truncate text-slate-900 dark:text-slate-100">
                             <?= e($headerTitle) ?>
                         </span>
-                        <span class="hidden sm:inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 shrink-0">
-                            FILE AKTIF
-                        </span>
                     </div>
-                    <p class="text-[10px] text-slate-400 font-medium tracking-tight truncate hidden sm:block">
+                    <p class="text-[11px] text-slate-400 font-medium tracking-tight truncate hidden sm:block">
                         <?= e($headerSubtitle) ?>
                     </p>
                 </div>
@@ -43,10 +40,6 @@ $headerSubtitle = $navbarSubtitle ?? 'KANTOR PENCARIAN DAN PERTOLONGAN (KPP) KEL
 
             <!-- Right: Official Satker Indicator & Global Theme Toggle -->
             <div class="flex items-center gap-2.5 shrink-0">
-                <div class="hidden md:flex items-center gap-2 px-3 py-1 rounded-xl border text-[11px] font-semibold bg-slate-100 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/60 text-slate-700 dark:text-slate-300">
-                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                    <span>SISTEM SIAGA SAR KENDARI</span>
-                </div>
 
                 <!-- Theme Toggle Button -->
                 <button

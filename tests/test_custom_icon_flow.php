@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 if (php_sapi_name() !== 'cli') {
     http_response_code(403);
     exit('Akses Ditolak: Skrip pengujian hanya dapat dijalankan melalui CLI.' . PHP_EOL);

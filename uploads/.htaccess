@@ -17,4 +17,6 @@ RemoveType .php .phtml .php3 .php4 .php5 .php7 .phps .phar .cgi .pl .py .sh
 # Enforce download or static delivery for other assets
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
+    # Cegah skrip di SVG unggahan berjalan bila berkas dibuka langsung (stored XSS)
+    Header set Content-Security-Policy "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox"
 </IfModule>

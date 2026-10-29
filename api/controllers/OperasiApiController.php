@@ -24,6 +24,42 @@ class OperasiApiController extends BaseApiController {
             return true;
         }
 
+        // 2b. Pratinjau naskah WA dari isi form (belum disimpan), generator sama dengan saat simpan
+        if ($path === '/operasi/wa-preview' && $method === 'POST') {
+            self::requireAuth();
+            $data = $_POST ?: $input;
+            foreach (['detail_alut', 'detail_unsur'] as $key) {
+                if (!empty($data[$key . '_json']) && is_string($data[$key . '_json'])) {
+                    $decoded = json_decode($data[$key . '_json'], true);
+                    if (is_array($decoded)) $data[$key] = $decoded;
+                }
+            }
+            $doc = (string)($data['doc'] ?? '');
+            $idOps = (int)($data['id_operasi'] ?? ($doc === 'laporan_awal' ? ($data['id'] ?? 0) : 0));
+            $ops = $idOps > 0 ? OperasiModel::getById($idOps) : null;
+            if ($doc !== 'laporan_awal' && !$ops) {
+                self::error('Operasi SAR tidak ditemukan.', 404);
+            }
+
+            if ($doc === 'laporan_awal') {
+                $prep = OperasiModel::prepareLaporanAwal($data, $ops);
+                $text = TemplateHelper::generateLaporanAwalWA($prep['ops'], $prep['korban'], $prep['unsur'], $prep['alut']);
+            } elseif ($doc === 'renops') {
+                $existing = !empty($data['id_renops']) ? RenopsModel::getById((int)$data['id_renops']) : null;
+                $data['srus'] = RenopsModel::normalizeInputSrus(is_array($data['srus'] ?? null) ? $data['srus'] : []);
+                $data['hari_ke'] = TemplateHelper::hitungHariKe($ops, $data['tanggal_laporan'] ?? date('Y-m-d'));
+                $text = RenopsModel::buildPreviewWa($ops, $data, $existing);
+            } elseif ($doc === 'sitrep') {
+                $existing = !empty($data['id_laporan']) ? LaporanModel::getById((int)$data['id_laporan']) : null;
+                $data['hari_ke'] = TemplateHelper::hitungHariKe($ops, date('Y-m-d', strtotime($data['waktu_laporan'] ?? 'now') ?: time()));
+                $text = LaporanModel::buildPreviewWa($ops, $data, $existing);
+            } else {
+                self::error('Jenis naskah WA tidak dikenal.', 400);
+            }
+            self::json(['success' => true, 'text' => $text]);
+            return true;
+        }
+
         // 3. Operasi Create
         if ($path === '/operasi' && $method === 'POST') {
             self::requireAuth();

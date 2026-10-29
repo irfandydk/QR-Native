@@ -160,6 +160,7 @@ try {
     if (class_exists('UserModel')) {
         echo "[RUN] Checking Users table...\n";
         UserModel::ensureTableExists(true);
+        SettingsModel::getSettings(); // Instalasi baru: buat baris AppSettings default agar akun admin/user ikut tersinkron
         UserModel::syncFromAppSettings(true);
         echo "[OK] Users table validated.\n";
     }
@@ -172,6 +173,24 @@ try {
         $db->prepare("UPDATE AppSettings SET admin_password = COALESCE(NULLIF(admin_password, ''), :pa), user_password = COALESCE(NULLIF(user_password, ''), :pu) WHERE id = 1")
            ->execute([':pa' => $defaultHash, ':pu' => $defaultHash]);
         echo "[OK] AppSettings default passwords secured.\n";
+    }
+
+    // 2b-2. Hash sisa sandi plaintext lama (login hanya menerima password_hash sejak audit keamanan)
+    $plainUsers = $db->query("SELECT id, password_hash FROM `Users`")->fetchAll();
+    $stmtHashUser = $db->prepare("UPDATE `Users` SET password_hash = :p WHERE id = :id");
+    foreach ($plainUsers as $pu) {
+        if ($pu['password_hash'] !== '' && empty(password_get_info($pu['password_hash'])['algo'])) {
+            $stmtHashUser->execute([':p' => password_hash(trim($pu['password_hash']), PASSWORD_DEFAULT), ':id' => $pu['id']]);
+            echo "[OK] Plaintext password hashed for user {$pu['id']}.\n";
+        }
+    }
+    $plainSet = $db->query("SELECT admin_password, user_password FROM AppSettings WHERE id = 1 LIMIT 1")->fetch() ?: [];
+    foreach (['admin_password', 'user_password'] as $col) {
+        $val = (string)($plainSet[$col] ?? '');
+        if ($val !== '' && empty(password_get_info($val)['algo'])) {
+            $db->prepare("UPDATE AppSettings SET {$col} = :p WHERE id = 1")->execute([':p' => password_hash(trim($val), PASSWORD_DEFAULT)]);
+            echo "[OK] Plaintext AppSettings.{$col} hashed.\n";
+        }
     }
 
     // 2c. Ensure all 9 official Basarnas Sultra SarUnit bases exist
@@ -203,11 +222,9 @@ try {
     }
     echo "[OK] All 9 SarUnit bases verified.\n";
 
-    // 3. Sync AUTO_INCREMENT across all operational and child tables
+    // 3. Ensure DetailTimBerangkat is populated for any existing operations
     if (class_exists('OperasiModel')) {
-        echo "[RUN] Syncing Operasi & Child Tables AUTO_INCREMENT...\n";
-        
-        // Ensure DetailTimBerangkat is populated for any existing operations
+        echo "[RUN] Checking DetailTimBerangkat for existing operations...\n";
         $opsList = $db->query("SELECT id_operasi, tim_berangkat FROM Operasi")->fetchAll();
         foreach ($opsList as $o) {
             $idOps = (int)$o['id_operasi'];
@@ -226,27 +243,7 @@ try {
             }
         }
 
-        OperasiModel::syncAutoIncrement();
-        OperasiModel::syncChildAutoIncrements();
-        echo "[OK] Operasi & Child AUTO_INCREMENT synchronized.\n";
-    }
-
-    if (class_exists('BraModel')) {
-        echo "[RUN] Syncing BraSar & BraSection AUTO_INCREMENT...\n";
-        BraModel::syncAutoIncrement();
-        echo "[OK] BraSar & BraSection AUTO_INCREMENT synchronized.\n";
-    }
-
-    if (class_exists('RenopsModel')) {
-        echo "[RUN] Syncing Renops & RenopsSRU AUTO_INCREMENT...\n";
-        RenopsModel::syncAutoIncrement();
-        echo "[OK] Renops & RenopsSRU AUTO_INCREMENT synchronized.\n";
-    }
-
-    if (class_exists('GisModel')) {
-        echo "[RUN] Syncing GIS AUTO_INCREMENT...\n";
-        GisModel::syncAutoIncrement();
-        echo "[OK] GIS AUTO_INCREMENT synchronized.\n";
+        echo "[OK] DetailTimBerangkat validated.\n";
     }
 
     echo "\n=== All database migrations completed successfully! ===\n";

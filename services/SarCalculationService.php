@@ -104,7 +104,7 @@ class SarCalculationService {
      */
     public static function formatJamWITA(?string $dateInput): string {
         $timestamp = self::parseToTimestamp($dateInput);
-        if ($timestamp === null) return '00:00';
+        if ($timestamp === null) return '-';
         return date('H:i', $timestamp);
     }
 
@@ -112,9 +112,9 @@ class SarCalculationService {
      * Format date to Military Time Word (TW): e.g. "TW 1012 0830 H".
      */
     public static function formatTW(?string $dateInput): string {
-        if (!$dateInput) return 'TW 0000 0000 H';
+        if (!$dateInput) return '-';
         $timestamp = strtotime($dateInput);
-        if ($timestamp === false) return 'TW 0000 0000 H';
+        if ($timestamp === false) return '-';
 
         $mm = date('m', $timestamp);
         $dd = date('d', $timestamp);

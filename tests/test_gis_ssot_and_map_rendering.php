@@ -11,6 +11,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 if (!defined('APP_NAME')) {
     define('APP_NAME', 'QR-SAR Test');
     define('BASE_PATH', dirname(__DIR__));

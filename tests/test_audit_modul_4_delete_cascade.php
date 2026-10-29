@@ -6,6 +6,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../helpers/AuthHelper.php';
 require_once __DIR__ . '/../helpers/BraHelper.php';

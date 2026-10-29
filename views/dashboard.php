@@ -80,7 +80,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
         </span>
       </div>
-      <div class="text-2xl sm:text-3xl font-extrabold text-emerald-500 dark:text-emerald-400 mt-2 font-mono">
+      <div class="text-2xl sm:text-3xl font-semibold text-emerald-500 dark:text-emerald-400 mt-2 font-mono">
         <?= $totalOpen ?>
       </div>
       <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500">
@@ -98,7 +98,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           <svg class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
       </div>
-      <div class="text-2xl sm:text-3xl font-extrabold mt-2 font-mono text-slate-700 dark:text-slate-300">
+      <div class="text-2xl sm:text-3xl font-semibold mt-2 font-mono text-slate-700 dark:text-slate-300">
         <?= $totalClosed ?>
       </div>
       <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500">
@@ -116,7 +116,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
         </div>
       </div>
-      <div class="text-2xl sm:text-3xl font-extrabold text-orange-600 dark:text-orange-400 mt-2 font-mono">
+      <div class="text-2xl sm:text-3xl font-semibold text-orange-600 dark:text-orange-400 mt-2 font-mono">
         <?= $totalBra ?>
       </div>
       <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500">
@@ -134,7 +134,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         </div>
       </div>
-      <div class="text-base sm:text-lg lg:text-xl font-black mt-2 font-mono tracking-tight truncate text-slate-900 dark:text-white" title="<?= e($latestBraNumber) ?>">
+      <div class="text-base sm:text-lg lg:text-xl font-bold mt-2 font-mono tracking-tight truncate text-slate-900 dark:text-white" title="<?= e($latestBraNumber) ?>">
         <?= e($latestBraNumber) ?>
       </div>
       <p class="text-[11px] mt-1 truncate text-slate-400 dark:text-slate-500">
@@ -157,7 +157,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
         type="text"
         id="dashSearchInput"
         placeholder="Cari operasi, perairan, koordinat..."
-        class="w-full pl-9 pr-8 py-2 rounded-xl text-xs border transition-colors outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-transparent"
+        class="control control-sm w-full placeholder:text-slate-400 dark:placeholder:text-slate-500 pl-9 pr-8"
       />
       <button
         type="button"
@@ -182,7 +182,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           id="dashMonthSelect"
           onchange="onMonthFilterChange(this.value)"
           aria-label="Filter Bulan Operasi SAR"
-          class="pl-8 pr-7 py-2 rounded-xl text-xs font-semibold border transition-colors outline-none cursor-pointer appearance-none bg-slate-50 dark:bg-slate-950 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400 dark:hover:border-slate-600"
+          class="control control-sm font-semibold cursor-pointer appearance-none pl-8 pr-7"
         >
           <option value="ALL">Semua Bulan Operasi</option>
           <?php foreach ($monthMap as $mOpt): ?>
@@ -191,21 +191,21 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
             </option>
           <?php endforeach; ?>
         </select>
-        <div class="absolute right-2.5 pointer-events-none text-slate-400 text-[10px]">
+        <div class="absolute right-2.5 pointer-events-none text-slate-400 text-[11px]">
           ▼
         </div>
       </div>
 
       <!-- Status Filter Tabs -->
-      <div class="flex items-center rounded-xl p-1 text-xs border bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs">
+      <div class="flex items-center max-w-full overflow-x-auto rounded-xl p-1 text-xs border bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs">
         <button
           type="button"
           id="tab-status-ALL"
           onclick="setStatusFilter('ALL')"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'ALL' ? 'font-bold bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'ALL' ? 'font-bold bg-orange-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
         >
           <span>Semua</span>
-          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono <?= $initialStatus === 'ALL' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
+          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[11px] font-mono <?= $initialStatus === 'ALL' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
             <?= count($operasis) ?>
           </span>
         </button>
@@ -213,11 +213,11 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           type="button"
           id="tab-status-OPEN"
           onclick="setStatusFilter('OPEN')"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'OPEN' ? 'font-bold bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'OPEN' ? 'font-bold bg-orange-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
         >
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span>OPEN</span>
-          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono <?= $initialStatus === 'OPEN' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
+          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[11px] font-mono <?= $initialStatus === 'OPEN' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
             <?= $totalOpen ?>
           </span>
         </button>
@@ -225,11 +225,11 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           type="button"
           id="tab-status-CLOSED"
           onclick="setStatusFilter('CLOSED')"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'CLOSED' ? 'font-bold bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'CLOSED' ? 'font-bold bg-orange-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
         >
           <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
           <span>CLOSED</span>
-          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono <?= $initialStatus === 'CLOSED' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
+          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[11px] font-mono <?= $initialStatus === 'CLOSED' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
             <?= $totalClosed ?>
           </span>
         </button>
@@ -251,7 +251,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
       <a
         id="btn-tambah-operasi-baru"
         href="<?= BASE_URL ?>/operasi_form.php"
-        class="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:opacity-95 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-600/25 border border-orange-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+        class="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:opacity-95 text-white rounded-xl text-xs font-bold shadow-md border border-orange-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         <span>Operasi Baru</span>
@@ -270,17 +270,17 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
       <span id="chipMonth" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 hidden">
         <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
         <span id="chipMonthText">Bulan</span>
-        <button type="button" onclick="resetMonthFilter()" class="hover:text-orange-800 dark:hover:text-orange-200 ml-0.5 cursor-pointer">✕</button>
+        <button type="button" onclick="resetMonthFilter()" class="hover:text-orange-800 dark:hover:text-orange-200 ml-0.5 cursor-pointer"></button>
       </span>
 
       <span id="chipStatus" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 hidden">
         <span id="chipStatusText">Status</span>
-        <button type="button" onclick="setStatusFilter('OPEN')" class="hover:text-blue-800 dark:hover:text-blue-200 ml-0.5 cursor-pointer">✕</button>
+        <button type="button" onclick="setStatusFilter('OPEN')" class="hover:text-blue-800 dark:hover:text-blue-200 ml-0.5 cursor-pointer"></button>
       </span>
 
       <span id="chipSearch" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/30 hidden">
         <span id="chipSearchText">Cari</span>
-        <button type="button" onclick="clearDashSearch()" class="hover:text-slate-900 dark:hover:text-white ml-0.5 cursor-pointer">✕</button>
+        <button type="button" onclick="clearDashSearch()" class="hover:text-slate-900 dark:hover:text-white ml-0.5 cursor-pointer"></button>
       </span>
 
       <span id="filteredCountText" class="text-slate-400 text-[11px]">
@@ -336,7 +336,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
         <a
           href="<?= BASE_URL ?>/operasi_form.php"
           id="emptyStateInitBtn"
-          class="inline-block px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-600 hover:opacity-95 text-white rounded-xl text-xs font-semibold shadow-md shadow-orange-500/20 transition cursor-pointer"
+          class="inline-block px-4 py-2 bg-orange-600 hover:opacity-95 text-white rounded-xl text-xs font-semibold shadow-md transition cursor-pointer"
         >
           + Inisiasi Laporan Awal Sekarang
         </a>
@@ -365,14 +365,17 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
       $s = (int)($op['korban_s'] ?? 0);
       $md = (int)($op['korban_md'] ?? 0);
       $dp = (int)($op['korban_dp'] ?? 0);
-      $totalPob = (int)($op['jumlah_pob'] ?? 0);
-      if ($totalPob === 0) $totalPob = $s + $md + $dp;
+      $h = (int)($op['korban_h'] ?? 0);
+      $identified = (int)($op['total_korban_count'] ?? 0);
+      // Aturan sama dengan SarCalculationService::hitungStatistikKorban: POB yang belum terdata dihitung DP
+      $totalPob = max((int)($op['jumlah_pob'] ?? 0), $identified);
+      $dp += $totalPob - $identified;
 
       $totalRenops = (int)($op['total_renops'] ?? 0);
       $totalLapbang = (int)($op['total_laporan'] ?? 0);
     ?>
     <div
-      class="operation-item-card group relative rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50/95 dark:hover:bg-slate-800/90 border-slate-200/90 dark:border-slate-800 hover:border-orange-500/40 dark:hover:border-orange-500/40 shadow-sm hover:shadow-lg hover:shadow-orange-500/5 <?= $isOpen ? ($isReopened ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-emerald-500') : 'border-l-4 border-l-slate-400 dark:border-l-slate-600' ?> <?= $isInitialMatch ? '' : 'hidden' ?>"
+      class="operation-item-card group relative rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50/95 dark:hover:bg-slate-800/90 border-slate-200/90 dark:border-slate-800 hover:border-orange-500/40 dark:hover:border-orange-500/40 shadow-sm hover:shadow-lg <?= $isOpen ? ($isReopened ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-emerald-500') : 'border-l-4 border-l-slate-400 dark:border-l-slate-600' ?> <?= $isInitialMatch ? '' : 'hidden' ?>"
       data-id="<?= $op['id_operasi'] ?>"
       data-status="<?= e($op['status']) ?>"
       data-month="<?= e($monthKey) ?>"
@@ -405,7 +408,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           <?php endif; ?>
 
           <!-- H-X Badge -->
-          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-mono font-black border <?= $isOpen ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700' ?>" title="Hari Pelaksanaan SAR: <?= e($pelaksanaan['h_display']) ?>">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-mono font-bold border <?= $isOpen ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700' ?>" title="Hari Pelaksanaan SAR: <?= e($pelaksanaan['h_display']) ?>">
             <span><?= e($pelaksanaan['h_display']) ?></span>
           </span>
 
@@ -419,12 +422,12 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
         <!-- Right: Response Time Badge -->
         <div class="flex items-center gap-2">
           <?php if ($resp['is_quick']): ?>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30" title="Response Time: <?= $resp['formatted'] ?> (Info diterima <?= $jamLapor ?> ➔ Berangkat <?= $jamBerangkat ?>)">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30" title="Response Time: <?= $resp['formatted'] ?> (Info diterima <?= $jamLapor ?> Berangkat <?= $jamBerangkat ?>)">
               <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
               <span>Response Time: <?= $resp['formatted'] ?></span>
             </span>
           <?php elseif ($resp['minutes'] !== null): ?>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30" title="Response Time: <?= $resp['formatted'] ?> (Info diterima <?= $jamLapor ?> ➔ Berangkat <?= $jamBerangkat ?>)">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30" title="Response Time: <?= $resp['formatted'] ?> (Info diterima <?= $jamLapor ?> Berangkat <?= $jamBerangkat ?>)">
               <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               <span>Response Time: <?= $resp['formatted'] ?></span>
             </span>
@@ -439,7 +442,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
 
       <!-- Main Title: Judul Operasi -->
       <div class="mt-2.5">
-        <h3 class="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors leading-snug">
+        <h3 class="text-base sm:text-lg font-semibold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors leading-snug">
           <?= e($op['nama_operasi']) ?>
         </h3>
       </div>
@@ -462,7 +465,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
         
         <!-- Metric 1: Waktu Mulai (Dihitung Sejak Tim Berangkat) -->
         <div class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
             <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             <span>Waktu Mulai (Berangkat)</span>
           </div>
@@ -476,45 +479,50 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
 
         <!-- Metric 2: Response Time Details -->
         <div class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
             <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             <span>Response Time</span>
           </div>
-          <div class="mt-1 font-extrabold text-sm <?= $resp['is_quick'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' ?>">
+          <div class="mt-1 font-semibold text-sm <?= $resp['is_quick'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' ?>">
             <?= $resp['formatted'] ?>
           </div>
-          <div class="text-[10px] text-slate-400 dark:text-slate-500 truncate" title="Lapor: <?= $jamLapor ?> WITA ➔ Berangkat: <?= $jamBerangkat ?> WITA">
-            Info: <?= $jamLapor ?> ➔ Brkt: <?= $jamBerangkat ?>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 truncate" title="Lapor: <?= $jamLapor ?> WITA ➔ Berangkat: <?= $jamBerangkat ?> WITA">
+            Info: <?= $jamLapor ?> Brkt: <?= $jamBerangkat ?>
           </div>
         </div>
 
         <!-- Metric 3: Jumlah POB (Breakdown S / MD / DP) -->
         <div class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
-          <div class="flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+          <div class="flex items-center justify-between text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
             <div class="flex items-center gap-1">
               <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               <span>POB: <?= $totalPob ?> Orang</span>
             </div>
           </div>
           <div class="mt-1 flex items-center gap-1 flex-wrap">
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25" title="Selamat">
+            <span class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25" title="Selamat">
               <?= $s ?> S
             </span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25" title="Meninggal Dunia">
+            <span class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25" title="Meninggal Dunia">
               <?= $md ?> MD
             </span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25" title="Dalam Pencarian">
+            <span class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25" title="Dalam Pencarian">
               <?= $dp ?> DP
             </span>
+            <?php if ($h > 0): ?>
+            <span class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/25" title="Hilang">
+              <?= $h ?> H
+            </span>
+            <?php endif; ?>
           </div>
-          <div class="text-[10px] text-slate-400 dark:text-slate-500">
+          <div class="text-[11px] text-slate-400 dark:text-slate-500">
             Selamat / MD / Cari
           </div>
         </div>
 
         <!-- Metric 4: Jumlah Renops dan Lapbang -->
         <div class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
+          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
             <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             <span>Renops &amp; Lapbang</span>
           </div>
@@ -526,7 +534,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
               <?= $totalLapbang ?> Lapbang
             </span>
           </div>
-          <div class="text-[10px] text-slate-400 dark:text-slate-500">
+          <div class="text-[11px] text-slate-400 dark:text-slate-500">
             Dokumen Taktis Terbit
           </div>
         </div>
@@ -615,12 +623,12 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
   <div class="modal-container max-w-2xl">
     <div class="modal-header">
       <div>
-        <h3 class="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white uppercase flex items-center gap-2">
+        <h3 class="font-semibold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
           <span>LAPORAN AWAL OPS SAR (FILE AKTIF)</span>
         </h3>
         <p id="modalOpsWaSubtitle" class="text-xs text-orange-600 dark:text-orange-400 font-semibold mt-0.5"></p>
       </div>
-      <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modalOpsWaPreview')">✕</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modalOpsWaPreview')"></button>
     </div>
     <div class="modal-body space-y-3">
       <div class="relative">
@@ -628,7 +636,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           id="modalOpsWaTextarea"
           readonly
           rows="14"
-          class="w-full p-4 rounded-xl font-mono text-xs leading-relaxed border bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none select-all"
+          class="control control-sm w-full font-mono leading-relaxed select-all"
         ></textarea>
       </div>
     </div>
@@ -707,14 +715,14 @@ function setStatusFilter(status) {
     if (!btn) return;
     const badge = btn.querySelector('.tab-badge');
     if (st === status) {
-      btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-sm cursor-pointer';
+      btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all bg-orange-600 text-white shadow-sm cursor-pointer';
       if (badge) {
-        badge.className = 'tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-white/20 text-white font-bold';
+        badge.className = 'tab-badge px-1.5 py-0.2 rounded-full text-[11px] font-mono bg-white/20 text-white font-bold';
       }
     } else {
       btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer';
       if (badge) {
-        badge.className = 'tab-badge px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold';
+        badge.className = 'tab-badge px-1.5 py-0.2 rounded-full text-[11px] font-mono bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold';
       }
     }
   });

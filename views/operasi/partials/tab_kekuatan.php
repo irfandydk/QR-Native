@@ -77,7 +77,7 @@ $totalAlutKekuatan = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 1)
             </div>
             <?php else: ?>
             <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 whitespace-pre-line leading-relaxed">
-                <?= e(($operasi['alut_palsar'] ?? '') ?: "• 1 Unit Rescue Car\n• 1 Unit Rubber Boat + Mopel") ?>
+                <?= e(($operasi['alut_palsar'] ?? '') ?: '-') ?>
             </div>
             <?php endif; ?>
         </div>

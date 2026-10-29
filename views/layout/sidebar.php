@@ -24,10 +24,10 @@ $logoUrl = getAppLogoUrl();
     <a href="<?= BASE_URL ?>/index.php" class="flex items-center gap-2.5 overflow-hidden cursor-pointer group" title="Dashboard Utama KPP Kendari">
       <img src="<?= e($logoUrl) ?>" alt="Logo Basarnas" width="34" height="34" class="shrink-0 drop-shadow-sm group-hover:scale-105 transition-transform" onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'" />
       <div class="sidebar-brand-text min-w-0 transition-opacity duration-200">
-        <span class="font-extrabold text-xs tracking-wider text-orange-600 dark:text-orange-500 block truncate">
+        <span class="font-semibold text-xs tracking-wider text-orange-600 dark:text-orange-500 block truncate">
           KPP KENDARI
         </span>
-        <span class="text-[10px] text-slate-500 dark:text-slate-400 block truncate font-medium">
+        <span class="text-[11px] text-slate-500 dark:text-slate-400 block truncate font-medium">
           Sistem QR SAR Digital
         </span>
       </div>
@@ -45,8 +45,8 @@ $logoUrl = getAppLogoUrl();
   </div>
 
   <!-- Navigation Items Area -->
-  <div class="flex-1 overflow-y-auto px-2.5 py-4 space-y-1.5 scrollbar-thin">
-    <p class="sidebar-section-header px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+  <div id="sidebarNavArea" class="relative flex-1 overflow-y-auto px-2.5 py-4 space-y-1.5 scrollbar-thin">
+    <p class="sidebar-section-header px-3 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
       Navigasi Sistem
     </p>
 
@@ -66,7 +66,7 @@ $logoUrl = getAppLogoUrl();
       <svg class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110 <?= $currentRoute === 'gis' ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400' ?>" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="2" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="22"/></svg>
       <div class="sidebar-item-label flex-1 flex items-center justify-between min-w-0 text-left">
         <span class="truncate">Ploting Peta SAR</span>
-        <span class="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">GIS</span>
+        <span class="text-[11px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">GIS</span>
       </div>
       <div class="sidebar-tooltip absolute left-full ml-2 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap shadow-lg border border-slate-700">
         Ploting Peta SAR
@@ -101,7 +101,7 @@ $logoUrl = getAppLogoUrl();
         <svg class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110 <?= ($currentRoute === 'admin') ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400' ?>" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
         <div class="sidebar-item-label flex-1 flex items-center justify-between min-w-0 text-left">
           <span class="truncate">Pengaturan Admin</span>
-          <span class="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30">ADMIN</span>
+          <span class="text-[11px] font-bold px-1.5 py-0.2 rounded-full bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30">ADMIN</span>
         </div>
         <div class="sidebar-tooltip absolute left-full ml-2 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap shadow-lg border border-slate-700">
           Pengaturan Admin
@@ -114,22 +114,17 @@ $logoUrl = getAppLogoUrl();
   <div class="p-2 border-t border-inherit shrink-0 space-y-1.5">
     <!-- Live Clock & Quick Utility Dock -->
     <div class="sidebar-clock-full px-2 py-1.5 rounded-xl border text-[11px] flex items-center justify-between transition-colors bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-      <div class="flex items-center gap-1.5 font-mono text-[10px] min-w-0" title="Waktu Indonesia Tengah">
+      <div class="flex items-center gap-1.5 font-mono text-[11px] min-w-0" title="Waktu Indonesia Tengah">
         <svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span id="sidebarWitaTime" class="truncate font-bold">--:--:-- WITA</span>
       </div>
       <div class="flex items-center gap-1 shrink-0">
         <!-- Emergency Call 115 -->
-        <a href="tel:115" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-red-500/10 text-red-500 font-bold text-[10px] hover:bg-red-500/20 transition-colors shrink-0" title="Panggil Call Center 115">
+        <a href="tel:115" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-red-500/10 text-red-500 font-bold text-[11px] hover:bg-red-500/20 transition-colors shrink-0" title="Panggil Call Center 115">
           <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           <span>115</span>
         </a>
 
-        <!-- Dark/Light Mode Button -->
-        <button type="button" id="sidebarThemeToggleBtn" class="p-1 rounded-lg border transition-colors cursor-pointer bg-white hover:bg-slate-100 text-amber-600 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-amber-300 dark:border-slate-700" title="Beralih Mode Gelap / Terang">
-          <span id="sidebarThemeIcon" class="w-3.5 h-3.5 flex items-center justify-center"></span>
-          <span id="sidebarThemeLabel" class="sidebar-ctrl-label hidden">Terang</span>
-        </button>
 
         <!-- Palette Dropdown Popover Button -->
         <div class="relative">
@@ -140,7 +135,7 @@ $logoUrl = getAppLogoUrl();
 
           <!-- Theme Picker Popover Menu -->
           <div id="sidebarPalettePopover" class="hidden absolute bottom-full right-0 mb-2 w-48 p-1.5 rounded-xl border shadow-xl z-50 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100">
-            <p class="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-400">
+            <p class="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               Warna Aksen
             </p>
             <button type="button" data-palette="orange" class="palette-choice w-full flex items-center justify-between p-1.5 rounded-lg text-left text-[11px] transition-colors cursor-pointer">
@@ -185,22 +180,22 @@ $logoUrl = getAppLogoUrl();
 
     <!-- User Session & Logout -->
     <div class="sidebar-footer-user flex items-center gap-2 p-1.5 rounded-xl bg-slate-100/70 dark:bg-slate-800/50">
-      <div class="w-7 h-7 rounded-lg user-avatar-badge bg-orange-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+      <a href="<?= BASE_URL ?>/profile.php" class="w-7 h-7 rounded-lg user-avatar-badge bg-orange-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs hover:opacity-90 transition cursor-pointer" title="Kelola Profil & Kata Sandi">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      </div>
-      <div class="sidebar-user-block min-w-0 flex-1">
+      </a>
+      <a href="<?= BASE_URL ?>/profile.php" class="sidebar-user-block min-w-0 flex-1 hover:opacity-80 transition cursor-pointer block" title="Kelola Profil & Kata Sandi">
         <div class="flex items-center gap-1.5">
           <p class="text-xs font-bold truncate text-slate-800 dark:text-slate-100">
             <?= e($currentUser['nama'] ?? $currentUser['username'] ?? 'Pengguna') ?>
           </p>
-          <span class="text-[9px] font-black uppercase px-1 py-0.5 rounded <?= ($currentUser['role'] ?? '') === 'USER' ? 'bg-blue-500/20 text-blue-500 dark:text-blue-400 border border-blue-500/30' : 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30' ?>">
+          <span class="text-[11px] font-bold uppercase px-1 py-0.5 rounded <?= ($currentUser['role'] ?? '') === 'USER' ? 'bg-blue-500/20 text-blue-500 dark:text-blue-400 border border-blue-500/30' : 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30' ?>">
             <?= ($currentUser['role'] ?? '') === 'USER' ? 'User' : 'Admin' ?>
           </span>
         </div>
-        <p class="text-[10px] text-slate-400 truncate">
+        <p class="text-[11px] text-slate-400 truncate">
           <?= e($currentUser['jabatan'] ?? (($currentUser['role'] ?? '') === 'USER' ? 'Operator SAR Kendari' : 'Admin SAR Kendari')) ?>
         </p>
-      </div>
+      </a>
       <a href="<?= BASE_URL ?>/logout.php?csrf_token=<?= e(csrfToken()) ?>" data-confirm="Apakah Anda yakin ingin keluar dari sistem QR-SAR?" data-confirm-title="Konfirmasi Keluar Sesi" data-confirm-btn="Ya, Keluar" class="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0" title="Keluar dari sistem">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
       </a>
@@ -279,12 +274,13 @@ $logoUrl = getAppLogoUrl();
     });
   }
 
-  // Mobile menu button hook
-  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-  if (mobileMenuBtn && sidebar && backdrop) {
-    mobileMenuBtn.addEventListener('click', () => {
-      sidebar.classList.add('open');
-      backdrop.classList.remove('hidden');
+  // Mobile menu button hook (delegasi: tombol ada di navbar yang dirender setelah sidebar)
+  if (sidebar && backdrop) {
+    document.addEventListener('click', (e) => {
+      if (e.target.closest && e.target.closest('#mobile-menu-btn')) {
+        sidebar.classList.add('open');
+        backdrop.classList.remove('hidden');
+      }
     });
     backdrop.addEventListener('click', () => {
       sidebar.classList.remove('open');

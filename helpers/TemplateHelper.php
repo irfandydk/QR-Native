@@ -89,18 +89,6 @@ class TemplateHelper {
         return GeoHelper::formatDmsPair($lat, $lng, $useIndoDir);
     }
 
-    public static function decimalToDms(float|string|null $lat, float|string|null $lng, bool $useIndoDir = false): string {
-        return GeoHelper::decimalToDms($lat, $lng, $useIndoDir);
-    }
-
-    public static function parseCoordinates(?string $text): ?array {
-        return GeoHelper::parseCoordinates($text);
-    }
-
-    public static function parseCoordinatesString(?string $text): ?array {
-        return GeoHelper::parseCoordinatesString($text);
-    }
-
     // --- DOCUMENT NUMBERING DELEGATES ---
 
     public static function generateNomorLaporanAwal(array $ops, ?string $satkerKode = null): string {
@@ -115,31 +103,11 @@ class TemplateHelper {
         return DocumentNumberService::generateNomorSitrep($ops, $laporan, $satkerKode);
     }
 
-    public static function formatNomorRenops(array $renops, array $ops = [], ?string $satkerKode = null): string {
-        return DocumentNumberService::formatNomorRenops($renops, $ops, $satkerKode);
-    }
-
-    public static function formatNomorSitrep(array $laporan, array $ops = [], ?string $satkerKode = null): string {
-        return DocumentNumberService::formatNomorSitrep($laporan, $ops, $satkerKode);
-    }
-
     public static function generateNomorBeritaAcara(array $ops, array $laporan = [], ?string $satkerKode = null): string {
         return DocumentNumberService::generateNomorBeritaAcara($ops, $laporan, $satkerKode);
     }
 
     // --- WHATSAPP & TELEGRAM TEMPLATE DELEGATES ---
-
-    public static function getHeaderWA(string $judulLaporan, string $namaOperasi, ?string $waktu = null, ?string $nomor = null): string {
-        return WhatsAppTemplateService::getHeaderWA($judulLaporan, $namaOperasi, $waktu, $nomor);
-    }
-
-    public static function getFooterWA(): string {
-        return WhatsAppTemplateService::getFooterWA();
-    }
-
-    public static function cleanSruCoordinates(?string $koor): string {
-        return WhatsAppTemplateService::cleanSruCoordinates($koor);
-    }
 
     public static function generateLaporanAwalWA(array $ops, array $korban = [], array $unsur = [], array $alut = []): string {
         return WhatsAppTemplateService::generateLaporanAwalWA($ops, $korban, $unsur, $alut);

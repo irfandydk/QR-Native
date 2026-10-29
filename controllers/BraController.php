@@ -87,8 +87,12 @@ class BraController extends BaseController {
                 } else {
                     $verificationStatus = 'VERIFIED_SIGNATURE';
                 }
+            } elseif ($isGuest) {
+                // Tamu tanpa token tidak boleh membaca naskah (mencegah enumerasi ?view=1,2,3...)
+                $verificationStatus = 'INVALID_TOKEN';
+                $verificationMessage = 'Token verifikasi tidak disertakan. Pindai ulang Barcode QR pada naskah resmi untuk memverifikasi keabsahan dokumen.';
             } else {
-                // Dokumen terdaftar tanpa token di URL (pencarian internal atau QR generasi lama)
+                // Petugas login tanpa token di URL (pencarian internal)
                 $verificationStatus = 'LEGACY_VERIFIED';
             }
         }
@@ -102,7 +106,8 @@ class BraController extends BaseController {
             $this->render('bra/verify_invalid', [
                 'invalidRef' => $invalidRef,
                 'invalidToken' => $invalidToken,
-                'verificationStatus' => $verificationStatus
+                'verificationStatus' => $verificationStatus,
+                'verificationMessage' => $verificationMessage
             ], [
                 'layout' => 'public',
                 'title' => 'Verifikasi Dokumen Tidak Sah'

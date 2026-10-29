@@ -159,7 +159,8 @@ class AdminController extends BaseController {
                         'call_sign' => trim($_POST['call_sign'] ?? ''),
                         'frekuensi_default' => trim($_POST['frekuensi_default'] ?? ''),
                         'gemini_api_key' => trim($_POST['gemini_api_key'] ?? ''),
-                        'default_theme' => trim($_POST['default_theme'] ?? 'dark')
+                        'default_theme' => trim($_POST['default_theme'] ?? 'dark'),
+                        'ui_theme' => in_array($_POST['ui_theme'] ?? '', ['klasik', 'minimal'], true) ? $_POST['ui_theme'] : 'klasik'
                     ];
 
                     // Handle logo URL or File Upload with strict validation, GD auto-compression & orphan cleanup
@@ -292,7 +293,11 @@ class AdminController extends BaseController {
                     }
 
                     SettingsModel::updateSettings($data);
-                    $this->setFlash('success', 'Identitas kantor SAR, call sign radio, frekuensi, dan kop surat berhasil diperbarui.');
+                    if ((SettingsModel::getSettings()['ui_theme'] ?? null) === null) {
+                        $this->setFlash('error', 'Pengaturan satker tersimpan, tetapi Gaya Tampilan belum bisa disimpan karena migrasi database belum dijalankan. Jalankan: php database/migrate.php');
+                    } else {
+                        $this->setFlash('success', 'Identitas kantor SAR, call sign radio, frekuensi, kop surat, dan gaya tampilan berhasil diperbarui.');
+                    }
                 }
                 $this->redirect('/admin.php?tab=satker');
             }

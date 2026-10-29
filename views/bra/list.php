@@ -55,10 +55,10 @@ $totalFiltered = count($braList);
             <div class="w-9 h-9 rounded-xl border flex items-center justify-center bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
             </div>
-            <h1 class="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
               Arsip Berita Radio SAR (BRA SAR)
             </h1>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold uppercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               SENKOM 304 AKTIF
             </span>
@@ -71,28 +71,22 @@ $totalFiltered = count($braList);
 
       <!-- Quick Action Buttons -->
       <div class="flex flex-wrap items-center gap-2">
-        <a href="<?= BASE_URL ?>/bra.php"
-           class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all border-slate-300 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200"
-           title="Segarkan Data Real-Time">
-          <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-          <span>Segarkan</span>
-        </a>
 
         <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=MAPEL"
-           class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold shadow-md shadow-orange-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
-          <span>📡</span>
+           class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <span></span>
           <span>+ BRA Mapel</span>
         </a>
 
         <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=OPERASI_SAR"
-           class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
-          <span>📋</span>
+           class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <span></span>
           <span>+ BRA SAR</span>
         </a>
 
         <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=PERGERAKAN_KAPAL"
-           class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold shadow-md shadow-cyan-600/20 transition-all hover:scale-[1.02] active:scale-[0.98]">
-          <span>🚢</span>
+           class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <span></span>
           <span>+ BRA Kapal</span>
         </a>
       </div>
@@ -107,10 +101,10 @@ $totalFiltered = count($braList);
            : 'bg-slate-50/80 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
         <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
           <span>Semua Telegram</span>
-          <span class="text-sm">📁</span>
+          <span class="text-sm"></span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
-          <span class="text-2xl font-black text-slate-900 dark:text-white">
+          <span class="text-2xl font-bold text-slate-900 dark:text-white">
             <?= $countAll ?>
           </span>
           <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Dokumen</span>
@@ -124,10 +118,10 @@ $totalFiltered = count($braList);
            : 'bg-slate-50/80 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
         <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
           <span>BRA Mapel Kapal</span>
-          <span class="text-sm">📡</span>
+          <span class="text-sm"></span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
-          <span class="text-2xl font-black text-orange-600 dark:text-orange-400">
+          <span class="text-2xl font-bold text-orange-600 dark:text-orange-400">
             <?= $countMapel ?>
           </span>
           <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Dokumen</span>
@@ -141,10 +135,10 @@ $totalFiltered = count($braList);
            : 'bg-slate-50/80 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
         <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
           <span>BRA Operasi SAR</span>
-          <span class="text-sm">📋</span>
+          <span class="text-sm"></span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
-          <span class="text-2xl font-black text-amber-600 dark:text-amber-400">
+          <span class="text-2xl font-bold text-amber-600 dark:text-amber-400">
             <?= $countOperasiSar ?>
           </span>
           <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Dokumen</span>
@@ -158,10 +152,10 @@ $totalFiltered = count($braList);
            : 'bg-slate-50/80 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
         <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
           <span>BRA Kapal SAR</span>
-          <span class="text-sm">🚢</span>
+          <span class="text-sm"></span>
         </div>
         <div class="mt-2 flex items-baseline gap-2">
-          <span class="text-2xl font-black text-cyan-600 dark:text-cyan-400">
+          <span class="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
             <?= $countKapal ?>
           </span>
           <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Dokumen</span>
@@ -178,27 +172,27 @@ $totalFiltered = count($braList);
     <div class="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
       <a href="<?= BASE_URL ?>/bra.php?kategori=SEMUA<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
          class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'SEMUA'
-           ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+           ? 'bg-orange-500 text-white shadow-md'
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
         Semua (<?= $countAll ?>)
       </a>
       <a href="<?= BASE_URL ?>/bra.php?kategori=MAPEL<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
          class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'MAPEL'
-           ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+           ? 'bg-orange-500 text-white shadow-md'
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
-        📡 Mapel (<?= $countMapel ?>)
+        Mapel (<?= $countMapel ?>)
       </a>
       <a href="<?= BASE_URL ?>/bra.php?kategori=OPERASI_SAR<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
          class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'OPERASI_SAR'
-           ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20'
+           ? 'bg-amber-500 text-white shadow-md'
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
-        📋 Operasi SAR (<?= $countOperasiSar ?>)
+        Operasi SAR (<?= $countOperasiSar ?>)
       </a>
       <a href="<?= BASE_URL ?>/bra.php?kategori=PERGERAKAN_KAPAL<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
          class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'PERGERAKAN_KAPAL'
-           ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
+           ? 'bg-cyan-500 text-white shadow-md'
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
-        🚢 Kapal SAR (<?= $countKapal ?>)
+        Kapal SAR (<?= $countKapal ?>)
       </a>
     </div>
 
@@ -212,7 +206,7 @@ $totalFiltered = count($braList);
                name="q"
                value="<?= htmlspecialchars($searchQuery) ?>"
                placeholder="Cari No BRA, Perihal, SMC, TWU..."
-               class="w-full pl-10 pr-9 py-2 rounded-xl text-xs border focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500" />
+               class="control control-sm w-full placeholder:text-slate-400 dark:placeholder:text-slate-500 pl-10 pr-9" />
         <button type="button"
                 id="btn-clear-bra-search"
                 onclick="clearBraSearch()"
@@ -352,7 +346,7 @@ $totalFiltered = count($braList);
 
             <!-- Telegram Preview Snippet (if available) -->
             <?php if (!empty($bra['sections'])): ?>
-            <div class="p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 mb-3 font-mono text-[10px] text-slate-600 dark:text-slate-400 space-y-1">
+            <div class="p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 mb-3 font-mono text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
               <?php foreach (array_slice($bra['sections'], 0, 2) as $sec): ?>
                 <div class="truncate">
                   <span class="font-bold text-slate-700 dark:text-slate-300"><?= e($sec['kode']) ?>:</span> <?= e(mb_strimwidth($sec['isi'], 0, 60, '...')) ?>
@@ -441,11 +435,11 @@ $totalFiltered = count($braList);
                     </button>
                   </div>
                   <div class="mt-1 flex items-center gap-1.5">
-                    <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                    <span class="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                       <?= htmlspecialchars($derajat) ?>
                     </span>
                     <?php if (!empty($bra['id_operasi'])): ?>
-                      <span class="text-[10px] text-slate-400 font-mono">Ops #<?= (int)$bra['id_operasi'] ?></span>
+                      <span class="text-[11px] text-slate-400 font-mono">Ops #<?= (int)$bra['id_operasi'] ?></span>
                     <?php endif; ?>
                   </div>
                 </td>
@@ -489,7 +483,7 @@ $totalFiltered = count($braList);
                     <a href="<?= BASE_URL ?>/bra.php?view=<?= $bra['id_bra'] ?>"
                        class="px-2.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition"
                        title="Lihat Dokumen">
-                      👁️ Lihat
+                      Lihat
                     </a>
 
                     <a href="<?= BASE_URL ?>/bra.php?action=edit&id=<?= $bra['id_bra'] ?>"

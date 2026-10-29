@@ -22,13 +22,14 @@
       if (global.QrSarUtils && typeof global.QrSarUtils.formatDmsPair === 'function') {
         return global.QrSarUtils.formatDmsPair(lat, lng);
       }
+      // Fallback bila common.js belum dimuat (gis.php memuat geodesy.js lebih dulu): format sama dengan QrSarUtils & GeoHelper PHP
       function formatDmsPart(val, isLat) {
         const dir = isLat ? (val < 0 ? 'S' : 'N') : (val < 0 ? 'W' : 'E');
         const absVal = Math.abs(val);
         let d = Math.floor(absVal);
         const mFloat = (absVal - d) * 60;
         let m = Math.floor(mFloat);
-        let s = Math.round((mFloat - m) * 60);
+        let s = Math.round((mFloat - m) * 60 * 10) / 10;
         if (s >= 60) {
           s = 0;
           m += 1;
@@ -37,10 +38,10 @@
             d += 1;
           }
         }
-        const padD = isLat ? String(d).padStart(2, '0') : String(d).padStart(3, '0');
-        return `${padD}° ${String(m).padStart(2, '0')}' ${String(s).padStart(2, '0')}" ${dir}`;
+        const padD = String(d).padStart(isLat ? 2 : 3, '0');
+        return `${padD}° ${String(m).padStart(2, '0')}' ${s.toFixed(1).padStart(4, '0')}" ${dir}`;
       }
-      return `${formatDmsPart(lat, true)}, ${formatDmsPart(lng, false)}`;
+      return `${formatDmsPart(lat, true)} - ${formatDmsPart(lng, false)}`;
     },
 
     /**

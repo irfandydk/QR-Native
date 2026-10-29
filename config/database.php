@@ -26,11 +26,12 @@ class Database {
                     [$key, $val] = explode('=', $line, 2);
                     $key = trim($key);
                     $val = trim($val, " \t\n\r\0\x0B\"'");
-                    if ($key === 'DB_HOST') $host = $val;
-                    if ($key === 'DB_PORT') $port = $val;
-                    if ($key === 'DB_DATABASE' || $key === 'DB_NAME') $dbname = $val;
-                    if ($key === 'DB_USERNAME' || $key === 'DB_USER') $username = $val;
-                    if ($key === 'DB_PASSWORD' || $key === 'DB_PASS') $password = $val;
+                    // Variabel environment proses (mis. DB_DATABASE=qrsar_test saat test) menang atas .env
+                    if ($key === 'DB_HOST' && getenv('DB_HOST') === false) $host = $val;
+                    if ($key === 'DB_PORT' && getenv('DB_PORT') === false) $port = $val;
+                    if (($key === 'DB_DATABASE' || $key === 'DB_NAME') && getenv('DB_DATABASE') === false) $dbname = $val;
+                    if (($key === 'DB_USERNAME' || $key === 'DB_USER') && getenv('DB_USERNAME') === false) $username = $val;
+                    if (($key === 'DB_PASSWORD' || $key === 'DB_PASS') && getenv('DB_PASSWORD') === false) $password = $val;
                 }
             }
 

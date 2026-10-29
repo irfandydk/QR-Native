@@ -13,6 +13,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 require_once __DIR__ . '/../config/app.php';
 require_once __DIR__ . '/../models/OperasiModel.php';
 require_once __DIR__ . '/../models/RenopsModel.php';
@@ -205,26 +207,25 @@ it("WhatsAppTemplateService::generateRenopsWA menghasilkan format luas yang sesu
         'koordinat' => '03° 58\' 30" S - 122° 35\' 12" E'
     ];
 
-    // Tes satuan KM
-    $renopsKm = [
-        'hari_ke' => 'H.1',
-        'satuan_jarak' => 'KM',
-        'cuaca' => 'Cerah'
-    ];
-    $waKm = WhatsAppTemplateService::generateRenopsWA($opsDummy, $renopsKm, []);
-    if (strpos($waKm, '34.30 KM²') === false) {
+    // Luas area SRU (sudah diformat per satuan di form) tampil apa adanya di WA
+    $renopsKm = ['hari_ke' => 'H.1', 'satuan_jarak' => 'KM', 'cuaca' => 'Cerah'];
+    $sruKm = [['nama_sru' => 'SRU 1', 'koordinat_area' => 'A: 03° 58\' 30.0" S - 122° 35\' 12.0" E', 'luas_area' => '34.30 KM² (10.00 NM²)']];
+    $waKm = WhatsAppTemplateService::generateRenopsWA($opsDummy, $renopsKm, $sruKm);
+    if (strpos($waKm, 'Luas area pencarian : 34.30 KM²') === false) {
         throw new Exception("WA Template untuk satuan KM tidak memuat luas dalam KM². Output:\n" . substr($waKm, 0, 300));
     }
 
-    // Tes satuan NM
-    $renopsNm = [
-        'hari_ke' => 'H.1',
-        'satuan_jarak' => 'NM',
-        'cuaca' => 'Cerah'
-    ];
-    $waNm = WhatsAppTemplateService::generateRenopsWA($opsDummy, $renopsNm, []);
-    if (strpos($waNm, '10.00 NM²') === false && strpos($waNm, '10 Nm²') === false) {
+    $renopsNm = ['hari_ke' => 'H.1', 'satuan_jarak' => 'NM', 'cuaca' => 'Cerah'];
+    $sruNm = [['nama_sru' => 'SRU 1', 'koordinat_area' => 'A: 03° 58\' 30.0" S - 122° 35\' 12.0" E', 'luas_area' => '10.00 NM² (34.30 KM²)']];
+    $waNm = WhatsAppTemplateService::generateRenopsWA($opsDummy, $renopsNm, $sruNm);
+    if (strpos($waNm, 'Luas area pencarian : 10.00 NM²') === false) {
         throw new Exception("WA Template untuk satuan NM tidak memuat luas dalam NM².");
+    }
+
+    // Tanpa SRU: WA tidak boleh mengarang SRU, koordinat, atau luas area
+    $waKosong = WhatsAppTemplateService::generateRenopsWA($opsDummy, $renopsNm, []);
+    if (strpos($waKosong, 'Pembagian SRU dan area pencarian belum ditetapkan.') === false || strpos($waKosong, '10.00 NM²') !== false) {
+        throw new Exception("WA Template tanpa SRU masih memuat SRU / luas area fiktif.");
     }
 });
 

@@ -20,7 +20,8 @@ if (
 
 // Serve existing static assets (css, js, images, icons, uploads)
 $filePath = __DIR__ . $uri;
-if ($uri !== '/' && file_exists($filePath) && !is_dir($filePath) && !str_ends_with($filePath, '.php')) {
+// /uploads/ lewat Router::serveStaticFile agar header CSP anti-XSS SVG ikut terkirim
+if ($uri !== '/' && !str_starts_with($uri, '/uploads/') && file_exists($filePath) && !is_dir($filePath) && !str_ends_with($filePath, '.php')) {
     return false; // Built-in server serves static asset directly
 }
 

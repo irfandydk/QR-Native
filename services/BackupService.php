@@ -22,7 +22,7 @@ class BackupService {
         'Renops', 'RenopsSRU', 'LaporanHarian', 'BraSar', 'BraSection',
         'GisPoint', 'GisPolygon', 'GisPolygonPoint', 'GisRoute', 'GisRoutePoint',
         'GisSearchPattern', 'GisSearchPatternWaypoint', 'GisCustomIcon',
-        'Users', 'AuditLog'
+        'Users', 'AuditLog', 'DokumenToken'
     ];
 
     /**
@@ -137,6 +137,7 @@ class BackupService {
      * @throws Throwable
      */
     public static function restoreFromJson(array $data): bool {
+        self::snapshotBeforeRestore();
         $db = getDB();
         $dbData = $data['data'] ?? $data['database'] ?? $data['backup'] ?? $data;
 
@@ -198,6 +199,24 @@ class BackupService {
             }
             throw $e;
         }
+    }
+
+    /**
+     * Simpan SQL dump kondisi terkini ke storage/backups sebelum restore.
+     * Restore dibatalkan (exception) bila snapshot gagal ditulis, agar data lama tidak hilang tanpa cadangan.
+     *
+     * @return string Path berkas snapshot
+     */
+    public static function snapshotBeforeRestore(): string {
+        $dir = STORAGE_DIR . '/backups';
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+            throw new RuntimeException('Restore dibatalkan: folder storage/backups tidak dapat dibuat untuk cadangan otomatis.');
+        }
+        $path = $dir . '/pre-restore-' . date('Ymd-His') . '.sql';
+        if (@file_put_contents($path, self::generateSQLDump()) === false) {
+            throw new RuntimeException('Restore dibatalkan: cadangan otomatis sebelum restore gagal ditulis ke storage/backups.');
+        }
+        return $path;
     }
 
     /**
@@ -362,6 +381,7 @@ class BackupService {
      * @throws Throwable
      */
     public static function restoreFromSQL(string $sql): bool {
+        self::snapshotBeforeRestore();
         $db = getDB();
 
         try {

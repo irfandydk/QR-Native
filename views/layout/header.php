@@ -10,12 +10,13 @@ if (!defined('APP_NAME')) {
 
 $currentUser = AuthHelper::getCurrentUser();
 $appSettings = SettingsModel::getSettings();
+$uiTheme = (($appSettings['ui_theme'] ?? 'klasik') === 'minimal') ? 'minimal' : 'klasik';
 $defaultSystemTheme = $appSettings['default_theme'] ?? 'dark';
 $logoUrl = getAppLogoUrl();
 $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Sistem Pelaporan Operasi SAR Kendari";
 ?>
 <!DOCTYPE html>
-<html lang="id" data-theme="<?= e($defaultSystemTheme) ?>" class="<?= $defaultSystemTheme === 'dark' ? 'dark' : '' ?>">
+<html lang="id" data-ui="<?= $uiTheme ?>" data-theme="<?= e($defaultSystemTheme) ?>" class="<?= $defaultSystemTheme === 'dark' ? 'dark' : '' ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -79,9 +80,17 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
             }
         })();
     </script>
+    <script>
+    // Transisi antar halaman yang dibatalkan (klik cepat) bukan error: tangkap promise-nya
+    ['pageswap', 'pagereveal'].forEach(function (t) {
+        window.addEventListener(t, function (e) {
+            if (e.viewTransition) { ["ready", "finished", "updateCallbackDone"].forEach(function (k) { if (e.viewTransition[k]) e.viewTransition[k].catch(function () {}); }); }
+        });
+    });
+    </script>
     <title><?= e($pageTitle) ?></title>
-    <link rel="icon" type="image/png" href="<?= BASE_URL ?>/favicon.png?v=<?= APP_VERSION ?>">
-    <link rel="shortcut icon" href="<?= BASE_URL ?>/favicon.ico?v=<?= APP_VERSION ?>">
+    <link rel="icon" type="image/png" href="<?= assetUrl('favicon.png') ?>">
+    <link rel="shortcut icon" href="<?= assetUrl('favicon.ico') ?>">
     <link rel="apple-touch-icon" href="<?= e($logoUrl) ?>">
     
     <!-- Google Fonts -->
@@ -91,40 +100,23 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
     
     <!-- Conditional Leaflet CSS (Only on GIS / Map-enabled views) -->
     <?php if (!empty($useGis) || in_array($currentRoute ?? '', ['gis', 'operasi', 'operasi_detail', 'operasi_form'], true)): ?>
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.min.css?v=<?= APP_VERSION ?>">
+    <link rel="stylesheet" href="<?= assetUrl('assets/vendor/leaflet/leaflet.min.css') ?>">
     <?php endif; ?>
     
     <!-- SweetAlert2 CSS (Offline Local Vendor) -->
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/vendor/sweetalert2/sweetalert2.min.css?v=<?= APP_VERSION ?>">
+    <link rel="stylesheet" href="<?= assetUrl('assets/vendor/sweetalert2/sweetalert2.min.css') ?>">
     
     <!-- App Design System Stylesheet -->
-    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css?v=<?= APP_VERSION ?>">
+    <link rel="stylesheet" href="<?= assetUrl('assets/css/style.css') ?>">
     
     <!-- Tailwind CSS (Offline Local Engine) -->
-    <script src="<?= BASE_URL ?>/assets/vendor/tailwind/tailwind.min.js?v=<?= APP_VERSION ?>"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        basarnas: {
-                            50: '#fff7ed',
-                            100: '#ffedd5',
-                            200: '#fed7aa',
-                            300: '#fdba74',
-                            400: '#fb923c',
-                            500: '#f97316',
-                            600: '#ea580c',
-                            700: '#c2410c',
-                            800: '#9a3412',
-                            900: '#7c2d12',
-                        }
-                    }
-                }
-            }
-        };
-    </script>
+    <link rel="stylesheet" href="<?= assetUrl('assets/css/tailwind.css') ?>">
+    <!-- Tema tampilan global (Pengaturan Satker) -->
+    <?php if ($uiTheme === 'minimal'): ?><link rel="stylesheet" href="<?= assetUrl('assets/css/theme-minimal.css') ?>"><?php endif; ?>
+    <?php if (($currentRoute ?? '') === 'gis'): ?>
+    <!-- Halaman GIS: tanpa transisi antar halaman -->
+    <style>@view-transition { navigation: none; }</style>
+    <?php endif; ?>
 </head>
 <body class="<?= isset($currentRoute) ? 'route-' . e($currentRoute) : '' ?> bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen transition-colors">
 <div class="app-container">

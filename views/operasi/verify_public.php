@@ -72,7 +72,7 @@ $logoUrl = getAppLogoUrl();
         <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <!-- Nama Operasi -->
             <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">Nama Operasi SAR</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">Nama Operasi SAR</span>
                 <span class="font-bold text-sm text-slate-900 dark:text-white mt-1 block">
                     <?= htmlspecialchars($operasi['nama_operasi'], ENT_QUOTES, 'UTF-8') ?>
                 </span>
@@ -80,7 +80,7 @@ $logoUrl = getAppLogoUrl();
 
             <!-- Waktu Pengesahan -->
             <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">Tanggal & Jam Terbit</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">Tanggal & Jam Terbit</span>
                 <span class="font-bold text-sm text-slate-900 dark:text-white mt-1 block">
                     <?= $tglResmi ?>
                 </span>
@@ -89,7 +89,7 @@ $logoUrl = getAppLogoUrl();
 
             <!-- Pejabat SMC -->
             <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">SAR Mission Coordinator</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">SAR Mission Coordinator</span>
                 <span class="font-bold text-sm text-slate-900 dark:text-white mt-1 block">
                     <?= htmlspecialchars($smcName, ENT_QUOTES, 'UTF-8') ?>
                 </span>
@@ -100,7 +100,7 @@ $logoUrl = getAppLogoUrl();
 
             <!-- Status Operasi -->
             <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">Status Operasi SAR</span>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">Status Operasi SAR</span>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-black uppercase mt-1 <?= ($operasi['status'] ?? 'OPEN') === 'CLOSED' ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30' : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' ?>">
                     <span class="w-1.5 h-1.5 rounded-full <?= ($operasi['status'] ?? 'OPEN') === 'CLOSED' ? 'bg-rose-500' : 'bg-emerald-500' ?>"></span>
                     <?= ($operasi['status'] ?? 'OPEN') === 'CLOSED' ? 'DITUTUP (CLOSED)' : 'AKTIF (OPEN)' ?>
@@ -122,10 +122,12 @@ $logoUrl = getAppLogoUrl();
         <!-- Action Buttons -->
         <div class="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
             <div class="flex flex-wrap items-center gap-3">
-                <a href="<?= e($printUrl) ?>" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 shadow-md transition">
+                <?php if (AuthHelper::isLoggedIn()): ?>
+                <a href="<?= e($printUrl) ?>" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs text-white bg-orange-600 hover:bg-orange-700 shadow-md transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                     <span>Buka Lembar Naskah Dinas Resmi (Cetak / PDF)</span>
                 </a>
+                <?php endif; ?>
 
                 <a href="tel:115" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition">
                     <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>

@@ -24,7 +24,7 @@ if (!defined('APP_NAME')) {
             <p class="text-xs text-slate-500 dark:text-slate-400">Profil dinas Kepala Kantor / Admin Utama KPP Kendari</p>
           </div>
         </div>
-        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
           ROLE: ADMIN
         </span>
       </div>
@@ -35,64 +35,64 @@ if (!defined('APP_NAME')) {
           
           <!-- Nama Lengkap -->
           <div class="sm:col-span-2">
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Nama Lengkap & Gelar Resmi <span class="text-red-500">*</span>
-            </label>
-            <input type="text" name="admin_nama" value="<?= e($settings['admin_nama'] ?? 'AMIRUDDIN AS, S.Sos.') ?>" required placeholder="Contoh: AMIRUDDIN AS, S.Sos." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <div class="field">
+              <label class="field-label">Nama Lengkap & Gelar Resmi <span class="text-red-500">*</span></label>
+              <input class="field-input w-full font-semibold" type="text" name="admin_nama" value="<?= e($settings['admin_nama'] ?? 'AMIRUDDIN AS, S.Sos.') ?>" required placeholder="Contoh: AMIRUDDIN AS, S.Sos."  />
+            </div>
           </div>
 
           <!-- NIP -->
           <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              NIP Pegawai
-            </label>
-            <input type="text" name="admin_nip" value="<?= e($settings['admin_nip'] ?? '197405101998031002') ?>" placeholder="197405101998031002" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <div class="field">
+              <label class="field-label">NIP Pegawai</label>
+              <input class="field-input w-full font-mono" type="text" name="admin_nip" value="<?= e($settings['admin_nip'] ?? '197405101998031002') ?>" placeholder="197405101998031002"  />
+            </div>
           </div>
 
           <!-- Pangkat / Golongan -->
           <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Pangkat / Golongan
-            </label>
-            <input type="text" name="admin_pangkat" value="<?= e($settings['admin_pangkat'] ?? 'PEMBINA (IV/a)') ?>" placeholder="PEMBINA (IV/a)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <div class="field">
+              <label class="field-label">Pangkat / Golongan</label>
+              <input class="field-input w-full font-semibold" type="text" name="admin_pangkat" value="<?= e($settings['admin_pangkat'] ?? 'PEMBINA (IV/a)') ?>" placeholder="PEMBINA (IV/a)"  />
+            </div>
           </div>
 
           <!-- Jabatan Resmi -->
           <div class="sm:col-span-2">
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Jabatan Struktural Dinas
-            </label>
-            <input type="text" name="admin_jabatan" value="<?= e($settings['admin_jabatan'] ?? 'Kepala Kantor / Administrator Utama KPP Kendari') ?>" placeholder="Kepala Kantor / Administrator Utama KPP Kendari" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <div class="field">
+              <label class="field-label">Jabatan Struktural Dinas</label>
+              <input class="field-input w-full font-semibold" type="text" name="admin_jabatan" value="<?= e($settings['admin_jabatan'] ?? 'Kepala Kantor / Administrator Utama KPP Kendari') ?>" placeholder="Kepala Kantor / Administrator Utama KPP Kendari"  />
+            </div>
           </div>
 
           <!-- Username Login -->
           <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Username Login Admin <span class="text-red-500">*</span>
-            </label>
-            <input type="text" name="admin_username" value="<?= e($settings['admin_username'] ?? 'admin') ?>" required placeholder="admin" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <div class="field">
+              <label class="field-label">Username Login Admin <span class="text-red-500">*</span></label>
+              <input class="field-input w-full font-mono font-bold" type="text" name="admin_username" value="<?= e($settings['admin_username'] ?? 'admin') ?>" required placeholder="admin"  />
+            </div>
           </div>
 
           <!-- Email Dinas -->
           <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Email Administrator
-            </label>
-            <input type="email" name="admin_email" value="<?= e($settings['admin_email'] ?? 'irfandydk@gmail.com') ?>" placeholder="irfandydk@gmail.com" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <div class="field">
+              <label class="field-label">Email Administrator</label>
+              <input class="field-input w-full" type="email" name="admin_email" value="<?= e($settings['admin_email'] ?? 'irfandydk@gmail.com') ?>" placeholder="irfandydk@gmail.com"  />
+            </div>
           </div>
 
           <!-- No Handphone / WA -->
           <div class="sm:col-span-2">
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-              Nomor Telepon / WhatsApp Dinas
-            </label>
-            <input type="text" name="admin_no_hp" value="<?= e($settings['admin_no_hp'] ?? '0811-4091-115') ?>" placeholder="0811-4091-115" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            <div class="field">
+              <label class="field-label">Nomor Telepon / WhatsApp Dinas</label>
+              <input class="field-input w-full font-mono" type="text" name="admin_no_hp" value="<?= e($settings['admin_no_hp'] ?? '0811-4091-115') ?>" placeholder="0811-4091-115"  />
+            </div>
           </div>
 
         </div>
 
         <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-          <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md shadow-orange-600/30 transition-all cursor-pointer">
+          <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs transition-all cursor-pointer">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             <span>Simpan Profil Administrator</span>
           </button>
@@ -125,24 +125,24 @@ if (!defined('APP_NAME')) {
       <form action="<?= BASE_URL ?>/admin.php?action=change_admin_pass" method="POST" class="space-y-4">
         <?= csrfInput() ?>
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Kata Sandi Saat Ini <span class="text-red-500">*</span>
-          </label>
-          <input type="password" name="old_password" required placeholder="Masukkan kata sandi lama" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Kata Sandi Saat Ini <span class="text-red-500">*</span></label>
+            <input type="password" name="old_password" required placeholder="Masukkan kata sandi lama" class="field-input w-full" />
+          </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Kata Sandi Baru <span class="text-red-500">*</span>
-          </label>
-          <input type="password" name="new_password" required minlength="4" placeholder="Minimal 4 karakter" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Kata Sandi Baru <span class="text-red-500">*</span></label>
+            <input type="password" name="new_password" required minlength="4" placeholder="Minimal 4 karakter" class="field-input w-full" />
+          </div>
         </div>
 
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Konfirmasi Sandi Baru <span class="text-red-500">*</span>
-          </label>
-          <input type="password" name="confirm_password" required minlength="4" placeholder="Ulangi kata sandi baru" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Konfirmasi Sandi Baru <span class="text-red-500">*</span></label>
+            <input type="password" name="confirm_password" required minlength="4" placeholder="Ulangi kata sandi baru" class="field-input w-full" />
+          </div>
         </div>
 
         <div class="pt-3">

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/bootstrap.php';
 /**
  * Test Suite Fase 2 & 3: Standardisasi Naskah Dinas Cetak Resmi Basarnas A4 & Presisi GIS/UI
  * Verifikasi:

@@ -212,7 +212,6 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     background: var(--primary-light);
     color: var(--primary);
     border-color: rgba(249, 115, 22, 0.3);
-    box-shadow: 0 1px 3px rgba(249, 115, 22, 0.1);
   }
   .bra-step-num {
     width: 1.35rem;
@@ -222,10 +221,10 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     align-items: center;
     justify-content: center;
     font-size: 0.7rem;
-    font-weight: 800;
+    font-weight: 700;
     background: var(--bg-card-subtle);
     color: var(--text-muted);
-    border: 1.5px solid currentColor;
+    border: 1px solid currentColor;
     flex-shrink: 0;
   }
   .bra-step-btn.active .bra-step-num {
@@ -241,17 +240,12 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   }
 
   /* ── Form Cards & Fieldsets ── */
+  /* Kartu & kontrol mengikuti komponen bersama (surface / control / field) di tailwind.css */
   .bra-card {
     background: var(--bg-card);
-    border: 1.5px solid var(--border-color);
+    border: 1px solid var(--border-color);
     border-radius: var(--bra-card-radius);
     padding: 1.25rem 1.4rem;
-    box-shadow: var(--shadow-sm);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  }
-  .bra-card:focus-within {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-light);
   }
   .bra-card-header {
     display: flex;
@@ -263,8 +257,8 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     border-bottom: 1px solid var(--border-color);
   }
   .bra-card-title {
-    font-size: 0.85rem;
-    font-weight: 800;
+    font-size: 0.9rem;
+    font-weight: 700;
     color: var(--text-main);
     display: flex;
     align-items: center;
@@ -291,10 +285,8 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     gap: 0.35rem;
   }
   .bra-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-size: 0.75rem;
+    font-weight: 600;
     color: var(--text-muted);
     display: flex;
     align-items: center;
@@ -317,27 +309,29 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   }
   .bra-label .action-link:hover { text-decoration: underline; }
 
-  .bra-control {
+  /* Hanya kontrol tanpa floating label; .field-input diatur penuh oleh komponen bersama */
+  .bra-control:not(.field-input) {
     width: 100%;
-    padding: 0.6rem 0.85rem;
-    font-size: 0.82rem;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
     font-family: inherit;
     background: var(--bg-input);
-    border: 1.5px solid var(--border-color);
-    border-radius: 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
     color: var(--text-main);
-    transition: all 0.2s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  .bra-control:focus {
+  .bra-control:not(.field-input):focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-light);
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
   }
-  .bra-control::placeholder { color: var(--text-muted); opacity: 0.55; }
+  .bra-control:not(.field-input)::placeholder { color: var(--text-muted); opacity: 0.6; }
   .bra-control.mono { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
   .bra-control.upper { text-transform: uppercase; }
   .bra-control.bold { font-weight: 700; }
-  textarea.bra-control { resize: vertical; min-height: 68px; line-height: 1.6; }
+  textarea.bra-control { resize: vertical; line-height: 1.6; }
+  textarea.bra-control:not(.field-input) { min-height: 68px; }
   .bra-hint { font-size: 0.67rem; color: var(--text-muted); opacity: 0.8; }
 
   /* ── 3 Kategori Tabs (Matching FormBraSar.tsx Reference) ── */
@@ -351,7 +345,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   .kat-tab-label input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
   .kat-tab-box {
     padding: 0.9rem 1rem;
-    border: 2px solid var(--border-color);
+    border: 1px solid var(--border-color);
     border-radius: 0.85rem;
     background: var(--bg-card);
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -362,8 +356,6 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   }
   .kat-tab-box:hover {
     border-color: var(--primary);
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
   }
   .kat-tab-label input:checked + .kat-tab-box {
     border-color: var(--primary);
@@ -387,7 +379,6 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     background: var(--primary);
     color: #ffffff;
     border-color: var(--primary);
-    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.3);
   }
   .kat-tab-header {
     display: flex;
@@ -396,7 +387,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     gap: 0.4rem;
     margin-bottom: 0.2rem;
   }
-  .kat-tab-title { font-size: 0.8rem; font-weight: 800; color: var(--text-main); }
+  .kat-tab-title { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
   .kat-tab-pill {
     font-size: 0.62rem;
     font-weight: 700;
@@ -438,7 +429,6 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   .preset-btn:hover {
     border-color: var(--primary);
     color: var(--primary);
-    transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
   }
   .preset-btn.vessel { border-color: #06b6d4; color: #0891b2; }
@@ -447,7 +437,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   /* ── Section Row (Telegram Body AAA, BBB, CCC...) ── */
   .sec-item {
     background: var(--bg-card-subtle);
-    border: 1.5px solid var(--border-color);
+    border: 1px solid var(--border-color);
     border-radius: 0.75rem;
     padding: 0.85rem;
     transition: all 0.2s ease;
@@ -464,7 +454,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   }
   .sec-code-badge {
     font-family: 'JetBrains Mono', monospace;
-    font-weight: 800;
+    font-weight: 700;
     font-size: 0.75rem;
     color: var(--primary);
     background: var(--primary-light);
@@ -503,7 +493,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     bottom: 0.85rem;
     z-index: 30;
     background: var(--bg-card);
-    border: 1.5px solid var(--border-color);
+    border: 1px solid var(--border-color);
     border-radius: 1rem;
     padding: 0.75rem 1.25rem;
     display: flex;
@@ -521,7 +511,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   .btn-primary-bra {
     padding: 0.65rem 1.6rem;
     font-size: 0.8rem;
-    font-weight: 800;
+    font-weight: 700;
     color: #ffffff;
     background: linear-gradient(135deg, var(--primary), #ea580c);
     border: none;
@@ -531,11 +521,8 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
   }
   .btn-primary-bra:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.4);
   }
   .btn-primary-bra:active { transform: scale(0.98); }
 
@@ -544,7 +531,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     font-size: 0.75rem;
     font-weight: 700;
     border-radius: 0.6rem;
-    border: 1.5px solid var(--border-color);
+    border: 1px solid var(--border-color);
     background: var(--bg-card);
     color: var(--text-main);
     cursor: pointer;
@@ -583,7 +570,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     gap: 0.75rem;
     padding-bottom: 0.4rem;
     margin-bottom: 0.4rem;
-    border-bottom: 2px solid #000000;
+    border-bottom: 1px solid #000000;
   }
   .bra-official-paper .senkom-vertical-label {
     user-select: none;
@@ -606,7 +593,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   .bra-modal-overlay.hidden { display: none !important; }
   .bra-modal-card {
     background: var(--bg-card);
-    border: 1.5px solid var(--border-color);
+    border: 1px solid var(--border-color);
     border-radius: 1rem;
     max-width: 58rem;
     width: 100%;
@@ -689,7 +676,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
       max-width: 100% !important;
     }
     .bra-table-box {
-      border: 2px solid #000000 !important;
+      border: 1px solid #000000 !important;
       box-sizing: border-box !important;
       width: 100% !important;
       max-width: 100% !important;
@@ -703,23 +690,19 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   <!-- ════════════════════════════════════════════════════════ -->
   <!-- TOP HEADER & CONTROLS TOOLBAR                           -->
   <!-- ════════════════════════════════════════════════════════ -->
-  <div class="print:hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl shadow-md border transition-colors"
-       style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); border-color: #334155;">
+  <div class="print:hidden surface flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-5">
     
     <div class="flex items-center gap-3">
-      <a href="<?= BASE_URL ?>/bra.php" class="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition" title="Kembali ke Arsip Dokumen BRA">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-      </a>
       <div>
         <div class="flex items-center gap-2.5">
-          <h1 class="text-base sm:text-lg font-black text-white tracking-tight">
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
             <?= $isEdit ? 'Edit Naskah Berita Radio SAR' : 'Pembuatan Berita Radio SAR (BRA SAR)' ?>
           </h1>
-          <span class="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase tracking-wider" style="background: var(--primary); color: #ffffff;">
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-700 dark:text-orange-300">
             <?= $isEdit ? 'MODE EDIT' : 'DRAF BARU' ?>
           </span>
         </div>
-        <p class="text-xs text-slate-300 mt-0.5">
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
           Formulir Naskah Telegram Radio Resmi Standar Badan Nasional Pencarian dan Pertolongan &bull; Satker: <strong><?= htmlspecialchars($satkerKode) ?></strong>
         </p>
       </div>
@@ -728,19 +711,19 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     <!-- Toolbar: View Switcher, Format Kapital & Preview Modal -->
     <div class="flex flex-wrap items-center gap-2">
       <!-- Split View Toggle Button (Desktop) -->
-      <button type="button" id="btnToggleSplitView" class="hidden xl:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border text-white transition-colors" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2);">
+      <button type="button" id="btnToggleSplitView" class="btn btn-secondary btn-sm hidden xl:inline-flex">
         <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
         <span id="splitViewLabel">Split Pratinjau</span>
       </button>
 
       <!-- Telegram Upper & Punctuation Format Helper -->
-      <button type="button" id="btnFormatTelegramPunctuation" class="btn-outline-bra text-xs" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: #ffffff;" title="Format otomatis huruf kapital dan sandi tanda baca militer (TTK, KMA, TTK DUA)">
-        🔠 Format Sandi Telegram
+      <button type="button" id="btnFormatTelegramPunctuation" class="btn btn-secondary btn-sm" title="Format otomatis huruf kapital dan sandi tanda baca militer (TTK, KMA, TTK DUA)">
+        Format Sandi Telegram
       </button>
 
       <!-- Pratinjau Modal -->
-      <button type="button" id="btnOpenModalPreview" class="btn-outline-bra text-xs" style="background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: #ffffff;">
-        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+      <button type="button" id="btnOpenModalPreview" class="btn btn-primary btn-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
         Pratinjau Lembar Resmi
       </button>
     </div>
@@ -805,7 +788,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <div class="bra-card-header">
             <div>
               <div class="bra-card-title">
-                <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-black text-white" style="background: var(--primary);">1</span>
+                <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white" style="background: var(--primary);">1</span>
                 <span>Pilih Kategori Dokumen Berita Radio SAR</span>
               </div>
               <div class="bra-card-desc">Tentukan jenis berita resmi dan tautkan dengan data Operasi SAR aktif jika tersedia</div>
@@ -819,7 +802,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             <label class="kat-tab-label">
               <input type="radio" name="kategori" value="MAPEL" <?= $currentKategori === 'MAPEL' ? 'checked' : '' ?> class="kategori-radio">
               <div class="kat-tab-box">
-                <div class="kat-icon-wrap">📡</div>
+                <div class="kat-icon-wrap"></div>
                 <div style="flex:1;">
                   <div class="kat-tab-header">
                     <span class="kat-tab-title">1. BRA Mapel</span>
@@ -834,7 +817,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             <label class="kat-tab-label">
               <input type="radio" name="kategori" value="OPERASI_SAR" <?= $currentKategori === 'OPERASI_SAR' ? 'checked' : '' ?> class="kategori-radio">
               <div class="kat-tab-box">
-                <div class="kat-icon-wrap">📋</div>
+                <div class="kat-icon-wrap"></div>
                 <div style="flex:1;">
                   <div class="kat-tab-header">
                     <span class="kat-tab-title">2. BRA Operasi SAR</span>
@@ -849,7 +832,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             <label class="kat-tab-label">
               <input type="radio" name="kategori" value="PERGERAKAN_KAPAL" <?= $currentKategori === 'PERGERAKAN_KAPAL' ? 'checked' : '' ?> class="kategori-radio">
               <div class="kat-tab-box">
-                <div class="kat-icon-wrap">🚢</div>
+                <div class="kat-icon-wrap"></div>
                 <div style="flex:1;">
                   <div class="kat-tab-header">
                     <span class="kat-tab-title">3. BRA Pergerakan Kapal</span>
@@ -865,7 +848,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <div id="mapelPresetsContainer" class="bra-preset-banner mb-4 <?= $currentKategori === 'MAPEL' ? '' : 'hidden' ?>" style="border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.08); display: <?= $currentKategori === 'MAPEL' ? 'block' : 'none' ?>;">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pb-2.5 border-b border-blue-500/20">
               <div class="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-300">
-                <span class="text-base">📡</span>
+                <span class="text-base"></span>
                 <div>
                   <span class="tracking-wide">Format Telegram Pemapelan Resmi (Senkom KPP Kendari)</span>
                   <span class="block text-[11px] font-normal text-muted dark:text-blue-200/70">Pemberitahuan resmi kepada KSOP, SROP, dan kapal-kapal yang melintas di sekitar LKP:</span>
@@ -876,7 +859,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             <div class="flex flex-wrap items-center gap-2 pt-1">
               <span class="text-[11px] font-semibold text-blue-900 dark:text-blue-200">Aksi Cepat:</span>
               <button type="button" id="btnPresetLongboatHilangKontak" class="preset-btn flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white border-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition" title="Muat draf telegram pemapelan resmi: 1. Longboat / Kapal Hilang Kontak">
-                <span>🚤</span> <span>1. Longboat / Kapal Hilang Kontak</span>
+                <span></span> <span>1. Longboat / Kapal Hilang Kontak</span>
               </button>
             </div>
           </div>
@@ -885,56 +868,54 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <div id="vesselPresetsContainer" class="bra-preset-banner mb-4 <?= $currentKategori === 'PERGERAKAN_KAPAL' ? '' : 'hidden' ?>" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.08); display: <?= $currentKategori === 'PERGERAKAN_KAPAL' ? 'block' : 'none' ?>;">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pb-2.5 border-b border-cyan-500/20">
               <div class="flex items-center gap-2 text-xs font-bold text-cyan-800 dark:text-cyan-300">
-                <span class="text-base">🚢</span>
+                <span class="text-base"></span>
                 <div>
                   <span class="tracking-wide">Format Telegram Pergerakan Alut Laut Resmi (KPP Kendari)</span>
                   <span class="block text-[11px] font-normal text-muted dark:text-cyan-200/70">Pilih salah satu dari 3 kapal resmi dan jenis pergerakan operasional:</span>
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <label for="selectVesselChoice" class="text-[11px] font-bold uppercase tracking-wider text-cyan-800 dark:text-cyan-300 shrink-0">Kapal:</label>
-                <select id="selectVesselChoice" class="text-xs font-bold py-1.5 px-2.5 rounded-lg bg-white dark:bg-slate-800 border border-cyan-500/40 text-cyan-900 dark:text-cyan-200 cursor-pointer shadow-sm focus:outline-none focus:ring-1 focus:ring-cyan-500">
-                  <option value="KN_SAR_PACITAN">⚓ KN SAR PACITAN 102</option>
-                  <option value="RB_210">🚤 RESCUE BOAT 210</option>
-                  <option value="RB_307">🚤 RESCUE BOAT 307</option>
+                <div class="field">
+                  <label for="selectVesselChoice" class="field-label">Kapal:</label>
+                  <select id="selectVesselChoice" class="field-input font-bold text-cyan-900 dark:text-cyan-200 cursor-pointer">
+                  <option value="KN_SAR_PACITAN">KN SAR PACITAN 102</option>
+                  <option value="RB_210">RESCUE BOAT 210</option>
+                  <option value="RB_307">RESCUE BOAT 307</option>
                 </select>
+                </div>
               </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-2 pt-1">
               <span class="text-[11px] font-semibold text-cyan-900 dark:text-cyan-200">Aksi Gerak:</span>
               <button type="button" id="btnVesselTolak" class="preset-btn vessel flex items-center gap-1.5" title="Muat naskah Tolak / Keberangkatan Pelayaran">
-                <span>🛫</span> <span>Tolak / Berlayar</span>
+                <span></span> <span>Tolak / Berlayar</span>
               </button>
               <button type="button" id="btnVesselPantauan" class="preset-btn vessel flex items-center gap-1.5" title="Muat naskah Pantauan Posisi & Cuaca Saat Berlayar">
-                <span>🧭</span> <span>Pantauan Posisi</span>
+                <span></span> <span>Pantauan Posisi</span>
               </button>
               <button type="button" id="btnVesselSandar" class="preset-btn vessel flex items-center gap-1.5" title="Muat naskah Sandar / Tiba di Pangkalan Dermaga">
-                <span>⚓</span> <span>Sandar / Tiba</span>
+                <span></span> <span>Sandar / Tiba</span>
               </button>
               <div class="hidden sm:inline-block w-px h-5 bg-cyan-500/30 mx-1"></div>
-              <span class="text-[10px] font-medium text-cyan-800/80 dark:text-cyan-300/80 hidden lg:inline">Pintasan Cepat:</span>
+              <span class="text-[11px] font-medium text-cyan-800/80 dark:text-cyan-300/80 hidden lg:inline">Pintasan Cepat:</span>
               <button type="button" id="btnPresetPacitan" class="preset-btn vessel text-[11px] opacity-85 hover:opacity-100" title="Cepat: Muat KN SAR Pacitan 102 (BKO)">
-                ⚓ Pacitan 102
+                Pacitan 102
               </button>
               <button type="button" id="btnPresetRB210" class="preset-btn vessel text-[11px] opacity-85 hover:opacity-100" title="Cepat: Muat RB 210 (Pemanasan)">
-                🚤 RB 210
+                RB 210
               </button>
               <button type="button" id="btnPresetRB307" class="preset-btn vessel text-[11px] opacity-85 hover:opacity-100" title="Cepat: Muat RB 307 (Patroli)">
-                🚤 RB 307
+                RB 307
               </button>
             </div>
           </div>
 
           <!-- Operasi SAR Connection Select -->
           <div class="bra-field">
-            <label class="bra-label">
-              <span>Tautkan ke Operasi SAR Aktif (Opsional)</span>
-              <?php if (!empty($operasiList)): ?>
-                <span class="text-[11px] font-normal text-muted"><?= count($operasiList) ?> Operasi Terdaftar</span>
-              <?php endif; ?>
-            </label>
-            <select name="id_operasi" id="operasiSelect" class="bra-control">
+            <div class="field">
+              <label class="field-label"><span>Tautkan ke Operasi SAR Aktif (Opsional)</span> <?php if (!empty($operasiList)): ?> <span class="text-[11px] font-normal text-muted"><?= count($operasiList) ?> Operasi Terdaftar</span> <?php endif; ?></label>
+              <select name="id_operasi" id="operasiSelect" class="field-input bra-control">
               <option value="" data-nama="">— Buat Mandiri / Tanpa Kaitan Operasi SAR —</option>
               <?php foreach ($operasiList as $op): ?>
                 <option value="<?= $op['id_operasi'] ?>" data-nama="<?= htmlspecialchars($op['nama_operasi']) ?>" <?= ($currentOpId === (int)$op['id_operasi']) ? 'selected' : '' ?>>
@@ -942,30 +923,31 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
                 </option>
               <?php endforeach; ?>
             </select>
+            </div>
             <span class="bra-hint">Pilih operasi SAR untuk mengaktifkan fitur asisten pengisian otomatis data kronologi, LKP, alut, cuaca, dan personil.</span>
           </div>
 
           <!-- Smart Recommendation Toolbar (Terkait Operasi SAR) -->
           <div id="operasiRecommendationBar" class="bra-preset-banner mt-3 <?= $currentOpId ? '' : 'hidden' ?>" style="border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.08);">
             <div class="flex items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
-              <span>⚡</span>
+              <span></span>
               <span><strong>Rekomendasi Draf Naskah Otomatis:</strong> Pilih jenis naskah laporan:</span>
             </div>
             <div class="flex flex-wrap items-center gap-2">
               <button type="button" id="btnAutoInisiasi" class="preset-btn" title="Muat naskah Laporan Awal (Inisiasi)">
-                📄 Laporan Awal (Inisiasi)
+                Laporan Awal (Inisiasi)
               </button>
               <button type="button" id="btnAutoRenops" class="preset-btn" title="Muat Rencana Operasi harian terakhir">
-                🎯 Renops Terakhir
+                Renops Terakhir
               </button>
               <button type="button" id="btnAutoSitrep" class="preset-btn" title="Muat Laporan Perkembangan harian terakhir">
-                📊 Lapbang (SITREP)
+                Lapbang (SITREP)
               </button>
               <button type="button" id="btnAutoPenutupan" class="preset-btn" title="Muat naskah Penutupan Operasi SAR">
-                🔒 Penutupan Operasi
+                Penutupan Operasi
               </button>
               <button type="button" id="btnAutoMapel" class="preset-btn" title="Muat naskah Pemapelan Maritim dari data Operasi SAR">
-                📡 Pemapelan (Mapel)
+                Pemapelan (Mapel)
               </button>
             </div>
           </div>
@@ -978,21 +960,23 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <div class="bra-card-header">
             <div>
               <div class="bra-card-title">
-                <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-black text-white" style="background: var(--info);">2</span>
+                <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white" style="background: var(--info);">2</span>
                 <span>Penomoran Naskah &amp; Administrasi SENKOM</span>
               </div>
               <div class="bra-card-desc">Nomor berita radio, derajat urgensi, dan rujukan naskah sebelumnya</div>
             </div>
-            <div class="flex items-center gap-1.5 text-[10.5px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-600/30">
-              <span>🔒 Proteksi Urut Otomatis Aktif</span>
+            <div class="flex items-center gap-1.5 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-600/30">
+              <span>Proteksi Urut Otomatis Aktif</span>
             </div>
           </div>
 
           <div class="bra-grid-3 mb-3">
             <!-- No BRA -->
             <div class="bra-field">
-              <label class="bra-label">Nomor Naskah BRA <span class="req">*</span></label>
-              <input type="text" name="no_bra" id="noBraInput" value="<?= htmlspecialchars(!empty($bra['no_bra']) ? $bra['no_bra'] : $noBraPlaceholder) ?>" placeholder="<?= $noBraPlaceholder ?>" class="bra-control mono bold upper" required>
+              <div class="field">
+                <label class="field-label">Nomor Naskah BRA <span class="req">*</span></label>
+                <input class="field-input bra-control mono bold upper" type="text" name="no_bra" id="noBraInput" value="<?= htmlspecialchars(!empty($bra['no_bra']) ? $bra['no_bra'] : $noBraPlaceholder) ?>" placeholder="<?= $noBraPlaceholder ?>"  required>
+              </div>
               <input type="hidden" name="is_auto_no_bra" id="isAutoNoBra" value="<?= $isEdit ? '0' : '1' ?>">
               <span class="bra-hint">Format resmi: <code>[Nomor Urut]/<?= htmlspecialchars($satkerKode) ?>/[BulanTahun]</code></span>
               <div id="noBraWarning" class="hidden mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded px-2 py-1"></div>
@@ -1004,20 +988,20 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
                 <span>Derajat Pengiriman <span class="req">*</span></span>
               </label>
               <div class="flex gap-1.5">
-                <input type="text" name="derajat" id="derajatInput" value="<?= htmlspecialchars($bra['derajat'] ?? 'SGR') ?>" placeholder="SGR" class="bra-control mono bold upper" required style="flex:1;">
-                <button type="button" onclick="setDerajat('SGR')" class="preset-btn text-[10px]">SGR</button>
-                <button type="button" onclick="setDerajat('KILAT')" class="preset-btn text-[10px]">KILAT</button>
-                <button type="button" onclick="setDerajat('RUTIN')" class="preset-btn text-[10px]">RUTIN</button>
+                <input type="text" name="derajat" id="derajatInput" value="<?= htmlspecialchars($bra['derajat'] ?? 'SGR') ?>" placeholder="SGR" class="bra-control mono bold upper flex-1 min-w-[4.5rem]" required style="flex:1;">
+                <button type="button" onclick="setDerajat('SGR')" class="preset-btn text-[11px]">SGR</button>
+                <button type="button" onclick="setDerajat('KILAT')" class="preset-btn text-[11px]">KILAT</button>
+                <button type="button" onclick="setDerajat('RUTIN')" class="preset-btn text-[11px]">RUTIN</button>
               </div>
               <span class="bra-hint">SGR = Segera (Default Basarnas), KILAT, atau RUTIN</span>
             </div>
 
             <!-- MENBRA (Rujukan Naskah Lalu) (ISSUE-08) -->
             <div class="bra-field" id="menbraFieldWrapper">
-              <label class="bra-label" id="menbraLabelText">
-                <span id="labelMenbraTitle">MENBRA (Rujukan BRA Lalu)</span>
-              </label>
-              <input type="text" name="menbra" id="menbraInput" value="<?= (strtoupper(trim((string)($bra['menbra'] ?? ''))) === 'SEGERA' || trim((string)($bra['menbra'] ?? '')) === '-') ? '' : htmlspecialchars($bra['menbra'] ?? '') ?>" placeholder="<?= max(1, $nomorUrutPlaceholder - 1) ?>/<?= $satkerKode ?>/<?= $bulanTahunPlaceholder ?>" class="bra-control mono upper">
+              <div class="field">
+                <label id="menbraLabelText" class="field-label"><span id="labelMenbraTitle">MENBRA (Rujukan BRA Lalu)</span></label>
+                <input class="field-input bra-control mono upper" type="text" name="menbra" id="menbraInput" value="<?= (strtoupper(trim((string)($bra['menbra'] ?? ''))) === 'SEGERA' || trim((string)($bra['menbra'] ?? '')) === '-') ? '' : htmlspecialchars($bra['menbra'] ?? '') ?>" placeholder="<?= max(1, $nomorUrutPlaceholder - 1) ?>/<?= $satkerKode ?>/<?= $bulanTahunPlaceholder ?>" >
+              </div>
               <span class="bra-hint" id="hintMenbraText">Nomor naskah BRA sebelumnya yang menjadi dasar rujukan (bila ada). Biarkan kosong jika naskah baru / tanpa rujukan.</span>
             </div>
           </div>
@@ -1025,25 +1009,33 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <!-- Accordion Header Senkom Ekstra (Panggilan, Jenis, Nr. Stn, Instruksi) -->
           <details class="text-xs border rounded-xl p-3 bg-card-subtle transition" style="border-color: var(--border-color);">
             <summary class="font-bold cursor-pointer text-muted hover:text-main flex items-center justify-between select-none">
-              <span>⚙️ Rincian Baris Header Senkom Lengkap (Panggilan, Jenis, Nr. Stn, Instruksi Penerusan)</span>
-              <span class="text-[10px] font-normal text-muted">(Klik untuk buka / tutup)</span>
+              <span>Rincian Baris Header Senkom Lengkap (Panggilan, Jenis, Nr. Stn, Instruksi Penerusan)</span>
+              <span class="text-[11px] font-normal text-muted">(Klik untuk buka / tutup)</span>
             </summary>
             <div class="bra-grid-4 mt-3 pt-3 border-t" style="border-color: var(--border-color);">
               <div class="bra-field">
-                <label class="bra-label">Panggilan</label>
-                <input type="text" name="panggilan" id="panggilanInput" value="<?= htmlspecialchars($bra['panggilan'] ?? '') ?>" class="bra-control mono" placeholder="—">
+                <div class="field">
+                  <label class="field-label">Panggilan</label>
+                  <input class="field-input bra-control mono" type="text" name="panggilan" id="panggilanInput" value="<?= htmlspecialchars($bra['panggilan'] ?? '') ?>"  placeholder="—">
+                </div>
               </div>
               <div class="bra-field">
-                <label class="bra-label">Jenis</label>
-                <input type="text" name="jenis" id="jenisInput" value="<?= htmlspecialchars($bra['jenis'] ?? '') ?>" class="bra-control mono" placeholder="SAR">
+                <div class="field">
+                  <label class="field-label">Jenis</label>
+                  <input class="field-input bra-control mono" type="text" name="jenis" id="jenisInput" value="<?= htmlspecialchars($bra['jenis'] ?? '') ?>"  placeholder="SAR">
+                </div>
               </div>
               <div class="bra-field">
-                <label class="bra-label">Nr. Stn</label>
-                <input type="text" name="nr_stn" id="nrStnInput" value="<?= htmlspecialchars($bra['nr_stn'] ?? '') ?>" class="bra-control mono" placeholder="—">
+                <div class="field">
+                  <label class="field-label">Nr. Stn</label>
+                  <input class="field-input bra-control mono" type="text" name="nr_stn" id="nrStnInput" value="<?= htmlspecialchars($bra['nr_stn'] ?? '') ?>"  placeholder="—">
+                </div>
               </div>
               <div class="bra-field">
-                <label class="bra-label">Instruksi Penerusan</label>
-                <input type="text" name="instruksi_penerusan" id="instruksiPenerusanInput" value="<?= htmlspecialchars($bra['instruksi_penerusan'] ?? '') ?>" class="bra-control mono" placeholder="—">
+                <div class="field">
+                  <label class="field-label">Instruksi Penerusan</label>
+                  <input class="field-input bra-control mono" type="text" name="instruksi_penerusan" id="instruksiPenerusanInput" value="<?= htmlspecialchars($bra['instruksi_penerusan'] ?? '') ?>"  placeholder="—">
+                </div>
               </div>
             </div>
           </details>
@@ -1056,7 +1048,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <div class="bra-card-header">
             <div>
               <div class="bra-card-title">
-                <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-black text-white" style="background: var(--warning);">3</span>
+                <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white" style="background: var(--warning);">3</span>
                 <span>Format Waktu Militer Basarnas &amp; Alamat Distribusi</span>
               </div>
               <div class="bra-card-desc">TWU (Waktu Kirim), TWB (Waktu Buat/Kejadian), dan alamat kedinasan resmi</div>
@@ -1073,11 +1065,11 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
                   <span>TWB (Tanggal Waktu Buat / Kejadian) <span class="req">*</span></span>
                 </label>
                 <button type="button" id="btnSetTwbNow" class="action-link text-xs">
-                  ⚡ Waktu Sekarang
+                  Waktu Sekarang
                 </button>
               </div>
               <input type="text" name="twb" id="twbInput" value="<?= htmlspecialchars($bra['twb'] ?? '') ?>" placeholder="<?= $twbPlaceholder ?>" class="bra-control mono bold upper text-sm" required>
-              <div class="flex items-center justify-between mt-1 text-[10px] text-muted">
+              <div class="flex items-center justify-between mt-1 text-[11px] text-muted">
                 <span>Format: <code>MMDD HHmm H</code></span>
                 <span>Contoh: <strong>0920 0645 H</strong></span>
               </div>
@@ -1090,11 +1082,11 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
                   <span>TWU (Tanggal Waktu Urut / Kirim) <span class="req">*</span></span>
                 </label>
                 <button type="button" id="btnSetTwuNow" class="action-link text-xs">
-                  ⚡ Waktu Sekarang
+                  Waktu Sekarang
                 </button>
               </div>
               <input type="text" name="twu" id="twuInput" value="<?= htmlspecialchars($bra['twu'] ?? '') ?>" placeholder="<?= $twuPlaceholder ?>" class="bra-control mono bold upper text-sm" required>
-              <div class="flex items-center justify-between mt-1 text-[10px] text-muted">
+              <div class="flex items-center justify-between mt-1 text-[11px] text-muted">
                 <span>Dicetak di sudut kanan atas telegram</span>
                 <span>Contoh: <strong>0920 0700 H</strong></span>
               </div>
@@ -1104,23 +1096,31 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <!-- Address Fields: DARI, AKSI, INFO, PERIHAL -->
           <div class="space-y-3">
             <div class="bra-field">
-              <label class="bra-label">DARI (Satker Asal Pengirim) <span class="req">*</span></label>
-              <input type="text" name="dari" id="dariInput" value="<?= htmlspecialchars($bra['dari'] ?? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI') ?>" class="bra-control bold upper" required>
+              <div class="field">
+                <label class="field-label">DARI (Satker Asal Pengirim) <span class="req">*</span></label>
+                <input placeholder=" " class="field-input bra-control bold upper" type="text" name="dari" id="dariInput" value="<?= htmlspecialchars($bra['dari'] ?? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI') ?>"  required>
+              </div>
             </div>
 
             <div class="bra-field">
-              <label class="bra-label">AKSI (Alamat Tujuan Utama Tindak Lanjut) <span class="req">*</span></label>
-              <textarea name="aksi" id="aksiInput" rows="2" class="bra-control upper font-semibold" placeholder="<?= $currentKategori === 'MAPEL' ? 'KA KSOP KENDARI DAN KMA KA SROP KENDARI' : 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN' ?>" required><?= htmlspecialchars($bra['aksi'] ?? ($currentKategori === 'MAPEL' ? 'KA KSOP KENDARI KMA KA SROP KENDARI' : '')) ?></textarea>
+              <div class="field">
+                <label class="field-label">AKSI (Alamat Tujuan Utama Tindak Lanjut) <span class="req">*</span></label>
+                <textarea name="aksi" id="aksiInput" rows="2" class="field-input bra-control upper font-semibold" placeholder="<?= $currentKategori === 'MAPEL' ? 'KA KSOP KENDARI DAN KMA KA SROP KENDARI' : 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN' ?>" required><?= htmlspecialchars($bra['aksi'] ?? ($currentKategori === 'MAPEL' ? 'KA KSOP KENDARI KMA KA SROP KENDARI' : '')) ?></textarea>
+              </div>
             </div>
 
             <div class="bra-field">
-              <label class="bra-label">INFO (Tembusan Informasi)</label>
-              <textarea name="info" id="infoInput" rows="2" class="bra-control upper" placeholder="KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN"><?= htmlspecialchars($bra['info'] ?? ($currentKategori === 'MAPEL' ? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN' : '')) ?></textarea>
+              <div class="field">
+                <label class="field-label">INFO (Tembusan Informasi)</label>
+                <textarea name="info" id="infoInput" rows="2" class="field-input bra-control upper" placeholder="KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN"><?= htmlspecialchars($bra['info'] ?? ($currentKategori === 'MAPEL' ? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN' : '')) ?></textarea>
+              </div>
             </div>
 
             <div class="bra-field">
-              <label class="bra-label">PERIHAL / Judul Berita Radio SAR <span class="req">*</span></label>
-              <textarea name="perihal" id="perihalInput" rows="2" class="bra-control bold upper text-orange-600 dark:text-orange-400" placeholder="KECELAKAAN KAPAL..." required><?= htmlspecialchars($bra['perihal'] ?? '') ?></textarea>
+              <div class="field">
+                <label class="field-label">PERIHAL / Judul Berita Radio SAR <span class="req">*</span></label>
+                <textarea name="perihal" id="perihalInput" rows="2" class="field-input bra-control bold upper text-orange-600 dark:text-orange-400" placeholder="KECELAKAAN KAPAL..." required><?= htmlspecialchars($bra['perihal'] ?? '') ?></textarea>
+              </div>
               <span class="bra-hint">Judul naskah resmi telegram diakhiri dengan sandi <code>TTK</code></span>
             </div>
           </div>
@@ -1133,7 +1133,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <div class="bra-card-header">
             <div>
               <div class="bra-card-title">
-                <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-black text-white" style="background: var(--primary);">4</span>
+                <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white" style="background: var(--primary);">4</span>
                 <span>Batang Tubuh Naskah Berita Radio SAR</span>
               </div>
               <div class="bra-card-desc">Seksi bertingkat AAA, BBB, CCC, dst. Sesuai tata naskah telegram resmi militer</div>
@@ -1144,7 +1144,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               </span>
               <button type="button" id="btnAddSectionBtn" class="btn-primary-bra" style="padding: 0.45rem 0.9rem; font-size: 0.75rem;">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                <span>+ Tambah Bagian</span>
+                <span>Tambah Bagian</span>
               </button>
             </div>
           </div>
@@ -1194,7 +1194,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <div class="bra-card-header">
             <div>
               <div class="bra-card-title">
-                <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-black text-white" style="background: var(--success);">5</span>
+                <span class="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white" style="background: var(--success);">5</span>
                 <span>Pengirim (SMC) &amp; Register Stasiun Radio SENKOM</span>
               </div>
               <div class="bra-card-desc">Penandatangan naskah, Barcode QR Digital, dan register buku komunikasi</div>
@@ -1207,11 +1207,9 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <!-- Pejabat Preset Selector -->
           <?php if (!empty($pejabatList)): ?>
             <div class="bra-field mb-3 p-3 rounded-xl border bg-card-subtle" style="border-color: var(--border-color);">
-              <label class="bra-label">
-                <span>Pilih Cepat dari Master Pejabat / SMC</span>
-                <span class="text-[10px] text-muted">Nama, Pangkat &amp; Jabatan Otomatis Terisi</span>
-              </label>
-              <select id="pejabatSelectControl" class="bra-control">
+              <div class="field">
+                <label class="field-label"><span>Pilih Cepat dari Master Pejabat / SMC</span> <span class="text-[11px] text-muted">Nama, Pangkat &amp; Jabatan Otomatis Terisi</span></label>
+                <select id="pejabatSelectControl" class="field-input bra-control">
                 <option value="">— Pilih Pejabat Penandatangan —</option>
                 <?php foreach ($pejabatList as $p): ?>
                   <option value="<?= htmlspecialchars($p['id'] ?? '') ?>"
@@ -1223,28 +1221,37 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
                   </option>
                 <?php endforeach; ?>
               </select>
+              </div>
             </div>
           <?php endif; ?>
 
           <div class="bra-grid-2 mb-3">
             <div class="bra-field">
-              <label class="bra-label">Instansi Pengirim <span class="req">*</span></label>
-              <input type="text" name="pengirim" id="pengirimInput" value="<?= htmlspecialchars($bra['pengirim'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN KENDARI') ?>" class="bra-control bold upper" required>
+              <div class="field">
+                <label class="field-label">Instansi Pengirim <span class="req">*</span></label>
+                <input placeholder=" " class="field-input bra-control bold upper" type="text" name="pengirim" id="pengirimInput" value="<?= htmlspecialchars($bra['pengirim'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN KENDARI') ?>"  required>
+              </div>
             </div>
             <div class="bra-field">
-              <label class="bra-label">Nama Lengkap Pejabat / SMC <span class="req">*</span></label>
-              <input type="text" name="nama_smc" id="namaSmcInput" value="<?= htmlspecialchars($bra['nama_smc'] ?? 'AMIRUDDIN A.S., S.Sos.') ?>" class="bra-control bold upper" required>
+              <div class="field">
+                <label class="field-label">Nama Lengkap Pejabat / SMC <span class="req">*</span></label>
+                <input placeholder=" " class="field-input bra-control bold upper" type="text" name="nama_smc" id="namaSmcInput" value="<?= htmlspecialchars($bra['nama_smc'] ?? 'AMIRUDDIN A.S., S.Sos.') ?>"  required>
+              </div>
             </div>
           </div>
 
           <div class="bra-grid-2 mb-4">
             <div class="bra-field">
-              <label class="bra-label">Pangkat / Golongan <span class="req">*</span></label>
-              <input type="text" name="pangkat_smc" id="pangkatSmcInput" value="<?= htmlspecialchars($bra['pangkat_smc'] ?? 'PEMBINA (IV/a)') ?>" class="bra-control upper" required>
+              <div class="field">
+                <label class="field-label">Pangkat / Golongan <span class="req">*</span></label>
+                <input placeholder=" " class="field-input bra-control upper" type="text" name="pangkat_smc" id="pangkatSmcInput" value="<?= htmlspecialchars($bra['pangkat_smc'] ?? 'PEMBINA (IV/a)') ?>"  required>
+              </div>
             </div>
             <div class="bra-field">
-              <label class="bra-label">Jabatan Kedinasan <span class="req">*</span></label>
-              <input type="text" name="jabatan_smc" id="jabatanSmcInput" value="<?= htmlspecialchars($bra['jabatan_smc'] ?? ($currentKategori === 'MAPEL' || !$currentOpId ? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI' : 'SMC')) ?>" class="bra-control bold upper" required>
+              <div class="field">
+                <label class="field-label">Jabatan Kedinasan <span class="req">*</span></label>
+                <input placeholder=" " class="field-input bra-control bold upper" type="text" name="jabatan_smc" id="jabatanSmcInput" value="<?= htmlspecialchars($bra['jabatan_smc'] ?? ($currentKategori === 'MAPEL' || !$currentOpId ? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI' : 'SMC')) ?>"  required>
+              </div>
             </div>
           </div>
 
@@ -1252,24 +1259,32 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <div class="pt-3 border-t" style="border-color: var(--border-color);">
             <div class="bra-label mb-2">
               <span>Buku Komunikasi Radio SENKOM (Bisa Dilengkapi Operator Radio)</span>
-              <span class="text-[10px] font-normal text-muted">Kolom Sudut Kanan Bawah Telegram</span>
+              <span class="text-[11px] font-normal text-muted">Kolom Sudut Kanan Bawah Telegram</span>
             </div>
             <div class="bra-grid-4">
               <div class="bra-field">
-                <label class="bra-label">T.W.T (Waktu Terima)</label>
-                <input type="text" name="twt" id="twtInput" value="<?= htmlspecialchars($bra['twt'] ?? '') ?>" class="bra-control mono text-center text-xs" placeholder="—">
+                <div class="field">
+                  <label class="field-label">T.W.T (Waktu Terima)</label>
+                  <input class="field-input bra-control mono text-center" type="text" name="twt" id="twtInput" value="<?= htmlspecialchars($bra['twt'] ?? '') ?>"  placeholder="—">
+                </div>
               </div>
               <div class="bra-field">
-                <label class="bra-label">T.W.K (Waktu Kirim)</label>
-                <input type="text" name="twk" id="twkInput" value="<?= htmlspecialchars($bra['twk'] ?? '') ?>" class="bra-control mono text-center text-xs" placeholder="—">
+                <div class="field">
+                  <label class="field-label">T.W.K (Waktu Kirim)</label>
+                  <input class="field-input bra-control mono text-center" type="text" name="twk" id="twkInput" value="<?= htmlspecialchars($bra['twk'] ?? '') ?>"  placeholder="—">
+                </div>
               </div>
               <div class="bra-field">
-                <label class="bra-label">SISTEM (Frekuensi)</label>
-                <input type="text" name="sistem" id="sistemInput" value="<?= htmlspecialchars($bra['sistem'] ?? '') ?>" class="bra-control mono text-center text-xs" placeholder="HF / VHF / SSB">
+                <div class="field">
+                  <label class="field-label">SISTEM (Frekuensi)</label>
+                  <input class="field-input bra-control mono text-center" type="text" name="sistem" id="sistemInput" value="<?= htmlspecialchars($bra['sistem'] ?? '') ?>"  placeholder="HF / VHF / SSB">
+                </div>
               </div>
               <div class="bra-field">
-                <label class="bra-label">PARAF Operator</label>
-                <input type="text" name="paraf" id="parafInput" value="<?= htmlspecialchars($bra['paraf'] ?? '') ?>" class="bra-control mono text-center text-xs" placeholder="Operator">
+                <div class="field">
+                  <label class="field-label">PARAF Operator</label>
+                  <input class="field-input bra-control mono text-center" type="text" name="paraf" id="parafInput" value="<?= htmlspecialchars($bra['paraf'] ?? '') ?>"  placeholder="Operator">
+                </div>
               </div>
             </div>
           </div>
@@ -1305,7 +1320,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <span>Pratinjau Lembar Dokumen Berita Radio SAR (Live Sync)</span>
         </div>
         <button type="button" onclick="window.printLiveDocument()" class="btn-outline-bra py-1 px-2.5 text-[11px]" title="Cetak langsung dokumen resmi">
-          🖨️ Cetak
+          Cetak
         </button>
       </div>
 
@@ -1324,10 +1339,10 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             <?php endif; ?>
           </div>
           <div class="text-center">
-            <h1 class="text-xl sm:text-[22px] font-black tracking-wider uppercase leading-none text-black m-0 p-0">
+            <h1 class="text-xl sm:text-[22px] font-bold leading-none text-black m-0 p-0">
               BRA SAR
             </h1>
-            <h2 class="text-xs sm:text-[13px] font-bold tracking-wider uppercase leading-none text-black m-0 mt-1 p-0">
+            <h2 class="text-xs sm:text-[13px] font-bold leading-none text-black m-0 mt-1 p-0">
               BADAN NASIONAL PENCARIAN DAN PERTOLONGAN
             </h2>
           </div>
@@ -1349,31 +1364,31 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             <div class="bra-top-header grid grid-cols-5 divide-x-2 divide-black text-center font-bold bg-white text-black">
               <div class="py-1 px-1">
                 <div>Panggilan</div>
-                <div id="pvPanggilan" class="font-mono text-[10px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
+                <div id="pvPanggilan" class="font-mono text-[11px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
                   <?= htmlspecialchars($bra['panggilan'] ?? '—') ?>
                 </div>
               </div>
               <div class="py-1 px-1">
                 <div>Jenis</div>
-                <div id="pvJenis" class="font-mono text-[10px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
+                <div id="pvJenis" class="font-mono text-[11px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
                   <?= htmlspecialchars($bra['jenis'] ?? 'SAR') ?>
                 </div>
               </div>
               <div class="py-1 px-1">
                 <div>Nr. Stn</div>
-                <div id="pvNrStn" class="font-mono text-[10px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
+                <div id="pvNrStn" class="font-mono text-[11px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
                   <?= htmlspecialchars($bra['nr_stn'] ?? '—') ?>
                 </div>
               </div>
               <div class="py-1 px-1">
                 <div>Derajat</div>
-                <div id="pvDerajat" class="font-extrabold text-[11px] sm:text-xs border-t border-black mt-0.5 pt-0.5 text-black">
+                <div id="pvDerajat" class="font-semibold text-[11px] sm:text-xs border-t border-black mt-0.5 pt-0.5 text-black">
                   <?= htmlspecialchars($bra['derajat'] ?? 'SGR') ?>
                 </div>
               </div>
               <div class="py-1 px-1">
                 <div>Instruksi penerusan</div>
-                <div id="pvInstruksiPenerusan" class="font-mono text-[10px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
+                <div id="pvInstruksiPenerusan" class="font-mono text-[11px] sm:text-[11px] border-t border-black mt-0.5 pt-0.5 text-black">
                   <?= htmlspecialchars($bra['instruksi_penerusan'] ?? '—') ?>
                 </div>
               </div>
@@ -1403,7 +1418,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               <!-- Right Column: Tanggal Waktu TWU & Jumlah Kata -->
               <div class="col-span-4 divide-y-2 divide-black flex flex-col justify-between bg-white text-black">
                 <div class="p-1 flex items-center justify-center text-center bg-white">
-                  <span class="font-bold uppercase text-[9px] tracking-wider text-black">
+                  <span class="font-bold uppercase text-[11px] tracking-wider text-black">
                     TANGGAL WAKTU
                   </span>
                 </div>
@@ -1413,10 +1428,10 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
                   </span>
                 </div>
                 <div class="p-1 flex items-center justify-between bg-white">
-                  <span class="font-bold uppercase text-[8.5px] text-black">
+                  <span class="font-bold uppercase text-[11px] text-black">
                     JUMLAH KATA
                   </span>
-                  <span id="pvJumlahKata" class="font-bold text-[9.5px] uppercase text-black">
+                  <span id="pvJumlahKata" class="font-bold text-[11px] uppercase text-black">
                     <?= htmlspecialchars($bra['jumlah_kata'] ?? '0 KATA') ?>
                   </span>
                 </div>
@@ -1429,14 +1444,14 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               <div class="mb-3">
                 <div class="space-y-0.5">
                   <div class="flex items-start text-xs sm:text-[13px] font-bold uppercase">
-                    <span class="w-16 font-black shrink-0 text-black">NO.</span>
-                    <span class="w-4 text-center shrink-0 text-black font-black">:</span>
-                    <span id="pvNoBra" class="flex-1 font-extrabold tracking-wider ml-1 text-black"><?= htmlspecialchars(!empty($bra['no_bra']) ? $bra['no_bra'] : $noBraPlaceholder) ?></span>
+                    <span class="w-16 font-bold shrink-0 text-black">NO.</span>
+                    <span class="w-4 text-center shrink-0 text-black font-bold">:</span>
+                    <span id="pvNoBra" class="flex-1 font-semibold tracking-wider ml-1 text-black"><?= htmlspecialchars(!empty($bra['no_bra']) ? $bra['no_bra'] : $noBraPlaceholder) ?></span>
                   </div>
                   <div id="pvMenbraRow" class="flex items-start text-xs sm:text-[13px] font-bold uppercase <?= (empty($bra['menbra']) || strtoupper(trim((string)$bra['menbra'])) === 'SEGERA' || trim((string)$bra['menbra']) === '-') ? 'hidden' : '' ?>">
-                    <span class="w-16 font-black shrink-0 text-black">MENBRA</span>
-                    <span class="w-4 text-center shrink-0 text-black font-black">:</span>
-                    <span id="pvMenbra" class="flex-1 font-extrabold tracking-wider ml-1 text-black"><?= (strtoupper(trim((string)($bra['menbra'] ?? ''))) === 'SEGERA' || trim((string)($bra['menbra'] ?? '')) === '-') ? '' : htmlspecialchars($bra['menbra'] ?? '') ?></span>
+                    <span class="w-16 font-bold shrink-0 text-black">MENBRA</span>
+                    <span class="w-4 text-center shrink-0 text-black font-bold">:</span>
+                    <span id="pvMenbra" class="flex-1 font-semibold tracking-wider ml-1 text-black"><?= (strtoupper(trim((string)($bra['menbra'] ?? ''))) === 'SEGERA' || trim((string)($bra['menbra'] ?? '')) === '-') ? '' : htmlspecialchars($bra['menbra'] ?? '') ?></span>
                   </div>
                 </div>
                 <div id="pvPerihal" class="font-black uppercase text-xs sm:text-sm tracking-tight leading-snug mt-2.5 mb-1 text-black text-justify">
@@ -1488,14 +1503,14 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
                 <div class="mt-2 pt-2 border-t border-black">
                   <div class="flex items-start justify-between">
                     <div>
-                      <span class="font-bold uppercase text-[10px] sm:text-[11px] block text-black">Tanda Tangan :</span>
-                      <span class="text-[9px] font-mono block mt-0.5 text-gray-700">(Barcode Digital Terverifikasi)</span>
+                      <span class="font-bold uppercase text-[11px] sm:text-[11px] block text-black">Tanda Tangan :</span>
+                      <span class="text-[11px] font-mono block mt-0.5 text-gray-700">(Barcode Digital Terverifikasi)</span>
                     </div>
                     <div class="flex flex-col items-center">
                       <div class="p-0.5 bg-white border border-black rounded shadow-xs" style="width: 76px; height: 76px; display: flex; align-items: center; justify-content: center;">
                         <canvas id="liveBraQrCanvas" width="160" height="160" style="width: 70px; height: 70px; max-width: 70px; max-height: 70px;" class="w-16 h-16 object-contain"></canvas>
                       </div>
-                      <div class="text-[8px] font-mono text-center mt-0.5 text-gray-700">SCAN UNTUK VERIFIKASI</div>
+                      <div class="text-[11px] font-mono text-center mt-0.5 text-gray-700">SCAN UNTUK VERIFIKASI</div>
                     </div>
                   </div>
                 </div>
@@ -1503,17 +1518,17 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
 
               <!-- Right Column: SENKOM Processing Columns -->
               <div class="col-span-5 flex flex-col justify-between">
-                <div class="grid grid-cols-4 divide-x-2 divide-black border-b-2 border-black text-center font-bold py-1 text-[9px] sm:text-[10px] bg-white text-black">
+                <div class="grid grid-cols-4 divide-x-2 divide-black border-b-2 border-black text-center font-bold py-1 text-[11px] sm:text-[11px] bg-white text-black">
                   <div>T. W. T</div>
                   <div>T. W. K</div>
                   <div>SISTEM</div>
                   <div>PARAF</div>
                 </div>
                 <div class="grid grid-cols-4 divide-x-2 divide-black flex-1 min-h-[75px] bg-white text-black">
-                  <div id="pvTwt" class="p-1 text-center font-mono text-[9px] sm:text-[10px] text-black"><?= htmlspecialchars($bra['twt'] ?? '') ?></div>
-                  <div id="pvTwk" class="p-1 text-center font-mono text-[9px] sm:text-[10px] text-black"><?= htmlspecialchars($bra['twk'] ?? '') ?></div>
-                  <div id="pvSistem" class="p-1 text-center font-mono text-[9px] sm:text-[10px] text-black"><?= htmlspecialchars($bra['sistem'] ?? '') ?></div>
-                  <div id="pvParaf" class="p-1 text-center font-mono text-[9px] sm:text-[10px] text-black"><?= htmlspecialchars($bra['paraf'] ?? '') ?></div>
+                  <div id="pvTwt" class="p-1 text-center font-mono text-[11px] sm:text-[11px] text-black"><?= htmlspecialchars($bra['twt'] ?? '') ?></div>
+                  <div id="pvTwk" class="p-1 text-center font-mono text-[11px] sm:text-[11px] text-black"><?= htmlspecialchars($bra['twk'] ?? '') ?></div>
+                  <div id="pvSistem" class="p-1 text-center font-mono text-[11px] sm:text-[11px] text-black"><?= htmlspecialchars($bra['sistem'] ?? '') ?></div>
+                  <div id="pvParaf" class="p-1 text-center font-mono text-[11px] sm:text-[11px] text-black"><?= htmlspecialchars($bra['paraf'] ?? '') ?></div>
                 </div>
               </div>
             </div>
@@ -1521,7 +1536,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
         </div>
 
         <!-- Footer tiny note -->
-        <div class="mt-1.5 text-right text-[7.5px] font-mono text-gray-700">
+        <div class="mt-1.5 text-right text-[11px] font-mono text-gray-700">
           KANTOR PENCARIAN DAN PERTOLONGAN KENDARI &bull; SISTEM TELEGRAM RADIO ELEKTRONIK FILE AKTIF
         </div>
       </div>
@@ -1538,7 +1553,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   <div class="bra-modal-card">
     <div class="bra-modal-header">
       <div class="flex items-center gap-2">
-        <span class="text-lg">📄</span>
+        <span class="text-lg"></span>
         <div>
           <div class="text-sm font-bold text-main">Pratinjau Lembar Naskah Resmi Berita Radio SAR</div>
           <div class="text-[11px] text-muted">Format 100% presisi telegram dinas Basarnas Kendari</div>
@@ -1546,15 +1561,15 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
       </div>
       <div class="flex items-center gap-2">
         <button type="button" onclick="window.downloadBraPdf('braLivePaperPreview')" class="btn-primary-bra py-1.5 px-3 text-xs flex items-center gap-1.5" style="background: #2563eb;" title="Unduh Lembar Resmi Format PDF A4">
-          <span>📥</span>
+          <span></span>
           <span>Unduh PDF (A4)</span>
         </button>
         <button type="button" onclick="window.printLiveDocument()" class="btn-primary-bra py-1.5 px-3 text-xs flex items-center gap-1.5" title="Cetak Naskah Resmi">
-          <span>🖨️</span>
+          <span></span>
           <span>Cetak Dokumen</span>
         </button>
         <button type="button" id="btnCloseModalPreview" class="btn-outline-bra py-1.5 px-2.5 text-xs">
-          ✕ Tutup
+          Tutup
         </button>
       </div>
     </div>
@@ -1572,7 +1587,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
 <!-- ════════════════════════════════════════════════════════ -->
 <!-- JAVASCRIPT ENGINE & DYNAMIC LOGIC                       -->
 <!-- ════════════════════════════════════════════════════════ -->
-<script src="<?= BASE_URL ?>/assets/vendor/html2pdf/html2pdf.bundle.min.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>"></script>
 <script>
 window.__BRA_FORM_CONFIG__ = <?= jsonSafe([
     'twuPlaceholder' => $twuPlaceholder,
@@ -1585,4 +1600,4 @@ window.__BRA_FORM_CONFIG__ = <?= jsonSafe([
     'logoDataUri' => $logoDataUri,
 ]) ?>;
 </script>
-<script src="<?= BASE_URL ?>/assets/js/pages/bra_form.js?v=<?= APP_VERSION ?>"></script>
+<script src="<?= assetUrl('assets/js/pages/bra_form.js') ?>"></script>

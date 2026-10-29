@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/bootstrap.php';
 /**
  * Test script for 5 Optimizations in QR-SAR GIS Tactical System
  */

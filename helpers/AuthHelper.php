@@ -92,31 +92,14 @@ class AuthHelper {
 
     public static function verifyPassword(string $inputPassword, string $storedPassword): bool {
         if ($storedPassword === '' || $inputPassword === '') return false;
-        // 1. If stored as modern password_hash (bcrypt/argon2)
-        $info = password_get_info($storedPassword);
-        if (!empty($info['algo'])) {
-            return password_verify($inputPassword, $storedPassword);
-        }
-        // 2. Fallback check for legacy plaintext password
-        return hash_equals($storedPassword, $inputPassword);
+        // Hanya hash modern (bcrypt/argon2); sandi plaintext lama di-hash oleh database/migrate.php
+        return password_verify($inputPassword, $storedPassword);
     }
 
     public static function getClientIp(): string {
-        $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
-        if (!filter_var($ip, FILTER_VALIDATE_IP)) {
-            $rawFwd = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
-            if (!empty($rawFwd)) {
-                $candidates = explode(',', $rawFwd);
-                foreach ($candidates as $c) {
-                    $c = trim($c);
-                    if (filter_var($c, FILTER_VALIDATE_IP)) {
-                        return $c;
-                    }
-                }
-            }
-            return '127.0.0.1';
-        }
-        return $ip;
+        // Header CF-Connecting-IP / X-Forwarded-For bisa diisi bebas oleh klien, jadi tidak dipakai untuk throttle
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '127.0.0.1';
     }
 
     public static function checkLoginThrottle(): ?string {
@@ -218,17 +201,11 @@ class AuthHelper {
             ];
         }
 
-        // Auto-sync dynamic Users table
-        if (class_exists('UserModel')) {
-            UserModel::syncFromAppSettings();
-        }
-
         $cleanUser = trim($username);
         $cleanPass = trim($password);
 
-        // 1. Check dynamic Users table first (Unified User Management)
+        // Tabel Users adalah satu-satunya sumber kredensial (AppSettings disinkronkan oleh migrate.php)
         if (class_exists('UserModel')) {
-            UserModel::ensureTableExists();
             $dbUser = UserModel::getByUsername($cleanUser);
             if ($dbUser && !empty($dbUser['is_active']) && self::verifyPassword($cleanPass, (string)$dbUser['password_hash'])) {
                 self::resetLoginThrottle();
@@ -255,102 +232,6 @@ class AuthHelper {
 
                 return ['success' => true, 'user' => $user];
             }
-        }
-
-        // 2. Fallback check AppSettings row (Legacy/Direct Settings Compatibility)
-        $db = getDB();
-        $stmt = $db->query("SELECT * FROM AppSettings WHERE id = 1 LIMIT 1");
-        $settings = $stmt->fetch() ?: [];
-
-        $adminUser = $settings['admin_username'] ?? 'admin';
-        $adminPass = (string)($settings['admin_password'] ?? '');
-        $userUser = $settings['user_username'] ?? 'user';
-        $userPass = (string)($settings['user_password'] ?? '');
-
-        // Check ADMIN
-        if (strcasecmp($cleanUser, $adminUser) === 0 && self::verifyPassword($cleanPass, $adminPass)) {
-            self::resetLoginThrottle();
-
-            // Auto-upgrade plaintext to password_hash if not already hashed
-            $info = password_get_info($adminPass);
-            if (empty($info['algo'])) {
-                try {
-                    $newHash = password_hash($cleanPass, PASSWORD_DEFAULT);
-                    $upStmt = $db->prepare("UPDATE AppSettings SET admin_password = :p WHERE id = 1");
-                    $upStmt->execute([':p' => $newHash]);
-                    if (class_exists('UserModel')) {
-                        UserModel::updatePassword('USR-ADMIN', $cleanPass);
-                    }
-                } catch (Throwable $e) {}
-            }
-
-            if (class_exists('UserModel')) {
-                UserModel::updateLastLogin('USR-ADMIN');
-            }
-
-            $user = [
-                'id' => 'USR-ADMIN',
-                'username' => $adminUser,
-                'nama' => $settings['admin_nama'] ?? 'AMIRUDDIN AS, S.Sos.',
-                'nip' => $settings['admin_nip'] ?? '197405101998031002',
-                'role' => 'ADMIN',
-                'roleTitle' => 'Administrator Utama SAR',
-                'pangkat' => $settings['admin_pangkat'] ?? 'PEMBINA (IV/a)',
-                'jabatan' => $settings['admin_jabatan'] ?? 'Kepala Kantor KPP Kendari',
-                'email' => $settings['admin_email'] ?? 'irfandydk@gmail.com',
-                'no_hp' => $settings['admin_no_hp'] ?? '0811-4091-115',
-                'loginAt' => date('Y-m-d H:i:s')
-            ];
-            self::setSession($user);
-
-            if (class_exists('AuditHelper')) {
-                AuditHelper::log('AUTH_LOGIN_SUCCESS', "Administrator {$user['nama']} ({$cleanUser}) berhasil masuk ke sistem.", 'AUTH', $user['id']);
-            }
-
-            return ['success' => true, 'user' => $user];
-        }
-
-        // Check OPERATOR / USER
-        if (strcasecmp($cleanUser, $userUser) === 0 && self::verifyPassword($cleanPass, $userPass)) {
-            self::resetLoginThrottle();
-
-            // Auto-upgrade plaintext to password_hash if not already hashed
-            $info = password_get_info($userPass);
-            if (empty($info['algo'])) {
-                try {
-                    $newHash = password_hash($cleanPass, PASSWORD_DEFAULT);
-                    $upStmt = $db->prepare("UPDATE AppSettings SET user_password = :p WHERE id = 1");
-                    $upStmt->execute([':p' => $newHash]);
-                    if (class_exists('UserModel')) {
-                        UserModel::updatePassword('USR-USER', $cleanPass);
-                    }
-                } catch (Throwable $e) {}
-            }
-
-            if (class_exists('UserModel')) {
-                UserModel::updateLastLogin('USR-USER');
-            }
-
-            $user = [
-                'id' => 'USR-PETUGAS',
-                'username' => $userUser,
-                'nama' => $settings['user_nama'] ?? 'Petugas Siaga SAR',
-                'nip' => $settings['user_nip'] ?? '199501012020121001',
-                'role' => 'USER',
-                'roleTitle' => 'Operator Siaga SAR & Senkom',
-                'pangkat' => $settings['user_pangkat'] ?? 'PENGATUR (II/c)',
-                'jabatan' => $settings['user_jabatan'] ?? 'Operator Komunikasi / Senkom KPP Kendari',
-                'email' => $settings['user_email'] ?? 'operator.kendari@basarnas.go.id',
-                'no_hp' => $settings['user_no_hp'] ?? '0811-4091-115',
-                'loginAt' => date('Y-m-d H:i:s')
-            ];
-            self::setSession($user);
-
-            if (class_exists('AuditHelper')) {
-                AuditHelper::log('AUTH_LOGIN_SUCCESS', "Petugas Siaga {$user['nama']} ({$cleanUser}) berhasil masuk ke sistem.", 'AUTH', $user['id']);
-            }
-
-            return ['success' => true, 'user' => $user];
         }
 
         // Rekam kegagalan login

@@ -23,7 +23,8 @@ require_once dirname(__DIR__) . '/config/app.php';
 
 // 1. Direct file check inside public/ directory
 $publicFile = __DIR__ . $uri;
-if ($uri !== '/' && file_exists($publicFile) && !is_dir($publicFile) && !str_ends_with($publicFile, '.php')) {
+// /uploads/ lewat Router::serveStaticFile agar header CSP anti-XSS SVG ikut terkirim
+if ($uri !== '/' && !str_starts_with($uri, '/uploads/') && file_exists($publicFile) && !is_dir($publicFile) && !str_ends_with($publicFile, '.php')) {
     return false; // Built-in web server serves static asset directly
 }
 

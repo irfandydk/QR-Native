@@ -45,7 +45,7 @@ function renderUnsurList() {
           <input type="text" value="${escapeHtml(item.nama_unsur || '')}" onchange="updateUnsurItem(${idx}, 'nama_unsur', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-orange-500 focus:outline-none text-slate-900 dark:text-white" />
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <input type="number" min="1" max="999" value="${item.jumlah_personil || 1}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="w-12 px-1.5 py-1 text-xs font-bold text-center rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 focus:outline-none focus:border-orange-500" />
+          <input type="number" min="1" max="999" value="${item.jumlah_personil || 1}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-orange-600 dark:text-orange-400" />
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Org</span>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
             <button type="button" onclick="moveUnsurRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Atas (Prioritas Naik)">
@@ -256,8 +256,8 @@ function renderAlutList() {
           <input type="text" value="${escapeHtml(item.nama_alut || '')}" onchange="updateAlutItem(${idx}, 'nama_alut', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-orange-500 focus:outline-none text-slate-900 dark:text-white" />
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <input type="number" min="1" max="999" value="${item.jumlah_alut || 1}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="w-12 px-1.5 py-1 text-xs font-bold text-center rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 focus:outline-none focus:border-orange-500" />
-          <select onchange="updateAlutItem(${idx}, 'satuan', this.value)" class="px-1.5 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none">
+          <input type="number" min="1" max="999" value="${item.jumlah_alut || 1}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-orange-600 dark:text-orange-400" />
+          <select onchange="updateAlutItem(${idx}, 'satuan', this.value)" class="control control-sm">
             <option value="Unit" ${item.satuan === 'Unit' ? 'selected' : ''}>Unit</option>
             <option value="Set" ${item.satuan === 'Set' ? 'selected' : ''}>Set</option>
             <option value="Buah" ${item.satuan === 'Buah' ? 'selected' : ''}>Buah</option>
@@ -1043,11 +1043,11 @@ function setRoutingMode(mode, updateState = true) {
 
     if (modeBadge) {
       modeBadge.textContent = 'JALUR MANUAL (WAYPOINT)';
-      modeBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30';
+      modeBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30';
     }
     if (modalModeBadge) {
       modalModeBadge.textContent = 'JALUR MANUAL (WAYPOINT)';
-      modalModeBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30';
+      modalModeBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30';
     }
 
     if (instructionText) {
@@ -1072,11 +1072,11 @@ function setRoutingMode(mode, updateState = true) {
 
     if (modeBadge) {
       modeBadge.textContent = 'GARIS LURUS';
-      modeBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
+      modeBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
     }
     if (modalModeBadge) {
       modalModeBadge.textContent = 'GARIS LURUS';
-      modalModeBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
+      modalModeBadge.className = 'text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
     }
 
     if (instructionText) {
@@ -1682,19 +1682,19 @@ function addKorbanRow() {
     <td class="row-num py-3 px-2 text-center font-mono font-bold text-slate-400">${num}</td>
     <td class="py-3 px-3">
       <input type="hidden" name="korban[${count}][id_korban]" value="" />
-      <input type="text" name="korban[${count}][nama_korban]" required placeholder="Nama korban..." class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-orange-500" />
+      <input type="text" name="korban[${count}][nama_korban]" required placeholder="Nama korban..." class="control control-sm w-full font-semibold" />
     </td>
     <td class="py-3 px-3">
-      <input type="text" name="korban[${count}][umur]" placeholder="Contoh: 28 Thn" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-orange-500" />
+      <input type="text" name="korban[${count}][umur]" placeholder="Contoh: 28 Thn" class="control control-sm w-full" />
     </td>
     <td class="py-3 px-3">
-      <select name="korban[${count}][jk]" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-orange-500">
+      <select name="korban[${count}][jk]" class="control control-sm w-full">
         <option value="Laki-laki">Laki-laki</option>
         <option value="Perempuan">Perempuan</option>
       </select>
     </td>
     <td class="py-3 px-3">
-      <select name="korban[${count}][status_korban]" class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-bold focus:outline-none focus:ring-1 focus:ring-orange-500">
+      <select name="korban[${count}][status_korban]" class="control control-sm w-full font-bold">
         <option value="DP" selected>🟡 Dalam Pencarian (DP)</option>
         <option value="S">🟢 Selamat (S)</option>
         <option value="MD">🔴 Meninggal Dunia (MD)</option>
@@ -1702,7 +1702,7 @@ function addKorbanRow() {
       </select>
     </td>
     <td class="py-3 px-3">
-      <input type="text" name="korban[${count}][alamat]" placeholder="Alamat domisili..." class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-orange-500" />
+      <input type="text" name="korban[${count}][alamat]" placeholder="Alamat domisili..." class="control control-sm w-full" />
     </td>
     <td class="py-3 px-2 text-center">
       <button type="button" onclick="removeKorbanRow(this)" class="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition cursor-pointer" title="Hapus Korban">
@@ -1787,158 +1787,23 @@ function closeModal(id) {
 window.openModal = openModal;
 window.closeModal = closeModal;
 
-// WhatsApp Preview Generator with Strict "12 Oktober 2026" Date Format
-function previewWhatsApp() {
-  const namaOps = document.getElementById('nama_operasi')?.value || 'Operasi SAR';
-  const pelapor = document.getElementById('nama_pelapor')?.value || 'Bpk. Pelapor';
-  const hub = document.getElementById('hubungan_pelapor')?.value || 'Masyarakat';
-  const hp = document.getElementById('no_telp_pelapor')?.value || '-';
-
-  const waktuLapor = document.getElementById('waktu_lapor')?.value;
-  const waktuBerangkat = document.getElementById('waktu_berangkat')?.value;
-  const etaTiba = document.getElementById('eta_tiba')?.value;
-  const etaLokasi = document.getElementById('eta_lokasi')?.value || '-';
-  const tim = document.getElementById('tim_berangkat')?.value || 'Tim Rescue Kansar Kendari';
-
-  const lokasi = document.getElementById('lokasi_kejadian')?.value || '-';
-  const koordinat = document.getElementById('koordinat')?.value || '-';
-  const jarak = document.getElementById('jarak')?.value || '-';
-  const radial = document.getElementById('radial')?.value || '';
-  const jarakDanRadial = (jarak && jarak !== '-') ? (jarak + (radial && radial !== '-' ? ` (Radial ${radial})` : '')) : '-';
-
-  const kronologi = document.getElementById('kronologi')?.value || '-';
-  const unsur = document.getElementById('unsur_terlibat')?.value || '-';
-  const alut = document.getElementById('alut_palsar')?.value || '-';
-
-  const cuaca = document.getElementById('cuaca')?.value || 'Cerah Berawan';
-  const gelombang = document.getElementById('gelombang')?.value || '0.5 - 1.25 M';
-  const angin = document.getElementById('angin')?.value || 'Barat Daya, 5 - 15 Knots';
-  const penghambat = document.getElementById('faktor_penghambat')?.value || 'Nihil';
-
-  // Format Dates with Indonesian format: "12 Oktober 2026"
-  const tglLaporStr = window.formatTanggalIndo ? window.formatTanggalIndo(waktuLapor) : waktuLapor;
-  const jamLaporStr = window.formatJamWita ? window.formatJamWita(waktuLapor) : '';
-
-  const tglBerangkatStr = window.formatTanggalIndo ? window.formatTanggalIndo(waktuBerangkat) : waktuBerangkat;
-  const jamBerangkatStr = window.formatJamWita ? window.formatJamWita(waktuBerangkat) : '';
-
-  const tglEtaStr = window.formatTanggalIndo ? window.formatTanggalIndo(etaTiba) : etaTiba;
-  const jamEtaStr = window.formatJamWita ? window.formatJamWita(etaTiba) : '';
-
-  const todayStr = window.formatTanggalIndo ? window.formatTanggalIndo(new Date()) : '';
-
-  // Victim Statistics & Text
-  const korbanRows = document.querySelectorAll('.korban-row');
-  let kList = [];
-  let sCount = 0, mdCount = 0, dpCount = 0, hCount = 0;
-
-  korbanRows.forEach((r, idx) => {
-    const kName = r.querySelector('input[name*="[nama_korban]"]')?.value || '-';
-    const kUmur = r.querySelector('input[name*="[umur]"]')?.value || '-';
-    const kJk = r.querySelector('select[name*="[jk]"]')?.value || '-';
-    const kAlamat = r.querySelector('input[name*="[alamat]"]')?.value || '-';
-    const kStatus = r.querySelector('select[name*="[status_korban]"]')?.value || 'DP';
-
-    if (kStatus === 'S') sCount++;
-    else if (kStatus === 'MD') mdCount++;
-    else if (kStatus === 'DP') dpCount++;
-    else if (kStatus === 'H') hCount++;
-
-    const statusLabel = kStatus === 'DP' ? '' : ` (${kStatus === 'S' ? 'Selamat' : (kStatus === 'MD' ? 'Meninggal Dunia' : 'Hilang')})`;
-    kList.push(`${idx + 1}. Nama : ${kName}${statusLabel}\n   Umur : ${kUmur}\n   Jenis Kelamin : ${kJk}\n   Alamat : ${kAlamat}`);
-  });
-
-  const pobInputVal = parseInt(document.getElementById('jumlah_pob')?.value || '0', 10);
-  const effectivePob = Math.max(isNaN(pobInputVal) ? 0 : pobInputVal, korbanRows.length);
-  const unrecordedCount = Math.max(0, effectivePob - korbanRows.length);
-
-  if (unrecordedCount > 0) {
-    dpCount += unrecordedCount;
-    kList.push(`${korbanRows.length + 1}. ${unrecordedCount} Orang Dalam Pencarian (Identitas Belum Terdata / Belum Diketahui)`);
-  }
-
-  const totalKorban = effectivePob;
-  const identitasKorbanText = kList.length > 0 ? kList.join('\n\n') : '1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -';
-  const dataKorbanHeader = unrecordedCount > 0
-    ? `5. Data Korban: ${totalKorban} orang (POB: ${totalKorban} Org, Teridentifikasi: ${korbanRows.length} Org, Belum Terdata: ${unrecordedCount} Org)`
-    : `5. Data Korban: ${totalKorban} orang`;
-
-  const preview = `FILE AKTIF
-____
-
-SEMANGAT QUICK ACTION SEARCH AND RESCUE
-SATU JIWA SATU RASA
-WE ARE FAMILY
-PROFESIONAL MODERN TERUJI
-LAPORAN AWAL OPS SAR
-
-KANTOR PENCARIAN DAN PERTOLONGAN KENDARI
-${todayStr}
-
-YTH : KABASARNAS
-CC : PIMTI MADYA & PRATAMA
-
-Dengan hormat, mohon ijin melaporkan ${namaOps}.
-__________________________________________________
-
-1. Sumber Info kejadian :
-${pelapor} (${hub} / No. HP ${hp})
-Pada Tanggal ${tglLaporStr} pukul ${jamLaporStr} Wita
-
-2. Lokasi Kejadian :
-Lokasi : ${lokasi}
-Koordinat : ${koordinat}
-jarak tempuh : ${jarakDanRadial}
-Estimasi waktu tempuh : ${etaLokasi}
-
-3. Pelaksanaan SAR
-Pada Tanggal ${tglBerangkatStr} pukul ${jamBerangkatStr} Wita, ${tim} berangkat ke LKP untuk melaksanakan Operasi SAR, dengan estimasi waktu tempuh ETA ${tglEtaStr} pukul ${jamEtaStr} WITA.
-
-4. Kronologi Kejadian
-${kronologi}
-
-${dataKorbanHeader}
-• S : ${sCount} orang
-• MD : ${mdCount} orang
-• DP : ${dpCount} orang
-• H : ${hCount} orang
-
-Identitas Korban :
-${identitasKorbanText}
-
-6. Unsur SAR Terlibat
-${unsur}
-
-7. Alut dan Palsar
-${alut}
-
-8. Faktor Penghambat
-${penghambat}
-
-9. Kondisi Cuaca :
-• cuaca : ${cuaca}
-• Gelombang : ${gelombang}
-• Angin: ${angin}
-
-Demikian kami laporkan, mohon petunjuk dan arahan
-
-Ttd
-
-KKS Kendari
-===========================
-🏢 Kantor Pencarian Dan Pertolongan Kendari
-📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116
-☎️ Telp. : (0401) 3196557
-📠 Fax. : (0401) 3196558
-📱 WhatsApp : +62811-4034-115
-🚨 Emergency Call : 115
-🌐 Website : Www.Kendari.Basarnas.go.id
-📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id
-📲 Medsos : @Basarnaskendari`;
-
+// Pratinjau WA diambil dari server (generator yang sama dengan saat simpan)
+let waPreviewSeq = 0;
+async function previewWhatsApp() {
+  const form = document.getElementById('form-inisiasi-ops');
   const waEl = document.getElementById('wa-preview-text');
-  if (waEl) waEl.textContent = preview;
+  if (!form || !waEl) return;
+  // Samakan dengan sinkronisasi saat submit agar pratinjau = naskah yang tersimpan
+  if (typeof syncUnsurFields === 'function') syncUnsurFields();
+  if (typeof syncAlutFields === 'function') syncAlutFields();
+  const seq = ++waPreviewSeq;
   openModal('modal-wa-preview');
+  try {
+    const text = await window.QrSarUtils.fetchWaPreview(form, 'laporan_awal');
+    if (seq === waPreviewSeq) waEl.textContent = text;
+  } catch (err) {
+    if (seq === waPreviewSeq) waEl.textContent = err.message;
+  }
 }
 
 function updateWaPreview() {
@@ -2391,8 +2256,6 @@ window.QRSAR.OperasiForm = {
   renderUnsurList,
   handleSelectTimBerangkat,
   pickMasterTim,
-  quickAddTimPreset,
-  handleAddTimClick,
   moveUnsurRow,
   removeUnsurRow,
   updateUnsurItem,

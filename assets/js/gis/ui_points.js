@@ -30,7 +30,7 @@
         colorClass = 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
       }
 
-      return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border ${colorClass}">${cat}</span>`;
+      return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold border ${colorClass}">${cat}</span>`;
     },
 
     /**

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/bootstrap.php';
 /**
  * Test CRUD Audit End-to-End (Create, Update, Delete Database Verification)
  * Quick Report SAR System - Basarnas KPP Kendari

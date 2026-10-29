@@ -243,6 +243,11 @@ class Router {
         $etag = '"' . md5($lastModified . filesize($realPath)) . '"';
 
         header('Content-Type: ' . $mimeType);
+        $realUploads = realpath(UPLOADS_DIR);
+        if ($realUploads && str_starts_with($realPath, $realUploads . DIRECTORY_SEPARATOR)) {
+            // Cegah skrip di SVG unggahan berjalan bila berkas dibuka langsung (stored XSS)
+            header("Content-Security-Policy: default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+        }
         header('Cache-Control: public, max-age=604800, immutable');
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $lastModified) . ' GMT');
         header('ETag: ' . $etag);

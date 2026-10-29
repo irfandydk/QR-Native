@@ -40,72 +40,72 @@ if (!defined('APP_NAME')) {
         
         <!-- Nama Petugas -->
         <div class="sm:col-span-2">
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Nama Petugas Operasional <span class="text-red-500">*</span>
-          </label>
-          <input type="text" name="user_nama" value="<?= e($settings['user_nama'] ?? 'Petugas Siaga SAR') ?>" required placeholder="Petugas Siaga SAR" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Nama Petugas Operasional <span class="text-red-500">*</span></label>
+            <input class="field-input w-full font-semibold" type="text" name="user_nama" value="<?= e($settings['user_nama'] ?? 'Petugas Siaga SAR') ?>" required placeholder="Petugas Siaga SAR"  />
+          </div>
         </div>
 
         <!-- NIP Petugas -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            NIP Petugas
-          </label>
-          <input type="text" name="user_nip" value="<?= e($settings['user_nip'] ?? '199501012020121001') ?>" placeholder="199501012020121001" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">NIP Petugas</label>
+            <input class="field-input w-full font-mono" type="text" name="user_nip" value="<?= e($settings['user_nip'] ?? '199501012020121001') ?>" placeholder="199501012020121001"  />
+          </div>
         </div>
 
         <!-- Pangkat Petugas -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Pangkat / Golongan
-          </label>
-          <input type="text" name="user_pangkat" value="<?= e($settings['user_pangkat'] ?? 'PENGATUR (II/c)') ?>" placeholder="PENGATUR (II/c)" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Pangkat / Golongan</label>
+            <input class="field-input w-full font-semibold" type="text" name="user_pangkat" value="<?= e($settings['user_pangkat'] ?? 'PENGATUR (II/c)') ?>" placeholder="PENGATUR (II/c)"  />
+          </div>
         </div>
 
         <!-- Jabatan Petugas -->
         <div class="sm:col-span-2">
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Jabatan Petugas Siaga
-          </label>
-          <input type="text" name="user_jabatan" value="<?= e($settings['user_jabatan'] ?? 'Operator Komunikasi & Petugas Siaga SAR') ?>" placeholder="Operator Komunikasi & Petugas Siaga SAR" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Jabatan Petugas Siaga</label>
+            <input class="field-input w-full font-semibold" type="text" name="user_jabatan" value="<?= e($settings['user_jabatan'] ?? 'Operator Komunikasi & Petugas Siaga SAR') ?>" placeholder="Operator Komunikasi & Petugas Siaga SAR"  />
+          </div>
         </div>
 
         <!-- Username Login User -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Username Akun User <span class="text-red-500">*</span>
-          </label>
-          <input type="text" name="user_username" value="<?= e($settings['user_username'] ?? 'user') ?>" required placeholder="user" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Username Akun User <span class="text-red-500">*</span></label>
+            <input class="field-input w-full font-mono font-bold" type="text" name="user_username" value="<?= e($settings['user_username'] ?? 'user') ?>" required placeholder="user"  />
+          </div>
         </div>
 
         <!-- Kata Sandi Baru (Opsional) -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Set Kata Sandi Baru <span class="text-slate-400 font-normal">(Kosongkan jika tetap)</span>
-          </label>
-          <input type="password" name="user_password" placeholder="Biarkan kosong jika tidak diubah" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Set Kata Sandi Baru <span class="text-slate-400 font-normal">(Kosongkan jika tetap)</span></label>
+            <input type="password" name="user_password" placeholder="Biarkan kosong jika tidak diubah" class="field-input w-full" />
+          </div>
         </div>
 
         <!-- Email Dinas User -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Email Petugas
-          </label>
-          <input type="email" name="user_email" value="<?= e($settings['user_email'] ?? 'operator.kendari@basarnas.go.id') ?>" placeholder="operator.kendari@basarnas.go.id" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Email Petugas</label>
+            <input class="field-input w-full" type="email" name="user_email" value="<?= e($settings['user_email'] ?? 'operator.kendari@basarnas.go.id') ?>" placeholder="operator.kendari@basarnas.go.id"  />
+          </div>
         </div>
 
         <!-- No HP User -->
         <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Nomor HP / WA Petugas
-          </label>
-          <input type="text" name="user_no_hp" value="<?= e($settings['user_no_hp'] ?? '0811-4091-115') ?>" placeholder="0811-4091-115" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <div class="field">
+            <label class="field-label">Nomor HP / WA Petugas</label>
+            <input class="field-input w-full font-mono" type="text" name="user_no_hp" value="<?= e($settings['user_no_hp'] ?? '0811-4091-115') ?>" placeholder="0811-4091-115"  />
+          </div>
         </div>
 
       </div>
 
       <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md shadow-orange-600/30 transition-all cursor-pointer">
+        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs transition-all cursor-pointer">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           <span>Simpan Akun Pengguna</span>
         </button>
@@ -133,7 +133,7 @@ if (!defined('APP_NAME')) {
 
     <div class="mt-4 overflow-x-auto">
       <table class="w-full text-left text-xs">
-        <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 uppercase font-black tracking-wider text-[10px]">
+        <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider text-[11px]">
           <tr>
             <th class="py-3 px-4 rounded-l-xl">Identitas Pengguna</th>
             <th class="py-3 px-4">Role Akses</th>
@@ -156,11 +156,11 @@ if (!defined('APP_NAME')) {
                 </td>
                 <td class="py-3.5 px-4">
                   <?php if (($u['role'] ?? '') === 'ADMIN'): ?>
-                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
                       ADMINISTRATOR
                     </span>
                   <?php else: ?>
-                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
                       PETUGAS SIAGA
                     </span>
                   <?php endif; ?>

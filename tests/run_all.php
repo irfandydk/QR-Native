@@ -14,6 +14,9 @@ if (php_sapi_name() !== 'cli') {
     exit("Akses Ditolak: Skrip ini hanya dapat dijalankan melalui terminal (CLI).\n");
 }
 
+// Batalkan seluruh suite bila bukan database test
+require_once __DIR__ . '/bootstrap.php';
+
 // Terminal color helpers
 function color(string $text, string $code): string {
     return "\033[{$code}m{$text}\033[0m";

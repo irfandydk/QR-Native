@@ -7,6 +7,16 @@
 (function () {
   'use strict';
 
+  // Ikon aksi daftar (SVG, seragam dengan ikon halaman lain)
+  const svgIcon = (d) => `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  const GIS_ICON = {
+    copy: svgIcon('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+    eye: svgIcon('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'),
+    eyeOff: svgIcon('<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>'),
+    edit: svgIcon('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+    trash: svgIcon('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>')
+  };
+
   // Base URL & State Data from server injection
   const BASE_URL = window.location.origin;
   const initialData = window.SAR_INITIAL_GIS_DATA || {};
@@ -53,7 +63,7 @@
     if (!idOps || idOps <= 0) return '';
     const ops = operasiList.find((o) => parseInt(o.id_operasi, 10) === parseInt(idOps, 10));
     const title = ops ? ops.nama_operasi : `Ops #${idOps}`;
-    return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-black bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30" title="Misi: ${escapeHtml(title)}">🚨 Ops #${idOps}</span>`;
+    return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-black bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30" title="Misi: ${escapeHtml(title)}">🚨 Ops #${idOps}</span>`;
   }
 
   // Unified GIS Fetch with Auto CSRF Injection
@@ -154,10 +164,10 @@
               <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
               <div class="truncate">
                 <span class="font-extrabold text-blue-600 dark:text-blue-400">1. Base Map</span>
-                <span class="text-slate-600 dark:text-slate-400 text-[10px] ml-1">(Komponen tanpa ID Operasi SAR)</span>
+                <span class="text-slate-600 dark:text-slate-400 text-[11px] ml-1">(Komponen tanpa ID Operasi SAR)</span>
               </div>
             </div>
-            <button type="button" class="btn-switch-mode-all text-[10px] font-bold text-slate-500 hover:text-orange-500 underline shrink-0 ml-2 cursor-pointer">Semua</button>
+            <button type="button" class="btn-switch-mode-all text-[11px] font-bold text-slate-500 hover:text-orange-500 underline shrink-0 ml-2 cursor-pointer">Semua</button>
           </div>
         `;
       } else if (filterMode === 'operasi' && currentOperasi) {
@@ -170,7 +180,7 @@
                 <span class="text-slate-600 dark:text-slate-300 ml-1 text-[11px]">${escapeHtml(currentOperasi.nama_operasi)}</span>
               </div>
             </div>
-            <button type="button" class="btn-switch-mode-all text-[10px] font-bold text-slate-500 hover:text-red-500 underline shrink-0 ml-2 cursor-pointer" title="Kembali ke semua plotting">Lepas</button>
+            <button type="button" class="btn-switch-mode-all text-[11px] font-bold text-slate-500 hover:text-red-500 underline shrink-0 ml-2 cursor-pointer" title="Kembali ke semua plotting">Lepas</button>
           </div>
         `;
       } else {
@@ -180,7 +190,7 @@
               <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
               <div class="truncate">
                 <span class="font-extrabold text-slate-700 dark:text-slate-200">2. Semua Komponen</span>
-                <span class="text-slate-500 dark:text-slate-400 text-[10px] ml-1">(Base Map & Operasi Aktif)</span>
+                <span class="text-slate-500 dark:text-slate-400 text-[11px] ml-1">(Base Map & Operasi Aktif)</span>
               </div>
             </div>
           </div>
@@ -762,28 +772,7 @@
   // ==========================================
 
   function decimalToDms(lat, lng) {
-    if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.decimalToDms === 'function') {
-      return window.QrSarGis.Geodesy.decimalToDms(lat, lng);
-    }
-    function formatDmsPart(val, isLat) {
-      const dir = isLat ? (val < 0 ? 'S' : 'N') : (val < 0 ? 'W' : 'E');
-      const absVal = Math.abs(val);
-      let d = Math.floor(absVal);
-      const mFloat = (absVal - d) * 60;
-      let m = Math.floor(mFloat);
-      let s = Math.round((mFloat - m) * 60);
-      if (s >= 60) {
-        s = 0;
-        m += 1;
-        if (m >= 60) {
-          m = 0;
-          d += 1;
-        }
-      }
-      const padD = isLat ? String(d).padStart(2, '0') : String(d).padStart(3, '0');
-      return `${padD}° ${String(m).padStart(2, '0')}' ${String(s).padStart(2, '0')}" ${dir}`;
-    }
-    return `${formatDmsPart(lat, true)}, ${formatDmsPart(lng, false)}`;
+    return window.QrSarGis.Geodesy.decimalToDms(lat, lng);
   }
 
   function parseCoordinatesString(text) {
@@ -1619,10 +1608,10 @@
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="text-slate-900 dark:text-white font-bold text-xs truncate">${escapeHtml(r.name)}</span>
-                ${r.badge ? `<span class="text-[9px] px-1.5 py-0.2 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/30 shrink-0">${escapeHtml(r.badge)}</span>` : ''}
+                ${r.badge ? `<span class="text-[11px] px-1.5 py-0.2 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/30 shrink-0">${escapeHtml(r.badge)}</span>` : ''}
               </div>
               <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">${escapeHtml(r.address || '')}</div>
-              <div class="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">${escapeHtml(r.dms || decimalToDms(r.lat, r.lng))}</div>
+              <div class="text-[11px] font-mono text-slate-400 dark:text-slate-500 mt-0.5">${escapeHtml(r.dms || decimalToDms(r.lat, r.lng))}</div>
             </div>
             <span class="text-xs text-orange-500 dark:text-orange-400 shrink-0 font-bold self-center">➔</span>
           </div>
@@ -1732,7 +1721,7 @@
       });
 
       if (filtered.length === 0) {
-        gridSar.innerHTML = `<div class="col-span-4 p-3 text-center text-[10px] text-slate-400 italic">Tidak ada logo yang cocok dengan pencarian.</div>`;
+        gridSar.innerHTML = `<div class="col-span-4 p-3 text-center text-[11px] text-slate-400 italic">Tidak ada logo yang cocok dengan pencarian.</div>`;
         return;
       }
 
@@ -1741,7 +1730,7 @@
           (p) => `
           <button type="button" data-icon="${p.type}" title="${p.label}" class="preset-icon-btn p-1.5 rounded-xl border border-slate-800 bg-slate-900 hover:border-orange-500 text-center flex flex-col items-center justify-center gap-1 transition cursor-pointer ${pointIconType === p.type ? 'border-orange-500 ring-2 ring-orange-500/30 bg-orange-500/10' : ''}">
             <span class="text-base select-none">${p.emoji}</span>
-            <span class="text-[9px] font-bold text-slate-300 truncate w-full px-0.5">${p.label}</span>
+            <span class="text-[11px] font-bold text-slate-300 truncate w-full px-0.5">${p.label}</span>
           </button>
         `
         )
@@ -1977,11 +1966,11 @@
             await loadCustomIconsGallery(pointCustomIconUrl);
             updateDraftMarkerVisual();
           } else {
-            alert(json.error || 'Gagal mengupload logo.');
+            showToast(json.error || 'Gagal mengupload logo.', 'error');
           }
         } catch (err) {
           console.error('Upload icon failed:', err);
-          alert('Terjadi kesalahan saat mengupload logo.');
+          showToast('Terjadi kesalahan saat mengupload logo.', 'error');
         } finally {
           if (triggerUploadBtn) {
             triggerUploadBtn.disabled = false;
@@ -2039,12 +2028,12 @@
     if (isPointsDraggableUnlocked) {
       iconClosed.classList.add('hidden');
       iconOpen.classList.remove('hidden');
-      label.textContent = '🔓 Mode Geser Aktif';
+      label.textContent = 'Mode Geser Aktif';
       btn.className = 'flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition bg-amber-500/20 border-amber-500/40 text-amber-300 shadow';
     } else {
       iconClosed.classList.remove('hidden');
       iconOpen.classList.add('hidden');
-      label.textContent = '🔒 Posisi Terkunci';
+      label.textContent = 'Posisi Terkunci';
       btn.className = 'flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750';
     }
 
@@ -2077,7 +2066,7 @@
           countBadge.textContent = `${icons.length} Logo`;
         }
         if (icons.length === 0) {
-          galleryContainer.innerHTML = '<div class="col-span-4 p-3 text-center text-[10px] text-slate-400">Belum ada logo kustom tersimpan. Klik "+ Upload File Logo" di atas untuk menambahkan logo baru.</div>';
+          galleryContainer.innerHTML = '<div class="col-span-4 p-3 text-center text-[11px] text-slate-400">Belum ada logo kustom tersimpan. Klik "+ Upload File Logo" di atas untuk menambahkan logo baru.</div>';
           return;
         }
         const activeUrl = normalizeIconUrl(selectedUrl || pointCustomIconUrl || '');
@@ -2097,9 +2086,9 @@
             <div class="custom-icon-item group relative p-1.5 rounded-xl border ${isMatch ? 'border-orange-500 bg-orange-500/10 ring-2 ring-orange-500/30' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'} hover:border-orange-500 transition cursor-pointer flex flex-col items-center justify-center text-center"
                  data-icon-url="${safeUrl}" data-icon-name="${safeName}" data-icon-filename="${safeFilename}" title="${safeName}">
               <img src="${safeUrl}" alt="${safeName}" class="w-8 h-8 object-contain rounded p-0.5 bg-white/80 dark:bg-slate-950/80">
-              <span class="text-[9px] font-medium text-slate-600 dark:text-slate-400 truncate w-full mt-1">${safeName}</span>
-              ${isMatch ? '<span class="custom-check-badge absolute top-1 right-1 w-3.5 h-3.5 bg-orange-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold shadow-xs">✓</span>' : ''}
-              <button type="button" class="delete-custom-icon-btn absolute -top-1 -right-1 w-4 h-4 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-[9px] font-bold opacity-0 group-hover:opacity-100 transition shadow-xs z-10" data-filename="${safeFilename}" title="Hapus logo dari daftar">✕</button>
+              <span class="text-[11px] font-medium text-slate-600 dark:text-slate-400 truncate w-full mt-1">${safeName}</span>
+              ${isMatch ? '<span class="custom-check-badge absolute top-1 right-1 w-3.5 h-3.5 bg-orange-500 text-white rounded-full flex items-center justify-center text-[11px] font-bold shadow-xs">✓</span>' : ''}
+              <button type="button" class="delete-custom-icon-btn absolute -top-1 -right-1 w-4 h-4 bg-red-600 hover:bg-red-700 text-white rounded-full flex items-center justify-center text-[11px] font-bold opacity-0 group-hover:opacity-100 transition shadow-xs z-10" data-filename="${safeFilename}" title="Hapus logo dari daftar">✕</button>
             </div>
           `;
         }).join('');
@@ -2126,7 +2115,7 @@
             item.className = 'custom-icon-item group relative p-1.5 rounded-xl border border-orange-500 bg-orange-500/10 ring-2 ring-orange-500/30 hover:border-orange-500 transition cursor-pointer flex flex-col items-center justify-center text-center';
             if (!item.querySelector('.custom-check-badge')) {
               const checkEl = document.createElement('span');
-              checkEl.className = 'custom-check-badge absolute top-1 right-1 w-3.5 h-3.5 bg-orange-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold shadow-xs';
+              checkEl.className = 'custom-check-badge absolute top-1 right-1 w-3.5 h-3.5 bg-orange-500 text-white rounded-full flex items-center justify-center text-[11px] font-bold shadow-xs';
               checkEl.textContent = '✓';
               item.appendChild(checkEl);
             }
@@ -2141,7 +2130,7 @@
             e.stopPropagation();
             const fn = delBtn.getAttribute('data-filename');
             if (!fn) return;
-            if (!confirm(`Hapus berkas logo "${fn}" dari daftar logo kustom?`)) return;
+            if (!(await confirmAction('Hapus Logo Kustom', `Hapus berkas logo "${fn}" dari daftar logo kustom?`, 'Ya, Hapus', true))) return;
             try {
               const resDel = await gisFetch(`${BASE_URL}/api/gis/custom-icons`, {
                 method: 'DELETE',
@@ -2168,7 +2157,7 @@
                 }
                 loadCustomIconsGallery(pointCustomIconUrl);
               } else {
-                alert(jsonDel.message || 'Gagal menghapus logo kustom.');
+                showToast(jsonDel.message || 'Gagal menghapus logo kustom.', 'error');
               }
             } catch (err) {
               console.error('Delete custom icon failed:', err);
@@ -2309,7 +2298,7 @@
 
     const titleEl = document.getElementById('pointCreatorTitle');
     if (titleEl) {
-      titleEl.innerHTML = editingPointId ? '<span>✏️ Edit Titik SAR</span>' : '<span>📍 Plot Titik Taktis Baru</span>';
+      titleEl.innerHTML = editingPointId ? '<span>Edit Titik SAR</span>' : '<span>Plot Titik Taktis Baru</span>';
     }
 
     const card = document.getElementById('pointCreatorCard');
@@ -2492,27 +2481,27 @@
   function getCategoryBadgeHtml(cat) {
     switch (cat) {
       case 'Kantor SAR':
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/20 text-blue-400 border border-blue-500/30">🏢 Kantor SAR</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-blue-500/20 text-blue-400 border border-blue-500/30">🏢 Kantor SAR</span>';
       case 'POS SAR':
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-orange-500/20 text-orange-400 border border-orange-500/30">📻 POS SAR</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-orange-500/20 text-orange-400 border border-orange-500/30">📻 POS SAR</span>';
       case 'Unit Siaga SAR':
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">📡 Unit Siaga SAR</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">📡 Unit Siaga SAR</span>';
       case 'Dermaga SAR':
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-sky-500/20 text-sky-400 border border-sky-500/30">⚓ Dermaga SAR</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-sky-500/20 text-sky-400 border border-sky-500/30">⚓ Dermaga SAR</span>';
       case 'LKP':
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-red-500/20 text-red-400 border border-red-500/30">🚨 LKP</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-red-500/20 text-red-400 border border-red-500/30">🚨 LKP</span>';
       case 'Penemuan Korban':
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30">📍 Penemuan Korban</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30">📍 Penemuan Korban</span>';
       case 'Lokasi Penemuan Korban':
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30">📍 Lokasi Penemuan Korban</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/30">📍 Lokasi Penemuan Korban</span>';
       case 'Posko':
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🏕️ Posko</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🏕️ Posko</span>';
       case 'Entry Poin':
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-green-500/20 text-green-400 border border-green-500/30">🟢 Entry Poin</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-green-500/20 text-green-400 border border-green-500/30">🟢 Entry Poin</span>';
       case 'Exit Poin':
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-rose-500/20 text-rose-400 border border-rose-500/30">🔴 Exit Poin</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-rose-500/20 text-rose-400 border border-rose-500/30">🔴 Exit Poin</span>';
       default:
-        return '<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-slate-500/20 text-slate-400 border border-slate-500/30">⚪ Tanpa Kategori</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[11px] font-extrabold bg-slate-500/20 text-slate-400 border border-slate-500/30">⚪ Tanpa Kategori</span>';
     }
   }
 
@@ -2554,12 +2543,12 @@
       marker.bindPopup(`
         <div class="p-3 text-xs space-y-1.5 min-w-[190px]">
           <div class="font-bold text-orange-400 text-sm">${escapeHtml(labelText)}</div>
-          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-200 border border-slate-700">
+          <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-800 text-slate-200 border border-slate-700">
             <span>Kategori:</span>
             <span class="text-orange-400 font-extrabold">${escapeHtml(cat)}</span>
           </div>
-          <div class="text-[10px] font-mono text-slate-400 pt-0.5">${escapeHtml(dms)}</div>
-          ${pt.description ? `<div class="text-[10px] text-slate-300 pt-1 border-t border-slate-700">${escapeHtml(pt.description)}</div>` : ''}
+          <div class="text-[11px] font-mono text-slate-400 pt-0.5">${escapeHtml(dms)}</div>
+          ${pt.description ? `<div class="text-[11px] text-slate-300 pt-1 border-t border-slate-700">${escapeHtml(pt.description)}</div>` : ''}
         </div>
       `);
 
@@ -2578,12 +2567,12 @@
         marker.setPopupContent(`
           <div class="p-3 text-xs space-y-1.5 min-w-[190px]">
             <div class="font-bold text-orange-400 text-sm">${escapeHtml(labelText)}</div>
-            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-slate-200 border border-slate-700">
+            <div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-800 text-slate-200 border border-slate-700">
               <span>Kategori:</span>
               <span class="text-orange-400 font-extrabold">${escapeHtml(cat)}</span>
             </div>
-            <div class="text-[10px] font-mono text-slate-400 pt-0.5">${escapeHtml(newDms)}</div>
-            ${pt.description ? `<div class="text-[10px] text-slate-300 pt-1 border-t border-slate-700">${escapeHtml(pt.description)}</div>` : ''}
+            <div class="text-[11px] font-mono text-slate-400 pt-0.5">${escapeHtml(newDms)}</div>
+            ${pt.description ? `<div class="text-[11px] text-slate-300 pt-1 border-t border-slate-700">${escapeHtml(pt.description)}</div>` : ''}
           </div>
         `);
 
@@ -2647,25 +2636,25 @@
                 <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
                   ${getCategoryBadgeHtml(category)}
                   ${getOperasiBadgeHtml(pt.id_operasi)}
-                  <span class="text-[9px] text-orange-600 dark:text-orange-400 font-mono">${distFromKansar.nm} NM (${distFromKansar.bearing}° ${distFromKansar.headingName})</span>
+                  <span class="text-[11px] text-orange-600 dark:text-orange-400 font-mono">${distFromKansar.nm} NM (${distFromKansar.bearing}° ${distFromKansar.headingName})</span>
                 </div>
-                <div class="text-[10px] text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">${escapeHtml(dms)}</div>
+                <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono truncate mt-0.5">${escapeHtml(dms)}</div>
               </div>
             </div>
 
             <!-- Action Buttons -->
             <div class="flex items-center gap-1 shrink-0">
               <button type="button" onclick="window.SAR_GIS.copyPointCoordinates('${safeId}')" class="p-1 text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 rounded cursor-pointer transition" title="Salin Koordinat (DMS & Desimal)">
-                📋
+                ${GIS_ICON.copy}
               </button>
               <button type="button" onclick="window.SAR_GIS.togglePointVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded cursor-pointer" title="${isHidden ? 'Tampilkan' : 'Sembunyikan'}">
-                ${isHidden ? '👁️‍🗨️' : '👁️'}
+                ${isHidden ? GIS_ICON.eyeOff : GIS_ICON.eye}
               </button>
               <button type="button" onclick="window.SAR_GIS.editPoint('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded cursor-pointer" title="Edit">
-                ✏️
+                ${GIS_ICON.edit}
               </button>
               <button type="button" onclick="window.SAR_GIS.deletePoint('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded cursor-pointer" title="Hapus">
-                🗑️
+                ${GIS_ICON.trash}
               </button>
             </div>
           </div>
@@ -3126,7 +3115,7 @@
             <div class="flex items-center gap-2">
               <span class="w-6 h-6 rounded-full bg-orange-500 text-white font-black text-xs flex items-center justify-center shrink-0">📍</span>
               <div class="min-w-0">
-                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Titik Pusat Datum (LKP)</div>
+                <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Titik Pusat Datum (LKP)</div>
                 <div class="font-mono font-bold text-orange-600 dark:text-orange-400 text-[11px] truncate">${centerDms}</div>
               </div>
             </div>
@@ -3134,7 +3123,7 @@
               <span class="text-slate-500 dark:text-slate-400">Radius Sektor:</span>
               <span class="font-mono font-bold text-slate-800 dark:text-slate-200">${radDisplay}</span>
             </div>
-            <div class="text-[10px] text-slate-400 italic">💡 Geser pin pusat di atas peta untuk memindahkan posisi radius lingkaran secara presisi.</div>
+            <div class="text-[11px] text-slate-400 italic">💡 Geser pin pusat di atas peta untuk memindahkan posisi radius lingkaran secara presisi.</div>
           </div>
         `;
       } else {
@@ -3143,10 +3132,10 @@
             (pt, idx) => `
           <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px]">
             <div class="flex items-center gap-2">
-              <span class="w-5 h-5 rounded-full bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center">${String.fromCharCode(65 + (idx % 26))}</span>
+              <span class="w-5 h-5 rounded-full bg-orange-500 text-white font-bold text-[11px] flex items-center justify-center">${String.fromCharCode(65 + (idx % 26))}</span>
               <span class="font-bold text-white">${pt.label}</span>
             </div>
-            <div class="text-[10px] font-mono text-slate-400">${decimalToDms(pt.lat, pt.lng)}</div>
+            <div class="text-[11px] font-mono text-slate-400">${decimalToDms(pt.lat, pt.lng)}</div>
             <button type="button" onclick="window.SAR_GIS.removeVertex(${idx})" class="text-slate-500 hover:text-red-400 p-0.5">✕</button>
           </div>
         `
@@ -3248,7 +3237,7 @@
     }
 
     if (activePolygonPoints.length < 3) {
-      alert('Poligon area minimal membutuhkan 3 titik sudut (A, B, C)!');
+      showToast('Poligon area minimal membutuhkan 3 titik sudut (A, B, C)!', 'error');
       return;
     }
 
@@ -3355,9 +3344,9 @@
               <div class="text-[11px] text-slate-300">Radius: <strong>${radStr}</strong></div>
               <div class="text-[11px] text-slate-300">Luas Sektor: <strong>${areaFmt.combined}</strong></div>
               <div class="text-[11px] text-slate-300">Keliling: <strong>${perimFmt.combined}</strong></div>
-              <div class="text-[10px] text-slate-400 font-mono">Pusat LKP: ${decimalToDms(cLat, cLng)}</div>
+              <div class="text-[11px] text-slate-400 font-mono">Pusat LKP: ${decimalToDms(cLat, cLng)}</div>
               <div class="pt-2">
-                <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${safePolyId}')" class="w-full py-1.5 px-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center gap-1 shadow-xs cursor-pointer">
+                <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${safePolyId}')" class="w-full py-1.5 px-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[11px] flex items-center justify-center gap-1 shadow-xs cursor-pointer">
                   <span>🚀 Buat Pola Lintasan SAR</span>
                 </button>
               </div>
@@ -3397,9 +3386,9 @@
               <div class="font-bold text-orange-400 text-sm">${safePolyName}</div>
               <div class="text-[11px] text-slate-300">Luas: <strong>${areaFmt.combined}</strong></div>
               <div class="text-[11px] text-slate-300">Keliling: <strong>${perimFmt.combined}</strong></div>
-              <div class="text-[10px] text-slate-400 font-mono">${points.length} Sudut Vertices</div>
+              <div class="text-[11px] text-slate-400 font-mono">${points.length} Sudut Vertices</div>
               <div class="pt-2">
-                <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${safePolyId}')" class="w-full py-1.5 px-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[10px] flex items-center justify-center gap-1 shadow-xs cursor-pointer">
+                <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${safePolyId}')" class="w-full py-1.5 px-2 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[11px] flex items-center justify-center gap-1 shadow-xs cursor-pointer">
                   <span>🚀 Buat Pola Lintasan SAR</span>
                 </button>
               </div>
@@ -3489,10 +3478,10 @@
         const safeName = escapeHtml(poly.name);
         const safeColor = escapeHtml(poly.strokeColor || '#ea580c');
         const shapeBadge = shapeType === 'circle'
-          ? '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-bold">⭕ Lingkaran</span>'
+          ? '<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-bold">⭕ Lingkaran</span>'
           : (shapeType === 'rectangle'
-            ? '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">⏹️ Persegi</span>'
-            : '<span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-bold">📐 Bebas</span>');
+            ? '<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">⏹️ Persegi</span>'
+            : '<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-bold">📐 Bebas</span>');
 
         const areaFmt = formatDynamicArea(stats.sqNm, stats.sqKm);
         const perimFmt = formatDynamicPerimeter(stats.perimeterNm, stats.perimeterKm);
@@ -3507,25 +3496,25 @@
                 ${shapeBadge}
                 ${getOperasiBadgeHtml(poly.id_operasi)}
               </div>
-              <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-1">
+              <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 mt-1">
                 ${areaFmt.combined} • Keliling: ${perimFmt.combined}
               </div>
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
               <button type="button" onclick="window.SAR_GIS.togglePolygonVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded cursor-pointer" title="${isHidden ? 'Tampilkan Search Area' : 'Sembunyikan Search Area'}">
-                ${isHidden ? '👁️‍🗨️' : '👁️'}
+                ${isHidden ? GIS_ICON.eyeOff : GIS_ICON.eye}
               </button>
               <button type="button" onclick="window.SAR_GIS.editPolygon('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded cursor-pointer" title="Edit">
-                ✏️
+                ${GIS_ICON.edit}
               </button>
               <button type="button" onclick="window.SAR_GIS.deletePolygon('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded cursor-pointer" title="Hapus">
-                🗑️
+                ${GIS_ICON.trash}
               </button>
             </div>
           </div>
 
-          <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${poly.id}')" class="w-full py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-orange-500/10 text-orange-600 dark:bg-slate-900 dark:hover:bg-orange-500/20 dark:text-orange-400 border border-slate-200 dark:border-slate-800 text-[10px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+          <button type="button" onclick="window.SAR_GIS.applyPatternFromPolygon('${poly.id}')" class="w-full py-1.5 px-2 rounded-xl bg-slate-100 hover:bg-orange-500/10 text-orange-600 dark:bg-slate-900 dark:hover:bg-orange-500/20 dark:text-orange-400 border border-slate-200 dark:border-slate-800 text-[11px] font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
             <span>🚀 Buat Pola SAR dari Area Ini</span>
           </button>
         </div>
@@ -3542,7 +3531,7 @@
     let options = `<option value="datum_kansar">📍 Datum LKP Kansar Kendari</option>`;
 
     if (activePolygonPoints && activePolygonPoints.length >= 3) {
-      options += `<option value="active_draft">✏️ Poligon Aktif Sedang Digambar (${activePolygonPoints.length} Sudut)</option>`;
+      options += `<option value="active_draft">Poligon Aktif Sedang Digambar (${activePolygonPoints.length} Sudut)</option>`;
     }
 
     savedPolygons.forEach((p) => {
@@ -4772,7 +4761,7 @@
 
       const labelText = wp.label || defaultLabel;
       marker.bindTooltip(
-        `<div class="text-left font-sans text-xs"><b>${escapeHtml(labelText)}</b><br><span class="text-[10px] text-amber-500 dark:text-amber-300">✋ Geser / drag untuk sesuaikan titik</span></div>`,
+        `<div class="text-left font-sans text-xs"><b>${escapeHtml(labelText)}</b><br><span class="text-[11px] text-amber-500 dark:text-amber-300">✋ Geser / drag untuk sesuaikan titik</span></div>`,
         { direction: 'top', offset: [0, -iconAnchor[1]] }
       );
 
@@ -4792,7 +4781,7 @@
         const curLatLng = e.latlng;
         recalculateActivePatternDistance();
         marker.setTooltipContent(
-          `<div class="text-left font-sans text-xs"><b>${escapeHtml(labelText)}</b><br><span class="text-[10px] font-mono text-slate-400 dark:text-slate-300">${curLatLng.lat.toFixed(5)}, ${curLatLng.lng.toFixed(5)}</span><br><span class="text-[10px] text-amber-500 dark:text-amber-300">✋ Geser / drag untuk sesuaikan titik</span></div>`
+          `<div class="text-left font-sans text-xs"><b>${escapeHtml(labelText)}</b><br><span class="text-[11px] font-mono text-slate-400 dark:text-slate-300">${curLatLng.lat.toFixed(5)}, ${curLatLng.lng.toFixed(5)}</span><br><span class="text-[11px] text-amber-500 dark:text-amber-300">✋ Geser / drag untuk sesuaikan titik</span></div>`
         );
       });
 
@@ -4840,7 +4829,7 @@
         statusMsg.innerHTML = '<span>⚠️ Harap lakukan generate pola SAR terlebih dahulu sebelum menyimpan!</span>';
         statusMsg.classList.remove('hidden');
       } else {
-        alert('Lintasan belum digenerate!');
+        showToast('Lintasan belum digenerate!', 'error');
       }
       return;
     }
@@ -5067,20 +5056,20 @@
                 <span class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</span>
                 ${getOperasiBadgeHtml(pat.id_operasi)}
               </div>
-              <div class="text-[10px] font-mono text-sky-600 dark:text-sky-400 mt-0.5">
+              <div class="text-[11px] font-mono text-sky-600 dark:text-sky-400 mt-0.5">
                 ${pat.totalDistanceNm ? formatDynamicDistance(pat.totalDistanceNm, pat.totalDistanceNm * 1.852) : ''} • ${pat.waypoints ? pat.waypoints.length : 0} Waypoints • <span class="capitalize text-slate-500 dark:text-slate-400 font-sans">${getPatternDisplayName(pat.patternType)}</span>
               </div>
             </div>
 
             <div class="flex items-center gap-1 shrink-0">
               <button type="button" onclick="window.SAR_GIS.togglePatternVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded" title="${isHidden ? 'Tampilkan' : 'Sembunyikan'}">
-                ${isHidden ? '👁️‍🗨️' : '👁️'}
+                ${isHidden ? GIS_ICON.eyeOff : GIS_ICON.eye}
               </button>
               <button type="button" onclick="window.SAR_GIS.editPattern('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded cursor-pointer transition" title="Edit Pola Ini">
-                ✏️
+                ${GIS_ICON.edit}
               </button>
               <button type="button" onclick="window.SAR_GIS.deletePattern('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded cursor-pointer transition" title="Hapus">
-                🗑️
+                ${GIS_ICON.trash}
               </button>
             </div>
           </div>
@@ -5187,7 +5176,7 @@
     }
 
     const formTitle = document.getElementById('patternFormHeaderTitle');
-    if (formTitle) formTitle.textContent = '✏️ Edit Parameter Pola Lintasan SAR';
+    if (formTitle) formTitle.textContent = 'Edit Parameter Pola Lintasan SAR';
     const btnSave = document.getElementById('btnSavePatternConfirm');
     if (btnSave) btnSave.innerHTML = '<span>💾 Perbarui Pola SAR</span>';
 
@@ -5340,7 +5329,7 @@
       }
       if (elKm) {
         elKm.textContent = `${totalNm.toFixed(2)} NM (${Math.round(totalKm * 1000)} m)`;
-        elKm.className = 'text-[10px] text-slate-500 dark:text-slate-400 block font-mono';
+        elKm.className = 'text-[11px] text-slate-500 dark:text-slate-400 block font-mono';
       }
     } else if (activeDistanceUnit === 'M') {
       if (elNm) {
@@ -5349,7 +5338,7 @@
       }
       if (elKm) {
         elKm.textContent = `${totalNm.toFixed(2)} NM (${totalKm.toFixed(2)} km)`;
-        elKm.className = 'text-[10px] text-slate-500 dark:text-slate-400 block font-mono';
+        elKm.className = 'text-[11px] text-slate-500 dark:text-slate-400 block font-mono';
       }
     } else {
       // Default: NM
@@ -5359,7 +5348,7 @@
       }
       if (elKm) {
         elKm.textContent = `${totalKm.toFixed(2)} km (${Math.round(totalKm * 1000)} m)`;
-        elKm.className = 'text-[10px] text-slate-500 dark:text-slate-400 block font-mono';
+        elKm.className = 'text-[11px] text-slate-500 dark:text-slate-400 block font-mono';
       }
     }
 
@@ -5526,14 +5515,14 @@
     const badge = document.getElementById('routeRealtimeStatusBadge');
     if (badge) {
       if (measurePoints.length >= 2) {
-        badge.textContent = currentActiveRouteId ? '✏️ Mode Edit (Siap Disimpan)' : '✏️ Rute Belum Disimpan';
-        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
+        badge.textContent = currentActiveRouteId ? 'Mode Edit (Siap Disimpan)' : 'Rute Belum Disimpan';
+        badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
       } else if (measurePoints.length === 1) {
         badge.textContent = 'Menunggu titik ke-2...';
-        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
+        badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
       } else {
         badge.textContent = '⚡ Siap Rancang';
-        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
+        badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
       }
     }
     if (typeof showToast === 'function') {
@@ -5564,17 +5553,17 @@
     if (measurePoints.length >= 2) {
       if (badge) {
         if (currentActiveRouteId) {
-          badge.textContent = '✏️ Mode Edit (Siap Disimpan)';
-          badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
+          badge.textContent = 'Mode Edit (Siap Disimpan)';
+          badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
         } else {
-          badge.textContent = '✏️ Rute Belum Disimpan';
-          badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
+          badge.textContent = 'Rute Belum Disimpan';
+          badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
         }
       }
     } else {
       if (badge) {
         badge.textContent = 'Menunggu titik ke-2...';
-        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
+        badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
       }
     }
   }
@@ -5630,8 +5619,8 @@
       marker.bindPopup(`
         <div class="p-2 space-y-1 font-sans text-xs">
           <div class="font-bold text-emerald-600 flex items-center gap-1"><span>📍</span> Waypoint ${idx + 1} (${labelText}) - Dapat Digeser</div>
-          <div class="font-mono text-[10px] text-slate-500 bg-slate-100 p-1 rounded border border-slate-200">DMS: ${dmsP}</div>
-          <div class="text-[9px] text-slate-400 italic">Geser titik ini pada peta untuk menyesuaikan posisi rute.</div>
+          <div class="font-mono text-[11px] text-slate-500 bg-slate-100 p-1 rounded border border-slate-200">DMS: ${dmsP}</div>
+          <div class="text-[11px] text-slate-400 italic">Geser titik ini pada peta untuk menyesuaikan posisi rute.</div>
         </div>
       `);
 
@@ -5655,8 +5644,8 @@
         if (measurePoints.length >= 2) {
           const badge = document.getElementById('routeRealtimeStatusBadge');
           if (badge) {
-            badge.textContent = currentActiveRouteId ? '✏️ Mode Edit (Posisi Diubah)' : '✏️ Rute Belum Disimpan';
-            badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
+            badge.textContent = currentActiveRouteId ? 'Mode Edit (Posisi Diubah)' : 'Rute Belum Disimpan';
+            badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
           }
         }
       });
@@ -5687,7 +5676,7 @@
     const realtimeBadge = document.getElementById('routeRealtimeStatusBadge');
     if (realtimeBadge) {
       realtimeBadge.textContent = '⚡ Siap Rancang';
-      realtimeBadge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
+      realtimeBadge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
     }
 
     const manualCounter = document.getElementById('manualPointsCounter');
@@ -5723,7 +5712,7 @@
       const badge = document.getElementById('routeRealtimeStatusBadge');
       if (badge) {
         badge.textContent = measurePoints.length === 1 ? 'Menunggu titik ke-2' : '⚡ Siap Rancang';
-        badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
+        badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-bold transition';
       }
       showRouteSaveFeedback('Minimal tentukan 2 titik rute!', 'warning');
       return;
@@ -5776,7 +5765,7 @@
     const badge = document.getElementById('routeRealtimeStatusBadge');
     if (badge) {
       badge.textContent = '⏳ Menyimpan...';
-      badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition animate-pulse';
+      badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition animate-pulse';
     }
 
     try {
@@ -5915,8 +5904,8 @@
 
     const badge = document.getElementById('routeRealtimeStatusBadge');
     if (badge) {
-      badge.textContent = `✏️ Mengedit: ${rt.name || 'Rute'}`;
-      badge.className = 'text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
+      badge.textContent = `Mengedit: ${rt.name || 'Rute'}`;
+      badge.className = 'text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold transition';
     }
 
     const counter = document.getElementById('manualPointsCounter');
@@ -5989,10 +5978,10 @@
                 <span class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</span>
                 ${getOperasiBadgeHtml(rt.id_operasi)}
               </div>
-              <div class="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
+              <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">
                 ${formatDynamicDistance(distNm, distNm * 1.852)} • @ ${escapeHtml(speedDisplay)}
               </div>
-              <div class="text-[9px] font-mono text-slate-400 mt-1 flex flex-col gap-0.5">
+              <div class="text-[11px] font-mono text-slate-400 mt-1 flex flex-col gap-0.5">
                 <span class="truncate"><b class="text-emerald-400">A:</b> ${escapeHtml(startDms)}</span>
                 <span class="truncate"><b class="text-red-400">B:</b> ${escapeHtml(endDms)}</span>
               </div>
@@ -6000,13 +5989,13 @@
 
             <div class="flex items-center gap-1 shrink-0">
               <button type="button" onclick="window.SAR_GIS.editRoute('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded transition" title="Edit Rute Ini">
-                ✏️
+                ${GIS_ICON.edit}
               </button>
               <button type="button" onclick="window.SAR_GIS.toggleRouteVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded" title="Tampilkan/Sembunyikan">
-                ${isHidden ? '👁️‍🗨️' : '👁️'}
+                ${isHidden ? GIS_ICON.eyeOff : GIS_ICON.eye}
               </button>
               <button type="button" onclick="window.SAR_GIS.deleteRoute('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded" title="Hapus Rute">
-                🗑️
+                ${GIS_ICON.trash}
               </button>
             </div>
           </div>
@@ -7034,16 +7023,16 @@
       if (listEl) {
         const itemsHtml = [];
         detectedPoints.forEach((p) => {
-          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-slate-800 dark:text-slate-200 truncate">${escapeHtml(p.emoji || '📍')} ${escapeHtml(p.label)} <span class="text-[9px] text-purple-500">(${escapeHtml(p.category)})</span></span><span class="font-mono text-[9px] text-slate-500 shrink-0">${escapeHtml(p.dms)}</span></div>`);
+          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-slate-800 dark:text-slate-200 truncate">${escapeHtml(p.emoji || '📍')} ${escapeHtml(p.label)} <span class="text-[11px] text-purple-500">(${escapeHtml(p.category)})</span></span><span class="font-mono text-[11px] text-slate-500 shrink-0">${escapeHtml(p.dms)}</span></div>`);
         });
         detectedPolygons.forEach((poly) => {
-          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-blue-600 dark:text-blue-400 truncate">📐 ${escapeHtml(poly.name)}</span><span class="font-mono text-[9px] text-slate-500 shrink-0">${escapeHtml(poly.area_text)}</span></div>`);
+          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-blue-600 dark:text-blue-400 truncate">📐 ${escapeHtml(poly.name)}</span><span class="font-mono text-[11px] text-slate-500 shrink-0">${escapeHtml(poly.area_text)}</span></div>`);
         });
         detectedPatterns.forEach((pat) => {
-          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-orange-600 dark:text-orange-400 truncate">🧭 ${escapeHtml(pat.name)}</span><span class="font-mono text-[9px] text-slate-500 shrink-0">S: ${escapeHtml(pat.spacing_text)}</span></div>`);
+          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-orange-600 dark:text-orange-400 truncate">🧭 ${escapeHtml(pat.name)}</span><span class="font-mono text-[11px] text-slate-500 shrink-0">S: ${escapeHtml(pat.spacing_text)}</span></div>`);
         });
         detectedRoutes.forEach((rt) => {
-          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-emerald-600 dark:text-emerald-400 truncate">📏 ${escapeHtml(rt.name)}</span><span class="font-mono text-[9px] text-slate-500 shrink-0">${escapeHtml(rt.distance_text)}</span></div>`);
+          itemsHtml.push(`<div class="flex items-center justify-between gap-2 px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"><span class="font-bold text-emerald-600 dark:text-emerald-400 truncate">📏 ${escapeHtml(rt.name)}</span><span class="font-mono text-[11px] text-slate-500 shrink-0">${escapeHtml(rt.distance_text)}</span></div>`);
         });
 
         if (itemsHtml.length === 0) {
@@ -7150,9 +7139,9 @@
           <div class="flex items-center justify-between gap-2">
             <div>
               <div class="font-extrabold text-emerald-700 dark:text-emerald-300">✓ Snapshot 16:9 Tersedia pada Dokumen Ini</div>
-              <div class="text-[9px] text-slate-500 dark:text-slate-400">Terakhir diperbarui: ${escapeHtml(found.updated_at || '')}</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400">Terakhir diperbarui: ${escapeHtml(found.updated_at || '')}</div>
             </div>
-            <a href="${escapeHtml(printUrl)}" target="_blank" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] shrink-0 shadow-xs transition">
+            <a href="${escapeHtml(printUrl)}" target="_blank" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shrink-0 shadow-xs transition">
               🖨️ Lihat Cetakan
             </a>
           </div>
@@ -7822,7 +7811,7 @@
       btnSave.addEventListener('click', async () => {
         const idOp = selOperasi && selOperasi.value ? parseInt(selOperasi.value, 10) : currentOperasiId;
         if (!idOp || idOp <= 0) {
-          alert('Silakan pilih Operasi SAR terlebih dahulu pada dropdown nomor 1 sebelum melakukan Capture Peta.');
+          showToast('Silakan pilih Operasi SAR terlebih dahulu pada dropdown nomor 1 sebelum melakukan Capture Peta.', 'error');
           if (selOperasi) selOperasi.focus();
           return;
         }
@@ -7830,7 +7819,7 @@
         const jenis = selJenis ? selJenis.value : 'LAPORAN_AWAL';
         const idRef = (jenis === 'RENOPS' && selRef && selRef.value) ? parseInt(selRef.value, 10) : null;
         if (jenis === 'RENOPS' && (!idRef || idRef <= 0)) {
-          alert('Silakan pilih Hari RENOPS tujuan terlebih dahulu (atau buat dokumen RENOPS pada operasi ini).');
+          showToast('Silakan pilih Hari RENOPS tujuan terlebih dahulu (atau buat dokumen RENOPS pada operasi ini).', 'error');
           return;
         }
         const keterangan = inputKet ? inputKet.value.trim() : '';
@@ -7879,7 +7868,7 @@
           }
         } catch (err) {
           console.error('[Capture Error]', err);
-          alert('Gagal menyimpan capture peta: ' + (err.message || err));
+          showToast('Gagal menyimpan capture peta: ' + (err.message || err), 'error');
           btnSave.disabled = false;
           btnSave.innerHTML = origHtml;
         }

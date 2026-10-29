@@ -7,7 +7,7 @@
 <div id="tab-content-renops" class="tab-pane space-y-4" style="display: <?= $activeTab === 'renops' ? 'block' : 'none' ?>;">
 
     <div class="flex items-center justify-between gap-3 mb-2">
-        <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+        <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
             <span>Daftar Rencana Operasi SAR (RENOPS) &bull; <?= $countRenops ?> Dokumen</span>
         </h3>
@@ -74,7 +74,7 @@
         <!-- Renops Header -->
         <div class="p-3.5 sm:p-4 border-b bg-slate-50/70 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="flex flex-wrap items-center gap-2">
-                <span class="px-2.5 py-0.5 rounded-lg font-mono font-black text-xs bg-orange-600 text-white shadow-xs">
+                <span class="px-2.5 py-0.5 rounded-lg font-mono font-bold text-xs bg-orange-600 text-white shadow-xs">
                     <?= e($dynamicHariKe) ?>
                 </span>
                 <span class="text-xs font-bold text-slate-800 dark:text-slate-200 inline-flex items-center gap-1.5">
@@ -82,7 +82,7 @@
                     <span>Rencana: <?= TemplateHelper::formatTanggalIndo($ren['tanggal_laporan']) ?></span>
                 </span>
                 <?php if (!empty($ren['satuan_jarak'])): ?>
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <span class="px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                     Satuan: <?= e($ren['satuan_jarak']) ?>
                 </span>
                 <?php endif; ?>
@@ -130,15 +130,15 @@
             <!-- Timetable & Cuaca Row -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
                 <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/70 dark:border-slate-800">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Waktu Briefing</span>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Waktu Briefing</span>
                     <span class="font-bold text-slate-800 dark:text-slate-200 font-mono"><?= TemplateHelper::formatTW($ren['waktu_briefing']) ?></span>
                 </div>
                 <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/70 dark:border-slate-800">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Mulai Operasi</span>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Mulai Operasi</span>
                     <span class="font-bold text-orange-600 dark:text-orange-400 font-mono"><?= TemplateHelper::formatTW($ren['waktu_mulai_ops']) ?></span>
                 </div>
                 <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/70 dark:border-slate-800">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Prakiraan Cuaca BMKG</span>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Prakiraan Cuaca BMKG</span>
                     <span class="font-bold text-slate-800 dark:text-slate-200 truncate block"><?= e($ren['cuaca']) ?></span>
                 </div>
             </div>
@@ -168,9 +168,9 @@
                                 <td class="font-mono text-xs whitespace-pre-wrap"><?= e($s['koordinat_area']) ?></td>
                                 <td class="font-semibold text-xs"><?= e($s['luas_area']) ?></td>
                                 <td>
-                                    <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 block text-center"><?= e($s['pola_pencarian']) ?></span>
+                                    <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 block text-center"><?= e($s['pola_pencarian']) ?></span>
                                     <?php if (!empty($s['total_sapuan'])): ?>
-                                     <div class="text-[10px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 mt-1 text-center" title="Total Sapuan / Lintasan"><?= e($s['total_sapuan']) ?></div>
+                                     <div class="text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400 mt-1 text-center" title="Total Sapuan / Lintasan"><?= e($s['total_sapuan']) ?></div>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -193,7 +193,7 @@
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Unsur SAR Terlibat:</span>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Unsur SAR Terlibat:</span>
                         <div class="space-y-1">
                             <?php if (empty($snapUnsur)): ?>
                             <span class="text-slate-400">-</span>
@@ -206,7 +206,7 @@
                         </div>
                     </div>
                     <div>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Armada Alut & Palsar:</span>
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Armada Alut & Palsar:</span>
                         <div class="space-y-1">
                             <?php if (empty($snapAlut)): ?>
                             <span class="text-slate-400">-</span>

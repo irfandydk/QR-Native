@@ -6,6 +6,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/bootstrap.php';
+
 if (session_status() === PHP_SESSION_ACTIVE) {
     session_destroy();
 }
@@ -122,6 +124,33 @@ report("Sesi Operator DITOLAK menghapus Operasi (canDelete('operasi') = false)",
 report("Sesi Operator DITOLAK menghapus Renops (canDelete('renops') = false)", AuthHelper::canDelete('renops') === false);
 report("Sesi Operator DITOLAK menghapus Master (canDelete('master') = false)", AuthHelper::canDelete('master') === false);
 report("Sesi Operator DIIZINKAN menghapus layer taktis GIS (canDelete('gis') = true)", AuthHelper::canDelete('gis') === true);
+
+// -------------------------------------------------------------------------
+// 4b. Audit Self-Service Ganti Password Pengguna Operasional (Operator)
+// -------------------------------------------------------------------------
+echo "\n--- 4b. Audit Self-Service Ganti Password Pengguna Operasional ---\n";
+SettingsModel::resetUserToDefault();
+
+// Wrong old password rejected
+$resWrongOld = SettingsModel::changePassword('USER', 'PasswordLamaSalah999', 'SandiBaruValid123');
+report("Ganti password dengan password lama salah ditolak", $resWrongOld['success'] === false);
+
+// Password too short (< 8 chars) rejected
+$resShort = SettingsModel::changePassword('USER', 'Kendari304', 'pendek');
+report("Ganti password baru kurang dari 8 karakter ditolak", $resShort['success'] === false);
+
+// Valid change
+$resValidChange = SettingsModel::changePassword('USER', 'Kendari304', 'KendariBaru304');
+report("Ganti password valid berhasil diperbarui", $resValidChange['success'] === true);
+
+// Verify new password works
+$loginNewPass = AuthHelper::login('user', 'KendariBaru304');
+report("Login user dengan password baru berhasil", $loginNewPass['success'] === true);
+
+// Restore back to default
+SettingsModel::resetUserToDefault();
+$loginRestored = AuthHelper::login('user', 'Kendari304');
+report("Reset akun user mengembalikan password standar (Kendari304)", $loginRestored['success'] === true);
 
 // -------------------------------------------------------------------------
 // 5. Audit Proteksi Brute-Force & Rate Limiting (LoginThrottle)

@@ -6,7 +6,7 @@
 ?>
 <div id="tab-content-hierarchy" class="tab-pane space-y-4" style="display: <?= $activeTab === 'hierarchy' ? 'block' : 'none' ?>;">
     <div class="flex items-center justify-between gap-3 mb-2">
-        <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+        <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"/></svg>
             <span>Alur Kronologis Dokumen Operasi SAR &bull; <?= count($timeline ?? []) ?> Dokumen Terbit</span>
         </h3>
@@ -25,7 +25,7 @@
         ?>
         <div class="relative">
             <!-- Node Pin -->
-            <div class="absolute -left-6 sm:-left-8 top-1/2 -translate-y-1/2 w-6 h-6 sm:w-7 sm:h-7 rounded-full <?= $nodeColor ?> flex items-center justify-center font-mono font-black text-[11px] shadow-sm ring-4 ring-white dark:ring-slate-900 z-10">
+            <div class="absolute -left-6 sm:-left-8 top-1/2 -translate-y-1/2 w-6 h-6 sm:w-7 sm:h-7 rounded-full <?= $nodeColor ?> flex items-center justify-center font-mono font-bold text-[11px] shadow-sm ring-4 ring-white dark:ring-slate-900 z-10">
                 <?= $idx + 1 ?>
             </div>
 

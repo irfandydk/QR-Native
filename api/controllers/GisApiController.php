@@ -10,6 +10,7 @@ class GisApiController extends BaseApiController {
     public static function handle(string $path, string $method, array $input): bool {
         // 1. Geocode endpoint (Global & Indonesian Geocoding)
         if ($path === '/geocode') {
+            self::requireAuth();
             self::handleGeocode();
             return true;
         }
@@ -278,24 +279,7 @@ class GisApiController extends BaseApiController {
 
         $results = [];
 
-        $toDms = function(float $lat, float $lng): string {
-            $latDir = $lat < 0 ? 'S' : 'N';
-            $latVal = abs($lat);
-            $latDeg = (int)floor($latVal);
-            $latMin = (int)floor(($latVal - $latDeg) * 60);
-            $latSec = round((($latVal - $latDeg) * 60 - $latMin) * 60, 1);
-
-            $lngDir = $lng < 0 ? 'W' : 'E';
-            $lngVal = abs($lng);
-            $lngDeg = (int)floor($lngVal);
-            $lngMin = (int)floor(($lngVal - $lngDeg) * 60);
-            $lngSec = round((($lngVal - $lngDeg) * 60 - $lngMin) * 60, 1);
-
-            return sprintf("%02d° %02d' %04.1f\" %s - %03d° %02d' %04.1f\" %s",
-                $latDeg, $latMin, $latSec, $latDir,
-                $lngDeg, $lngMin, $lngSec, $lngDir
-            );
-        };
+        $toDms = fn(float $lat, float $lng): string => GeoHelper::formatDmsPair($lat, $lng);
 
         // 1. Raw Coordinates
         if (preg_match('/^\s*([+-]?\d+(?:\.\d+)?)[,\s]+([+-]?\d+(?:\.\d+)?)\s*$/', $q, $m)) {
