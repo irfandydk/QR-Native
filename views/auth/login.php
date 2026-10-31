@@ -63,10 +63,15 @@ $satkerNama = $appSettings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN K
   <?php if ($uiTheme === 'minimal'): ?><link rel="stylesheet" href="<?= assetUrl('assets/css/theme-minimal.css') ?>"><?php endif; ?>
 
 </head>
-<body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100">
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 relative overflow-x-hidden selection:bg-orange-500 selection:text-white">
+
+  <!-- Ambient Glow Canvas Layer -->
+  <div class="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden="true">
+    <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[680px] h-[400px] bg-gradient-to-b from-orange-500/15 via-amber-500/5 to-transparent blur-3xl opacity-75"></div>
+  </div>
 
   <div class="flex justify-end p-4">
-    <button type="button" id="loginThemeToggle" onclick="toggleLoginTheme()" class="btn btn-ghost btn-sm" title="Ganti Mode Gelap / Terang" aria-label="Ganti mode gelap atau terang">
+    <button type="button" id="loginThemeToggle" onclick="toggleLoginTheme()" class="btn btn-ghost btn-tactile btn-sm rounded-xl" title="Ganti Mode Gelap / Terang" aria-label="Ganti mode gelap atau terang">
       <span id="loginThemeIcon" class="flex items-center justify-center"></span>
       <span id="loginThemeText" class="sr-only">Mode Gelap</span>
     </button>
@@ -75,12 +80,12 @@ $satkerNama = $appSettings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN K
   <main class="flex-1 flex items-center justify-center px-5 pb-10">
     <div class="w-full max-w-sm">
       <div class="text-center mb-8">
-        <img src="<?= e($logoUrl) ?>" alt="Logo Basarnas" class="w-14 h-14 mx-auto object-contain">
-        <h1 class="mt-4 text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Masuk ke QR-SAR</h1>
+        <img src="<?= e($logoUrl) ?>" alt="Logo Basarnas" class="w-14 h-14 mx-auto object-contain drop-shadow-md">
+        <h1 class="mt-4 text-xl font-bold tracking-tight text-slate-900 dark:text-white">Masuk ke QR-SAR</h1>
         <p class="mt-1 text-sm text-slate-500 dark:text-slate-400"><?= e($satkerNama) ?></p>
       </div>
 
-      <div class="surface p-6 sm:p-7">
+      <div class="bento-card-v1 cockpit-glass p-6 sm:p-8 rounded-3xl shadow-2xl border border-slate-200/80 dark:border-white/10 backdrop-blur-xl">
         <?php if ($error): ?>
           <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300" role="alert"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
@@ -108,7 +113,7 @@ $satkerNama = $appSettings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN K
             <p id="capsLockWarning" class="hidden mt-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">Caps Lock aktif</p>
           </div>
 
-          <button type="submit" id="btnLoginSubmit" class="btn btn-primary w-full py-3">Masuk</button>
+          <button type="submit" id="btnLoginSubmit" class="btn btn-primary btn-tactile w-full py-3 font-bold tracking-wide shadow-lg shadow-orange-500/20">Masuk</button>
         </form>
       </div>
 

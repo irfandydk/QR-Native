@@ -67,7 +67,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
 <!-- ======================================================== -->
 <div class="flex items-center justify-between gap-3 mb-4 no-print">
     <div class="flex items-center gap-2">
-        <a href="<?= BASE_URL ?>/operasi.php" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition">
+        <a href="<?= BASE_URL ?>/operasi.php" class="btn-tactile inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition">
             <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
             <span>Daftar Operasi</span>
         </a>
@@ -81,7 +81,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
     <form method="POST" action="<?= BASE_URL ?>/operasi.php?action=delete" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus Operasi SAR ini secara permanen beserta seluruh Renops, Sitrep, dan data terkait? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Operasi SAR Permanen" data-confirm-btn="Ya, Hapus Permanen" data-confirm-danger="true">
         <?= csrfInput() ?>
         <input type="hidden" name="id" value="<?= $id ?>">
-        <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/20 font-semibold text-xs transition cursor-pointer" title="Hapus Operasi">
+        <button type="submit" class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/20 font-semibold text-xs transition cursor-pointer" title="Hapus Operasi">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
             <span>Hapus Operasi</span>
         </button>
@@ -90,16 +90,16 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
 </div>
 
 <!-- ======================================================== -->
-<!-- EXECUTIVE SUMMARY CARD (SIMPEL, BERSIH, MODERN) -->
+<!-- EXECUTIVE SUMMARY COMMAND COCKPIT -->
 <!-- ======================================================== -->
-<div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm p-4 sm:p-5 mb-5 transition-colors">
+<div class="bento-card-v1 p-4 sm:p-5 mb-5 transition-colors">
     <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <div class="space-y-2 min-w-0 flex-1">
+        <div class="space-y-2.5 min-w-0 flex-1">
             <!-- Badges Row -->
             <div class="flex flex-wrap items-center gap-2">
                 <?php if ($isOpen): ?>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-mono tracking-wider bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="radar-beacon-active w-2 h-2 rounded-full bg-emerald-500"></span>
                     OPERASI BERJALAN (<?= $hariKe ?>)
                 </span>
                 <?php if ($isReopened): ?>
@@ -128,11 +128,11 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <?= e($operasi['nama_operasi']) ?>
             </h1>
 
-            <!-- Meta Information -->
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+            <!-- Meta Information in Double-Bezel Inner Core -->
+            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                 <span class="inline-flex items-center gap-1.5">
                     <svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span>Mulai Ops: <strong class="text-slate-800 dark:text-slate-200 font-mono"><?= TemplateHelper::formatTanggalIndo($waktuMulaiOps) ?> (<?= TemplateHelper::formatJamWITA($waktuMulaiOps) ?> WITA)</strong></span>
+                    <span>Mulai: <strong class="text-slate-800 dark:text-slate-200 font-mono"><?= TemplateHelper::formatTanggalIndo($waktuMulaiOps) ?> (<?= TemplateHelper::formatJamWITA($waktuMulaiOps) ?> WITA)</strong></span>
                 </span>
 
                 <?php if (!empty($operasi['lokasi_kejadian'])): ?>
@@ -143,9 +143,9 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <?php endif; ?>
 
                 <?php if (!empty($operasi['koordinat'])): ?>
-                <span class="inline-flex items-center gap-1.5 font-mono text-[11px] text-slate-600 dark:text-slate-300">
+                <span class="inline-flex items-center gap-1.5 font-mono text-[11px] text-slate-700 dark:text-slate-200">
                     <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v3m0 12v3M3 12h3m12 0h3"/></svg>
-                    <span>LKP: <?= e($operasi['koordinat']) ?></span>
+                    <span>LKP: <span class="font-bold"><?= e($operasi['koordinat']) ?></span></span>
                 </span>
                 <?php endif; ?>
             </div>
@@ -153,23 +153,23 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
 
         <!-- Action Toolbar -->
         <div class="flex flex-wrap items-center gap-2 shrink-0 pt-2 xl:pt-0 border-t xl:border-t-0 border-slate-100 dark:border-slate-800 no-print">
-            <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= $id ?>&include_base=1" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-xs transition" title="Buka Peta Taktis GIS Operasi Ini">
+            <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= $id ?>&include_base=1" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-xs transition" title="Buka Peta Taktis GIS Operasi Ini">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
                 <span>Peta Plotting GIS</span>
             </a>
 
-            <button type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-view-wa-awal')" title="Lihat naskah laporan awal format WhatsApp">
+            <button type="button" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-view-wa-awal')" title="Lihat naskah laporan awal format WhatsApp">
                 <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.774-.954l.583-2.183A7.95 7.95 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
                 <span>Naskah WA</span>
             </button>
 
             <?php if ($isOpen): ?>
-            <a href="<?= BASE_URL ?>/operasi_form.php?id=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition" title="Koreksi data inisiasi laporan awal">
+            <a href="<?= BASE_URL ?>/operasi_form.php?id=<?= $id ?>" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition" title="Koreksi data inisiasi laporan awal">
                 <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"/></svg>
                 <span>Edit Lap Awal</span>
             </a>
 
-            <button type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-600 text-red-600 hover:text-white border border-red-500/25 font-bold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-close-ops-detail')" title="Tutup Operasi SAR secara resmi">
+            <button type="button" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-600 text-red-600 hover:text-white border border-red-500/25 font-bold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-close-ops-detail')" title="Tutup Operasi SAR secara resmi">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
                 <span>Tutup Operasi</span>
             </button>
@@ -178,7 +178,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <span class="text-xs text-amber-600 dark:text-amber-400 font-medium hidden sm:inline">
                     Ditutup <?= $tglSelesai ? "({$tglSelesai})" : '' ?>
                 </span>
-                <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition cursor-pointer">
+                <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition cursor-pointer">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
                     <span>Buka Kembali</span>
                 </button>
@@ -191,7 +191,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
 <!-- ======================================================== -->
 <!-- TAB NAVIGATION (CLEAN & MODERN) -->
 <!-- ======================================================== -->
-<div class="tabs-header border-b border-slate-200 dark:border-slate-800 mb-6 flex overflow-x-auto no-print">
+<div class="tabs-header cockpit-glass p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 mb-6 flex overflow-x-auto no-print gap-1.5">
     <button class="tab-btn <?= $activeTab === 'hierarchy' ? 'active' : '' ?>" onclick="switchTab('hierarchy')">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>Hirarki Dokumen (<?= count($timeline) ?>)</span>

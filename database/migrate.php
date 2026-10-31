@@ -222,6 +222,32 @@ try {
     }
     echo "[OK] All 9 SarUnit bases verified.\n";
 
+    // 2d. Ensure master GIS base points exist in GisPoint for tactical map plotting & routing
+    echo "[RUN] Checking GisPoint master bases (pt-kansar, POS SAR, etc.)...\n";
+    $masterBasesGis = [
+        ['pt-kansar', -4.084194, 122.428389, 'Kantor SAR Kendari', 'custom_upload', 'assets/img/basarnas-logo.png', 'Kantor Pencarian dan Pertolongan Kelas A Kendari', 'Kantor SAR', 'A', null],
+        ['pt-pos-kolaka', -4.053889, 121.604167, 'POS SAR KOLAKA', 'custom_upload', 'assets/img/basarnas-logo.png', 'Pos SAR Kolaka', 'POS SAR', 'A', null],
+        ['pt-pos-baubau', -5.463889, 122.604167, 'POS SAR BAU BAU', 'custom_upload', 'assets/img/basarnas-logo.png', 'Pos SAR Baubau', 'POS SAR', 'A', null],
+        ['pt-pos-wakatobi', -5.326389, 123.588889, 'POS SAR WAKATOBI', 'custom_upload', 'assets/img/basarnas-logo.png', 'Pos SAR Wakatobi', 'POS SAR', 'A', null],
+        ['pt-pos-konut', -3.513889, 122.180556, 'POS SAR KONAWE UTARA', 'custom_upload', 'assets/img/basarnas-logo.png', 'Pos SAR Konawe Utara', 'POS SAR', 'A', null],
+        ['pt-unit-muna', -4.836111, 122.719444, 'UNIT SIAGA SAR MUNA', 'custom_upload', 'assets/img/basarnas-logo.png', 'Unit Siaga SAR Muna', 'Unit Siaga SAR', 'A', null],
+        ['pt-unit-konawe', -3.905556, 122.047222, 'UNIT SIAGA SAR KONAWE', 'custom_upload', 'assets/img/basarnas-logo.png', 'Unit Siaga SAR Konawe', 'Unit Siaga SAR', 'A', null],
+        ['pt-unit-kolut', -3.425000, 120.897000, 'UNIT SIAGA SAR KOLAKA UTARA', 'custom_upload', 'assets/img/basarnas-logo.png', 'Unit Siaga SAR Kolaka Utara', 'Unit Siaga SAR', 'A', null],
+        ['pt-dermaga-kdr', -3.974167, 122.585000, 'Dermaga SAR Kendari', 'custom_upload', 'assets/img/basarnas-logo.png', 'Pangkalan Armada SAR Kendari', 'Dermaga', 'A', null]
+    ];
+    $stmtGis = $db->prepare("INSERT INTO GisPoint (id, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar, id_operasi)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            lat = VALUES(lat),
+            lng = VALUES(lng),
+            label = VALUES(label),
+            customIconUrl = COALESCE(NULLIF(customIconUrl, ''), VALUES(customIconUrl)),
+            category = VALUES(category)");
+    foreach ($masterBasesGis as $bg) {
+        $stmtGis->execute($bg);
+    }
+    echo "[OK] All 9 GisPoint master bases verified.\n";
+
     // 3. Ensure DetailTimBerangkat is populated for any existing operations
     if (class_exists('OperasiModel')) {
         echo "[RUN] Checking DetailTimBerangkat for existing operations...\n";

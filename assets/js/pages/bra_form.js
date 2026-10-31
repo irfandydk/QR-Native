@@ -12,7 +12,6 @@ function initBraForm() {
   const opSelect = document.getElementById('operasiSelect');
   const pejabatSelect = document.getElementById('pejabatSelectControl');
   const kategoriRadios = document.querySelectorAll('.kategori-radio');
-  const vesselPresets = document.getElementById('vesselPresetsContainer');
   const mapelPresets = document.getElementById('mapelPresetsContainer');
   const opRecBar = document.getElementById('operasiRecommendationBar');
 
@@ -122,7 +121,7 @@ function initBraForm() {
 
       if (badge) badge.textContent = code;
       if (hidden) { hidden.value = code; hidden.name = `sections[${idx}][kode]`; }
-      if (ta) { ta.name = `sections[${idx}][isi]`; ta.placeholder = `Isi naskah telegram untuk bagian ${code}...`; }
+      if (ta) { ta.name = `sections[${idx}][isi]`; ta.placeholder = `Isi bagian ${code} ${getSectionHint(idx, currentKat)}`; }
       if (hint) hint.textContent = getSectionHint(idx, currentKat);
 
       // Handle remove button (only >= 3)
@@ -404,89 +403,26 @@ function initBraForm() {
     });
   }
 
-  // Telegram Reduplication Helper: replaces word-word with suffix S (e.g. CIRI-CIRI -> CIRIS, KAPAL-KAPAL -> KAPALS, TANDA-TANDA -> TANDAS)
-  function formatTelegramReduplication(text) {
-    if (!text) return '';
-    let res = text.replace(/\b([a-zA-Z]+)-\1\b/gi, (match, word) => {
-      return word.toUpperCase() + 'S';
-    });
-    const specialMap = {
-      'TERAPUNG-APUNG': 'TERAPUNG',
-      'BERPINTAL-PINTAL': 'BERPINTAL',
-      'TEROMBANG-AMBING': 'TEROMBANG AMBING',
-      'SAMBUNG-MENYAMBUNG': 'SAMBUNG MENYAMBUNG',
-      'BOLAK-BALIK': 'BOLAK BALIK',
-      'HILANG-KONTAK': 'HILANG KONTAK'
-    };
-    for (const [k, v] of Object.entries(specialMap)) {
-      res = res.replace(new RegExp('\\b' + k + '\\b', 'gi'), v);
-    }
-    return res;
-  }
+  // Sandi telegram & draf naskah: logika murni ada di assets/js/bra/bra_templates.js (BraTemplates)
+  // Bila bra_templates.js gagal dimuat, form tetap jalan: tombol draf nonaktif dan teks hanya dikapitalkan
+  const BT_READY = !!window.BraTemplates;
+  if (!BT_READY) console.error('assets/js/bra/bra_templates.js tidak termuat: draf otomatis BRA dinonaktifkan.');
+  const BT = window.BraTemplates || {
+    KABASARNAS: 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN',
+    toSentence: (v) => String(v || '').trim().toUpperCase(),
+    formatSectionText: (v) => String(v || '').toUpperCase(),
+    senderTitle: (kind, linked, real) => (kind === 'LAPORAN_AWAL' || !linked ? real : 'SMC'),
+    referenceOptions: () => ({ renops: [], lapbang: [], penutupan: null }),
+    hariNumber: () => 1
+  };
+  const KABASARNAS = BT.KABASARNAS;
+  const INFO_KAPAL = 'DEPUTI OPS DAN KESIAPSIAGAAN KMA DEPUTI SARPRAS DAN SISTEM KOMUNIKASI KMA DIREKTUR SARPRAS DAN DIREKTUR KESIAPSIAGAAN';
+  const JABATAN_DEFAULT = 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
 
-  function formatDateToMilitary(val) {
-    if (!val) return '';
-    const str = String(val).trim();
-    if (/^\d{4}\s+\d{4}\s+[A-Z]$/i.test(str)) {
-      return str.toUpperCase();
-    }
-    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
-    if (m) {
-      const mm = m[2];
-      const dd = m[3];
-      const hh = m[4] || '00';
-      const min = m[5] || '00';
-      return `${mm}${dd} ${hh}${min} H`;
-    }
-    return getMilitaryTW(str);
-  }
-
-  // Sanitasi & Sandi Telegram Militer (Desimal aman, TTK/KMA/TTK DUA, Reduplikasi S)
-  function sanitizeTelegramText(text, isPerihal = false) {
-    if (!text) return '';
-    let str = text.trim();
-
-    // 0. Konversi kebocoran format tanggal ISO YYYY-MM-DD HH:mm:ss ke sandi militer MMDD HHMM H
-    str = str.replace(/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::\d{2})?/gi, function(match, y, m, d, h, min) {
-      return `TW ${m}${d} ${h}${min} H`;
-    });
-    str = str.replace(/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})\b/gi, function(match, y, m, d) {
-      return `TW ${m}${d} 0000 H`;
-    });
-    str = str.replace(/\bTW\s+TW\b/gi, 'TW');
-
-    // 1. Reduplikasi kata (e.g. CIRI-CIRI -> CIRIS)
-    str = formatTelegramReduplication(str);
-
-    // 2. Proteksi desimal koordinat / angka desimal
-    const decMap = [];
-    str = str.replace(/(\d+)[.,](\d+)/g, function(m, p1, p2) {
-      const ph = `__DEC_${decMap.length}__`;
-      decMap.push(`${p1}.${p2}`);
-      return ph;
-    });
-
-    // 3. Konversi tanda baca militer
-    str = str.replace(/:\s*/g, ' TTK DUA ');
-    str = str.replace(/,\s*/g, ' KMA ');
-    str = str.replace(/\.\s*/g, ' TTK ');
-
-    // 4. Pulihkan desimal koordinat
-    decMap.forEach((orig, idx) => {
-      str = str.replace(new RegExp(`__DEC_${idx}__`, 'g'), orig);
-    });
-
-    // 5. Bersihkan spasi ganda
-    str = str.replace(/\s+/g, ' ').trim();
-
-    // 6. Jika perihal, pastikan diakhiri TTK
-    if (isPerihal && str) {
-      if (!/\bTTK$/i.test(str)) {
-        str = str.replace(/[\s\.]+$/, '') + ' TTK';
-      }
-    }
-
-    return str.toUpperCase();
+  // Perihal: kalimat sandi yang selalu berakhiran TTK
+  function perihalText(val) {
+    const p = BT.toSentence(val);
+    return p && !/\bTTK$/.test(p) ? p + ' TTK' : p;
   }
 
   // Pastikan judul perihal selalu berakhiran TTK saat blur
@@ -494,7 +430,7 @@ function initBraForm() {
   if (perihalInput) {
     perihalInput.addEventListener('blur', function() {
       if (this.value.trim()) {
-        this.value = sanitizeTelegramText(this.value, true);
+        this.value = perihalText(this.value);
         syncLivePreview();
       }
     });
@@ -503,158 +439,134 @@ function initBraForm() {
   // Format Sandi Telegram (Kapital & TTK/KMA/TTK DUA & Reduplikasi S) Manual via Button
   document.getElementById('btnFormatTelegramPunctuation').addEventListener('click', function() {
     form.querySelectorAll('textarea, input[type="text"]').forEach(el => {
-      if (['noBraInput','menbraInput','twuInput','twbInput','twtInput','twkInput','sistemInput','parafInput','panggilanInput','nrStnInput'].includes(el.id)) {
+      if (['noBraInput','menbraInput','twuInput','twbInput','twtInput','twkInput','sistemInput','parafInput','panggilanInput','nrStnInput','namaSmcInput','pangkatSmcInput','jabatanSmcInput','dariInput','pengirimInput','aksiInput','infoInput'].includes(el.id)) {
         el.value = el.value.toUpperCase();
         return;
       }
-      el.value = sanitizeTelegramText(el.value, el.id === 'perihalInput');
+      el.value = el.id === 'perihalInput' ? perihalText(el.value) : BT.formatSectionText(el.value);
     });
     syncLivePreview();
     if (typeof showToast === 'function') showToast('Naskah berhasil diformat ke Sandi Baku Telegram!', 'success');
   });
 
+  // Alamat AKSI/INFO baku per kategori; nilai yang sudah diubah petugas tidak ditimpa
+  const RECIPIENTS = {
+    OPERASI_SAR: { aksi: KABASARNAS, info: '', aksiPh: KABASARNAS, infoPh: 'POLRES/POLSEK KMA KSOP KMA SROP SETEMPAT' },
+    MAPEL: { aksi: 'KA KSOP KENDARI KMA KA SROP KENDARI', info: KABASARNAS, aksiPh: 'KA KSOP KENDARI KMA KA SROP KENDARI', infoPh: KABASARNAS },
+    PERGERAKAN_KAPAL: { aksi: KABASARNAS, info: INFO_KAPAL, aksiPh: KABASARNAS, infoPh: INFO_KAPAL }
+  };
+  const KNOWN_RECIPIENTS = new Set([
+    KABASARNAS, INFO_KAPAL, 'KA KSOP KENDARI KMA KA SROP KENDARI',
+    'POLRES/POLSEK KMA KSOP/SROP SETEMPAT', 'POLRES/POLSEK KMA KSOP KMA SROP SETEMPAT',
+    'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN',
+    'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN KMA GUBERNUR SULTRA',
+    'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN KMA DIREKTUR SARPRAS KMA DIREKTUR KESIAPSIAGAAN'
+  ]);
+
+  function setRecipient(el, value, placeholder, keepValue) {
+    if (!el) return;
+    el.placeholder = placeholder;
+    if (keepValue) return;
+    const cur = el.value.trim().toUpperCase();
+    if (!cur || KNOWN_RECIPIENTS.has(cur)) el.value = value;
+  }
+
+  // Jabatan pengirim: Laporan Awal & BRA tanpa operasi = jabatan asli, BRA lanjutan terkait operasi = SMC
+  let lastDraftKind = /^LAPORAN AWAL\b/.test((document.getElementById('perihalInput')?.value || '').trim().toUpperCase()) ? 'LAPORAN_AWAL' : 'LANJUTAN';
+  function realTitle() {
+    const opt = pejabatSelect ? pejabatSelect.options[pejabatSelect.selectedIndex] : null;
+    return ((opt && opt.value && opt.getAttribute('data-jabatan')) || JABATAN_DEFAULT).toUpperCase();
+  }
+  function applySenderTitle(kind) {
+    lastDraftKind = kind;
+    document.getElementById('jabatanSmcInput').value = BT.senderTitle(kind, !!(opSelect && opSelect.value), realTitle());
+  }
+
   // Centralized Category UI switch handler
-  function updateCategoryUI(kat) {
+  // initial=true saat halaman dimuat: nilai AKSI/INFO tersimpan (mode edit) tidak disentuh
+  function updateCategoryUI(kat, initial) {
     const menbraTitle = document.getElementById('labelMenbraTitle');
     const menbraInput = document.getElementById('menbraInput');
     const hintMenbra = document.getElementById('hintMenbraText');
+    const show = (el, on) => { if (el) { el.classList.toggle('hidden', !on); el.style.display = on ? 'block' : 'none'; } };
+    show(mapelPresets, kat === 'MAPEL');
 
+    if (menbraInput && (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-')) menbraInput.value = '';
     if (kat === 'PERGERAKAN_KAPAL') {
-      if (mapelPresets) {
-        mapelPresets.classList.add('hidden');
-        mapelPresets.style.display = 'none';
-      }
-      if (vesselPresets) {
-        vesselPresets.classList.remove('hidden');
-        vesselPresets.style.display = 'block';
-      }
       if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan Naskah Lalu)';
-      if (menbraInput) {
-        menbraInput.placeholder = 'Nomor naskah pergerakan kapal sebelumnya (opsional)';
-        if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
-      }
+      if (menbraInput) menbraInput.placeholder = 'Nomor naskah pergerakan kapal sebelumnya (opsional)';
       if (hintMenbra) hintMenbra.textContent = 'Nomor naskah telegram pergerakan kapal sebelumnya bila merupakan pergerakan lanjutan.';
-      const vesselSel = document.getElementById('selectVesselChoice');
-      const defaultCallSign = vesselSel ? (VESSEL_SPECS[vesselSel.value]?.callSign || 'YCSB') : 'YCSB';
-      const panggilEl = document.getElementById('panggilanInput');
-      if (panggilEl && (!panggilEl.value || panggilEl.value === '—' || panggilEl.value === '-')) {
-        panggilEl.value = defaultCallSign;
-      }
     } else if (kat === 'MAPEL') {
-      if (vesselPresets) {
-        vesselPresets.classList.add('hidden');
-        vesselPresets.style.display = 'none';
-      }
-      if (mapelPresets) {
-        mapelPresets.classList.remove('hidden');
-        mapelPresets.style.display = 'block';
-      }
       if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan BRA/MAPEL Lalu)';
-      if (menbraInput) {
-        menbraInput.placeholder = 'Nomor MAPEL/BRA rujukan sebelumnya (opsional)';
-        if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
-      }
+      if (menbraInput) menbraInput.placeholder = 'Nomor MAPEL/BRA rujukan sebelumnya (opsional)';
       if (hintMenbra) hintMenbra.textContent = 'Nomor naskah telegram/MAPEL sebelumnya yang menjadi dasar rujukan bila ada lanjutan.';
-
-      const jabatanSmcInput = document.getElementById('jabatanSmcInput');
-      if (jabatanSmcInput) {
-        jabatanSmcInput.value = 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
-      }
-      const aksiInput = document.getElementById('aksiInput');
-      if (aksiInput) {
-        if (!aksiInput.value.trim() || aksiInput.value.trim() === 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN') {
-          aksiInput.value = 'KA KSOP KENDARI KMA KA SROP KENDARI';
-        }
-        aksiInput.placeholder = 'KA KSOP KENDARI DAN KMA KA SROP KENDARI';
-      }
-      const infoInput = document.getElementById('infoInput');
-      if (infoInput) {
-        if (!infoInput.value.trim() || infoInput.value.includes('DEPUTI BIDANG OPERASI')) {
-          infoInput.value = 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
-        }
-        infoInput.placeholder = 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
-      }
     } else {
-      if (vesselPresets) {
-        vesselPresets.classList.add('hidden');
-        vesselPresets.style.display = 'none';
-      }
-      if (mapelPresets) {
-        mapelPresets.classList.add('hidden');
-        mapelPresets.style.display = 'none';
-      }
       if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan BRA Lalu)';
-      if (menbraInput) {
-        menbraInput.placeholder = (Math.max(1, (braFormCfg.nomorUrutPlaceholder || 1) - 1)) + '/' + (braFormCfg.satkerKode || 'SAR-304') + '/' + (braFormCfg.bulanTahunPlaceholder || '');
-        if (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-') menbraInput.value = '';
-      }
+      if (menbraInput) menbraInput.placeholder = (Math.max(1, (braFormCfg.nomorUrutPlaceholder || 1) - 1)) + '/' + (braFormCfg.satkerKode || 'SAR-304') + '/' + (braFormCfg.bulanTahunPlaceholder || '');
       if (hintMenbra) hintMenbra.textContent = 'Nomor naskah BRA sebelumnya yang menjadi dasar rujukan (bila ada).';
-      const jabatanSmcInput = document.getElementById('jabatanSmcInput');
-      if (jabatanSmcInput && opSelect && opSelect.value) {
-        jabatanSmcInput.value = 'SMC';
-      }
     }
 
+    const r = RECIPIENTS[kat] || RECIPIENTS.OPERASI_SAR;
+    setRecipient(document.getElementById('aksiInput'), r.aksi, r.aksiPh, initial);
+    setRecipient(document.getElementById('infoInput'), r.info, r.infoPh, initial);
+
     reindexSections();
+    syncLivePreview();
   }
 
-  // Bind radio events and initialize category state
+  // Bind radio events (inisialisasi kategori dijalankan setelah semua handler terdefinisi)
   kategoriRadios.forEach(radio => {
     radio.addEventListener('change', function() {
       updateCategoryUI(this.value);
+      applyInheritance();
     });
   });
-  updateCategoryUI(getSelectedKategori());
 
-  // Operasi Select handler
-  opSelect.addEventListener('change', async function() {
-    const opId = this.value;
-    const opt = this.options[this.selectedIndex];
-    const hiddenNamaOperasi = document.getElementById('hiddenNamaOperasi');
-
-    if (opId) {
-      if (hiddenNamaOperasi) {
-        hiddenNamaOperasi.value = opt.getAttribute('data-nama') || opt.text.split(' • ')[1]?.split(' (Status')[0]?.trim() || '';
-      }
-      opRecBar.classList.remove('hidden');
-      const currentKat = getSelectedKategori();
-      if (currentKat === 'MAPEL') {
-        document.getElementById('jabatanSmcInput').value = 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
-        const op = await loadOperasiData(opId);
-        if (op) {
-          applyMapelFromOperation(op);
-        }
-      } else {
-        document.getElementById('jabatanSmcInput').value = 'SMC';
-        // Otomatis aktifkan radio OPERASI_SAR hanya jika kategori saat ini bukan kapal dan bukan MAPEL
-        if (currentKat !== 'PERGERAKAN_KAPAL' && currentKat !== 'MAPEL') {
-          const radSar = document.querySelector('input[name="kategori"][value="OPERASI_SAR"]');
-          if (radSar && !radSar.checked) {
-            radSar.checked = true;
-            radSar.dispatchEvent(new Event('change'));
-          }
-        }
-      }
-    } else {
-      if (hiddenNamaOperasi) hiddenNamaOperasi.value = '';
-      opRecBar.classList.add('hidden');
-      document.getElementById('jabatanSmcInput').value = 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
+  function ensureKategori(kat) {
+    const rad = document.querySelector(`input[name="kategori"][value="${kat}"]`);
+    if (rad && !rad.checked) {
+      rad.checked = true;
+      rad.dispatchEvent(new Event('change'));
     }
-    syncLivePreview();
-  });
+  }
 
-  // Pejabat Select Auto-fill
-  if (pejabatSelect) {
-    pejabatSelect.addEventListener('change', function() {
-      const opt = this.options[this.selectedIndex];
-      if (opt && opt.value) {
-        document.getElementById('namaSmcInput').value = opt.getAttribute('data-nama') || '';
-        document.getElementById('pangkatSmcInput').value = opt.getAttribute('data-pangkat') || '';
-        const isOps = opSelect && opSelect.value;
-        document.getElementById('jabatanSmcInput').value = isOps ? 'SMC' : (opt.getAttribute('data-jabatan') || 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI');
-        syncLivePreview();
-      }
-    });
+  // Tombol referensi & pemilih H berdasarkan data operasi yang sedang dipilih
+  let currentOp = null;
+  const btnAutoInisiasi = document.getElementById('btnAutoInisiasi');
+  const btnAutoRenops = document.getElementById('btnAutoRenops');
+  const btnAutoSitrep = document.getElementById('btnAutoSitrep');
+  const btnAutoPenutupan = document.getElementById('btnAutoPenutupan');
+  const btnAutoMapel = document.getElementById('btnAutoMapel');
+  const selRenopsHari = document.getElementById('selectRenopsHari');
+  const selLapbangHari = document.getElementById('selectLapbangHari');
+
+  function setRefButton(btn, enabled, offTitle, onTitle) {
+    if (!btn) return;
+    btn.disabled = !enabled;
+    btn.classList.toggle('opacity-40', !enabled);
+    btn.classList.toggle('cursor-not-allowed', !enabled);
+    btn.title = enabled ? onTitle : offTitle;
+  }
+
+  function fillHariSelect(sel, items) {
+    if (!sel) return;
+    sel.replaceChildren(...items.map(o => new Option(o.label, String(o.id))));
+    if (items.length) sel.selectedIndex = items.length - 1;
+    sel.disabled = !items.length;
+    sel.classList.toggle('hidden', !items.length);
+  }
+
+  function renderReferenceControls(op) {
+    if (!BT_READY) op = null;
+    const ref = op ? BT.referenceOptions(op) : { renops: [], lapbang: [], penutupan: null };
+    const noOp = 'Pilih Operasi SAR terlebih dahulu';
+    fillHariSelect(selRenopsHari, ref.renops);
+    fillHariSelect(selLapbangHari, ref.lapbang);
+    setRefButton(btnAutoInisiasi, !!op, noOp, 'Muat naskah Laporan Awal');
+    setRefButton(btnAutoRenops, ref.renops.length > 0, op ? 'Belum ada RENOPS pada operasi ini' : noOp, 'Muat RENOPS pada hari terpilih');
+    setRefButton(btnAutoSitrep, ref.lapbang.length > 0, op ? 'Belum ada Laporan Perkembangan pada operasi ini' : noOp, 'Muat Lapbang pada hari terpilih');
+    setRefButton(btnAutoPenutupan, !!ref.penutupan, op ? 'Belum ada Laporan Penutupan pada operasi ini' : noOp, 'Muat Lapbang dan Penutupan Operasi SAR');
+    setRefButton(btnAutoMapel, !!op, noOp, 'Muat naskah Pemapelan dari data Operasi SAR');
   }
 
   // API Load Operasi SAR data
@@ -670,460 +582,224 @@ function initBraForm() {
     }
   }
 
+  // Muat operasi terpilih; respons yang datang setelah operasi diganti diabaikan
+  async function selectOperasi(opId) {
+    currentOp = null;
+    renderReferenceControls(null);
+    fillMenbraOptions(null);
+    if (!opId) return null;
+    const op = await loadOperasiData(opId);
+    if (!opSelect || opSelect.value !== opId) return null;
+    if (!op && typeof showToast === 'function') showToast('Gagal memuat data Operasi SAR. Periksa koneksi lalu pilih ulang operasi.', 'error');
+    currentOp = op;
+    renderReferenceControls(op);
+    fillMenbraOptions(op);
+    return op;
+  }
+
+  // MENBRA: tawarkan nomor BRA yang sudah terbit untuk operasi ini (terbaru di atas), selain naskah yang sedang diedit
+  function fillMenbraOptions(op) {
+    const dl = document.getElementById('menbraOptions');
+    const input = document.getElementById('menbraInput');
+    if (!dl) return;
+    const list = ((op && op.bra_sar) || []).filter(b => b.no_bra && String(b.id_bra) !== String(currentBraId));
+    dl.replaceChildren(...list.map(b => new Option(String(b.perihal || '').slice(0, 90), b.no_bra)));
+    if (input && list.length) input.placeholder = `Terakhir: ${list[0].no_bra} (klik untuk memilih)`;
+  }
+
+  // Operasi Select handler
+  opSelect.addEventListener('change', async function() {
+    const opId = this.value;
+    const opt = this.options[this.selectedIndex];
+    const hiddenNamaOperasi = document.getElementById('hiddenNamaOperasi');
+    if (hiddenNamaOperasi) {
+      hiddenNamaOperasi.value = opId ? (opt.getAttribute('data-nama') || '') : '';
+    }
+    opRecBar.classList.toggle('hidden', !opId);
+    applySenderTitle('LANJUTAN');
+    const hasDraft = [...sectionsContainer.querySelectorAll('.sec-content-textarea')].some(t => t.value.trim());
+    if (hasDraft && getSelectedKategori() === 'OPERASI_SAR' && typeof showToast === 'function') {
+      showToast('Operasi diganti: isi naskah masih dari operasi sebelumnya. Muat ulang lewat tombol draf.', 'warning');
+    }
+
+    const op = await selectOperasi(opId);
+    if (op) {
+      if (getSelectedKategori() === 'MAPEL') {
+        applyDraft(BT.buildMapel(op));
+      } else if (getSelectedKategori() !== 'PERGERAKAN_KAPAL') {
+        ensureKategori('OPERASI_SAR');
+      }
+      applyInheritance();
+    }
+    syncLivePreview();
+  });
+
+  // Tautan dari halaman operasi (?id_operasi=&from=renops|sitrep|penutupan|laporan_awal|mapel): draf dibuat lewat tombol yang sama
+  selectOperasi(opSelect ? opSelect.value : '').then(op => {
+    const a = braFormCfg.autoDraft;
+    if (!op || !a) return;
+    const pick = (sel, id) => { if (sel && id) sel.value = String(id); };
+    if (a.from === 'renops') {
+      pick(selRenopsHari, a.id_renops);
+      btnAutoRenops.click();
+    } else if (a.from === 'sitrep') {
+      const list = op.laporan_harian || [];
+      const l = findById(list, 'id_laporan', a.id_laporan) || list[list.length - 1];
+      if (l && String(l.jenis_laporan || '').toUpperCase() === 'PENUTUPAN') return btnAutoPenutupan.click();
+      pick(selLapbangHari, l && l.id_laporan);
+      btnAutoSitrep.click();
+    } else if (a.from === 'penutupan') {
+      btnAutoPenutupan.click();
+    } else if (a.from === 'mapel') {
+      btnAutoMapel.click();
+    } else {
+      btnAutoInisiasi.click();
+    }
+  });
+
+  // Pejabat Select Auto-fill
+  if (pejabatSelect) {
+    pejabatSelect.addEventListener('change', function() {
+      const opt = this.options[this.selectedIndex];
+      if (opt && opt.value) {
+        document.getElementById('namaSmcInput').value = opt.getAttribute('data-nama') || '';
+        document.getElementById('pangkatSmcInput').value = opt.getAttribute('data-pangkat') || '';
+        applySenderTitle(lastDraftKind);
+        syncLivePreview();
+      }
+    });
+  }
+
+  // Isi bagian naskah lewat DOM (.value), tanpa innerHTML untuk data operasi
   function setSectionsContent(sectionsArr) {
-    sectionsContainer.innerHTML = '';
+    sectionsContainer.replaceChildren();
     sectionsArr.forEach((s, idx) => {
       const div = document.createElement('div');
       div.className = 'sec-item section-block';
       div.setAttribute('data-index', idx);
-      div.innerHTML = `
-        <div class="sec-item-header">
-          <div class="flex items-center gap-2">
-            <span class="sec-code-badge">${s.kode}</span>
-            <input type="hidden" name="sections[${idx}][kode]" value="${s.kode}" class="sec-code-input">
-            <span class="sec-hint-title sec-hint-label">${getSectionHint(idx, getSelectedKategori())}</span>
-          </div>
-          ${idx >= 3 ? `<button type="button" class="sec-del-btn btn-delete-section" title="Hapus bagian ini"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg><span>Hapus</span></button>` : ''}
-        </div>
-        <textarea name="sections[${idx}][isi]" rows="4" class="bra-control sec-content-textarea upper" placeholder="Isi naskah telegram untuk bagian ${s.kode}..." required>${s.isi}</textarea>
-      `;
+
+      const header = document.createElement('div');
+      header.className = 'sec-item-header';
+      const left = document.createElement('div');
+      left.className = 'flex items-center gap-2';
+      const badge = document.createElement('span');
+      badge.className = 'sec-code-badge';
+      const kode = document.createElement('input');
+      kode.type = 'hidden';
+      kode.className = 'sec-code-input';
+      const hint = document.createElement('span');
+      hint.className = 'sec-hint-title sec-hint-label';
+      left.append(badge, kode, hint);
+      header.append(left);
+
+      const ta = document.createElement('textarea');
+      ta.rows = 4;
+      ta.className = 'bra-control sec-content-textarea upper';
+      ta.required = true;
+      ta.value = s.isi || '';
+
+      div.append(header, ta);
       sectionsContainer.appendChild(div);
     });
     reindexSections();
   }
 
-  // Helper: Format dan Terapkan Naskah MAPEL dari data Operasi SAR
-  function applyMapelFromOperation(op, customParams = {}) {
-    const twb = document.getElementById('twbInput').value || getMilitaryTW(new Date(Date.now() - 15 * 60000));
-    const pelapor = (customParams.pelapor || op?.nama_pelapor || 'BPK SAHARUDDIN').toUpperCase();
-    const hubungan = (customParams.hubungan || op?.hubungan_pelapor || 'PEMILIK KAPAL / KELUARGA').toUpperCase();
-    const noHp = customParams.no_hp || (op?.no_telp_pelapor ? `HP ${op.no_telp_pelapor}` : 'HP. 081327820103');
-    const infoPelapor = `${pelapor} (${hubungan}/${noHp})`;
-    const rawMusibah = (customParams.nama_musibah || op?.nama_operasi || 'LONGBOAT MATI MESIN DAN HILANG KONTAK').toUpperCase();
-    const namaMusibah = formatTelegramReduplication(rawMusibah);
-    const pob = customParams.pob || op?.jumlah_korban || (op?.korban && op.korban.length) || 1;
-    const pobText = pob > 0 ? ` DENGAN POB ${pob} ORANG` : '';
-    const lokasi = (customParams.lokasi || op?.lokasi_kejadian || 'PERAIRAN SULAWESI TENGGARA').toUpperCase();
-    const koordinat = (customParams.koordinat || op?.koordinat || '03° 58\' 30" S - 122° 35\' 12" E').toUpperCase();
-    let ciriKapal = (customParams.ciri_kapal || (op?.alut_palsar ? op.alut_palsar.replace(/\n/g, ' KMA ') : 'LONGBOAT WARNA BIRU PUTIH MESIN TEMPEL 15 PK')).toUpperCase();
-    ciriKapal = formatTelegramReduplication(ciriKapal);
-
-    // Hitung Hari Ke Operasi SAR jika merujuk pada Operasi SAR
-    let hariKe = 1;
-    if (op) {
-      if (op.renops && Array.isArray(op.renops)) {
-        op.renops.forEach(rn => {
-          if (rn.hari_ke) {
-            const m = String(rn.hari_ke).match(/(?:H\s*[\.\-]?\s*)?(\d+)/i);
-            if (m) hariKe = Math.max(hariKe, parseInt(m[1], 10));
-          }
-        });
-      }
-      if (op.laporan_harian && Array.isArray(op.laporan_harian)) {
-        op.laporan_harian.forEach(lp => {
-          if (lp.hari_ke) {
-            const m = String(lp.hari_ke).match(/(?:H\s*[\.\-]?\s*)?(\d+)/i);
-            if (m) hariKe = Math.max(hariKe, parseInt(m[1], 10));
-          }
-        });
-      }
-      if (hariKe === 1) {
-        const startDateStr = op.tanggal_mulai || op.waktu_lapor || null;
-        if (startDateStr) {
-          const startDay = new Date(startDateStr.substring(0, 10));
-          const today = new Date();
-          const diffTime = today.setHours(0,0,0,0) - startDay.setHours(0,0,0,0);
-          if (diffTime >= 0) {
-            const calcDay = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-            hariKe = Math.max(hariKe, calcDay);
-          }
-        }
-      }
-    }
-    if (customParams.hari_ke) hariKe = parseInt(customParams.hari_ke, 10);
-
-    let kalimatHariKe = '';
-    if (hariKe >= 2) {
-      kalimatHariKe = ` SAAT INI OPERASI SAR SEDANG BERJALAN MEMASUKI HARI KE-${hariKe} (H.${hariKe}) DENGAN HASIL KORBAN MASIH DALAM PENCARIAN TTK`;
-    }
-
-    const kondisiTerakhir = (customParams.kondisi_terakhir || 'INFO TERAKHIR DARI KORBAN KAPAL TERAPUNG DAN MEMBUTUHKAN BANTUAN SAR').toUpperCase();
-
-    // Seksi AAA baku telegram pemapelan (sandi resmi CIRIS tanpa tanda hubung, koordinat bersambung, klausul H.X bila >= 2)
-    let isiAaa = `PD TW ${twb} TERIMA INFO DARI ${infoPelapor} BAHWA TELAH TERJADI ${namaMusibah}${pobText} POSISI SAAT INI DI SEKITAR ${lokasi} PADA KOORDINAT ${koordinat} TTK CIRIS KAPAL TTK DUA ${ciriKapal} TTK${kalimatHariKe} ${kondisiTerakhir} TTK`;
-    isiAaa = formatTelegramReduplication(isiAaa.trim());
-
-    // Seksi BBB baku permintaan pemapelan maritim kepada kapal melintas (KAPALS)
-    const isiBbb = "TERKAIT INFO MUSIBAH TSB MHN BANTUAN PEMANTAUAN DAN PEMAPELAN KEPADA KAPALS YANG MELINTASI DI AREA TERSEBUT KMA APABILA MENEMUKAN TANDAS KEBERADAAN KAPAL TERSEBUT AGAR DAPAT MEMBERIKAN PERTOLONGAN PERTAMA SERTA MELAPORKAN KPD BASARNAS KENDARI TTK";
-
-    // Seksi CCC baku ucapan terima kasih telegram resmi
-    const isiCcc = "DEMIKIAN SEBAGAI LAPORAN ATAS KERJASAMANYA DIUCAPKAN TERIMAKASIH TTK KMA KAKANSAR KENDARI KRM TTK HBS";
-
-    const perihal = `PERMINTAAN PEMAPELAN DAN PEMANTAUAN TERHADAP ${namaMusibah} TTK`;
-
-    document.getElementById('perihalInput').value = perihal;
-    document.getElementById('aksiInput').value = customParams.aksi || 'KA KSOP KENDARI KMA KA SROP KENDARI';
-    document.getElementById('infoInput').value = customParams.info || 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
-    document.getElementById('derajatInput').value = 'SGR';
-    document.getElementById('jabatanSmcInput').value = 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
-
-    setSectionsContent([
-      { kode: 'AAA', isi: isiAaa },
-      { kode: 'BBB', isi: isiBbb },
-      { kode: 'CCC', isi: isiCcc }
-    ]);
+  // Terapkan draf naskah dari BraTemplates ke form
+  function applyDraft(d) {
+    document.getElementById('perihalInput').value = d.perihal;
+    document.getElementById('aksiInput').value = d.aksi;
+    document.getElementById('infoInput').value = d.info;
+    setSectionsContent(d.sections);
+    applySenderTitle(d.kind);
+    applyInheritance();
+    syncLivePreview();
   }
 
-  // 1. Rekomendasi: Laporan Awal (Inisiasi)
-  document.getElementById('btnAutoInisiasi').addEventListener('click', async function() {
-    const opId = opSelect.value;
-    if (!opId) {
-      if (typeof showToast === 'function') showToast('Pilih Operasi SAR pada dropdown terlebih dahulu.', 'warning');
-      return;
-    }
-    const op = await loadOperasiData(opId);
-    if (!op) return;
+  // BRA baru mewarisi MENBRA, AKSI, INFO dan derajat dari BRA sebelumnya pada operasi & kategori yang sama
+  // (MENBRA Pemapelan merujuk BRA Operasi SAR terakhir). Mode edit tidak diubah.
+  function applyInheritance() {
+    if (currentBraId || !currentOp || !BT.inheritHeader) return;
+    const h = BT.inheritHeader(currentOp, getSelectedKategori(), currentBraId);
+    if (!h) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined) el.value = v; };
+    set('menbraInput', h.menbra);
+    // Belum ada BRA sebelumnya di kategori ini: pakai alamat baku kategori, bukan sisa warisan kategori lain
+    const r = RECIPIENTS[getSelectedKategori()] || RECIPIENTS.OPERASI_SAR;
+    set('aksiInput', h.aksi !== undefined ? h.aksi : r.aksi);
+    set('infoInput', h.info !== undefined ? h.info : r.info);
+    if (h.derajat) set('derajatInput', h.derajat);
+    syncLivePreview();
+  }
 
-    const twb = document.getElementById('twbInput').value || getMilitaryTW(new Date(Date.now() - 15 * 60000));
-    const twu = document.getElementById('twuInput').value || getMilitaryTW(new Date());
-
-    const pelapor = (op.nama_pelapor || 'BAPAK POLSEK').toUpperCase();
-    const hubungan = (op.hubungan_pelapor || 'MASYARAKAT').toUpperCase();
-    const noHp = op.no_telp_pelapor ? `HP ${op.no_telp_pelapor}` : 'HP. -';
-    const infoPelapor = `${pelapor} (${hubungan} / ${noHp})`;
-    const namaOps = (op.nama_operasi || 'OPERASI SAR').toUpperCase();
-    const lokasi = (op.lokasi_kejadian || 'PERAIRAN SULTRA').toUpperCase();
-    const koordinat = (op.koordinat || '03° 58\' 30" S - 122° 35\' 12" E').toUpperCase();
-    const timBerangkat = (op.tim_berangkat || 'TIM RESCUE KANSAR KENDARI').toUpperCase();
-
-    document.getElementById('perihalInput').value = `LAPORAN AWAL OPERASI SAR TERHADAP ${namaOps} TTK`;
-    document.getElementById('aksiInput').value = `KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN`;
-    document.getElementById('infoInput').value = `DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN`;
-    document.getElementById('derajatInput').value = 'SGR';
-
-    setSectionsContent([
-      { kode: 'AAA', isi: `PADA TW ${twb} TERIMA INFO DARI ${infoPelapor} BAHWA TELAH TERJADI ${namaOps} DI ${lokasi} PADA KOORDINAT ${koordinat} TTK` },
-      { kode: 'BBB', isi: `TERSEBUT AAA DIATAS MAKA PADA TW ${twu} ${timBerangkat} DIBERANGKATKAN MENUJU LKP DENGAN MENGGUNAKAN ${(op.alut_palsar || '1 UNIT RESCUE CAR DAN 1 UNIT RUBBER BOAT').toUpperCase().replace(/\n/g, ' KMA ')} DENGAN ESTIMASI WAKTU TEMPUH ${op.eta_lokasi || 'SEGERA'} TTK` },
-      { kode: 'CCC', isi: `UNSUR SAR TERLIBAT TTK DUA\n${(op.unsur_terlibat || '* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG').toUpperCase()}\n\nALUT DAN PALSAR TTK DUA\n${(op.alut_palsar || '• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT').toUpperCase()}\n\nKONDISI CUACA TTK DUA\n• CUACA : ${(op.cuaca || 'CERAH BERAWAN').toUpperCase()}\n• ANGIN : ${(op.angin || 'TIMUR LAUT - TENGGARA, 5-15 KNOTS').toUpperCase()}\n• GELOMBANG : ${(op.gelombang || '0.5 - 1.25 METER').toUpperCase()}` },
-      { kode: 'DDD', isi: `LAPORAN PERKEMBANGAN MENYUSUL KMA KA KPP KENDARI KRM TTK HBS` }
-    ]);
-    if (typeof showToast === 'function') showToast('Rekomendasi Naskah Laporan Awal berhasil dimuat!', 'success');
-  });
-
-  // 2. Rekomendasi: Renops Terakhir
-  document.getElementById('btnAutoRenops').addEventListener('click', async function() {
-    const opId = opSelect.value;
-    if (!opId) return;
-    const op = await loadOperasiData(opId);
-    if (!op || !op.renops || op.renops.length === 0) {
-      if (typeof showToast === 'function') showToast('Belum ada data Rencana Operasi (Renops) pada operasi ini.', 'warning');
-      return;
-    }
-    const r = op.renops[op.renops.length - 1];
-    const hariKe = (r.hari_ke || 'H.1').toUpperCase();
-    const namaOps = (op.nama_operasi || 'OPERASI SAR').toUpperCase();
-
-    document.getElementById('perihalInput').value = `RENCANA OPERASI SAR ${hariKe} ${namaOps} TTK`;
-    document.getElementById('aksiInput').value = `KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN`;
-    document.getElementById('infoInput').value = `DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN`;
-
-    let sruText = '';
-    if (r.srus && Array.isArray(r.srus) && r.srus.length > 0) {
-      sruText = r.srus.map(s => `* ${s.nama_sru.toUpperCase()} DENGAN POLA ${s.pola_pencarian.toUpperCase()} LUAS ${s.luas_area.toUpperCase()} AREA: ${s.koordinat_area.replace(/\n/g, ' / ')}`).join('\n');
-    } else {
-      sruText = `* SRU 1: PENYISIRAN PARALLEL TRACK SEARCH DISEPUTARAN LKP\n* SRU 2: PENYISIRAN PESISIR PANTAI`;
-    }
-
-    const twBriefing = formatDateToMilitary(r.waktu_briefing) || document.getElementById('twbInput').value;
-    const twMulai = formatDateToMilitary(r.waktu_mulai_ops) || document.getElementById('twuInput').value;
-
-    setSectionsContent([
-      { kode: 'AAA', isi: `PADA TW ${twBriefing} TIM SAR GABUNGAN MELAKSANAKAN BRIEFING PEMBAGIAN SEKTOR PENCARIAN RENCANA OPERASI SAR ${hariKe} TERHADAP ${namaOps} DENGAN WAKTU MULAI PERGERAKAN TW ${twMulai} TTK` },
-      { kode: 'BBB', isi: `RENCANA PEMBAGIAN SRU TTK DUA\n${sruText}\n\nKONDISI METEOROLOGI / CUACA TTK DUA\n• CUACA : ${(r.cuaca || op.cuaca || 'CERAH BERAWAN').toUpperCase()}` },
-      { kode: 'CCC', isi: `UNSUR SAR TERLIBAT TTK DUA\n${(r.unsur_text || op.unsur_terlibat || '* RESCUER KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG').toUpperCase()}\n\nALUT DAN PALSAR TTK DUA\n${(r.alut_text || op.alut_palsar || '• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT').toUpperCase()}` },
-      { kode: 'DDD', isi: `DMKN SBG RENCANA OPERASI ${hariKe} KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS` }
-    ]);
-    if (typeof showToast === 'function') showToast(`Rekomendasi Rencana Operasi ${hariKe} berhasil dimuat!`, 'success');
-  });
-
-  // 3. Rekomendasi: SITREP (Lapbang)
-  document.getElementById('btnAutoSitrep').addEventListener('click', async function() {
-    const opId = opSelect.value;
-    if (!opId) return;
-    const op = await loadOperasiData(opId);
-    if (!op || !op.laporan_harian || op.laporan_harian.length === 0) {
-      if (typeof showToast === 'function') showToast('Belum ada data Laporan Perkembangan (SITREP) pada operasi ini.', 'warning');
-      return;
-    }
-    const sit = op.laporan_harian[op.laporan_harian.length - 1];
-    const hariKe = (sit.hari_ke || 'H.1').toUpperCase();
-    const namaOps = (op.nama_operasi || 'OPERASI SAR').toUpperCase();
-
-    document.getElementById('perihalInput').value = `LAPORAN PERKEMBANGAN ${hariKe} OPERASI SAR ${namaOps} TTK`;
-    document.getElementById('aksiInput').value = `KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN`;
-    document.getElementById('infoInput').value = `DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN`;
-
-    // Compute victim stats
-    const victims = op.korban || [];
-    let sCount = victims.filter(k => (k.status_korban || '').toUpperCase() === 'S').length;
-    let mdCount = victims.filter(k => (k.status_korban || '').toUpperCase() === 'MD').length;
-    let dpCount = victims.filter(k => !['S', 'MD'].includes((k.status_korban || '').toUpperCase())).length;
-
-    const twLaporan = formatDateToMilitary(sit.waktu_laporan) || document.getElementById('twuInput').value;
-
-    setSectionsContent([
-      { kode: 'AAA', isi: `PADA TW ${twLaporan} TERIMA INFO DARI OSC TIM SAR GABUNGAN BAHWA ${(sit.isi_laporan || 'PENCARIAN TELAH DILAKSANAKAN SESUAI RENOPS DENGAN HASIL KORBAN BELUM DITEMUKAN (NIHIL)').toUpperCase()} TTK` },
-      { kode: 'BBB', isi: `ALUT DAN PALSAR DIKERAHKAN TTK DUA\n${(sit.alut_text || op.alut_palsar || '• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT').toUpperCase()}` },
-      { kode: 'CCC', isi: `UNSUR SAR TERLIBAT TTK DUA\n${(sit.unsur_text || op.unsur_terlibat || '* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG').toUpperCase()}` },
-      { kode: 'DDD', isi: `DATA REKAPITULASI KORBAN TTK DUA\n* KORBAN SELAMAT : ${sCount} ORANG\n* KORBAN MENINGGAL DUNIA : ${mdCount} ORANG\n* KORBAN DALAM PENCARIAN (DP) : ${dpCount} ORANG\n* TOTAL POB : ${op.jumlah_pob || (sCount + mdCount + dpCount)} ORANG` },
-      { kode: 'EEE', isi: `KONDISI CUACA TTK DUA\n• CUACA : ${(sit.cuaca || op.cuaca || 'CERAH BERAWAN').toUpperCase()}\n• GELOMBANG : ${(op.gelombang || '0.5 - 1.25 METER').toUpperCase()}\n\nPADA TW ${document.getElementById('twuInput').value} PENCARIAN DIHENTIKAN SEMENTARA DENGAN HASIL NIHIL KMA OPERASI AKAN DILANJUTKAN KEMBALI BESOK PAGI PADA TW 0700 H TTK` },
-      { kode: 'FFF', isi: `DMKN SBG LAPORAN PERKEMBANGAN ${hariKe} KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS` }
-    ]);
-    if (typeof showToast === 'function') showToast(`Rekomendasi Lapbang ${hariKe} berhasil dimuat!`, 'success');
-  });
-
-  // 4. Rekomendasi: Penutupan Operasi
-  document.getElementById('btnAutoPenutupan').addEventListener('click', async function() {
-    const opId = opSelect.value;
-    if (!opId) return;
-    const op = await loadOperasiData(opId);
-    if (!op) return;
-
-    const namaOps = (op.nama_operasi || 'OPERASI SAR').toUpperCase();
-    document.getElementById('perihalInput').value = `LAPORAN PERKEMBANGAN DAN PENUTUPAN OPERASI SAR TERHADAP ${namaOps} TTK`;
-    document.getElementById('aksiInput').value = `KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN`;
-    document.getElementById('infoInput').value = `DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN KMA GUBERNUR SULTRA`;
-
-    const victims = op.korban || [];
-    let sCount = victims.filter(k => (k.status_korban || '').toUpperCase() === 'S').length;
-    let mdCount = victims.filter(k => (k.status_korban || '').toUpperCase() === 'MD').length;
-    let dpCount = victims.filter(k => !['S', 'MD'].includes((k.status_korban || '').toUpperCase())).length;
-
-    const latestSit = (op.laporan_harian && op.laporan_harian.length > 0) ? op.laporan_harian[op.laporan_harian.length - 1] : null;
-    const twDebrief = formatDateToMilitary(latestSit?.waktu_debrief) || document.getElementById('twuInput').value;
-
-    setSectionsContent([
-      { kode: 'AAA', isi: `PADA TW ${twDebrief} TIM SAR GABUNGAN MELAKSANAKAN DEBRIEFING DAN EVALUASI PENUTUPAN OPERASI SAR TERHADAP ${namaOps} KMA HASIL AKHIR ${(latestSit?.isi_laporan || 'SELURUH KORBAN TELAH BERHASIL DIEVAKUASI DAN OPERASI SAR DINYATAKAN SELESAI').toUpperCase()} TTK` },
-      { kode: 'BBB', isi: `ALUT DAN PALSAR DIKEMBALIKAN KE PANGKALAN TTK DUA\n${(latestSit?.alut_text || op.alut_palsar || '• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT').toUpperCase()}` },
-      { kode: 'CCC', isi: `UNSUR SAR TERLIBAT DIKEMBALIKAN KE KESATUAN MASING-MASING TTK DUA\n${(latestSit?.unsur_text || op.unsur_terlibat || '* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG').toUpperCase()}` },
-      { kode: 'DDD', isi: `DATA REKAPITULASI KORBAN AKHIR TTK DUA\n* KORBAN SELAMAT : ${sCount} ORANG\n* KORBAN MENINGGAL DUNIA : ${mdCount} ORANG\n* KORBAN DALAM PENCARIAN (DP) : ${dpCount} ORANG\n* TOTAL POB : ${op.jumlah_pob || (sCount + mdCount + dpCount)} ORANG` },
-      { kode: 'EEE', isi: `DENGAN DITEMUKANNYA SELURUH KORBAN MAKA OPERASI SAR DINYATAKAN DITUTUP KMA UCAPAN TERIMA KASIH ATAS KERJASAMANYA KEPADA SELURUH UNSUR SAR TERLIBAT TTK` },
-      { kode: 'FFF', isi: `DMKN SBG LAPORAN PENUTUPAN OPERASI SAR KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS` }
-    ]);
-    if (typeof showToast === 'function') showToast('Rekomendasi Naskah Penutupan Operasi SAR berhasil dimuat!', 'success');
-  });
-
-  // 5. Rekomendasi: Pemapelan Maritim (MAPEL) dari Operasi SAR
-  const btnAutoMapel = document.getElementById('btnAutoMapel');
-  if (btnAutoMapel) {
-    btnAutoMapel.addEventListener('click', async function() {
-      const opId = opSelect.value;
-      if (!opId) {
+  function withCurrentOp(fn) {
+    return function() {
+      if (!currentOp) {
         if (typeof showToast === 'function') showToast('Pilih Operasi SAR pada dropdown terlebih dahulu.', 'warning');
         return;
       }
-      const op = await loadOperasiData(opId);
-      if (!op) return;
-
-      const radMapel = document.querySelector('input[name="kategori"][value="MAPEL"]');
-      if (radMapel && !radMapel.checked) {
-        radMapel.checked = true;
-        radMapel.dispatchEvent(new Event('change'));
-      }
-
-      applyMapelFromOperation(op);
-      if (typeof showToast === 'function') showToast('Draf Naskah BRA Mapel dari Operasi berhasil dimuat!', 'success');
-    });
+      fn(currentOp);
+    };
   }
 
-  // 6. Aksi Cepat Mapel: 1. Longboat / Kapal Hilang Kontak
+  const findById = (list, key, id) => (list || []).find(item => String(item[key]) === String(id));
+
+  // 1. Laporan Awal
+  btnAutoInisiasi.addEventListener('click', withCurrentOp(op => {
+    ensureKategori('OPERASI_SAR');
+    document.getElementById('derajatInput').value = 'SGR';
+    applyDraft(BT.buildLaporanAwal(op));
+    if (typeof showToast === 'function') showToast('Draf Laporan Awal berhasil dimuat!', 'success');
+  }));
+
+  // 2. RENOPS pada H terpilih
+  btnAutoRenops.addEventListener('click', withCurrentOp(op => {
+    const r = findById(op.renops, 'id_renops', selRenopsHari && selRenopsHari.value);
+    if (!r) return;
+    ensureKategori('OPERASI_SAR');
+    applyDraft(BT.buildRenops(op, r));
+    if (typeof showToast === 'function') showToast(`Draf RENOPS HARI KE ${BT.hariNumber(r.hari_ke)} berhasil dimuat!`, 'success');
+  }));
+
+  // 3. Lapbang pada H terpilih
+  btnAutoSitrep.addEventListener('click', withCurrentOp(op => {
+    const l = findById(op.laporan_harian, 'id_laporan', selLapbangHari && selLapbangHari.value);
+    if (!l) return;
+    ensureKategori('OPERASI_SAR');
+    applyDraft(BT.buildLapbang(op, l));
+    if (typeof showToast === 'function') showToast(`Draf Lapbang HARI KE ${BT.hariNumber(l.hari_ke)} berhasil dimuat!`, 'success');
+  }));
+
+  // 4. Lapbang dan Penutupan
+  btnAutoPenutupan.addEventListener('click', withCurrentOp(op => {
+    const l = BT.referenceOptions(op).penutupan;
+    if (!l) return;
+    ensureKategori('OPERASI_SAR');
+    applyDraft(BT.buildPenutupan(op, l));
+    if (typeof showToast === 'function') showToast('Draf Lapbang dan Penutupan berhasil dimuat!', 'success');
+  }));
+
+  // 5. Pemapelan dari Operasi SAR
+  if (btnAutoMapel) {
+    btnAutoMapel.addEventListener('click', withCurrentOp(op => {
+      ensureKategori('MAPEL');
+      document.getElementById('derajatInput').value = 'SGR';
+      applyDraft(BT.buildMapel(op));
+      if (typeof showToast === 'function') showToast('Draf Pemapelan dari Operasi berhasil dimuat!', 'success');
+    }));
+  }
+
+  // 6. Aksi Cepat Mapel: Longboat / Kapal Hilang Kontak (tanpa operasi tetap bisa dipakai)
   const btnPresetLongboat = document.getElementById('btnPresetLongboatHilangKontak');
   if (btnPresetLongboat) {
-    btnPresetLongboat.addEventListener('click', async function() {
-      const opId = opSelect ? opSelect.value : '';
-      let op = null;
-      if (opId) {
-        op = await loadOperasiData(opId);
-      }
-
-      const radMapel = document.querySelector('input[name="kategori"][value="MAPEL"]');
-      if (radMapel && !radMapel.checked) {
-        radMapel.checked = true;
-        radMapel.dispatchEvent(new Event('change'));
-      }
-
-      applyMapelFromOperation(op, { nama_musibah: 'LONGBOAT MATI MESIN DAN HILANG KONTAK' });
+    btnPresetLongboat.addEventListener('click', function() {
+      ensureKategori('MAPEL');
+      document.getElementById('derajatInput').value = 'SGR';
+      applyDraft(BT.buildMapel({ ...(currentOp || {}), nama_operasi: 'LONGBOAT MATI MESIN DAN HILANG KONTAK' }));
       if (typeof showToast === 'function') showToast('Preset Pemapelan Longboat / Kapal Hilang Kontak berhasil dimuat!', 'success');
     });
   }
 
-  // 7. Preset Alut Laut Resmi KPP Kendari (ISSUE-10): KN SAR Pacitan, Rescue Boat 210, Rescue Boat 307
-  const VESSEL_SPECS = {
-    'KN_SAR_PACITAN': {
-      name: 'KN SAR PACITAN 102',
-      shortName: 'KN SAR PACITAN',
-      callSign: 'YCSB',
-      loa: '59,80 METER',
-      type: 'ALUMINIUM ALLOY',
-      speedMax: '20 KNOT',
-      speedEco: '15 KNOT',
-      endurance: '48 JAM / 70%',
-      basePort: 'DERMAGA UTAMA BASARNAS BUNGKUTOKO KENDARI',
-      pobTotal: 40,
-      abkCount: 20,
-      rescuerCount: 20,
-      nakhoda: 'RUSLAN, S.T.',
-      palsarAlkom: 'SEA RIDER 1 UNIT (40 PK) READY KMA SEKOCI 2 UNIT READY KMA ALAT SELAM 4 SET READY KMA RADAR AIS ECDIS READY TTK'
-    },
-    'RB_210': {
-      name: 'RESCUE BOAT 210 KENDARI',
-      shortName: 'RB 210',
-      callSign: 'YCSB-210',
-      loa: '36 METER',
-      type: 'MONOHULL FIBERGLASS',
-      speedMax: '26 KNOT',
-      speedEco: '18 KNOT',
-      endurance: '14.500 LITER BBM / 6.000 LITER AIR TAWAR',
-      basePort: 'DERMAGA UTAMA BASARNAS KENDARI',
-      pobTotal: 16,
-      abkCount: 12,
-      rescuerCount: 4,
-      nakhoda: 'JUMARDIN, S.E.',
-      palsarAlkom: 'RUBBER BOAT 1 UNIT (25 PK) KMA LIFE JACKET 20 BUAH KMA ALAT SELAM 2 SET KMA VHF MARINE RADAR GPS AIS READY TTK'
-    },
-    'RB_307': {
-      name: 'RESCUE BOAT 307 KENDARI',
-      shortName: 'RB 307',
-      callSign: 'YCSB-307',
-      loa: '28 METER',
-      type: 'MONOHULL FIBERGLASS',
-      speedMax: '25 KNOT',
-      speedEco: '16 KNOT',
-      endurance: '12.000 LITER BBM / 4.000 LITER AIR TAWAR',
-      basePort: 'DERMAGA BASARNAS KENDARI / POS SAR BAUBAU',
-      pobTotal: 14,
-      abkCount: 10,
-      rescuerCount: 4,
-      nakhoda: 'ERIK PRATAMA, S.Sos.',
-      palsarAlkom: 'RUBBER BOAT 1 UNIT (25 PK) KMA LIFE JACKET 15 BUAH KMA ALAT SELAM 2 SET KMA VHF MARINE RADAR GPS AIS READY TTK'
-    }
-  };
-
-  function applyVesselPreset(vesselKey, movementType = 'TOLAK') {
-    const radioKapal = document.querySelector('input[name="kategori"][value="PERGERAKAN_KAPAL"]');
-    if (radioKapal) {
-      radioKapal.checked = true;
-      radioKapal.dispatchEvent(new Event('change'));
-    }
-
-    const vKey = VESSEL_SPECS[vesselKey] ? vesselKey : 'KN_SAR_PACITAN';
-    const v = VESSEL_SPECS[vKey];
-    const vesselSel = document.getElementById('selectVesselChoice');
-    if (vesselSel) vesselSel.value = vKey;
-
-    const twbVal = document.getElementById('twbInput').value || getMilitaryTW(new Date());
-    const panggilanInput = document.getElementById('panggilanInput');
-    if (panggilanInput) panggilanInput.value = v.callSign;
-
-    document.getElementById('aksiInput').value = 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
-    document.getElementById('infoInput').value = 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN DAN KESIAPSIAGAAN KMA DIREKTUR SARPRAS KMA DIREKTUR KESIAPSIAGAAN';
-
-    let perihal = '';
-    let derajat = 'SGR';
-    let sections = [];
-
-    if (movementType === 'SANDAR') {
-      derajat = 'RUTIN';
-      perihal = `PERGERAKAN ${v.name} TIBA DAN SANDAR DI ${v.basePort} TTK`;
-      sections = [
-        { kode: 'AAA', isi: `PD TW ${twbVal} KMA ${v.name} TELAH TIBA DAN SANDAR AMAN DI ${v.basePort} SETELAH MELAKSANAKAN KEGIATAN OPERASI SAR / PATROLI DI PERAIRAN SULAWESI TENGGARA TTK` },
-        { kode: 'BBB', isi: `STATUS ALUT PASCA PELAYARAN TTK DUA\n• KONDISI MESIN / LAMBUNG : BAIK DAN NORMAL\n• KESIAPSIAGAAN : SIAP DITUGASKAN KEMBALI SEWAKTU-WAKTU (STANDBY PANGKALAN)\n• SISA BBM & AIR TAWAR : AMAN / CUKUP UNTUK SIAGA KEDARURATAN TTK` },
-        { kode: 'CCC', isi: `SELURUH CREW DAN RESCUER LENGKAP DALAM KEADAAN SEHAT KMA DMKN SBG LAPORAN KMA NAKHODA ${v.name} KRM TTK HBS` }
-      ];
-    } else if (movementType === 'PANTAUAN') {
-      derajat = 'SGR';
-      perihal = `LAPORAN PERKEMBANGAN POSISI ${v.name} DI PERAIRAN SULAWESI TENGGARA TTK`;
-      sections = [
-        { kode: 'AAA', isi: `PD TW ${twbVal} KMA POSISI ${v.name} BERADA PADA KOORDINAT 03° 58' 30" S - 122° 38' 15" E KMA HALUAN 135° KMA KECEPATAN ${v.speedEco} MENUJU SEKTOR PENCARIAN / PATROLI TTK` },
-        { kode: 'BBB', isi: `KONDISI METEOROLOGI DAN LAUT TTK DUA\n• CUACA : CERAH BERAWAN\n• ANGIN : TIMUR LAUT - TENGGARA, KECEPATAN 8 - 15 KNOTS\n• TINGGI GELOMBANG : 0.5 - 1.25 METER\n• JARAK PANDANG : BAIK (VISIBILITY 8 - 10 NM)\n\nKONDISI MATERIAL DAN PERSONIL TTK DUA\nSELURUH CREW DAN RESCUER LENGKAP ${v.pobTotal} ORANG DALAM KEADAAN SEHAT KMA ALUT DAN PERALATAN KAPAL BERFUNGSI NORMAL TTK` },
-        { kode: 'CCC', isi: `PELAYARAN DILANJUTKAN SESUAI RENCANA OPERASI KMA NAKHODA ${v.name} KRM TTK HBS` }
-      ];
-    } else {
-      // Default: TOLAK (Keberangkatan / Berlayar)
-      derajat = 'SGR';
-      perihal = `PELAYARAN ${v.name} DALAM RANGKA BKO / OPERASI SAR DI SEKITAR PERAIRAN SULAWESI TENGGARA TTK`;
-      sections = [
-        { kode: 'AAA', isi: `PD TW ${twbVal} KMA PERINTAH/RENCANA PELAYARAN ${v.name} DARI ${v.basePort} MENUJU LKP/AREA OPERASI DI SEKITAR PERAIRAN SULTRA DALAM RANGKA PELAKSANAAN OPERASI SAR TTK` },
-        { kode: 'BBB', isi: `DATA KAPAL TTK DUA\nNAMA : ${v.name}\nCALL SIGN : ${v.callSign}\nNAKHODA : ${v.nakhoda}\nLOA : ${v.loa}\nTYPE : ${v.type}\nSPEED MAX : ${v.speedMax}\nSPEED ECO : ${v.speedEco}\nENDURANCE : ${v.endurance}\nKONDISI MESIN : BAIK / SIAP OPERASI\n\nREN LAYAR TTK DUA\nRUTE : ${v.basePort} MENUJU PERAIRAN SULAWESI TENGGARA\nESTIMASI : 4 JAM PERJALANAN\n\nMUATAN POB TTK DUA\nTOTAL POB : ${v.pobTotal} ORANG (CREW ${v.abkCount} ORANG + RESCUER ${v.rescuerCount} ORANG)\n\nDATA PALSAR ALKOM ALNAV TTK DUA\n${v.palsarAlkom}` },
-        { kode: 'CCC', isi: `LAPORAN PERKEMBANGAN MENYUSUL KMA NAKHODA ${v.name} KRM TTK HBS` }
-      ];
-    }
-
-    document.getElementById('derajatInput').value = derajat;
-    document.getElementById('perihalInput').value = perihal;
-    setSectionsContent(sections);
-    syncLivePreview();
-    if (typeof showToast === 'function') {
-      const typeLabel = movementType === 'SANDAR' ? 'Sandar / Tiba' : (movementType === 'PANTAUAN' ? 'Pantauan Posisi' : 'Tolak / Berlayar');
-      showToast(`Format ${v.shortName} (${typeLabel}) berhasil dimuat!`, 'success');
-    }
-  }
-
-  // Event Listeners for Vessel Controls
-  const selectVessel = document.getElementById('selectVesselChoice');
-  if (selectVessel) {
-    selectVessel.addEventListener('change', function() {
-      const v = VESSEL_SPECS[this.value];
-      const panggilEl = document.getElementById('panggilanInput');
-      if (panggilEl && v) panggilEl.value = v.callSign;
-    });
-  }
-
-  const btnVesselTolak = document.getElementById('btnVesselTolak');
-  if (btnVesselTolak) {
-    btnVesselTolak.addEventListener('click', function() {
-      const vKey = selectVessel ? selectVessel.value : 'KN_SAR_PACITAN';
-      applyVesselPreset(vKey, 'TOLAK');
-    });
-  }
-
-  const btnVesselPantauan = document.getElementById('btnVesselPantauan');
-  if (btnVesselPantauan) {
-    btnVesselPantauan.addEventListener('click', function() {
-      const vKey = selectVessel ? selectVessel.value : 'KN_SAR_PACITAN';
-      applyVesselPreset(vKey, 'PANTAUAN');
-    });
-  }
-
-  const btnVesselSandar = document.getElementById('btnVesselSandar');
-  if (btnVesselSandar) {
-    btnVesselSandar.addEventListener('click', function() {
-      const vKey = selectVessel ? selectVessel.value : 'KN_SAR_PACITAN';
-      applyVesselPreset(vKey, 'SANDAR');
-    });
-  }
-
-  // Shortcuts
-  const btnPacitan = document.getElementById('btnPresetPacitan');
-  if (btnPacitan) {
-    btnPacitan.addEventListener('click', function() {
-      applyVesselPreset('KN_SAR_PACITAN', 'TOLAK');
-    });
-  }
-
-  const btnRB210 = document.getElementById('btnPresetRB210');
-  if (btnRB210) {
-    btnRB210.addEventListener('click', function() {
-      applyVesselPreset('RB_210', 'TOLAK');
-    });
-  }
-
-  const btnRB307 = document.getElementById('btnPresetRB307');
-  if (btnRB307) {
-    btnRB307.addEventListener('click', function() {
-      applyVesselPreset('RB_307', 'TOLAK');
-    });
-  }
+  updateCategoryUI(getSelectedKategori(), true);
 
   // QR Code Rendering for Live Preview & Modal Preview (verifyUrl and logoDataUri initialized from braFormCfg)
 
@@ -1207,7 +883,7 @@ function initBraForm() {
   // Toggle Split View Layout (Desktop)
   const appWrap = document.getElementById('braMainAppWrap');
   const btnToggleSplit = document.getElementById('btnToggleSplitView');
-  const splitLabel = document.getElementById('splitLabel');
+  const splitLabel = document.getElementById('splitViewLabel') || document.getElementById('splitLabel');
   let isSplitActive = true;
 
   if (btnToggleSplit && appWrap) {
@@ -1216,10 +892,10 @@ function initBraForm() {
       isSplitActive = !isSplitActive;
       if (isSplitActive) {
         appWrap.classList.add('bra-split-active');
-        splitLabel.textContent = 'Split Pratinjau';
+        if (splitLabel) splitLabel.textContent = 'Sembunyikan Lembar';
       } else {
         appWrap.classList.remove('bra-split-active');
-        splitLabel.textContent = 'Buka Pratinjau';
+        if (splitLabel) splitLabel.textContent = 'Tampilkan Lembar';
       }
     });
   }
@@ -1413,13 +1089,13 @@ function initBraForm() {
     // 2. Otomatis sanitasi perihal dengan akhiran TTK
     const perihalEl = document.getElementById('perihalInput');
     if (perihalEl && perihalEl.value.trim()) {
-      perihalEl.value = sanitizeTelegramText(perihalEl.value, true);
+      perihalEl.value = perihalText(perihalEl.value);
     }
 
     // 3. Otomatis sanitasi seksi berita
     sectionsContainer.querySelectorAll('.sec-content-textarea').forEach(ta => {
       if (ta.value.trim()) {
-        ta.value = sanitizeTelegramText(ta.value, false);
+        ta.value = BT.formatSectionText(ta.value);
       }
     });
 

@@ -41,7 +41,7 @@ $roleTitle = $user['roleTitle'] ?? ($roleUpper === 'ADMIN' ? 'Administrator Utam
     </div>
 
     <div class="flex items-center gap-2 self-end sm:self-auto">
-      <a href="<?= BASE_URL ?>/index.php" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 text-white transition shadow-sm" title="Kembali ke Dashboard">
+      <a href="<?= BASE_URL ?>/index.php" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 text-white transition shadow-sm" title="Kembali ke Dashboard">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
         <span>Dashboard</span>
       </a>
@@ -52,7 +52,7 @@ $roleTitle = $user['roleTitle'] ?? ($roleUpper === 'ADMIN' ? 'Administrator Utam
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
     <!-- Left Column: User Identity Card -->
     <div class="lg:col-span-5 space-y-6">
-      <div class="card p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm space-y-5">
+      <div class="bento-card-v1 cockpit-glass p-6 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-sm space-y-5">
         <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
           <div class="w-14 h-14 rounded-2xl bg-orange-600 text-white flex items-center justify-center font-bold text-xl shadow-md shrink-0">
             <?= strtoupper(substr((string)($user['nama'] ?: $user['username'] ?: 'U'), 0, 1)) ?>
@@ -130,7 +130,7 @@ $roleTitle = $user['roleTitle'] ?? ($roleUpper === 'ADMIN' ? 'Administrator Utam
 
     <!-- Right Column: Self-Service Password Change Card -->
     <div class="lg:col-span-7">
-      <div class="card p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm space-y-5">
+      <div class="bento-card-v1 cockpit-glass p-6 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-sm space-y-5">
         <div class="flex items-center gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
           <span class="p-2 rounded-xl text-orange-600 dark:text-orange-400" style="background-color: var(--primary-light); color: var(--primary);">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
@@ -195,7 +195,7 @@ $roleTitle = $user['roleTitle'] ?? ($roleUpper === 'ADMIN' ? 'Administrator Utam
           </div>
 
           <div class="pt-2 flex justify-end">
-            <button type="submit" class="px-5 py-2.5 text-xs font-bold text-white rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer hover:opacity-95" style="background-color: var(--primary); box-shadow: 0 4px 12px var(--primary-glow);">
+            <button type="submit" class="btn-tactile px-5 py-2.5 text-xs font-bold text-white rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer hover:opacity-95" style="background-color: var(--primary); box-shadow: 0 4px 12px var(--primary-glow);">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
               <span>Perbarui Kata Sandi Saya</span>
             </button>

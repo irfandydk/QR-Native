@@ -213,11 +213,11 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
   <!-- ========================================== -->
   <!-- 1. TOP SUB-NAVBAR (HEADER KONTROL GIS)     -->
   <!-- ========================================== -->
-  <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3.5 py-2 flex flex-wrap items-center justify-between gap-2.5 shrink-0 z-20 shadow-xs">
+  <header class="cockpit-glass px-3.5 py-2 flex flex-wrap items-center justify-between gap-2.5 shrink-0 z-20 border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs">
     
     <!-- Left Section: Sidebar Toggle & Operational Header -->
     <div class="flex items-center gap-3">
-      <button type="button" id="btnToggleGisSidebar" class="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold transition border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer" title="Buka / Tutup Tools Plotting">
+      <button type="button" id="btnToggleGisSidebar" class="btn-tactile flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold transition border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer" title="Buka / Tutup Tools Plotting">
         <svg id="iconSidebarClose" class="w-4 h-4 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
           <path d="M9 3v18M14 9l-3 3 3 3"/>
@@ -236,7 +236,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             <h1 class="text-xs sm:text-sm font-bold tracking-wide text-slate-900 dark:text-white flex items-center gap-1.5">
               <span>GIS RADAR OPERASI SAR KENDARI</span>
             </h1>
-            <span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/30">
+            <span class="text-[11px] font-mono px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/30">
               SULTRA MARITIME OPS
             </span>
           </div>
@@ -249,7 +249,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
           <label for="selectGisOperasi" class="field-label"><span class="hidden lg:inline">Misi Ops:</span></label>
           <select 
           id="selectGisOperasi" 
-          class="field-input font-semibold max-w-[230px] truncate"
+          class="field-input font-semibold max-w-[230px] truncate rounded-xl"
           title="Pilih mode tampilan komponen plotting taktis"
         >
           <option value="basemap" <?= ($filterMode === 'basemap' || $filterMode === 'dasar') ? 'selected' : '' ?>>
@@ -278,12 +278,12 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
           <span class="text-[11px] font-bold text-orange-600 dark:text-orange-400">+ Base Map</span>
         </label>
 
-        <button type="button" id="btnResetGisOperasi" class="p-1 text-slate-400 hover:text-red-500 transition <?= ($filterMode === 'operasi' || $filterMode === 'basemap' || $filterMode === 'dasar') ? '' : 'hidden' ?>" title="Reset ke Semua Komponen">
+        <button type="button" id="btnResetGisOperasi" class="btn-tactile p-1 text-slate-400 hover:text-red-500 transition <?= ($filterMode === 'operasi' || $filterMode === 'basemap' || $filterMode === 'dasar') ? '' : 'hidden' ?>" title="Reset ke Semua Komponen">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
 
         <?php if ($filterMode === 'operasi' && $selectedOperasiId > 0): ?>
-          <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $selectedOperasiId ?>" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-600 dark:text-orange-400 text-xs font-bold border border-orange-500/30 transition shadow-xs" title="Kembali ke Detail Operasi SAR">
+          <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $selectedOperasiId ?>" class="btn-tactile inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-600 dark:text-orange-400 text-xs font-bold border border-orange-500/30 transition shadow-xs" title="Kembali ke Detail Operasi SAR">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
             <span class="hidden xl:inline">Ke Operasi</span>
           </a>
@@ -302,16 +302,16 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
           id="locationSearchInput" 
           placeholder="Cari kota, desa, jalan, pelabuhan, pulau, atau koordinat DMS/DD..."
           autocomplete="off"
-          class="control control-sm w-full font-medium pl-9 pr-8"
+          class="control control-sm w-full font-medium pl-9 pr-8 rounded-xl shadow-xs"
         >
-        <button type="button" id="btnClearLocationSearch" class="absolute right-2.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hidden p-0.5" title="Bersihkan">
+        <button type="button" id="btnClearLocationSearch" class="btn-tactile absolute right-2.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hidden p-0.5" title="Bersihkan">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
 
       <!-- Autocomplete Dropdown Popover -->
-      <div id="locationSearchResultsPopover" class="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50 hidden max-h-80 overflow-y-auto gis-scrollbar text-xs">
-        <div class="p-2 border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
+      <div id="locationSearchResultsPopover" class="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700/90 rounded-2xl shadow-2xl overflow-hidden z-50 hidden max-h-80 overflow-y-auto gis-scrollbar text-xs">
+        <div class="p-2.5 border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
           <span>Pencarian Lokasi (Google Maps Geocoding & GPS)</span>
           <span class="text-orange-500 dark:text-orange-400 font-mono">115 SAR GPS</span>
         </div>
@@ -326,63 +326,63 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       <!-- Master Satuan Switcher (Dinamis: NM | KM | M) -->
       <div id="gisGlobalUnitSwitcher" class="bg-slate-100 dark:bg-slate-950/90 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center text-[11px] font-bold" title="Satuan Pengukuran Dinamis Peta Taktis">
         <span class="text-[11px] text-slate-400 font-mono px-1.5 uppercase hidden lg:inline">Unit:</span>
-        <button type="button" data-global-unit="NM" class="global-unit-pill-btn px-2 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition font-bold cursor-pointer">
+        <button type="button" data-global-unit="NM" class="btn-tactile global-unit-pill-btn px-2 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition font-bold cursor-pointer">
           NM
         </button>
-        <button type="button" data-global-unit="KM" class="global-unit-pill-btn px-2 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition font-medium cursor-pointer">
+        <button type="button" data-global-unit="KM" class="btn-tactile global-unit-pill-btn px-2 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition font-medium cursor-pointer">
           KM
         </button>
-        <button type="button" data-global-unit="M" class="global-unit-pill-btn px-2 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition font-medium cursor-pointer">
+        <button type="button" data-global-unit="M" class="btn-tactile global-unit-pill-btn px-2 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition font-medium cursor-pointer">
           M
         </button>
       </div>
 
       <!-- 4-Pill Basemap Switcher -->
       <div class="bg-slate-100 dark:bg-slate-950/90 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center text-[11px] font-bold">
-        <button type="button" data-layer="hybrid" class="basemap-pill-btn px-2.5 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition">
+        <button type="button" data-layer="hybrid" class="btn-tactile basemap-pill-btn px-2.5 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition cursor-pointer">
           Hybrid
         </button>
-        <button type="button" data-layer="satellite" class="basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition">
+        <button type="button" data-layer="satellite" class="btn-tactile basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition cursor-pointer">
           Satelit
         </button>
-        <button type="button" data-layer="roadmap" class="basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition">
+        <button type="button" data-layer="roadmap" class="btn-tactile basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition cursor-pointer">
           Roadmap
         </button>
-        <button type="button" data-layer="terrain" class="basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition">
+        <button type="button" data-layer="terrain" class="btn-tactile basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition cursor-pointer">
           Terrain
         </button>
       </div>
 
       <!-- Capture Peta Cetak 16:9 Button -->
-      <button type="button" id="btnToggleCaptureMode" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow cursor-pointer" title="Capture / Screenshot Area Peta 16:9 untuk Dokumen Cetak Resmi (Laporan Awal, RENOPS, SITREP, Penutupan)">
+      <button type="button" id="btnToggleCaptureMode" class="btn-tactile flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer" title="Capture / Screenshot Area Peta 16:9 untuk Dokumen Cetak Resmi (Laporan Awal, RENOPS, SITREP, Penutupan)">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         <span class="hidden sm:inline">Capture Peta Cetak</span>
       </button>
 
       <!-- Ekspor KMZ/KML Dropdown Menu -->
       <div class="relative" id="exportMenuWrapper">
-        <button type="button" id="btnToggleExportMenu" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow cursor-pointer" title="Ekspor Data Spasial">
+        <button type="button" id="btnToggleExportMenu" class="btn-tactile flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-xs cursor-pointer" title="Ekspor Data Spasial">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           <span class="hidden sm:inline">Ekspor KMZ/KML</span>
           <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
         </button>
 
-        <div id="exportDropdownMenu" class="absolute right-0 top-full mt-1.5 w-52 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1 z-50 hidden text-xs font-medium">
-          <button type="button" id="btnExportKml" class="w-full text-left px-3 py-2 text-slate-200 hover:bg-orange-500 hover:text-white flex items-center gap-2 transition">
+        <div id="exportDropdownMenu" class="absolute right-0 top-full mt-1.5 w-52 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl py-1 z-50 hidden text-xs font-medium">
+          <button type="button" id="btnExportKml" class="btn-tactile w-full text-left px-3 py-2 text-slate-200 hover:bg-orange-500 hover:text-white flex items-center gap-2 transition cursor-pointer">
             <span class="text-base"></span>
             <div>
               <div class="font-bold">Google Earth KML</div>
               <div class="text-[11px] text-slate-400">Format OGC .kml standar</div>
             </div>
           </button>
-          <button type="button" id="btnExportKmz" class="w-full text-left px-3 py-2 text-slate-200 hover:bg-orange-500 hover:text-white flex items-center gap-2 transition">
+          <button type="button" id="btnExportKmz" class="btn-tactile w-full text-left px-3 py-2 text-slate-200 hover:bg-orange-500 hover:text-white flex items-center gap-2 transition cursor-pointer">
             <span class="text-base"></span>
             <div>
               <div class="font-bold">Google Earth KMZ</div>
               <div class="text-[11px] text-slate-400">Kompresi .kmz lengkap</div>
             </div>
           </button>
-          <button type="button" id="btnExportGeoJson" class="w-full text-left px-3 py-2 text-slate-200 hover:bg-orange-500 hover:text-white flex items-center gap-2 transition">
+          <button type="button" id="btnExportGeoJson" class="btn-tactile w-full text-left px-3 py-2 text-slate-200 hover:bg-orange-500 hover:text-white flex items-center gap-2 transition cursor-pointer">
             <span class="text-base"></span>
             <div>
               <div class="font-bold">Universal GeoJSON</div>
@@ -393,7 +393,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       </div>
 
       <!-- Fullscreen Toggle -->
-      <button type="button" id="btnToggleFullscreen" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 transition" title="Layar Penuh">
+      <button type="button" id="btnToggleFullscreen" class="btn-tactile p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 transition cursor-pointer" title="Layar Penuh">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
       </button>
     </div>
@@ -405,7 +405,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
   <div class="flex-1 flex overflow-hidden relative" style="height: calc(100% - 48px);">
 
     <!-- LEFT TOOLS PLOTTING PANEL (COLLAPSIBLE) -->
-    <div id="gisSidebarPanel" class="w-[390px] max-w-full bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col z-10 transition-all duration-300 shadow-xl relative select-none shrink-0">
+    <div id="gisSidebarPanel" class="w-[390px] max-w-full cockpit-glass border-r border-slate-200/80 dark:border-slate-800/80 flex flex-col z-10 transition-all duration-300 shadow-xl relative select-none shrink-0">
       
       <!-- Dynamic Operasi / Mode Banner -->
       <div id="gisSidebarOperasiBanner">
@@ -1495,8 +1495,8 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
         </div>
       </div>
 
-      <!-- Bottom Crosshair Coordinate HUD Bar -->
-      <div class="absolute bottom-3 left-3 z-[400] bg-white/90 dark:bg-slate-950/90 text-slate-800 dark:text-white backdrop-blur px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-mono shadow-2xl flex items-center gap-3">
+      <!-- Bottom Crosshair Coordinate HUD Bar (High-End Tactile Glass Pill) -->
+      <div class="cockpit-glass absolute bottom-3 left-3 z-[400] px-4 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 text-[11px] font-mono shadow-2xl flex items-center gap-3 select-none backdrop-blur-md">
         <div class="flex items-center gap-1.5">
           <span class="text-orange-600 dark:text-orange-400 font-bold">Lat/Lng:</span>
           <span id="hudCoordsDecimal">-4.037664, 122.486662</span>

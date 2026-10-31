@@ -113,18 +113,18 @@ try {
     }
 
     assertCondition(
+        "Migrasi '0000_base_schema.sql' tercatat di tabel migrations",
+        isset($appliedMap['0000_base_schema.sql'])
+    );
+
+    assertCondition(
         "Migrasi '2026_10_18_add_composite_indexes.sql' tercatat di tabel migrations",
         isset($appliedMap['2026_10_18_add_composite_indexes.sql'])
     );
 
     assertCondition(
-        "Migrasi '2026_10_18_normalize_datetime.sql' tercatat di tabel migrations",
-        isset($appliedMap['2026_10_18_normalize_datetime.sql'])
-    );
-
-    assertCondition(
-        "Migrasi '2026_10_18_standardize_bra_kategori.sql' tercatat di tabel migrations",
-        isset($appliedMap['2026_10_18_standardize_bra_kategori.sql'])
+        "Migrasi '2026_10_28_create_dokumen_token.sql' tercatat di tabel migrations",
+        isset($appliedMap['2026_10_28_create_dokumen_token.sql'])
     );
 
 } catch (Throwable $e) {

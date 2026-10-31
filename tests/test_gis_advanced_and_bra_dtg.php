@@ -310,29 +310,29 @@ assertCondition(
     str_contains($sanitizedMil, "PADA TW 1018 1830 H")
 );
 
-$braFormJsContent = file_get_contents(__DIR__ . '/../assets/js/pages/bra_form.js');
+$braFormJsContent = file_get_contents(__DIR__ . '/../assets/js/bra/bra_templates.js');
 assertCondition(
-    "bra_form.js mengimplementasikan fungsi formatDateToMilitary",
-    str_contains($braFormJsContent, 'function formatDateToMilitary(val)')
+    "bra_templates.js mengimplementasikan fungsi militaryTime",
+    str_contains($braFormJsContent, 'function militaryTime(value)')
 );
 
 assertCondition(
-    "bra_form.js membungkus r.waktu_briefing dengan formatDateToMilitary",
-    str_contains($braFormJsContent, 'formatDateToMilitary(r.waktu_briefing)')
+    "bra_templates.js membungkus renops.waktu_briefing dengan militaryTime",
+    str_contains($braFormJsContent, 'militaryTime(renops.waktu_briefing)')
 );
 
 assertCondition(
-    "bra_form.js membungkus sit.waktu_laporan dengan formatDateToMilitary",
-    str_contains($braFormJsContent, 'formatDateToMilitary(sit.waktu_laporan)')
+    "bra_templates.js membungkus lap.waktu_laporan dengan militaryTime",
+    str_contains($braFormJsContent, 'militaryTime(lap.waktu_laporan)')
 );
 
 assertCondition(
-    "bra_form.js membungkus latestSit.waktu_debrief dengan formatDateToMilitary",
-    str_contains($braFormJsContent, 'formatDateToMilitary(latestSit?.waktu_debrief)')
+    "bra_templates.js membungkus lap.waktu_debrief dengan militaryTime",
+    str_contains($braFormJsContent, 'militaryTime(lap.waktu_debrief || lap.waktu_laporan)')
 );
 
 assertCondition(
-    "sanitizeTelegramText di bra_form.js memiliki regex auto-convert tanggal ISO",
+    "toSentence di bra_templates.js memiliki regex auto-convert tanggal ISO",
     str_contains($braFormJsContent, '(\\d{4})-(\\d{2})-(\\d{2})')
 );
 

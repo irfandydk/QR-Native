@@ -41,6 +41,7 @@ $currentOpId = $bra['id_operasi'] ?? ($preselectedOpId ?: null);
 
 // Integrasi Pre-fill Data Otomatis saat membuat BRA baru
 $selectedOps = null;
+$autoDraft = null;
 if (!$isEdit && $preselectedOpId > 0) {
     $selectedOps = OperasiModel::getById($preselectedOpId);
     if ($selectedOps) {
@@ -51,76 +52,37 @@ if (!$isEdit && $preselectedOpId > 0) {
         $bra['id_operasi'] = $preselectedOpId;
         $bra['nama_operasi'] = $selectedOps['nama_operasi'] ?? '';
 
-        $autoTemplate = null;
-        if ($currentKategori === 'MAPEL') {
-            $autoTemplate = BraHelper::buildSectionsFromMapel($selectedOps);
-        } elseif ($fromModul === 'renops') {
-            $idRenops = (int)($_GET['id_renops'] ?? 0);
-            $renopsTarget = null;
-            if (!empty($selectedOps['renops'])) {
-                foreach ($selectedOps['renops'] as $rn) {
-                    if ($idRenops > 0 && (int)($rn['id_renops'] ?? 0) === $idRenops) {
-                        $renopsTarget = $rn;
-                        break;
-                    }
-                }
-                if (!$renopsTarget) {
-                    $renopsTarget = end($selectedOps['renops']);
-                }
-            }
-            if ($renopsTarget) {
-                $autoTemplate = BraHelper::buildSectionsFromRenops($selectedOps, $renopsTarget, $renopsTarget['srus'] ?? []);
-            }
-        } elseif ($fromModul === 'sitrep') {
-            $idLaporan = (int)($_GET['id_laporan'] ?? 0);
-            $sitrepTarget = null;
-            if (!empty($selectedOps['laporan_harian'])) {
-                foreach ($selectedOps['laporan_harian'] as $lp) {
-                    if ($idLaporan > 0 && (int)($lp['id_laporan'] ?? 0) === $idLaporan) {
-                        $sitrepTarget = $lp;
-                        break;
-                    }
-                }
-                if (!$sitrepTarget) {
-                    $sitrepTarget = end($selectedOps['laporan_harian']);
-                }
-            }
-            if ($sitrepTarget) {
-                $autoTemplate = BraHelper::buildSectionsFromSitrep($selectedOps, $sitrepTarget, $selectedOps['korban'] ?? []);
-            }
-        } elseif ($fromModul === 'laporan_awal' || empty($bra['sections'])) {
-            $autoTemplate = BraHelper::buildSectionsFromLaporanAwal($selectedOps);
-        }
-
-        if (!empty($autoTemplate)) {
-            $bra['perihal'] = $autoTemplate['perihal'] ?? '';
-            $bra['aksi'] = $autoTemplate['aksi'] ?? '';
-            $bra['info'] = $autoTemplate['info'] ?? '';
-            $bra['dari'] = $autoTemplate['dari'] ?? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
-            $bra['sections'] = $autoTemplate['sections'] ?? [];
-            if (!empty($autoTemplate['jabatan_smc'])) {
-                $bra['jabatan_smc'] = $autoTemplate['jabatan_smc'];
-            }
-            if (!empty($autoTemplate['derajat'])) {
-                $bra['derajat'] = $autoTemplate['derajat'];
-            }
-        }
+        // Draf naskah dibuat di browser oleh BraTemplates (assets/js/bra/bra_templates.js) setelah data operasi dimuat
+        $autoDraft = [
+            'from' => $fromModul !== '' ? $fromModul : ($currentKategori === 'MAPEL' ? 'mapel' : 'laporan_awal'),
+            'id_renops' => (int)($_GET['id_renops'] ?? 0),
+            'id_laporan' => (int)($_GET['id_laporan'] ?? 0),
+        ];
     }
 } elseif (!$isEdit && empty($bra['sections'])) {
     if ($currentKategori === 'MAPEL') {
         $defaultMapel = BraHelper::buildSectionsFromMapel();
         if (!is_array($bra)) $bra = [];
         $bra['perihal'] = $defaultMapel['perihal'];
-        $bra['aksi'] = $defaultMapel['aksi'];
-        $bra['info'] = $defaultMapel['info'];
+        $bra['aksi'] = $bra['aksi'] ?? 'KA KSOP KENDARI KMA KA SROP KENDARI';
+        $bra['info'] = $bra['info'] ?? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
         $bra['dari'] = $defaultMapel['dari'];
         $bra['sections'] = $defaultMapel['sections'];
         $bra['jabatan_smc'] = $defaultMapel['jabatan_smc'];
         $bra['derajat'] = $defaultMapel['derajat'];
+    } elseif ($currentKategori === 'OPERASI_SAR') {
+        if (!is_array($bra)) $bra = [];
+        $bra['aksi'] = $bra['aksi'] ?? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
+        $bra['info'] = $bra['info'] ?? ''; // Placeholder: POLRES/POLSEK KMA KSOP/SROP SETEMPAT
+        $bra['dari'] = $bra['dari'] ?? 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
     }
 }
 
-$operasiList = OperasiModel::getListSimple();
+// Operasi CLOSED tidak ditawarkan, kecuali operasi yang sudah tertaut (mode edit / tautan dari halaman operasi)
+$operasiList = array_values(array_filter(
+    OperasiModel::getListSimple(),
+    fn($o) => strtoupper((string)($o['status'] ?? 'OPEN')) !== 'CLOSED' || (int)$o['id_operasi'] === (int)$currentOpId
+));
 $settings = SettingsModel::get();
 $pejabatList = $settings['pejabat_list'] ?? [];
 $satkerKode = $settings['satker_kode'] ?? 'SAR-304';
@@ -164,26 +126,40 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
       gap: 1.75rem;
     }
     .bra-split-active .bra-live-sticky-preview {
+      display: block !important;
       position: sticky;
       top: 5.5rem;
       max-height: calc(100vh - 7rem);
       overflow-y: auto;
       padding-right: 0.25rem;
     }
+    #braMainAppWrap:not(.bra-split-active) #braLiveSplitColumn {
+      display: none !important;
+    }
+  }
+  .bra-live-sticky-preview::-webkit-scrollbar {
+    width: 6px;
+  }
+  .bra-live-sticky-preview::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .bra-live-sticky-preview::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 9999px;
   }
 
   /* ── Stepper Navigation ── */
   .bra-stepper-wrap {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: var(--bra-card-radius);
-    padding: 0.6rem 0.85rem;
-    box-shadow: var(--shadow-sm);
+    border-radius: 1.25rem;
+    padding: 0.65rem 0.95rem;
+    box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
   }
   .bra-stepper {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.4rem;
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -192,30 +168,35 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.45rem 0.85rem;
-    border-radius: 0.65rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 0.75rem;
     font-size: 0.75rem;
     font-weight: 700;
     color: var(--text-muted);
     background: transparent;
     border: 1px solid transparent;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     white-space: nowrap;
     text-decoration: none;
   }
   .bra-step-btn:hover {
     background: var(--bg-card-subtle);
     color: var(--primary);
+    transform: translateY(-1px);
+  }
+  .bra-step-btn:active {
+    transform: scale(0.97);
   }
   .bra-step-btn.active {
     background: var(--primary-light);
     color: var(--primary);
     border-color: rgba(249, 115, 22, 0.3);
+    box-shadow: 0 2px 8px -2px rgba(249, 115, 22, 0.2);
   }
   .bra-step-num {
-    width: 1.35rem;
-    height: 1.35rem;
+    width: 1.4rem;
+    height: 1.4rem;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -244,8 +225,10 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   .bra-card {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: var(--bra-card-radius);
-    padding: 1.25rem 1.4rem;
+    border-radius: 1.25rem;
+    padding: 1.35rem 1.5rem;
+    box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.04);
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .bra-card-header {
     display: flex;
@@ -344,18 +327,20 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   .kat-tab-label { position: relative; cursor: pointer; }
   .kat-tab-label input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
   .kat-tab-box {
-    padding: 0.9rem 1rem;
+    padding: 0.85rem 1rem;
     border: 1px solid var(--border-color);
-    border-radius: 0.85rem;
+    border-radius: 1rem;
     background: var(--bg-card);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    height: 100%;
+    align-items: center;
+    gap: 0.85rem;
+    min-height: 4.25rem;
   }
   .kat-tab-box:hover {
     border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(249, 115, 22, 0.12);
   }
   .kat-tab-label input:checked + .kat-tab-box {
     border-color: var(--primary);
@@ -363,29 +348,29 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     box-shadow: 0 0 0 3px var(--primary-light);
   }
   .kat-icon-wrap {
-    width: 2.2rem;
-    height: 2.2rem;
-    border-radius: 0.6rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.75rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.15rem;
     flex-shrink: 0;
     background: var(--bg-card-subtle);
     border: 1px solid var(--border-color);
-    transition: all 0.2s ease;
+    transition: all 0.22s ease;
   }
   .kat-tab-label input:checked + .kat-tab-box .kat-icon-wrap {
     background: var(--primary);
-    color: #ffffff;
     border-color: var(--primary);
+  }
+  .kat-tab-label input:checked + .kat-tab-box .kat-icon-wrap svg {
+    color: #ffffff !important;
   }
   .kat-tab-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.4rem;
-    margin-bottom: 0.2rem;
   }
   .kat-tab-title { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
   .kat-tab-pill {
@@ -431,8 +416,15 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     color: var(--primary);
     box-shadow: var(--shadow-sm);
   }
-  .preset-btn.vessel { border-color: #06b6d4; color: #0891b2; }
-  .preset-btn.vessel:hover { background: rgba(6, 182, 212, 0.1); }
+  /* Tombol referensi tanpa data laporan: tampak nonaktif (utilitas opacity-40 tidak ada di tailwind.css hasil build) */
+  .preset-btn:disabled,
+  .preset-btn:disabled:hover {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: var(--border-color);
+    color: var(--text-muted);
+    box-shadow: none;
+  }
 
   /* ── Section Row (Telegram Body AAA, BBB, CCC...) ── */
   .sec-item {
@@ -523,6 +515,9 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     gap: 0.5rem;
   }
   .btn-primary-bra:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(249, 115, 22, 0.35);
+    filter: brightness(1.05);
   }
   .btn-primary-bra:active { transform: scale(0.98); }
 
@@ -685,12 +680,12 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   }
 </style>
 
-<div class="space-y-5 bra-layout-container" id="braMainAppWrap">
+<div class="space-y-5 bra-layout-container bra-split-active" id="braMainAppWrap">
 
   <!-- ════════════════════════════════════════════════════════ -->
   <!-- TOP HEADER & CONTROLS TOOLBAR                           -->
   <!-- ════════════════════════════════════════════════════════ -->
-  <div class="print:hidden surface flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-5">
+  <div class="print:hidden bento-card-v1 cockpit-glass flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl shadow-sm">
     
     <div class="flex items-center gap-3">
       <div>
@@ -698,7 +693,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <h1 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
             <?= $isEdit ? 'Edit Naskah Berita Radio SAR' : 'Pembuatan Berita Radio SAR (BRA SAR)' ?>
           </h1>
-          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-700 dark:text-orange-300">
+          <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-700 dark:text-orange-300 font-mono">
             <?= $isEdit ? 'MODE EDIT' : 'DRAF BARU' ?>
           </span>
         </div>
@@ -708,23 +703,17 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
       </div>
     </div>
 
-    <!-- Toolbar: View Switcher, Format Kapital & Preview Modal -->
+    <!-- Toolbar: View Switcher & Format Sandi Telegram -->
     <div class="flex flex-wrap items-center gap-2">
       <!-- Split View Toggle Button (Desktop) -->
-      <button type="button" id="btnToggleSplitView" class="btn btn-secondary btn-sm hidden xl:inline-flex">
+      <button type="button" id="btnToggleSplitView" class="btn-tactile btn btn-secondary btn-sm hidden xl:inline-flex rounded-xl" title="Tampilkan atau sembunyikan lembar pratinjau live di sisi kanan">
         <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
-        <span id="splitViewLabel">Split Pratinjau</span>
+        <span id="splitViewLabel">Sembunyikan Lembar</span>
       </button>
 
       <!-- Telegram Upper & Punctuation Format Helper -->
-      <button type="button" id="btnFormatTelegramPunctuation" class="btn btn-secondary btn-sm" title="Format otomatis huruf kapital dan sandi tanda baca militer (TTK, KMA, TTK DUA)">
+      <button type="button" id="btnFormatTelegramPunctuation" class="btn-tactile btn btn-secondary btn-sm rounded-xl" title="Format otomatis huruf kapital dan sandi tanda baca militer (TTK, KMA, TTK DUA)">
         Format Sandi Telegram
-      </button>
-
-      <!-- Pratinjau Modal -->
-      <button type="button" id="btnOpenModalPreview" class="btn btn-primary btn-sm">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-        Pratinjau Lembar Resmi
       </button>
     </div>
   </div>
@@ -732,29 +721,29 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   <!-- ════════════════════════════════════════════════════════ -->
   <!-- STEPPER NAVIGATION                                      -->
   <!-- ════════════════════════════════════════════════════════ -->
-  <div class="bra-stepper-wrap">
+  <div class="bra-stepper-wrap cockpit-glass rounded-2xl p-1.5 border border-slate-200/80 dark:border-white/10 shadow-sm">
     <div class="bra-stepper" id="braStepperBar">
-      <a href="#sec-kategori" class="bra-step-btn active" data-target="sec-kategori">
+      <a href="#sec-kategori" class="bra-step-btn btn-tactile active" data-target="sec-kategori">
         <span class="bra-step-num">1</span>
         <span>Kategori &amp; Operasi</span>
       </a>
       <span class="bra-step-sep">&rsaquo;</span>
-      <a href="#sec-nomor" class="bra-step-btn" data-target="sec-nomor">
+      <a href="#sec-nomor" class="bra-step-btn btn-tactile" data-target="sec-nomor">
         <span class="bra-step-num">2</span>
         <span>Penomoran &amp; Administrasi</span>
       </a>
       <span class="bra-step-sep">&rsaquo;</span>
-      <a href="#sec-waktu-alamat" class="bra-step-btn" data-target="sec-waktu-alamat">
+      <a href="#sec-waktu-alamat" class="bra-step-btn btn-tactile" data-target="sec-waktu-alamat">
         <span class="bra-step-num">3</span>
         <span>Waktu Militer &amp; Alamat</span>
       </a>
       <span class="bra-step-sep">&rsaquo;</span>
-      <a href="#sec-batang-tubuh" class="bra-step-btn" data-target="sec-batang-tubuh">
+      <a href="#sec-batang-tubuh" class="bra-step-btn btn-tactile" data-target="sec-batang-tubuh">
         <span class="bra-step-num">4</span>
         <span>Batang Tubuh (AAA, BBB, CCC)</span>
       </a>
       <span class="bra-step-sep">&rsaquo;</span>
-      <a href="#sec-pengirim" class="bra-step-btn" data-target="sec-pengirim">
+      <a href="#sec-pengirim" class="bra-step-btn btn-tactile" data-target="sec-pengirim">
         <span class="bra-step-num">5</span>
         <span>Pengirim &amp; Senkom</span>
       </a>
@@ -799,46 +788,49 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <!-- 3 Kategori Selector Tabs (Identik dengan Referensi Resmi FormBraSar) -->
           <div class="kat-tabs mb-4">
             <!-- 1. MAPEL -->
-            <label class="kat-tab-label">
+            <label class="kat-tab-label group">
               <input type="radio" name="kategori" value="MAPEL" <?= $currentKategori === 'MAPEL' ? 'checked' : '' ?> class="kategori-radio">
               <div class="kat-tab-box">
-                <div class="kat-icon-wrap"></div>
-                <div style="flex:1;">
+                <div class="kat-icon-wrap">
+                  <svg class="w-5 h-5 text-orange-500 transition-transform group-hover:scale-105" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.9 19.1A10 10 0 0 1 2 12a10 10 0 0 1 2.9-7.1M19.1 4.9A10 10 0 0 1 22 12a10 10 0 0 1-2.9 7.1M7.75 16.25A6 6 0 0 1 6 12a6 6 0 0 1 1.75-4.25M16.25 7.75A6 6 0 0 1 18 12a6 6 0 0 1-1.75 4.25M12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z"/></svg>
+                </div>
+                <div class="min-w-0 flex-1">
                   <div class="kat-tab-header">
                     <span class="kat-tab-title">1. BRA Mapel</span>
                     <span class="kat-tab-pill">Broadcast Notice</span>
                   </div>
-                  <div class="kat-tab-desc">Pemberitahuan kepada Syahbandar, KSOP, SROP, dan kapal-kapal yang melintas untuk pemantauan/pemapelan korban.</div>
                 </div>
               </div>
             </label>
 
             <!-- 2. OPERASI SAR -->
-            <label class="kat-tab-label">
+            <label class="kat-tab-label group">
               <input type="radio" name="kategori" value="OPERASI_SAR" <?= $currentKategori === 'OPERASI_SAR' ? 'checked' : '' ?> class="kategori-radio">
               <div class="kat-tab-box">
-                <div class="kat-icon-wrap"></div>
-                <div style="flex:1;">
+                <div class="kat-icon-wrap">
+                  <svg class="w-5 h-5 text-orange-500 transition-transform group-hover:scale-105" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
+                </div>
+                <div class="min-w-0 flex-1">
                   <div class="kat-tab-header">
                     <span class="kat-tab-title">2. BRA Operasi SAR</span>
                     <span class="kat-tab-pill">Operasi SAR Harian</span>
                   </div>
-                  <div class="kat-tab-desc">Berita Radio perkembangan Operasi SAR kepada Kabasarnas, Pimti, Polairud, TNI AL terkait laporan awal / renops / sitrep.</div>
                 </div>
               </div>
             </label>
 
             <!-- 3. PERGERAKAN KAPAL -->
-            <label class="kat-tab-label">
+            <label class="kat-tab-label group">
               <input type="radio" name="kategori" value="PERGERAKAN_KAPAL" <?= $currentKategori === 'PERGERAKAN_KAPAL' ? 'checked' : '' ?> class="kategori-radio">
               <div class="kat-tab-box">
-                <div class="kat-icon-wrap"></div>
-                <div style="flex:1;">
+                <div class="kat-icon-wrap">
+                  <svg class="w-5 h-5 text-orange-500 transition-transform group-hover:scale-105" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17.5 4.5 19a3 3 0 0 0 4.24 0L10 17.74a3 3 0 0 1 4 0L15.26 19a3 3 0 0 0 4.24 0L21 17.5M4 14l2-8h12l2 8H4Zm8-11v3m-3-1.5h6"/></svg>
+                </div>
+                <div class="min-w-0 flex-1">
                   <div class="kat-tab-header">
                     <span class="kat-tab-title">3. BRA Pergerakan Kapal</span>
                     <span class="kat-tab-pill">Alut Laut &amp; BKO</span>
                   </div>
-                  <div class="kat-tab-desc">Pergerakan kapal SAR (KN SAR Pacitan 102 / RB 210) dalam rangka BKO Operasi, pemanasan bergerak, atau pengiriman alut.</div>
                 </div>
               </div>
             </label>
@@ -848,7 +840,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <div id="mapelPresetsContainer" class="bra-preset-banner mb-4 <?= $currentKategori === 'MAPEL' ? '' : 'hidden' ?>" style="border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.08); display: <?= $currentKategori === 'MAPEL' ? 'block' : 'none' ?>;">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pb-2.5 border-b border-blue-500/20">
               <div class="flex items-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-300">
-                <span class="text-base"></span>
+                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/></svg>
                 <div>
                   <span class="tracking-wide">Format Telegram Pemapelan Resmi (Senkom KPP Kendari)</span>
                   <span class="block text-[11px] font-normal text-muted dark:text-blue-200/70">Pemberitahuan resmi kepada KSOP, SROP, dan kapal-kapal yang melintas di sekitar LKP:</span>
@@ -858,55 +850,9 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
 
             <div class="flex flex-wrap items-center gap-2 pt-1">
               <span class="text-[11px] font-semibold text-blue-900 dark:text-blue-200">Aksi Cepat:</span>
-              <button type="button" id="btnPresetLongboatHilangKontak" class="preset-btn flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white border-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition" title="Muat draf telegram pemapelan resmi: 1. Longboat / Kapal Hilang Kontak">
-                <span></span> <span>1. Longboat / Kapal Hilang Kontak</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Quick Vessel Presets Bar (Muncul Khusus PERGERAKAN_KAPAL) (ISSUE-10) -->
-          <div id="vesselPresetsContainer" class="bra-preset-banner mb-4 <?= $currentKategori === 'PERGERAKAN_KAPAL' ? '' : 'hidden' ?>" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.08); display: <?= $currentKategori === 'PERGERAKAN_KAPAL' ? 'block' : 'none' ?>;">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pb-2.5 border-b border-cyan-500/20">
-              <div class="flex items-center gap-2 text-xs font-bold text-cyan-800 dark:text-cyan-300">
-                <span class="text-base"></span>
-                <div>
-                  <span class="tracking-wide">Format Telegram Pergerakan Alut Laut Resmi (KPP Kendari)</span>
-                  <span class="block text-[11px] font-normal text-muted dark:text-cyan-200/70">Pilih salah satu dari 3 kapal resmi dan jenis pergerakan operasional:</span>
-                </div>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="field">
-                  <label for="selectVesselChoice" class="field-label">Kapal:</label>
-                  <select id="selectVesselChoice" class="field-input font-bold text-cyan-900 dark:text-cyan-200 cursor-pointer">
-                  <option value="KN_SAR_PACITAN">KN SAR PACITAN 102</option>
-                  <option value="RB_210">RESCUE BOAT 210</option>
-                  <option value="RB_307">RESCUE BOAT 307</option>
-                </select>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2 pt-1">
-              <span class="text-[11px] font-semibold text-cyan-900 dark:text-cyan-200">Aksi Gerak:</span>
-              <button type="button" id="btnVesselTolak" class="preset-btn vessel flex items-center gap-1.5" title="Muat naskah Tolak / Keberangkatan Pelayaran">
-                <span></span> <span>Tolak / Berlayar</span>
-              </button>
-              <button type="button" id="btnVesselPantauan" class="preset-btn vessel flex items-center gap-1.5" title="Muat naskah Pantauan Posisi & Cuaca Saat Berlayar">
-                <span></span> <span>Pantauan Posisi</span>
-              </button>
-              <button type="button" id="btnVesselSandar" class="preset-btn vessel flex items-center gap-1.5" title="Muat naskah Sandar / Tiba di Pangkalan Dermaga">
-                <span></span> <span>Sandar / Tiba</span>
-              </button>
-              <div class="hidden sm:inline-block w-px h-5 bg-cyan-500/30 mx-1"></div>
-              <span class="text-[11px] font-medium text-cyan-800/80 dark:text-cyan-300/80 hidden lg:inline">Pintasan Cepat:</span>
-              <button type="button" id="btnPresetPacitan" class="preset-btn vessel text-[11px] opacity-85 hover:opacity-100" title="Cepat: Muat KN SAR Pacitan 102 (BKO)">
-                Pacitan 102
-              </button>
-              <button type="button" id="btnPresetRB210" class="preset-btn vessel text-[11px] opacity-85 hover:opacity-100" title="Cepat: Muat RB 210 (Pemanasan)">
-                RB 210
-              </button>
-              <button type="button" id="btnPresetRB307" class="preset-btn vessel text-[11px] opacity-85 hover:opacity-100" title="Cepat: Muat RB 307 (Patroli)">
-                RB 307
+              <button type="button" id="btnPresetLongboatHilangKontak" class="btn-tactile preset-btn flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white border-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm transition" title="Muat draf telegram pemapelan resmi: 1. Longboat / Kapal Hilang Kontak">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+                <span>1. Longboat / Kapal Hilang Kontak</span>
               </button>
             </div>
           </div>
@@ -930,23 +876,29 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
           <!-- Smart Recommendation Toolbar (Terkait Operasi SAR) -->
           <div id="operasiRecommendationBar" class="bra-preset-banner mt-3 <?= $currentOpId ? '' : 'hidden' ?>" style="border-color: rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.08);">
             <div class="flex items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
-              <span></span>
+              <svg class="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/></svg>
               <span><strong>Rekomendasi Draf Naskah Otomatis:</strong> Pilih jenis naskah laporan:</span>
             </div>
             <div class="flex flex-wrap items-center gap-2">
-              <button type="button" id="btnAutoInisiasi" class="preset-btn" title="Muat naskah Laporan Awal (Inisiasi)">
+              <button type="button" id="btnAutoInisiasi" class="btn-tactile preset-btn" title="Muat naskah Laporan Awal (Inisiasi)">
                 Laporan Awal (Inisiasi)
               </button>
-              <button type="button" id="btnAutoRenops" class="preset-btn" title="Muat Rencana Operasi harian terakhir">
-                Renops Terakhir
+              <span class="inline-flex items-center gap-1">
+                <button type="button" id="btnAutoRenops" class="btn-tactile preset-btn" title="Muat Rencana Operasi SAR pada hari terpilih">
+                  RENOPS
+                </button>
+                <select id="selectRenopsHari" class="bra-control text-xs py-1" aria-label="Pilih hari RENOPS"></select>
+              </span>
+              <span class="inline-flex items-center gap-1">
+                <button type="button" id="btnAutoSitrep" class="btn-tactile preset-btn" title="Muat Laporan Perkembangan pada hari terpilih">
+                  Lapbang
+                </button>
+                <select id="selectLapbangHari" class="bra-control text-xs py-1" aria-label="Pilih hari Lapbang"></select>
+              </span>
+              <button type="button" id="btnAutoPenutupan" class="btn-tactile preset-btn" title="Muat Laporan Perkembangan dan Penutupan Operasi SAR">
+                Lapbang dan Penutupan
               </button>
-              <button type="button" id="btnAutoSitrep" class="preset-btn" title="Muat Laporan Perkembangan harian terakhir">
-                Lapbang (SITREP)
-              </button>
-              <button type="button" id="btnAutoPenutupan" class="preset-btn" title="Muat naskah Penutupan Operasi SAR">
-                Penutupan Operasi
-              </button>
-              <button type="button" id="btnAutoMapel" class="preset-btn" title="Muat naskah Pemapelan Maritim dari data Operasi SAR">
+              <button type="button" id="btnAutoMapel" class="btn-tactile preset-btn" title="Muat naskah Pemapelan Maritim dari data Operasi SAR">
                 Pemapelan (Mapel)
               </button>
             </div>
@@ -1000,7 +952,8 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             <div class="bra-field" id="menbraFieldWrapper">
               <div class="field">
                 <label id="menbraLabelText" class="field-label"><span id="labelMenbraTitle">MENBRA (Rujukan BRA Lalu)</span></label>
-                <input class="field-input bra-control mono upper" type="text" name="menbra" id="menbraInput" value="<?= (strtoupper(trim((string)($bra['menbra'] ?? ''))) === 'SEGERA' || trim((string)($bra['menbra'] ?? '')) === '-') ? '' : htmlspecialchars($bra['menbra'] ?? '') ?>" placeholder="<?= max(1, $nomorUrutPlaceholder - 1) ?>/<?= $satkerKode ?>/<?= $bulanTahunPlaceholder ?>" >
+                <input class="field-input bra-control mono upper" type="text" name="menbra" id="menbraInput" list="menbraOptions" autocomplete="off" value="<?= (strtoupper(trim((string)($bra['menbra'] ?? ''))) === 'SEGERA' || trim((string)($bra['menbra'] ?? '')) === '-') ? '' : htmlspecialchars($bra['menbra'] ?? '') ?>" placeholder="<?= max(1, $nomorUrutPlaceholder - 1) ?>/<?= $satkerKode ?>/<?= $bulanTahunPlaceholder ?>" >
+                <datalist id="menbraOptions"></datalist>
               </div>
               <span class="bra-hint" id="hintMenbraText">Nomor naskah BRA sebelumnya yang menjadi dasar rujukan (bila ada). Biarkan kosong jika naskah baru / tanpa rujukan.</span>
             </div>
@@ -1102,17 +1055,41 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               </div>
             </div>
 
+            <?php
+              $infoKapal = 'DEPUTI OPS DAN KESIAPSIAGAAN KMA DEPUTI SARPRAS DAN SISTEM KOMUNIKASI KMA DIREKTUR SARPRAS DAN DIREKTUR KESIAPSIAGAAN';
+
+              $placeholderAksi = ($currentKategori === 'MAPEL')
+                ? 'KA KSOP KENDARI KMA KA SROP KENDARI'
+                : 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN';
+
+              $defaultAksiVal = $bra['aksi'] ?? (
+                $currentKategori === 'MAPEL'
+                  ? 'KA KSOP KENDARI KMA KA SROP KENDARI'
+                  : 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN'
+              );
+
+              $placeholderInfo = ($currentKategori === 'OPERASI_SAR')
+                ? 'POLRES/POLSEK KMA KSOP KMA SROP SETEMPAT'
+                : ($currentKategori === 'PERGERAKAN_KAPAL' ? $infoKapal : 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN');
+
+              $defaultInfoVal = $bra['info'] ?? match ($currentKategori) {
+                'MAPEL' => 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN',
+                'PERGERAKAN_KAPAL' => $infoKapal,
+                default => '',
+              };
+            ?>
+            <!-- Standar Pemapelan: KA KSOP KENDARI DAN KMA KA SROP KENDARI -->
             <div class="bra-field">
               <div class="field">
                 <label class="field-label">AKSI (Alamat Tujuan Utama Tindak Lanjut) <span class="req">*</span></label>
-                <textarea name="aksi" id="aksiInput" rows="2" class="field-input bra-control upper font-semibold" placeholder="<?= $currentKategori === 'MAPEL' ? 'KA KSOP KENDARI DAN KMA KA SROP KENDARI' : 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN' ?>" required><?= htmlspecialchars($bra['aksi'] ?? ($currentKategori === 'MAPEL' ? 'KA KSOP KENDARI KMA KA SROP KENDARI' : '')) ?></textarea>
+                <textarea name="aksi" id="aksiInput" rows="2" class="field-input bra-control upper font-semibold" placeholder="<?= htmlspecialchars($placeholderAksi) ?>" required><?= htmlspecialchars($defaultAksiVal) ?></textarea>
               </div>
             </div>
 
             <div class="bra-field">
               <div class="field">
                 <label class="field-label">INFO (Tembusan Informasi)</label>
-                <textarea name="info" id="infoInput" rows="2" class="field-input bra-control upper" placeholder="KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN"><?= htmlspecialchars($bra['info'] ?? ($currentKategori === 'MAPEL' ? 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN' : '')) ?></textarea>
+                <textarea name="info" id="infoInput" rows="2" class="field-input bra-control upper" placeholder="<?= htmlspecialchars($placeholderInfo) ?>"><?= htmlspecialchars($defaultInfoVal) ?></textarea>
               </div>
             </div>
 
@@ -1293,18 +1270,14 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
         <!-- ────────────────────────────────────────────── -->
         <!-- STICKY ACTION FOOTER BAR                       -->
         <!-- ────────────────────────────────────────────── -->
-        <div class="bra-sticky-bar">
+        <div class="bra-sticky-bar cockpit-glass rounded-2xl shadow-xl">
           <div class="flex items-center gap-2">
-            <a href="<?= BASE_URL ?>/bra.php" class="btn-outline-bra">
+            <a href="<?= BASE_URL ?>/bra.php" class="btn-tactile btn-outline-bra rounded-xl">
               Batal
             </a>
-            <button type="button" id="btnOpenModalPreviewBottom" class="btn-outline-bra">
-              <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-              <span>Pratinjau Lembar Dokumen</span>
-            </button>
           </div>
 
-          <button type="submit" id="btnSubmitBra" class="btn-primary-bra">
+          <button type="submit" id="btnSubmitBra" class="btn-tactile btn-primary-bra rounded-xl shadow-md">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
             <span><?= $isEdit ? 'Simpan Perubahan Dokumen' : 'Terbitkan Dokumen BRA SAR' ?></span>
           </button>
@@ -1313,15 +1286,24 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     </div>
 
     <!-- ── LIVE SPLIT PREVIEW COLUMN (RIGHT SIDE ON WIDESCREEN) ── -->
-    <div id="braLiveSplitColumn" class="hidden xl:block bra-live-sticky-preview">
-      <div class="card p-3 mb-2 flex items-center justify-between text-xs" style="background: var(--bg-card); border-color: var(--border-color);">
-        <div class="flex items-center gap-2 font-bold text-main">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>Pratinjau Lembar Dokumen Berita Radio SAR (Live Sync)</span>
+    <div id="braLiveSplitColumn" class="bra-live-sticky-preview">
+      <div class="cockpit-glass rounded-2xl p-3 mb-3 border border-slate-200/80 dark:border-white/10 shadow-sm flex items-center justify-between gap-2.5">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 text-orange-500 flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 text-xs font-bold text-main leading-tight">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>Pratinjau Lembar Dokumen BRA SAR (Live Sync)</span>
+            </div>
+            <div class="text-[11px] text-muted">Format baku telegram dinas Basarnas Kendari</div>
+          </div>
         </div>
-        <button type="button" onclick="window.printLiveDocument()" class="btn-outline-bra py-1 px-2.5 text-[11px]" title="Cetak langsung dokumen resmi">
-          Cetak
-        </button>
+        <div class="hidden sm:flex items-center gap-1.5 text-[11px] font-mono text-muted">
+          <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+          <span>A4 Presisi</span>
+        </div>
       </div>
 
       <!-- Screen-only card frame: provides drop-shadow on UI without leaking outer borders into PDF -->
@@ -1553,22 +1535,22 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   <div class="bra-modal-card">
     <div class="bra-modal-header">
       <div class="flex items-center gap-2">
-        <span class="text-lg"></span>
+        <svg class="w-5 h-5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
         <div>
           <div class="text-sm font-bold text-main">Pratinjau Lembar Naskah Resmi Berita Radio SAR</div>
           <div class="text-[11px] text-muted">Format 100% presisi telegram dinas Basarnas Kendari</div>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <button type="button" onclick="window.downloadBraPdf('braLivePaperPreview')" class="btn-primary-bra py-1.5 px-3 text-xs flex items-center gap-1.5" style="background: #2563eb;" title="Unduh Lembar Resmi Format PDF A4">
-          <span></span>
+        <button type="button" onclick="window.downloadBraPdf('braLivePaperPreview')" class="btn-tactile btn-primary-bra py-1.5 px-3 text-xs flex items-center gap-1.5" style="background: #2563eb;" title="Unduh Lembar Resmi Format PDF A4">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
           <span>Unduh PDF (A4)</span>
         </button>
-        <button type="button" onclick="window.printLiveDocument()" class="btn-primary-bra py-1.5 px-3 text-xs flex items-center gap-1.5" title="Cetak Naskah Resmi">
-          <span></span>
+        <button type="button" onclick="window.printLiveDocument()" class="btn-tactile btn-primary-bra py-1.5 px-3 text-xs flex items-center gap-1.5" title="Cetak Naskah Resmi">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24-1.07-.672-2.126-.672-3.329 0-3.037 2.463-5.5 5.5-5.5s5.5 2.463 5.5 5.5c0 1.203-.432 2.259-.672 3.329M6.75 19.5h10.5a2.25 2.25 0 002.25-2.25V13.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 13.5v3.75a2.25 2.25 0 002.25 2.25zM6.75 19.5v-3h10.5v3"/></svg>
           <span>Cetak Dokumen</span>
         </button>
-        <button type="button" id="btnCloseModalPreview" class="btn-outline-bra py-1.5 px-2.5 text-xs">
+        <button type="button" id="btnCloseModalPreview" class="btn-tactile btn-outline-bra py-1.5 px-2.5 text-xs">
           Tutup
         </button>
       </div>
@@ -1597,7 +1579,10 @@ window.__BRA_FORM_CONFIG__ = <?= jsonSafe([
     'satkerKode' => $satkerKode,
     'bulanTahunPlaceholder' => $bulanTahunPlaceholder,
     'verifyUrl' => BASE_URL . '/bra.php?view=' . ($id ?: 9999),
+    'idBra' => (int)($id ?: 0),
     'logoDataUri' => $logoDataUri,
+    'autoDraft' => $autoDraft,
 ]) ?>;
 </script>
+<script src="<?= assetUrl('assets/js/bra/bra_templates.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/pages/bra_form.js') ?>"></script>

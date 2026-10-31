@@ -65,10 +65,24 @@ it("RenopsModel::create() & update() mendukung persistensi field satuan_jarak", 
         $ops = $db->query("SELECT id_operasi FROM Operasi LIMIT 1")->fetch();
         if ($ops) {
             $db->exec("UPDATE Operasi SET status = 'OPEN' WHERE id_operasi = " . (int)$ops['id_operasi']);
+        } else {
+            $newId = OperasiModel::create([
+                'nama_operasi' => 'Operasi SAR Uji Satuan Jarak',
+                'nama_pelapor' => 'Operator Test',
+                'hubungan_pelapor' => 'Petugas Siaga',
+                'no_telp_pelapor' => '08123456789',
+                'waktu_kejadian' => date('Y-m-d H:i:s'),
+                'waktu_lapor' => date('Y-m-d H:i:s'),
+                'waktu_berangkat' => date('Y-m-d H:i:s'),
+                'tim_berangkat' => 'Tim Rescue',
+                'eta_tiba' => date('Y-m-d H:i:s', time() + 3600),
+                'lokasi_kejadian' => 'Perairan Kendari',
+                'koordinat' => '03° 58\' 12" S - 122° 35\' 45" E',
+                'jumlah_pob' => 1,
+                'status' => 'OPEN'
+            ]);
+            $ops = ['id_operasi' => $newId];
         }
-    }
-    if (!$ops) {
-        throw new Exception("Tidak ada operasi SAR untuk testing.");
     }
     $idOps = (int)$ops['id_operasi'];
 

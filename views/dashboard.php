@@ -67,88 +67,103 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
   <!-- ============================================================== -->
   <!-- 4 PRIMARY METRICS ROW (MATCHING DashboardList.tsx)              -->
   <!-- ============================================================== -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
     
     <!-- Metric 1: Operasi SAR Aktif -->
-    <div class="rounded-2xl p-4 sm:p-5 border transition-all duration-200 relative overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-lg">
+    <div class="bento-card-v1 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden group">
       <div class="flex items-center justify-between">
-        <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Operasi SAR Aktif
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">
+          Operasi Aktif
         </span>
-        <span class="flex h-2.5 w-2.5 relative">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+        <span class="radar-beacon-active">
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 z-10"></span>
         </span>
       </div>
-      <div class="text-2xl sm:text-3xl font-semibold text-emerald-500 dark:text-emerald-400 mt-2 font-mono">
-        <?= $totalOpen ?>
+      <div class="flex items-baseline justify-between gap-1.5 mt-1.5">
+        <div class="text-2xl sm:text-3xl font-bold text-emerald-500 dark:text-emerald-400 font-mono tracking-tight leading-none">
+          <?= $totalOpen ?>
+        </div>
+        <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+          OPEN
+        </span>
       </div>
-      <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500">
-        Dalam proses penanganan SAR (OPEN)
+      <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500 truncate">
+        Dalam penanganan SAR
       </p>
     </div>
 
     <!-- Metric 2: Operasi SAR Tutup -->
-    <div class="rounded-2xl p-4 sm:p-5 border transition-all duration-200 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-lg">
+    <div class="bento-card-v1 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden group">
       <div class="flex items-center justify-between">
-        <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Operasi SAR Tutup
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">
+          Operasi Selesai
         </span>
-        <div class="w-5 h-5 rounded-full bg-slate-500/10 dark:bg-slate-700/50 flex items-center justify-center">
-          <svg class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        <div class="w-5 h-5 rounded-md bg-slate-500/10 dark:bg-slate-800 flex items-center justify-center border border-slate-200/50 dark:border-slate-700/50">
+          <svg class="w-3 h-3 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
       </div>
-      <div class="text-2xl sm:text-3xl font-semibold mt-2 font-mono text-slate-700 dark:text-slate-300">
-        <?= $totalClosed ?>
+      <div class="flex items-baseline justify-between gap-1.5 mt-1.5">
+        <div class="text-2xl sm:text-3xl font-bold font-mono text-slate-700 dark:text-slate-300 tracking-tight leading-none">
+          <?= $totalClosed ?>
+        </div>
+        <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+          CLOSED
+        </span>
       </div>
-      <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500">
-        Debriefing &amp; penutupan selesai (CLOSED)
+      <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500 truncate">
+        Debriefing &amp; penutupan
       </p>
     </div>
 
     <!-- Metric 3: Jumlah BRA SAR -->
-    <div class="rounded-2xl p-4 sm:p-5 border transition-all duration-200 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-lg">
+    <div class="bento-card-v1 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden group">
       <div class="flex items-center justify-between">
-        <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Jumlah BRA SAR
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">
+          Berita SAR (BRA)
         </span>
-        <div class="w-5 h-5 rounded-full bg-orange-500/10 flex items-center justify-center">
-          <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+        <div class="w-5 h-5 rounded-md bg-orange-500/10 dark:bg-orange-500/15 flex items-center justify-center border border-orange-500/30">
+          <svg class="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0 14.14"/></svg>
         </div>
       </div>
-      <div class="text-2xl sm:text-3xl font-semibold text-orange-600 dark:text-orange-400 mt-2 font-mono">
-        <?= $totalBra ?>
+      <div class="flex items-baseline justify-between gap-1.5 mt-1.5">
+        <div class="text-2xl sm:text-3xl font-bold text-orange-600 dark:text-orange-400 font-mono tracking-tight leading-none">
+          <?= $totalBra ?>
+        </div>
+        <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+          TERBIT
+        </span>
       </div>
-      <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500">
-        Dokumen Berita Radio telegram terbit
+      <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500 truncate">
+        Telegram radio terbit
       </p>
     </div>
 
     <!-- Metric 4: Nomor Terakhir BRA SAR -->
-    <div class="rounded-2xl p-4 sm:p-5 border transition-all duration-200 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-lg">
+    <div class="bento-card-v1 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden group">
       <div class="flex items-center justify-between">
-        <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-          Nomor BRA Terakhir
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">
+          BRA Terakhir
         </span>
-        <div class="w-5 h-5 rounded-full bg-blue-500/10 flex items-center justify-center">
-          <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <div class="w-5 h-5 rounded-md bg-blue-500/10 dark:bg-blue-500/15 flex items-center justify-center border border-blue-500/30">
+          <svg class="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         </div>
       </div>
-      <div class="text-base sm:text-lg lg:text-xl font-bold mt-2 font-mono tracking-tight truncate text-slate-900 dark:text-white" title="<?= e($latestBraNumber) ?>">
-        <?= e($latestBraNumber) ?>
+      <div class="mt-1.5">
+        <div class="text-sm sm:text-base font-bold font-mono tracking-tight truncate text-slate-900 dark:text-white" title="<?= e($latestBraNumber) ?>">
+          <?= e($latestBraNumber) ?>
+        </div>
       </div>
-      <p class="text-[11px] mt-1 truncate text-slate-400 dark:text-slate-500">
+      <p class="text-[11px] mt-0.5 truncate text-slate-400 dark:text-slate-500">
         <?= e($latestBraSubtext) ?>
       </p>
     </div>
 
   </div>
 
-
   <!-- ============================================================== -->
   <!-- FILTER AND SEARCH BAR (MATCHING DashboardList.tsx)              -->
   <!-- ============================================================== -->
-  <div class="flex flex-col lg:flex-row items-center justify-between gap-3 rounded-2xl p-3 sm:p-4 border transition-all duration-200 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-lg">
+  <div class="cockpit-glass flex flex-col lg:flex-row items-center justify-between gap-3 rounded-2xl p-3 sm:p-4">
     
     <!-- Search Input -->
     <div class="relative w-full lg:w-72">
@@ -375,7 +390,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
       $totalLapbang = (int)($op['total_laporan'] ?? 0);
     ?>
     <div
-      class="operation-item-card group relative rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer bg-white dark:bg-slate-900 hover:bg-slate-50/95 dark:hover:bg-slate-800/90 border-slate-200/90 dark:border-slate-800 hover:border-orange-500/40 dark:hover:border-orange-500/40 shadow-sm hover:shadow-lg <?= $isOpen ? ($isReopened ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-emerald-500') : 'border-l-4 border-l-slate-400 dark:border-l-slate-600' ?> <?= $isInitialMatch ? '' : 'hidden' ?>"
+      class="operation-item-card bento-card-v1 p-3.5 sm:p-4 transition-all cursor-pointer hover:border-orange-500/50 dark:hover:border-orange-500/50 <?= $isOpen ? ($isReopened ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-emerald-500') : 'border-l-4 border-l-slate-400 dark:border-l-slate-600' ?> <?= $isInitialMatch ? '' : 'hidden' ?>"
       data-id="<?= $op['id_operasi'] ?>"
       data-status="<?= e($op['status']) ?>"
       data-month="<?= e($monthKey) ?>"
@@ -441,14 +456,14 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
       </div>
 
       <!-- Main Title: Judul Operasi -->
-      <div class="mt-2.5">
-        <h3 class="text-base sm:text-lg font-semibold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors leading-snug">
+      <div class="mt-2">
+        <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors leading-snug">
           <?= e($op['nama_operasi']) ?>
         </h3>
       </div>
 
       <!-- Lokasi & Koordinat -->
-      <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+      <div class="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
         <div class="flex items-center gap-1.5">
           <svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
           <span class="text-slate-800 dark:text-slate-200 font-semibold"><?= e($op['lokasi_kejadian']) ?></span>
@@ -461,92 +476,92 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
       </div>
 
       <!-- Tactical Metrics Grid: Waktu Mulai, Response Time Detail, POB, Renops & Lapbang -->
-      <div class="mt-3.5 grid grid-cols-2 md:grid-cols-4 gap-2.5 text-xs">
+      <div class="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
         
         <!-- Metric 1: Waktu Mulai (Dihitung Sejak Tim Berangkat) -->
-        <div class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
-            <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            <span>Waktu Mulai (Berangkat)</span>
+        <div class="p-2 sm:p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
+          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 font-mono">
+            <svg class="w-3 h-3 text-blue-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <span class="truncate">Waktu Berangkat</span>
           </div>
-          <div class="mt-1 font-semibold text-slate-800 dark:text-slate-200 leading-tight">
+          <div class="mt-1 font-semibold text-slate-800 dark:text-slate-200 leading-tight truncate">
             <?= $tglBerangkat ?>
           </div>
-          <div class="text-[11px] font-mono text-blue-600 dark:text-blue-400 font-bold">
+          <div class="text-[11px] font-mono text-blue-600 dark:text-blue-400 font-bold mt-0.5">
             <?= $waktuBerangkat ? $jamBerangkat . ' WITA' : 'Belum Berangkat' ?>
           </div>
         </div>
 
         <!-- Metric 2: Response Time Details -->
-        <div class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
-            <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span>Response Time</span>
+        <div class="p-2 sm:p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
+          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 font-mono">
+            <svg class="w-3 h-3 text-amber-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="truncate">Response Time</span>
           </div>
-          <div class="mt-1 font-semibold text-sm <?= $resp['is_quick'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' ?>">
+          <div class="mt-1 font-bold font-mono text-xs sm:text-sm <?= $resp['is_quick'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' ?>">
             <?= $resp['formatted'] ?>
           </div>
-          <div class="text-[11px] text-slate-400 dark:text-slate-500 truncate" title="Lapor: <?= $jamLapor ?> WITA ➔ Berangkat: <?= $jamBerangkat ?> WITA">
-            Info: <?= $jamLapor ?> Brkt: <?= $jamBerangkat ?>
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-0.5" title="Lapor: <?= $jamLapor ?> WITA ➔ Berangkat: <?= $jamBerangkat ?> WITA">
+            <?= $jamLapor ?> ➔ <?= $jamBerangkat ?>
           </div>
         </div>
 
         <!-- Metric 3: Jumlah POB (Breakdown S / MD / DP) -->
-        <div class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
-          <div class="flex items-center justify-between text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
-            <div class="flex items-center gap-1">
-              <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <span>POB: <?= $totalPob ?> Orang</span>
+        <div class="p-2 sm:p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 font-mono">
+            <div class="flex items-center gap-1 truncate">
+              <svg class="w-3 h-3 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span class="truncate">POB: <?= $totalPob ?> Jiwa</span>
             </div>
           </div>
           <div class="mt-1 flex items-center gap-1 flex-wrap">
-            <span class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25" title="Selamat">
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25" title="Selamat">
               <?= $s ?> S
             </span>
-            <span class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25" title="Meninggal Dunia">
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25" title="Meninggal Dunia">
               <?= $md ?> MD
             </span>
-            <span class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25" title="Dalam Pencarian">
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25" title="Dalam Pencarian">
               <?= $dp ?> DP
             </span>
             <?php if ($h > 0): ?>
-            <span class="px-1.5 py-0.5 rounded text-[11px] font-bold bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/25" title="Hilang">
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/25" title="Hilang">
               <?= $h ?> H
             </span>
             <?php endif; ?>
           </div>
-          <div class="text-[11px] text-slate-400 dark:text-slate-500">
-            Selamat / MD / Cari
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+            Status Korban
           </div>
         </div>
 
         <!-- Metric 4: Jumlah Renops dan Lapbang -->
-        <div class="p-2.5 rounded-xl border bg-slate-50 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500">
-            <svg class="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            <span>Renops &amp; Lapbang</span>
+        <div class="p-2 sm:p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
+          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 font-mono">
+            <svg class="w-3 h-3 text-purple-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span class="truncate">Dokumen Taktis</span>
           </div>
           <div class="mt-1 flex items-center gap-1.5">
-            <span class="px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/25">
+            <span class="px-1.5 py-0.5 rounded-md font-mono font-bold text-[11px] bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/25">
               <?= $totalRenops ?> Renops
             </span>
-            <span class="px-2 py-0.5 rounded-md font-mono font-bold text-xs bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25">
+            <span class="px-1.5 py-0.5 rounded-md font-mono font-bold text-[11px] bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25">
               <?= $totalLapbang ?> Lapbang
             </span>
           </div>
-          <div class="text-[11px] text-slate-400 dark:text-slate-500">
-            Dokumen Taktis Terbit
+          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+            Telah Diterbitkan
           </div>
         </div>
 
       </div>
 
       <!-- Bottom Row: Hari Pelaksanaan & Action Buttons -->
-      <div class="mt-3.5 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         
         <!-- Hari Pelaksanaan -->
         <div class="flex items-center gap-2 flex-wrap">
-          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold shadow-xs <?= $pelaksanaan['is_extended'] ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30' : ($isOpen ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700') ?>">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs <?= $pelaksanaan['is_extended'] ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30' : ($isOpen ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700') ?>">
             <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
             <span>Pelaksanaan Operasi: <strong><?= e($pelaksanaan['teks']) ?></strong></span>
           </span>
@@ -564,7 +579,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
             id="btnCopyWa-<?= $op['id_operasi'] ?>"
             onclick="copyOpsWaText(event, <?= $op['id_operasi'] ?>)"
             title="Salin Teks WA Laporan Awal"
-            class="p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white border-slate-200 dark:border-slate-700 cursor-pointer"
+            class="btn-tactile p-1.5 sm:p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white border-slate-200 dark:border-slate-700 cursor-pointer"
           >
             <svg id="iconCopy-<?= $op['id_operasi'] ?>" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <svg id="iconCheck-<?= $op['id_operasi'] ?>" class="w-4 h-4 text-emerald-500 hidden" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -575,7 +590,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
             type="button"
             onclick="openOpsWaModal(<?= $op['id_operasi'] ?>, '<?= e(addslashes($op['nama_operasi'])) ?>')"
             title="Lihat Format WA Resmi"
-            class="p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white border-slate-200 dark:border-slate-700 cursor-pointer"
+            class="btn-tactile p-1.5 sm:p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white border-slate-200 dark:border-slate-700 cursor-pointer"
           >
             <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
@@ -584,7 +599,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           <a
             href="<?= BASE_URL ?>/operasi_form.php?id=<?= $op['id_operasi'] ?>"
             title="Edit Data Operasi"
-            class="p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-amber-600 dark:text-slate-300 dark:hover:text-amber-400 border-slate-200 dark:border-slate-700 cursor-pointer"
+            class="btn-tactile p-1.5 sm:p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-amber-600 dark:text-slate-300 dark:hover:text-amber-400 border-slate-200 dark:border-slate-700 cursor-pointer"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
           </a>
@@ -595,7 +610,7 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
               type="button"
               onclick="deleteOpsHandler(event, <?= $op['id_operasi'] ?>, '<?= e(addslashes($op['nama_operasi'])) ?>')"
               title="Hapus Operasi"
-              class="p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 border-slate-200 dark:border-slate-700 cursor-pointer"
+              class="btn-tactile p-1.5 sm:p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 border-slate-200 dark:border-slate-700 cursor-pointer"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>

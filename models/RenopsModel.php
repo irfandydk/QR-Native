@@ -104,7 +104,10 @@ class RenopsModel {
         }
 
         if (class_exists('TemplateHelper')) {
-            $ops = OperasiModel::getById((int)$renops['id_operasi']) ?? ['id_operasi' => $renops['id_operasi']];
+            $db = getDB();
+            $stmtOps = $db->prepare("SELECT id_operasi, waktu_berangkat, created_at FROM Operasi WHERE id_operasi = :id LIMIT 1");
+            $stmtOps->execute([':id' => (int)$renops['id_operasi']]);
+            $ops = $stmtOps->fetch(PDO::FETCH_ASSOC) ?: ['id_operasi' => $renops['id_operasi']];
             $renops['nomor_renops'] = TemplateHelper::generateNomorRenops($ops, $renops);
         }
 

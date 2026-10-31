@@ -173,14 +173,10 @@ assertCondition(
 
 // 2.8 Verifikasi kontrol form UI bra_form.php
 assertCondition(
-    str_contains($formFile, 'id="selectVesselChoice"') &&
-    str_contains($formFile, 'id="btnVesselTolak"') &&
-    str_contains($formFile, 'id="btnVesselPantauan"') &&
-    str_contains($formFile, 'id="btnVesselSandar"') &&
-    str_contains($formFile, 'id="btnPresetPacitan"') &&
-    str_contains($formFile, 'id="btnPresetRB210"') &&
-    str_contains($formFile, 'id="btnPresetRB307"'),
-    "UI views/bra_form.php menyediakan pemilih dropdown dan tombol aksi lengkap untuk ke-3 kapal resmi"
+    !str_contains($formFile, 'id="selectVesselChoice"') &&
+    !str_contains($formFile, 'id="btnPresetPacitan"') &&
+    !str_contains($formFile, 'id="btnVesselTolak"'),
+    "UI views/bra_form.php tidak lagi menampilkan preset cepat Pergerakan Kapal (dihapus atas permintaan pengguna)"
 );
 
 // 2.9 Verifikasi Simpan Naskah Pergerakan Kapal ke DB & Word Count

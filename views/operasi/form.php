@@ -164,7 +164,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 <div class="max-w-7xl mx-auto space-y-6 pb-20">
 
   <!-- Breadcrumb & Top Bar -->
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+  <div class="bento-card-v1 cockpit-glass flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl shadow-sm transition-colors">
     <div class="space-y-1.5 flex-1 min-w-0">
       <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
         <a href="<?= BASE_URL ?>/index.php" class="hover:text-orange-500 transition-colors flex items-center gap-1 font-semibold">
@@ -204,10 +204,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       </div>
     </div>
     <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-      <button type="button" onclick="restoreLocalStorageDraft()" class="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold cursor-pointer transition shadow-xs">
+      <button type="button" onclick="restoreLocalStorageDraft()" class="btn-tactile px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold cursor-pointer transition shadow-xs">
         Pulihkan Draf
       </button>
-      <button type="button" onclick="discardLocalStorageDraft()" class="px-3 py-1.5 rounded-xl border border-amber-500/30 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold cursor-pointer transition">
+      <button type="button" onclick="discardLocalStorageDraft()" class="btn-tactile px-3 py-1.5 rounded-xl border border-amber-500/30 hover:bg-amber-500/20 text-amber-800 dark:text-amber-300 font-semibold cursor-pointer transition">
         Abaikan / Hapus
       </button>
     </div>
@@ -220,10 +220,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     <?php endif; ?>
 
     <!-- POIN 1: Identitas Operasi & Sumber Informasi -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
+    <div class="bento-card-v1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-xs">
+          <div class="w-8 h-8 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-center font-mono font-bold text-xs">
             01
           </div>
           <div>
@@ -233,7 +233,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             <p class="text-xs text-slate-500 dark:text-slate-400">Nama operasi SAR dan data lengkap pelapor pertama</p>
           </div>
         </div>
-        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30">
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-mono">
           SUMBER INFO
         </span>
       </div>
@@ -251,16 +251,16 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
           <!-- Preset Nama Operasi Pills -->
           <div class="flex flex-wrap items-center gap-1.5 mt-2">
             <span class="text-[11px] font-semibold text-slate-400 mr-1">Preset Cepat:</span>
-            <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan Kapal Longboat Mati Mesin di Perairan ')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+            <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan Kapal Longboat Mati Mesin di Perairan ')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
               Kapal Mati Mesin
             </button>
-            <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan Kapal Terbalik di Perairan ')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+            <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan Kapal Terbalik di Perairan ')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
               Kapal Terbalik
             </button>
-            <button type="button" onclick="setPresetOps('Operasi SAR Kondisi Membahayakan Manusia (KMM) 1 Orang Hilang di Hutan ')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+            <button type="button" onclick="setPresetOps('Operasi SAR Kondisi Membahayakan Manusia (KMM) 1 Orang Hilang di Hutan ')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
               KMM Hutan
             </button>
-            <button type="button" onclick="setPresetOps('Operasi SAR Kondisi Membahayakan Manusia (KMM) 1 Orang Tenggelam di Sungai ')" class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+            <button type="button" onclick="setPresetOps('Operasi SAR Kondisi Membahayakan Manusia (KMM) 1 Orang Tenggelam di Sungai ')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
               KMM Sungai
             </button>
           </div>
@@ -299,10 +299,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     </div>
 
     <!-- POIN 2: Kronologi Waktu & Perjalanan Tim -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
+    <div class="bento-card-v1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs">
+          <div class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center font-mono font-bold text-xs">
             02
           </div>
           <div>
@@ -312,7 +312,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             <p class="text-xs text-slate-500 dark:text-slate-400">Waktu kejadian, waktu terima laporan, keberangkatan tim, dan estimasi tiba di LKP</p>
           </div>
         </div>
-        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-mono">
           WAKTU & PERGERAKAN
         </span>
       </div>
@@ -413,10 +413,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     </div>
 
     <!-- POIN 3: Lokasi Kejadian & Titik Koordinat (LKP) -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
+    <div class="bento-card-v1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
+          <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-mono font-bold text-xs">
             03
           </div>
           <div>
@@ -439,7 +439,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         </div>
 
         <!-- Dedicated DMS Coordinate Inputs (No manual degree/minute symbols required) -->
-        <div class="p-4 rounded-xl border border-emerald-200/70 dark:border-emerald-800/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-3">
+        <div class="p-4 rounded-xl border border-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-3">
           <div class="flex items-center justify-between">
             <label class="block text-xs font-bold text-slate-800 dark:text-slate-200">
               Titik Koordinat LKP (Format DMS Derajat-Menit-Detik) <span class="text-red-500">*</span>
@@ -506,7 +506,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         </div>
 
         <!-- Pangkalan / Pos Asal Pemberangkatan (Origin Base) Dinamis -->
-        <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 space-y-3">
+        <div class="bento-card-v1 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/80 dark:bg-slate-950/60 space-y-3">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <label class="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
@@ -514,7 +514,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
               </label>
               <p class="text-[11px] text-slate-500 dark:text-slate-400">Titik tolak tim penyelamat (Pos SAR / Kansar / USS / Dermaga) untuk perhitungan jarak & heading radial ke LKP</p>
             </div>
-            <button type="button" onclick="calculateDistanceAndRadial(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-500/10 hover:bg-orange-600 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/20 hover:border-orange-600 transition cursor-pointer shadow-xs shrink-0" title="Hitung ulang jarak nautical miles dan bearing derajat kompas dari pangkalan ini ke LKP">
+            <button type="button" onclick="calculateDistanceAndRadial(true)" class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-500/10 hover:bg-orange-600 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/20 hover:border-orange-600 transition cursor-pointer shadow-xs shrink-0" title="Hitung ulang jarak nautical miles dan bearing derajat kompas dari pangkalan ini ke LKP">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               <span>Hitung Jarak & Radial Otomatis</span>
             </button>
@@ -553,16 +553,16 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <input type="hidden" name="origin_point_type" id="origin_point_type" value="" />
 
         <!-- PETA INTERAKTIF PENENTUAN LKP & PLOTTING JALUR MANUAL (ROUTING) -->
-        <div id="tactical-map-card" class="p-4 sm:p-5 rounded-2xl border border-orange-500/30 bg-slate-50 dark:to-slate-900/60 space-y-4 shadow-xs transition-all duration-300">
+        <div id="tactical-map-card" class="bento-card-v1 p-4 sm:p-5 rounded-2xl border border-orange-500/30 bg-slate-50/70 dark:bg-slate-950/40 space-y-4 shadow-xs transition-all duration-300">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-orange-500/10">
             <div class="space-y-0.5">
               <div class="flex items-center gap-2">
-                <span class="w-6 h-6 rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs font-bold">
-                  🗺️
+                <span class="w-6 h-6 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-center text-xs font-bold font-mono">
+                  GIS
                 </span>
                 <label class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
                   <span>Peta Taktis LKP & Plotting Jalur Tempuh</span>
-                  <span id="route-mode-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                  <span id="route-mode-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
                     GARIS LURUS
                   </span>
                 </label>
@@ -574,17 +574,17 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 
             <!-- Toolbar Buttons -->
             <div class="flex items-center gap-1.5 flex-wrap sm:flex-nowrap shrink-0">
-              <button type="button" onclick="centerMapOnLkp()" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs flex items-center gap-1" title="Fokuskan peta ke titik koordinat LKP">
+              <button type="button" onclick="centerMapOnLkp()" class="btn-tactile px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs flex items-center gap-1" title="Fokuskan peta ke titik koordinat LKP">
                 <span>Ke LKP</span>
               </button>
-              <button type="button" onclick="centerMapOnOrigin()" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs flex items-center gap-1" title="Fokuskan peta ke pangkalan asal">
+              <button type="button" onclick="centerMapOnOrigin()" class="btn-tactile px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs flex items-center gap-1" title="Fokuskan peta ke pangkalan asal">
                 <span>Ke Pangkalan</span>
               </button>
-              <button type="button" onclick="openFullscreenMapModal()" class="px-3 py-1.5 rounded-xl text-[11px] font-bold bg-orange-600 hover:bg-orange-500 text-white transition cursor-pointer shadow-xs flex items-center gap-1" title="Buka peta ukuran penuh untuk plotting waypoint lebih leluasa">
+              <button type="button" onclick="openFullscreenMapModal()" class="btn-tactile px-3 py-1.5 rounded-xl text-[11px] font-bold bg-orange-600 hover:bg-orange-500 text-white transition cursor-pointer shadow-xs flex items-center gap-1" title="Buka peta ukuran penuh untuk plotting waypoint lebih leluasa">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
                 <span>Perbesar Peta</span>
               </button>
-              <button type="button" id="btn-toggle-map-minimize" onclick="toggleTacticalMapMinimize()" class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs flex items-center gap-1" title="Minimize / sembunyikan tampilan peta untuk menghemat ruang">
+              <button type="button" id="btn-toggle-map-minimize" onclick="toggleTacticalMapMinimize()" class="btn-tactile px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs flex items-center gap-1" title="Minimize / sembunyikan tampilan peta untuk menghemat ruang">
                 <span id="btn-minimize-icon"></span>
                 <span id="btn-minimize-text">Minimize</span>
               </button>
@@ -614,10 +614,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
-              <button type="button" onclick="applyTacticalRouteToForm()" class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[11px] shadow-xs transition cursor-pointer flex items-center gap-1" title="Terapkan jarak & estimasi waktu ke isian form">
+              <button type="button" onclick="applyTacticalRouteToForm()" class="btn-tactile px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold text-[11px] shadow-xs transition cursor-pointer flex items-center gap-1" title="Terapkan jarak & estimasi waktu ke isian form">
                 <span>Terapkan</span>
               </button>
-              <button type="button" onclick="toggleTacticalMapMinimize(false)" class="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-[11px] border border-slate-200 dark:border-slate-600 shadow-xs transition cursor-pointer flex items-center gap-1">
+              <button type="button" onclick="toggleTacticalMapMinimize(false)" class="btn-tactile px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold text-[11px] border border-slate-200 dark:border-slate-600 shadow-xs transition cursor-pointer flex items-center gap-1">
                 <span>Tampilkan Peta</span>
               </button>
             </div>
@@ -644,20 +644,20 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                   Metode Perhitungan Rute:
                 </label>
                 <div class="inline-flex p-1 rounded-xl bg-slate-200/70 dark:bg-slate-800/80 border border-slate-300/70 dark:border-slate-700">
-                  <button type="button" id="btn-mode-direct" onclick="setRoutingMode('direct')" class="flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
+                  <button type="button" id="btn-mode-direct" onclick="setRoutingMode('direct')" class="btn-tactile flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-white dark:bg-slate-700 text-orange-600 dark:text-orange-400 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer">
                     <span>Garis Lurus (Direct)</span>
                   </button>
-                  <button type="button" id="btn-mode-manual" onclick="setRoutingMode('manual')" class="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                  <button type="button" id="btn-mode-manual" onclick="setRoutingMode('manual')" class="btn-tactile flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center gap-1.5 cursor-pointer">
                     <span>Jalur Manual (Waypoint)</span>
                   </button>
                 </div>
 
                 <!-- Waypoint Actions (shown when manual mode active) -->
                 <div id="manual-route-actions" class="hidden flex items-center gap-1.5 mt-1">
-                  <button type="button" onclick="undoLastWaypoint()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-300 hover:text-white border border-amber-500/20 transition cursor-pointer flex items-center gap-1">
+                  <button type="button" onclick="undoLastWaypoint()" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/10 hover:bg-amber-500 text-amber-700 dark:text-amber-300 hover:text-white border border-amber-500/20 transition cursor-pointer flex items-center gap-1">
                     <span>Undo Titik</span>
                   </button>
-                  <button type="button" onclick="clearManualRouteWaypoints()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/10 hover:bg-red-500 text-red-600 dark:text-red-400 hover:text-white border border-red-500/20 transition cursor-pointer flex items-center gap-1">
+                  <button type="button" onclick="clearManualRouteWaypoints()" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/10 hover:bg-red-500 text-red-600 dark:text-red-400 hover:text-white border border-red-500/20 transition cursor-pointer flex items-center gap-1">
                     <span>Reset Jalur</span>
                   </button>
                   <span id="waypoint-count-pill" class="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
@@ -676,7 +676,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 
                   <!-- Manual Speed Input with Unit Toggle -->
                   <div class="sm:col-span-12 flex items-center gap-1">
-                    <input type="number" step="any" min="0.1" id="input_vessel_speed_num" value="<?= e((string)($existingRoute['vesselSpeedKnots'] ?? '25')) ?>" oninput="handleManualSpeedInput(this.value)" class="control control-sm w-full font-bold text-center" placeholder="25" title="Ketik kecepatan wahana secara manual" />
+                    <input type="number" step="any" min="0.1" id="input_vessel_speed_num" value="<?= e((string)($existingRoute['vesselSpeedKnots'] ?? '25')) ?>" oninput="handleManualSpeedInput(this.value)" class="control control-sm w-full font-bold text-center font-mono" placeholder="25" title="Ketik kecepatan wahana secara manual" />
                     <select id="select_speed_unit" onchange="handleSpeedUnitChange(this.value)" class="control control-sm font-bold shrink-0">
                       <option value="knots">Kts</option>
                       <option value="kmh">Km/j</option>
@@ -702,7 +702,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                     </div>
                   </div>
 
-                  <button type="button" onclick="applyTacticalRouteToForm()" class="px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5 ml-auto" title="Terapkan jarak, radial, dan estimasi waktu tempuh dari kalkulasi peta ini ke isian form laporan awal">
+                  <button type="button" onclick="applyTacticalRouteToForm()" class="btn-tactile px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow-xs transition cursor-pointer flex items-center gap-1.5 ml-auto" title="Terapkan jarak, radial, dan estimasi waktu tempuh dari kalkulasi peta ini ke isian form laporan awal">
                     <span>Terapkan ke Form</span>
                   </button>
                 </div>
@@ -722,8 +722,8 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                 placeholder="Contoh: 15.5"
                 value="<?= e($jarakVal) ?>"
                 oninput="syncJarakDanRadial()"
-                class="control control-sm flex-1 font-semibold" />
-              <select id="jarak_unit" onchange="handleJarakUnitChange(this.value)" class="control control-sm font-bold">
+                class="control control-sm flex-1 font-semibold font-mono" />
+              <select id="jarak_unit" onchange="handleJarakUnitChange(this.value)" class="control control-sm font-bold font-mono">
                 <option value="NM" <?= $jarakUnit === 'NM' ? 'selected' : '' ?>>NM</option>
                 <option value="KM" <?= $jarakUnit === 'KM' ? 'selected' : '' ?>>KM</option>
               </select>
@@ -741,7 +741,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                 placeholder="Contoh: 045"
                 value="<?= e($radialVal) ?>"
                 oninput="syncJarakDanRadial()"
-                class="control control-sm w-full font-semibold pl-3.5 pr-10" />
+                class="control control-sm w-full font-semibold pl-3.5 pr-10 font-mono" />
               <span class="absolute right-3.5 text-xs font-bold text-slate-400 select-none">°</span>
             </div>
             <input type="hidden" name="radial" id="radial" value="<?= e($operasi['radial'] ?? '') ?>">
@@ -752,10 +752,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     </div>
 
     <!-- POIN 4: Kronologi Kejadian & Asisten AI -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
+    <div class="bento-card-v1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
+          <div class="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center font-mono font-bold text-xs">
             04
           </div>
           <div>
@@ -766,11 +766,11 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" id="btn-quick-draft-ai" onclick="quickDraftAiKronologi(this)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-500/10 hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white border border-purple-500/20 hover:border-purple-600 shadow-sm transition cursor-pointer" title="Susun narasi kronologi resmi secara instan dengan AI Gemini">
+          <button type="button" id="btn-quick-draft-ai" onclick="quickDraftAiKronologi(this)" class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-500/10 hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white border border-purple-500/20 hover:border-purple-600 shadow-sm transition cursor-pointer" title="Susun narasi kronologi resmi secara instan dengan AI Gemini">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
             <span class="btn-text">Draf Cepat AI</span>
           </button>
-          <button type="button" id="btn-open-ai-modal" onclick="openAiKronologiModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition cursor-pointer" title="Buka dialog interaktif Asisten AI untuk menyusun narasi kronologi">
+          <button type="button" id="btn-open-ai-modal" onclick="openAiKronologiModal()" class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition cursor-pointer" title="Buka dialog interaktif Asisten AI untuk menyusun narasi kronologi">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
             <span>Asisten AI Kronologi</span>
           </button>
@@ -785,10 +785,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     </div>
 
     <!-- POIN 5: Data Korban Dinamis (POB) -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
+    <div class="bento-card-v1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs">
+          <div class="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center font-mono font-bold text-xs">
             05
           </div>
           <div>
@@ -803,7 +803,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             <span>Total POB:</span>
             <input type="number" name="jumlah_pob" id="jumlah_pob" min="1" value="<?= e($operasi['jumlah_pob'] ?? '1') ?>" class="control control-sm w-16 text-center font-mono font-bold" />
           </div>
-          <button type="button" onclick="addKorbanRow()" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition cursor-pointer">
+          <button type="button" onclick="addKorbanRow()" class="btn-tactile inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm transition cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
             <span>Tambah Korban</span>
           </button>
@@ -814,7 +814,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs" id="table-korban">
           <thead>
-            <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase tracking-wider text-[11px] font-bold">
+            <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase tracking-wider text-[11px] font-bold font-mono">
               <th class="py-2 px-2 w-10 text-center">No</th>
               <th class="py-2 px-3">Nama Lengkap Korban <span class="text-red-500">*</span></th>
               <th class="py-2 px-3 w-28">Umur</th>
@@ -858,7 +858,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                 <input type="text" name="korban[<?= $idx ?>][alamat]" placeholder="Alamat domisili..." value="<?= e($k['alamat']) ?>" class="control control-sm w-full" />
               </td>
               <td class="py-3 px-2 text-center">
-                <button type="button" onclick="removeKorbanRow(this)" class="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition cursor-pointer" title="Hapus Korban">
+                <button type="button" onclick="removeKorbanRow(this)" class="btn-tactile p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition cursor-pointer" title="Hapus Korban">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
               </td>
@@ -873,10 +873,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       
       <!-- POIN 6: Unsur SAR Terlibat (Interactive Reorderable Editor with Master Data) -->
-      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4 transition-colors">
+      <div class="bento-card-v1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4 transition-colors">
         <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-xs">
+            <div class="w-7 h-7 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-center font-mono font-bold text-xs">
               06
             </div>
             <div>
@@ -890,7 +890,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         </div>
 
         <!-- Master Data Selector (Tanpa Rekomendasi Cepat Sesuai Permintaan) -->
-        <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 space-y-3">
+        <div class="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/60 space-y-3">
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div class="field">
               <label class="field-label">Pilih Master Tim / Unsur:</label>
@@ -913,11 +913,11 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             <input type="text" id="unsur-input-nama" placeholder="Ketik nama unsur (contoh: Tim Rescue KPP Kendari, Polairud)..." class="control control-sm w-full">
           </div>
           <div class="sm:col-span-3 flex items-center gap-1.5">
-            <input type="number" id="unsur-input-jml" min="1" max="999" value="1" placeholder="Qty" class="control control-sm w-full text-center font-bold">
-            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">Org</span>
+            <input type="number" id="unsur-input-jml" min="1" max="999" value="1" placeholder="Qty" class="control control-sm w-full text-center font-bold font-mono">
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 font-mono">Org</span>
           </div>
           <div class="sm:col-span-1">
-            <button type="button" onclick="handleAddUnsurClick()" class="w-full h-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold flex items-center justify-center shadow transition-all cursor-pointer" title="Tambah Unsur ke Daftar">
+            <button type="button" onclick="handleAddUnsurClick()" class="btn-tactile w-full h-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold flex items-center justify-center shadow transition-all cursor-pointer" title="Tambah Unsur ke Daftar">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             </button>
           </div>
@@ -934,10 +934,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       </div>
 
       <!-- POIN 7: Alut & Palsar Terlibat (Interactive Reorderable Editor with Master Data) -->
-      <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4 transition-colors">
+      <div class="bento-card-v1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4 transition-colors">
         <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
           <div class="flex items-center gap-2.5">
-            <div class="w-7 h-7 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center font-bold text-xs">
+            <div class="w-7 h-7 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-center font-mono font-bold text-xs">
               07
             </div>
             <div>
@@ -951,7 +951,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         </div>
 
         <!-- Master Data Selector & Preset Chips -->
-        <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 space-y-3">
+        <div class="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/60 space-y-3">
           <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div class="field">
               <label class="field-label">Pilih Master Alut:</label>
@@ -974,7 +974,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             <input type="text" id="alut-input-nama" placeholder="Ketik nama alut / palsar (contoh: Mobil Rescue, RIB 01)..." class="control control-sm w-full">
           </div>
           <div class="sm:col-span-2">
-            <input type="number" id="alut-input-jml" min="1" max="999" value="1" placeholder="Qty" class="control control-sm w-full text-center font-bold">
+            <input type="number" id="alut-input-jml" min="1" max="999" value="1" placeholder="Qty" class="control control-sm w-full text-center font-bold font-mono">
           </div>
           <div class="sm:col-span-2">
             <select id="alut-input-satuan" class="control control-sm w-full">
@@ -987,7 +987,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             </select>
           </div>
           <div class="sm:col-span-1">
-            <button type="button" onclick="handleAddAlutClick()" class="w-full h-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold flex items-center justify-center shadow transition-all cursor-pointer" title="Tambah Alut ke Daftar">
+            <button type="button" onclick="handleAddAlutClick()" class="btn-tactile w-full h-full py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg text-xs font-bold flex items-center justify-center shadow transition-all cursor-pointer" title="Tambah Alut ke Daftar">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             </button>
           </div>
@@ -1006,10 +1006,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     </div>
 
     <!-- POIN 8: Kondisi Cuaca & Faktor Penghambat -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
+    <div class="bento-card-v1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-5 transition-colors">
       <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 flex items-center justify-center font-bold text-xs">
+          <div class="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 flex items-center justify-center font-mono font-bold text-xs">
             08
           </div>
           <div>
@@ -1019,7 +1019,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             <p class="text-xs text-slate-500 dark:text-slate-400">Data meteorologi BMKG dan kendala operasional di lapangan</p>
           </div>
         </div>
-        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30">
+        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 font-mono">
           BMKG & KENDALA
         </span>
       </div>
@@ -1068,18 +1068,18 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     </div>
 
     <!-- Sticky Bottom Actions Bar -->
-    <div class="sticky bottom-4 z-20 p-4 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-xl flex items-center justify-between gap-4 transition-colors">
-      <a href="<?= $editMode ? (BASE_URL . '/operasi_detail.php?id=' . (int)($operasi['id_operasi'] ?? 0)) : (BASE_URL . '/index.php') ?>" class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition cursor-pointer">
+    <div class="cockpit-glass sticky bottom-4 z-20 p-4 rounded-2xl shadow-xl flex items-center justify-between gap-4 transition-colors">
+      <a href="<?= $editMode ? (BASE_URL . '/operasi_detail.php?id=' . (int)($operasi['id_operasi'] ?? 0)) : (BASE_URL . '/index.php') ?>" class="btn-tactile px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition cursor-pointer">
         Batal
       </a>
 
       <div class="flex items-center gap-3">
-        <button type="button" onclick="previewWhatsApp()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
+        <button type="button" onclick="previewWhatsApp()" class="btn-tactile inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
           <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
           <span>Pratinjau Format WA</span>
         </button>
 
-        <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-95 text-white font-bold text-xs transition cursor-pointer">
+        <button type="submit" class="btn-tactile inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold text-xs transition cursor-pointer shadow-sm">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           <span><?= $editMode ? 'Simpan Perubahan' : 'Inisiasi & Terbitkan Laporan Awal' ?></span>
         </button>
@@ -1091,19 +1091,19 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 <!-- ==================== MODALS ==================== -->
 
 <!-- Modal 1: WhatsApp Preview Modal with Official "12 Oktober 2026" Date Format -->
-<div id="modal-wa-preview" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden" style="display: none;">
-  <div class="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+<div id="modal-wa-preview" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md hidden" style="display: none;">
+  <div class="bento-card-v1 w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
     <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        <div class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center justify-center font-mono font-bold text-xs">
+          WA
         </div>
         <div>
           <h3 class="text-sm font-bold text-slate-900 dark:text-white">Pratinjau Format WhatsApp Resmi</h3>
           <p class="text-[11px] text-slate-400">Format pesan baku FILE AKTIF Basarnas Kendari</p>
         </div>
       </div>
-      <button type="button" onclick="closeModal('modal-wa-preview')" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+      <button type="button" onclick="closeModal('modal-wa-preview')" class="btn-tactile p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
         ✕
       </button>
     </div>
@@ -1113,10 +1113,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     </div>
 
     <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/50">
-      <button type="button" onclick="closeModal('modal-wa-preview')" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
+      <button type="button" onclick="closeModal('modal-wa-preview')" class="btn-tactile px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">
         Tutup
       </button>
-      <button type="button" onclick="copyWaText()" class="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition cursor-pointer">
+      <button type="button" onclick="copyWaText()" class="btn-tactile inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition cursor-pointer">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
         <span>Salin Teks WhatsApp</span>
       </button>
@@ -1127,19 +1127,19 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 
 
 <!-- Modal 3: AI Kronologi Assistant Modal -->
-<div id="modal-ai-kronologi" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden" style="display: none;">
-  <div class="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+<div id="modal-ai-kronologi" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md hidden" style="display: none;">
+  <div class="bento-card-v1 w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
     <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+        <div class="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/20 flex items-center justify-center font-mono font-bold text-xs">
+          AI
         </div>
         <div>
           <h3 class="text-sm font-bold text-slate-900 dark:text-white">Asisten AI Kronologi Basarnas</h3>
           <p class="text-[11px] text-slate-400">Menyusun ulang dan merapikan kalimat laporan mentah menjadi format narasi resmi</p>
         </div>
       </div>
-      <button type="button" onclick="closeModal('modal-ai-kronologi')" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+      <button type="button" onclick="closeModal('modal-ai-kronologi')" class="btn-tactile p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
         ✕
       </button>
     </div>
@@ -1155,7 +1155,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       </div>
 
       <div class="flex justify-end">
-        <button type="button" id="btn-generate-ai" onclick="generateAiKronologi()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm transition cursor-pointer">
+        <button type="button" id="btn-generate-ai" onclick="generateAiKronologi()" class="btn-tactile inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm transition cursor-pointer">
           Susun Narasi Resmi
         </button>
       </div>
@@ -1169,10 +1169,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     </div>
 
     <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/50">
-      <button type="button" onclick="closeModal('modal-ai-kronologi')" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+      <button type="button" onclick="closeModal('modal-ai-kronologi')" class="btn-tactile px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
         Batal
       </button>
-      <button type="button" onclick="applyAiKronologi()" class="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition cursor-pointer">
+      <button type="button" onclick="applyAiKronologi()" class="btn-tactile inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-md transition cursor-pointer">
         Terapkan ke Form
       </button>
     </div>
@@ -1180,18 +1180,18 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 </div>
 
 <!-- Modal 4: Fullscreen Tactical Map Routing Modal -->
-<div id="modal-fullscreen-map" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-md hidden" style="display: none;">
-  <div class="w-full max-w-7xl h-[92vh] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+<div id="modal-fullscreen-map" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md hidden" style="display: none;">
+  <div class="bento-card-v1 w-full max-w-7xl h-[92vh] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
     <!-- Modal Header -->
     <div class="px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/80 shrink-0">
       <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center text-base font-bold">
-          🗺️
+        <div class="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-center text-xs font-mono font-bold">
+          GIS
         </div>
         <div>
           <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <span>Peta Taktis LKP & Plotting Jalur Tempuh SAR (Fullscreen)</span>
-            <span id="map-modal-route-mode-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+            <span id="map-modal-route-mode-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
               GARIS LURUS
             </span>
           </h3>
@@ -1201,13 +1201,13 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 
       <!-- Quick Actions & Close -->
       <div class="flex items-center gap-2 shrink-0">
-        <button type="button" onclick="centerMapOnLkp(true)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
+        <button type="button" onclick="centerMapOnLkp(true)" class="btn-tactile px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
           Ke LKP
         </button>
-        <button type="button" onclick="centerMapOnOrigin(true)" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
+        <button type="button" onclick="centerMapOnOrigin(true)" class="btn-tactile px-3 py-1.5 rounded-xl text-xs font-bold bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
           Ke Pangkalan
         </button>
-        <button type="button" onclick="closeFullscreenMapModal()" class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+        <button type="button" onclick="closeFullscreenMapModal()" class="btn-tactile p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
           ✕
         </button>
       </div>
@@ -1221,21 +1221,21 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <div class="absolute top-4 left-4 z-[1000] flex flex-col gap-2 max-w-md pointer-events-auto">
         <div class="p-3 rounded-2xl bg-slate-900/90 backdrop-blur-md border border-white/20 shadow-xl space-y-2 text-white">
           <div class="flex items-center justify-between gap-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-orange-400">Mode Rute:</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-orange-400 font-mono">Mode Rute:</span>
             <div class="inline-flex p-0.5 rounded-lg bg-slate-800 border border-slate-700">
-              <button type="button" id="map-modal-btn-mode-direct" onclick="setRoutingMode('direct')" class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-orange-600 text-white cursor-pointer">
+              <button type="button" id="map-modal-btn-mode-direct" onclick="setRoutingMode('direct')" class="btn-tactile px-2.5 py-1 rounded-md text-[11px] font-bold bg-orange-600 text-white cursor-pointer">
                 Direct
               </button>
-              <button type="button" id="map-modal-btn-mode-manual" onclick="setRoutingMode('manual')" class="px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-300 hover:text-white cursor-pointer">
+              <button type="button" id="map-modal-btn-mode-manual" onclick="setRoutingMode('manual')" class="btn-tactile px-2.5 py-1 rounded-md text-[11px] font-medium text-slate-300 hover:text-white cursor-pointer">
                 Manual Waypoints
               </button>
             </div>
           </div>
           <div id="map-modal-manual-actions" class="hidden flex items-center gap-1.5 pt-1 border-t border-white/10">
-            <button type="button" onclick="undoLastWaypoint()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-white border border-amber-500/30 transition cursor-pointer">
+            <button type="button" onclick="undoLastWaypoint()" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-white border border-amber-500/30 transition cursor-pointer">
               Undo Titik
             </button>
-            <button type="button" onclick="clearManualRouteWaypoints()" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/30 transition cursor-pointer">
+            <button type="button" onclick="clearManualRouteWaypoints()" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-bold bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white border border-red-500/30 transition cursor-pointer">
               Reset Jalur
             </button>
             <span id="map-modal-waypoint-count-pill" class="text-[11px] font-mono px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">
@@ -1268,10 +1268,10 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 
     <!-- Modal Footer -->
     <div class="px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/80 shrink-0">
-      <button type="button" onclick="closeFullscreenMapModal()" class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+      <button type="button" onclick="closeFullscreenMapModal()" class="btn-tactile px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
         Tutup
       </button>
-      <button type="button" onclick="applyAndCloseFullscreenMapModal()" class="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition cursor-pointer">
+      <button type="button" onclick="applyAndCloseFullscreenMapModal()" class="btn-tactile inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition cursor-pointer">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
         <span>Terapkan Hasil Plotting & Tutup</span>
       </button>

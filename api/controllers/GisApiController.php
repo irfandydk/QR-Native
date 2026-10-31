@@ -593,7 +593,8 @@ class GisApiController extends BaseApiController {
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => 7,
-                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_USERAGENT => 'QR-SAR-Kendari/2.5.0 (basarnas-kendari; contact: admin@basarnas.go.id)'
             ]);
             $osrmRes = curl_exec($ch);

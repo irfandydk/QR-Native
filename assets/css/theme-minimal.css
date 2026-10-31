@@ -304,7 +304,8 @@ html[data-ui="minimal"] #sidebarPalettePopover { display: none !important; }
 
 /* ---------- Modal, toast & SweetAlert ---------- */
 html[data-ui="minimal"] .modal-overlay,
-html[data-ui="minimal"] .swal2-container.swal2-backdrop-show {
+/* Toast (pojok kanan atas) tidak punya backdrop: jangan blur area di bawahnya */
+html[data-ui="minimal"] body:not(.swal2-toast-shown) .swal2-container.swal2-backdrop-show {
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }

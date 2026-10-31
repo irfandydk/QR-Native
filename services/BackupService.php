@@ -213,53 +213,68 @@ class BackupService {
             throw new RuntimeException('Restore dibatalkan: folder storage/backups tidak dapat dibuat untuk cadangan otomatis.');
         }
         $path = $dir . '/pre-restore-' . date('Ymd-His') . '.sql';
-        if (@file_put_contents($path, self::generateSQLDump()) === false) {
+        $fp = @fopen($path, 'wb');
+        if (!$fp) {
             throw new RuntimeException('Restore dibatalkan: cadangan otomatis sebelum restore gagal ditulis ke storage/backups.');
         }
+        self::writeSQLDump($fp);
+        fclose($fp);
         return $path;
     }
 
     /**
-     * Generate complete MySQL dump string containing DROP, CREATE TABLE, and INSERT statements.
+     * Tulis seluruh SQL dump langsung ke stream/resource (misal berkas atau php://temp).
+     * Mencegah pemborosan memori (OOM) dengan membaca baris secara bertahap (streaming/chunking)
+     * dan menggunakan PDO::quote() untuk mencegah malformasi sintaks SQL pada karakter khusus.
      *
-     * @return string
+     * @param resource $resource
      */
-    public static function generateSQLDump(): string {
+    public static function writeSQLDump($resource): void {
         $db = getDB();
         $date = date('Y-m-d H:i:s');
 
-        $out = "-- ========================================================\n";
-        $out .= "-- DUMP BASIS DATA QR SAR KANTOR PENCARIAN DAN PERTOLONGAN KENDARI\n";
-        $out .= "-- Tanggal Ekspor: {$date}\n";
-        $out .= "-- ========================================================\n\n";
-        $out .= "SET FOREIGN_KEY_CHECKS = 0;\n\n";
+        fwrite($resource, "-- ========================================================\n");
+        fwrite($resource, "-- DUMP BASIS DATA QR SAR KANTOR PENCARIAN DAN PERTOLONGAN KENDARI\n");
+        fwrite($resource, "-- Tanggal Ekspor: {$date}\n");
+        fwrite($resource, "-- ========================================================\n\n");
+        fwrite($resource, "SET FOREIGN_KEY_CHECKS = 0;\n\n");
 
         foreach (self::MANAGED_TABLES as $table) {
             try {
                 $createRow = $db->query("SHOW CREATE TABLE `{$table}`")->fetch();
                 if ($createRow && isset($createRow['Create Table'])) {
-                    $out .= "DROP TABLE IF EXISTS `{$table}`;\n";
-                    $out .= $createRow['Create Table'] . ";\n\n";
+                    fwrite($resource, "DROP TABLE IF EXISTS `{$table}`;\n");
+                    fwrite($resource, $createRow['Create Table'] . ";\n\n");
 
-                    $rows = $db->query("SELECT * FROM `{$table}`")->fetchAll();
-                    if (!empty($rows)) {
-                        $cols = array_keys($rows[0]);
-                        $colList = implode('`, `', $cols);
+                    $stmt = $db->query("SELECT * FROM `{$table}`");
+                    $batchSize = 100;
+                    $batch = [];
+                    $cols = null;
 
-                        $insertLines = [];
-                        foreach ($rows as $row) {
-                            $valList = [];
-                            foreach ($row as $v) {
-                                if ($v === null) {
-                                    $valList[] = "NULL";
-                                } else {
-                                    $valList[] = "'" . addslashes((string)$v) . "'";
-                                }
-                            }
-                            $insertLines[] = "(" . implode(', ', $valList) . ")";
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        if ($cols === null) {
+                            $cols = array_keys($row);
+                            $colList = implode('`, `', $cols);
                         }
 
-                        $out .= "INSERT INTO `{$table}` (`{$colList}`) VALUES\n" . implode(",\n", $insertLines) . ";\n\n";
+                        $valList = [];
+                        foreach ($row as $v) {
+                            if ($v === null) {
+                                $valList[] = "NULL";
+                            } else {
+                                $valList[] = $db->quote((string)$v);
+                            }
+                        }
+                        $batch[] = "(" . implode(', ', $valList) . ")";
+
+                        if (count($batch) >= $batchSize) {
+                            fwrite($resource, "INSERT INTO `{$table}` (`{$colList}`) VALUES\n" . implode(",\n", $batch) . ";\n\n");
+                            $batch = [];
+                        }
+                    }
+
+                    if (!empty($batch) && $cols !== null) {
+                        fwrite($resource, "INSERT INTO `{$table}` (`{$colList}`) VALUES\n" . implode(",\n", $batch) . ";\n\n");
                     }
                 }
             } catch (Throwable $e) {
@@ -267,7 +282,22 @@ class BackupService {
             }
         }
 
-        $out .= "SET FOREIGN_KEY_CHECKS = 1;\n";
+        fwrite($resource, "SET FOREIGN_KEY_CHECKS = 1;\n");
+    }
+
+    /**
+     * Generate complete MySQL dump string containing DROP, CREATE TABLE, and INSERT statements.
+     * Menggunakan memory-backed stream dengan fallback disk temporary jika ukuran melebihi limit.
+     *
+     * @return string
+     */
+    public static function generateSQLDump(): string {
+        $stream = fopen('php://temp', 'r+');
+        self::writeSQLDump($stream);
+        rewind($stream);
+        $out = (string)stream_get_contents($stream);
+        fclose($stream);
+
         if (class_exists('AuditHelper')) {
             AuditHelper::log('DATABASE_BACKUP', "Mengekspor cadangan basis data format SQL Dump", 'Database', 'SYSTEM');
         }

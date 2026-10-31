@@ -58,7 +58,10 @@ class LaporanModel {
         }
 
         if (class_exists('TemplateHelper')) {
-            $ops = OperasiModel::getById((int)$row['id_operasi']) ?? ['id_operasi' => $row['id_operasi']];
+            $db = getDB();
+            $stmtOps = $db->prepare("SELECT id_operasi, waktu_berangkat, created_at FROM Operasi WHERE id_operasi = :id LIMIT 1");
+            $stmtOps->execute([':id' => (int)$row['id_operasi']]);
+            $ops = $stmtOps->fetch(PDO::FETCH_ASSOC) ?: ['id_operasi' => $row['id_operasi']];
             $row['nomor_laporan'] = TemplateHelper::generateNomorSitrep($ops, $row);
         }
 

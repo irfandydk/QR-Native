@@ -50,10 +50,10 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
 <div class="max-w-7xl mx-auto space-y-6 pb-20">
 
   <!-- Breadcrumb & Top Bar -->
-  <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+  <div class="bento-card-v1 cockpit-glass flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl shadow-sm transition-colors">
     <div class="space-y-1.5 flex-1 min-w-0">
       <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $idOperasi ?>" class="hover:text-orange-500 transition-colors flex items-center gap-1 font-semibold">
+        <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $idOperasi ?>" class="btn-tactile hover:text-orange-500 transition-colors flex items-center gap-1 font-semibold">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
           Detail Operasi
         </a>
@@ -64,7 +64,7 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
         <h1 class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
           <?= $editMode ? "Edit Rencana Operasi SAR ({$hariKe})" : "Penerbitan Rencana Operasi SAR ({$hariKe})" ?>
         </h1>
-        <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full <?= $editMode ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' : 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30' ?> uppercase tracking-wider shrink-0">
+        <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full <?= $editMode ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' : 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30' ?> uppercase tracking-wider shrink-0 font-mono">
           <?= $editMode ? 'MODE PERBAIKAN' : 'DOKUMEN RENOPS' ?>
         </span>
       </div>
@@ -75,11 +75,11 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
 
     <!-- Quick Action Buttons -->
     <div class="flex items-center gap-2.5 shrink-0 self-end sm:self-auto">
-      <button type="button" onclick="previewRenopsWa()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
+      <button type="button" onclick="previewRenopsWa()" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
         <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         <span>Pratinjau Format WA</span>
       </button>
-      <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $idOperasi ?>&tab=renops" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
+      <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $idOperasi ?>&tab=renops" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer shadow-xs">
         Batal
       </a>
     </div>
@@ -364,18 +364,18 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
     </div>
 
     <!-- Bottom Action Bar (Simpan / Batal) -->
-    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
+    <div class="cockpit-glass sticky bottom-4 z-20 p-4 sm:p-5 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
       <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
         <span>Status Siklus:</span>
         <span class="font-bold font-mono text-orange-600 dark:text-orange-400"><?= e($hariKe) ?> Terintegrasi</span>
       </div>
 
       <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
-        <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $idOperasi ?>&tab=renops" class="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold text-xs transition">
+        <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $idOperasi ?>&tab=renops" class="btn-tactile px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold text-xs transition cursor-pointer">
           Batal
         </a>
-        <button type="submit" class="px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition cursor-pointer flex items-center gap-2">
-          <span></span>
+        <button type="submit" class="btn-tactile px-6 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition cursor-pointer flex items-center gap-2 shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           <span><?= $editMode ? 'Simpan Perubahan RENOPS' : 'Terbitkan Rencana Operasi (RENOPS)' ?></span>
         </button>
       </div>

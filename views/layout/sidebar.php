@@ -196,9 +196,12 @@ $logoUrl = getAppLogoUrl();
           <?= e($currentUser['jabatan'] ?? (($currentUser['role'] ?? '') === 'USER' ? 'Operator SAR Kendari' : 'Admin SAR Kendari')) ?>
         </p>
       </a>
-      <a href="<?= BASE_URL ?>/logout.php?csrf_token=<?= e(csrfToken()) ?>" data-confirm="Apakah Anda yakin ingin keluar dari sistem QR-SAR?" data-confirm-title="Konfirmasi Keluar Sesi" data-confirm-btn="Ya, Keluar" class="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0" title="Keluar dari sistem">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-      </a>
+      <form action="<?= BASE_URL ?>/logout.php" method="POST" class="inline m-0 p-0 shrink-0">
+        <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
+        <button type="submit" data-confirm="Apakah Anda yakin ingin keluar dari sistem QR-SAR?" data-confirm-title="Konfirmasi Keluar Sesi" data-confirm-btn="Ya, Keluar" class="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0 border-0 bg-transparent flex items-center justify-center" title="Keluar dari sistem">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+        </button>
+      </form>
     </div>
 
   </div>

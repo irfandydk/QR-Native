@@ -10,6 +10,10 @@
 declare(strict_types=1);
 
 class GeoHelper {
+    /** Koordinat Pangkalan Utama Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari */
+    public const KANSAR_KENDARI_LAT = -4.084194;
+    public const KANSAR_KENDARI_LNG = 122.428389;
+
     /**
      * Format a single decimal degree coordinate into DMS (Degrees, Minutes, Seconds).
      */
@@ -81,6 +85,27 @@ class GeoHelper {
             'bearing' => (int)round($brng),
             'headingName' => $headings[$headingIdx]
         ];
+    }
+
+    /**
+     * Hitung jarak Nautical Miles (NM) antara dua koordinat bola bumi.
+     */
+    public static function calculateDistanceNm(float $lat1, float $lon1, float $lat2, float $lon2): float {
+        return self::calculateDistanceHaversine($lat1, $lon1, $lat2, $lon2)['nm'];
+    }
+
+    /**
+     * Hitung jarak Kilometer (KM) antara dua koordinat bola bumi.
+     */
+    public static function calculateDistanceKm(float $lat1, float $lon1, float $lat2, float $lon2): float {
+        return self::calculateDistanceHaversine($lat1, $lon1, $lat2, $lon2)['km'];
+    }
+
+    /**
+     * Hitung sudut azimuth / radial bearing (0-359 derajat) dari titik awal ke titik tujuan.
+     */
+    public static function calculateBearing(float $lat1, float $lon1, float $lat2, float $lon2): int {
+        return self::calculateDistanceHaversine($lat1, $lon1, $lat2, $lon2)['bearing'];
     }
 
     /**

@@ -121,6 +121,46 @@ class GisModel {
         $rows = $db->query($sql)->fetchAll(PDO::FETCH_ASSOC);
         
         $bases = [];
+
+        if (empty($rows)) {
+            // Fallback: baca dari SarUnit jika data GisPoint belum terisi
+            $suRows = $db->query("SELECT * FROM SarUnit ORDER BY is_default DESC, id_unit ASC")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($suRows as $su) {
+                $lat = (float)$su['latitude'];
+                $lng = (float)$su['longitude'];
+                $dms = !empty($su['koordinat_dms']) ? $su['koordinat_dms'] : (class_exists('GeoHelper') ? GeoHelper::decimalToDms($lat, $lng) : "{$lat}, {$lng}");
+                $isDefault = ((int)($su['is_default'] ?? 0) === 1 || stripos($su['nama_unit'], 'Kansar') !== false || stripos($su['nama_unit'], 'Kantor SAR') !== false);
+                $id = $isDefault ? 'pt-kansar' : ('pt-sarunit-' . $su['id_unit']);
+                $cat = match(strtoupper((string)($su['jenis_unit'] ?? ''))) {
+                    'KANTOR_SAR' => 'Kantor SAR',
+                    'POS_SAR' => 'POS SAR',
+                    'UNIT_SIAGA' => 'Unit Siaga SAR',
+                    'KN_SAR' => 'Dermaga',
+                    default => 'POS SAR'
+                };
+
+                $bases[] = [
+                    'id' => $id,
+                    'id_unit' => $id,
+                    'nama_unit' => $su['nama_unit'],
+                    'label' => $su['nama_unit'],
+                    'category' => $cat,
+                    'jenis_unit' => strtoupper(str_replace(' ', '_', $cat)),
+                    'wilayah' => $su['wilayah'] ?: $su['alamat'],
+                    'latitude' => $lat,
+                    'longitude' => $lng,
+                    'lat' => $lat,
+                    'lng' => $lng,
+                    'koordinat_dms' => $dms,
+                    'pointType' => 'custom_upload',
+                    'customIconUrl' => 'assets/img/basarnas-logo.png',
+                    'alphabetChar' => 'A',
+                    'is_default' => $isDefault ? 1 : 0
+                ];
+            }
+            return $bases;
+        }
+
         foreach ($rows as $r) {
             $lat = (float)$r['lat'];
             $lng = (float)$r['lng'];
@@ -141,7 +181,7 @@ class GisModel {
                 'lng' => $lng,
                 'koordinat_dms' => $dms,
                 'pointType' => $r['pointType'] ?: 'custom_upload',
-                'customIconUrl' => $r['customIconUrl'] ?: '',
+                'customIconUrl' => $r['customIconUrl'] ?: 'assets/img/basarnas-logo.png',
                 'alphabetChar' => $r['alphabetChar'] ?: 'A',
                 'is_default' => $isDefault ? 1 : 0
             ];

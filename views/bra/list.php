@@ -37,128 +37,120 @@ $braList = BraModel::getAll($katParam, $searchQuery !== '' ? $searchQuery : null
 $totalFiltered = count($braList);
 ?>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4">
 
   <!-- ======================================================== -->
   <!-- 1. TOP HEADER & COMMAND ACTIONS -->
   <!-- ======================================================== -->
-  <div class="p-5 sm:p-6 rounded-3xl border shadow-lg transition-colors bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-      <div class="flex items-start gap-3.5">
+  <div class="bento-card-v1 p-4 sm:p-5 rounded-2xl shadow-sm transition-colors bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
+      <div class="flex items-center gap-3">
         <a href="<?= BASE_URL ?>/index.php"
-           class="p-2.5 rounded-2xl border transition-colors mt-0.5 border-slate-200 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 shrink-0"
+           class="btn-tactile p-2 rounded-xl border transition-colors border-slate-200 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 shrink-0"
            title="Kembali ke Dashboard">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
         </a>
         <div>
-          <div class="flex flex-wrap items-center gap-2.5">
-            <div class="w-9 h-9 rounded-xl border flex items-center justify-center bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="w-7 h-7 rounded-lg border flex items-center justify-center bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
             </div>
-            <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white">
               Arsip Berita Radio SAR (BRA SAR)
             </h1>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold uppercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              SENKOM 304 AKTIF
+              SENKOM 304
             </span>
           </div>
-          <p class="text-xs mt-1.5 text-slate-600 dark:text-slate-400 leading-relaxed">
-            Pusat data arsip telegram radio resmi Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-normal">
+            Pusat data arsip telegram radio resmi Kantor Pencarian dan Pertolongan (KPP) Kendari
           </p>
         </div>
       </div>
 
       <!-- Quick Action Buttons -->
       <div class="flex flex-wrap items-center gap-2">
-
         <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=MAPEL"
-           class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]">
-          <span></span>
+           class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all">
           <span>+ BRA Mapel</span>
         </a>
 
         <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=OPERASI_SAR"
-           class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]">
-          <span></span>
+           class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all">
           <span>+ BRA SAR</span>
         </a>
 
         <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=PERGERAKAN_KAPAL"
-           class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]">
-          <span></span>
+           class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all">
           <span>+ BRA Kapal</span>
         </a>
       </div>
     </div>
 
     <!-- 4 Stat Summary Cards (Interactive Filters) -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6 pt-5 border-t border-slate-200 dark:border-slate-800">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 mt-3.5 pt-3.5 border-t border-slate-200/70 dark:border-slate-800/70">
       <!-- Card 1: Semua -->
       <a href="<?= BASE_URL ?>/bra.php?kategori=SEMUA<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="p-3.5 rounded-2xl border cursor-pointer transition-all <?= $kategoriFilter === 'SEMUA'
-           ? 'bg-orange-50/80 dark:bg-slate-800 border-orange-400 dark:border-orange-500 ring-2 ring-orange-400/40 dark:ring-orange-500/50 shadow-sm'
-           : 'bg-slate-50/80 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
-        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
+         class="p-2.5 sm:p-3 rounded-xl border cursor-pointer transition-all btn-tactile <?= $kategoriFilter === 'SEMUA'
+           ? 'bg-orange-500/10 dark:bg-slate-800 border-orange-400 dark:border-orange-500 ring-2 ring-orange-400/30 dark:ring-orange-500/40 shadow-xs'
+           : 'bg-slate-50/70 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
+        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider font-mono">
           <span>Semua Telegram</span>
-          <span class="text-sm"></span>
         </div>
-        <div class="mt-2 flex items-baseline gap-2">
-          <span class="text-2xl font-bold text-slate-900 dark:text-white">
+        <div class="mt-1 flex items-baseline gap-1.5">
+          <span class="text-xl sm:text-2xl font-bold font-mono text-slate-900 dark:text-white leading-none">
             <?= $countAll ?>
           </span>
-          <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Dokumen</span>
+          <span class="text-[11px] text-slate-400 font-medium">Dokumen</span>
         </div>
       </a>
 
       <!-- Card 2: MAPEL -->
       <a href="<?= BASE_URL ?>/bra.php?kategori=MAPEL<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="p-3.5 rounded-2xl border cursor-pointer transition-all <?= $kategoriFilter === 'MAPEL'
-           ? 'bg-orange-50/80 dark:bg-slate-800 border-orange-400 dark:border-orange-500 ring-2 ring-orange-400/40 dark:ring-orange-500/50 shadow-sm'
-           : 'bg-slate-50/80 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
-        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-          <span>BRA Mapel Kapal</span>
-          <span class="text-sm"></span>
+         class="p-2.5 sm:p-3 rounded-xl border cursor-pointer transition-all btn-tactile <?= $kategoriFilter === 'MAPEL'
+           ? 'bg-orange-500/10 dark:bg-slate-800 border-orange-400 dark:border-orange-500 ring-2 ring-orange-400/30 dark:ring-orange-500/40 shadow-xs'
+           : 'bg-slate-50/70 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
+        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider font-mono">
+          <span>BRA Mapel</span>
         </div>
-        <div class="mt-2 flex items-baseline gap-2">
-          <span class="text-2xl font-bold text-orange-600 dark:text-orange-400">
+        <div class="mt-1 flex items-baseline gap-1.5">
+          <span class="text-xl sm:text-2xl font-bold font-mono text-orange-600 dark:text-orange-400 leading-none">
             <?= $countMapel ?>
           </span>
-          <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Dokumen</span>
+          <span class="text-[11px] text-slate-400 font-medium">Dokumen</span>
         </div>
       </a>
 
       <!-- Card 3: OPERASI SAR -->
       <a href="<?= BASE_URL ?>/bra.php?kategori=OPERASI_SAR<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="p-3.5 rounded-2xl border cursor-pointer transition-all <?= $kategoriFilter === 'OPERASI_SAR'
-           ? 'bg-amber-50/80 dark:bg-slate-800 border-amber-400 dark:border-amber-500 ring-2 ring-amber-400/40 dark:ring-amber-500/50 shadow-sm'
-           : 'bg-slate-50/80 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
-        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-          <span>BRA Operasi SAR</span>
-          <span class="text-sm"></span>
+         class="p-2.5 sm:p-3 rounded-xl border cursor-pointer transition-all btn-tactile <?= $kategoriFilter === 'OPERASI_SAR'
+           ? 'bg-amber-500/10 dark:bg-slate-800 border-amber-400 dark:border-amber-500 ring-2 ring-amber-400/30 dark:ring-amber-500/40 shadow-xs'
+           : 'bg-slate-50/70 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
+        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider font-mono">
+          <span>BRA Ops SAR</span>
         </div>
-        <div class="mt-2 flex items-baseline gap-2">
-          <span class="text-2xl font-bold text-amber-600 dark:text-amber-400">
+        <div class="mt-1 flex items-baseline gap-1.5">
+          <span class="text-xl sm:text-2xl font-bold font-mono text-amber-600 dark:text-amber-400 leading-none">
             <?= $countOperasiSar ?>
           </span>
-          <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Dokumen</span>
+          <span class="text-[11px] text-slate-400 font-medium">Dokumen</span>
         </div>
       </a>
 
       <!-- Card 4: KAPAL -->
       <a href="<?= BASE_URL ?>/bra.php?kategori=PERGERAKAN_KAPAL<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="p-3.5 rounded-2xl border cursor-pointer transition-all <?= $kategoriFilter === 'PERGERAKAN_KAPAL'
-           ? 'bg-cyan-50/80 dark:bg-slate-800 border-cyan-400 dark:border-cyan-500 ring-2 ring-cyan-400/40 dark:ring-cyan-500/50 shadow-sm'
-           : 'bg-slate-50/80 dark:bg-slate-950/60 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
-        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-medium">
-          <span>BRA Kapal SAR</span>
-          <span class="text-sm"></span>
+         class="p-2.5 sm:p-3 rounded-xl border cursor-pointer transition-all btn-tactile <?= $kategoriFilter === 'PERGERAKAN_KAPAL'
+           ? 'bg-cyan-500/10 dark:bg-slate-800 border-cyan-400 dark:border-cyan-500 ring-2 ring-cyan-400/30 dark:ring-cyan-500/40 shadow-xs'
+           : 'bg-slate-50/70 dark:bg-slate-950/60 border-slate-200/80 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80' ?>">
+        <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase tracking-wider font-mono">
+          <span>BRA Kapal</span>
         </div>
-        <div class="mt-2 flex items-baseline gap-2">
-          <span class="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
+        <div class="mt-1 flex items-baseline gap-1.5">
+          <span class="text-xl sm:text-2xl font-bold font-mono text-cyan-600 dark:text-cyan-400 leading-none">
             <?= $countKapal ?>
           </span>
-          <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Dokumen</span>
+          <span class="text-[11px] text-slate-400 font-medium">Dokumen</span>
         </div>
       </a>
     </div>
@@ -167,62 +159,62 @@ $totalFiltered = count($braList);
   <!-- ======================================================== -->
   <!-- 2. FILTER TOOLBAR, SEARCH BAR & VIEW SWITCHER (CARD vs LIST) -->
   <!-- ======================================================== -->
-  <div class="p-4 rounded-2xl border shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3.5 transition-colors bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+  <div class="cockpit-glass p-3 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 transition-colors">
     <!-- Category Pills -->
     <div class="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
       <a href="<?= BASE_URL ?>/bra.php?kategori=SEMUA<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'SEMUA'
-           ? 'bg-orange-500 text-white shadow-md'
+         class="btn-tactile px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'SEMUA'
+           ? 'bg-orange-600 text-white shadow-xs'
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
         Semua (<?= $countAll ?>)
       </a>
       <a href="<?= BASE_URL ?>/bra.php?kategori=MAPEL<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'MAPEL'
-           ? 'bg-orange-500 text-white shadow-md'
+         class="btn-tactile px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'MAPEL'
+           ? 'bg-orange-600 text-white shadow-xs'
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
         Mapel (<?= $countMapel ?>)
       </a>
       <a href="<?= BASE_URL ?>/bra.php?kategori=OPERASI_SAR<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'OPERASI_SAR'
-           ? 'bg-amber-500 text-white shadow-md'
+         class="btn-tactile px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'OPERASI_SAR'
+           ? 'bg-amber-600 text-white shadow-xs'
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
         Operasi SAR (<?= $countOperasiSar ?>)
       </a>
       <a href="<?= BASE_URL ?>/bra.php?kategori=PERGERAKAN_KAPAL<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'PERGERAKAN_KAPAL'
-           ? 'bg-cyan-500 text-white shadow-md'
+         class="btn-tactile px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'PERGERAKAN_KAPAL'
+           ? 'bg-cyan-600 text-white shadow-xs'
            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
         Kapal SAR (<?= $countKapal ?>)
       </a>
     </div>
 
     <!-- Search Input & View Switcher Toggle -->
-    <div class="flex items-center gap-2.5 w-full md:w-auto">
+    <div class="flex items-center gap-2 w-full md:w-auto">
       <!-- Live Search Input -->
-      <div class="relative flex-1 md:w-72">
-        <svg class="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      <div class="relative flex-1 md:w-64">
+        <svg class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         <input type="text"
                id="bra-search-input"
                name="q"
                value="<?= htmlspecialchars($searchQuery) ?>"
-               placeholder="Cari No BRA, Perihal, SMC, TWU..."
-               class="control control-sm w-full placeholder:text-slate-400 dark:placeholder:text-slate-500 pl-10 pr-9" />
+               placeholder="Cari No BRA, Perihal, SMC..."
+               class="control control-sm w-full placeholder:text-slate-400 dark:placeholder:text-slate-500 pl-9 pr-8" />
         <button type="button"
                 id="btn-clear-bra-search"
                 onclick="clearBraSearch()"
                 class="<?= empty($searchQuery) ? 'hidden' : '' ?> absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                 title="Hapus Pencarian">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
 
       <!-- View Switcher (Card vs List) Toggle -->
-      <div class="flex items-center p-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0">
+      <div class="flex items-center p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0">
         <!-- Button: Card View -->
         <button type="button"
                 id="btn-view-card"
                 onclick="setBraView('card')"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer"
+                class="btn-tactile inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer"
                 title="Tampilkan Model Kartu (Grid)">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
           <span class="hidden sm:inline">Kartu</span>
@@ -232,7 +224,7 @@ $totalFiltered = count($braList);
         <button type="button"
                 id="btn-view-list"
                 onclick="setBraView('list')"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer"
+                class="btn-tactile inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer"
                 title="Tampilkan Model Tabel / List">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="2" cy="6" r="1"/><circle cx="2" cy="12" r="1"/><circle cx="2" cy="18" r="1"/></svg>
           <span class="hidden sm:inline">List</span>
@@ -242,9 +234,9 @@ $totalFiltered = count($braList);
   </div>
 
   <!-- Filter Active Info Row -->
-  <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 px-1">
+  <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
     <div>
-      Menampilkan <strong class="text-slate-800 dark:text-slate-200"><?= $totalFiltered ?></strong> dari <?= $countAll ?> arsip naskah BRA SAR
+      Menampilkan <strong class="text-slate-800 dark:text-slate-200 font-mono"><?= $totalFiltered ?></strong> dari <?= $countAll ?> arsip naskah BRA SAR
       <?php if ($kategoriFilter !== 'SEMUA'): ?>
         • Kategori: <span class="font-bold text-orange-600 dark:text-orange-400"><?= e($kategoriFilter) ?></span>
       <?php endif; ?>
@@ -258,16 +250,16 @@ $totalFiltered = count($braList);
   <!-- 3. MAIN DOCUMENTS CONTAINER (DUAL MODE: CARD & LIST) -->
   <!-- ======================================================== -->
   <?php if (empty($braList)): ?>
-    <div class="p-12 text-center rounded-3xl border border-dashed border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900">
-      <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 text-3xl">
+    <div class="bento-card-v1 p-10 text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900">
+      <div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 text-2xl">
         📡
       </div>
-      <h3 class="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">Tidak Ada Naskah BRA Ditemukan</h3>
-      <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-5 leading-relaxed">
+      <h3 class="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">Tidak Ada Naskah BRA Ditemukan</h3>
+      <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-4 leading-relaxed">
         <?= $searchQuery ? 'Tidak ada hasil untuk pencarian "' . htmlspecialchars($searchQuery) . '".' : 'Belum ada dokumen Berita Radio SAR yang tersimpan pada kategori ini.' ?>
       </p>
       <div class="flex items-center justify-center gap-2">
-        <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=<?= $kategoriFilter === 'SEMUA' ? 'MAPEL' : $kategoriFilter ?>" class="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 rounded-xl shadow-md transition">
+        <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=<?= $kategoriFilter === 'SEMUA' ? 'MAPEL' : $kategoriFilter ?>" class="btn-tactile inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 rounded-xl shadow-xs transition">
           + Buat Naskah BRA Baru
         </a>
       </div>
@@ -277,7 +269,7 @@ $totalFiltered = count($braList);
     <!-- ======================================================== -->
     <!-- VIEW MODE 1: GRID OF CARDS -->
     <!-- ======================================================== -->
-    <div id="bra-container-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div id="bra-container-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
       <?php foreach ($braList as $bra): ?>
         <?php
           $kategori = strtoupper($bra['kategori'] ?? 'MAPEL');
@@ -286,70 +278,64 @@ $totalFiltered = count($braList);
               'PERGERAKAN_KAPAL' => 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/30',
               default => 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
           };
-          $kategoriIcon = match($kategori) {
-              'MAPEL' => '📡',
-              'PERGERAKAN_KAPAL' => '🚢',
-              default => '📋',
-          };
           $kategoriLabel = match($kategori) {
               'MAPEL' => 'BRA MAPEL',
               'PERGERAKAN_KAPAL' => 'BRA KAPAL',
-              default => 'BRA SAR OPERASI SAR',
+              default => 'BRA OPS SAR',
           };
           $derajat = strtoupper($bra['derajat'] ?? 'SGR');
           $searchDataStr = strtolower(($bra['no_bra'] ?? '') . ' ' . ($bra['perihal'] ?? '') . ' ' . ($bra['nama_smc'] ?? '') . ' ' . ($bra['pengirim'] ?? '') . ' ' . ($bra['twu'] ?? '') . ' ' . ($bra['twb'] ?? '') . ' ' . ($bra['nama_operasi'] ?? ''));
         ?>
-        <div class="bra-item-card p-5 rounded-3xl border transition-all flex flex-col justify-between group bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-orange-500/50 hover:shadow-lg" data-search="<?= htmlspecialchars($searchDataStr) ?>">
+        <div class="bra-item-card bento-card-v1 p-3.5 sm:p-4 rounded-2xl transition-all flex flex-col justify-between group hover:border-orange-500/50 hover:shadow-md" data-search="<?= htmlspecialchars($searchDataStr) ?>">
           <div>
             <!-- Top Card Header: Category Badge & Derajat -->
-            <div class="flex items-start justify-between gap-2 mb-3">
-              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg border <?= $badgeClass ?>">
-                <span><?= $kategoriIcon ?></span>
+            <div class="flex items-center justify-between gap-2 mb-2">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-lg border font-mono <?= $badgeClass ?>">
                 <span><?= $kategoriLabel ?></span>
               </span>
-              <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                 <?= htmlspecialchars($derajat) ?>
               </span>
             </div>
 
             <!-- Number & Copy Trigger -->
-            <div class="mb-3">
-              <div class="text-xs font-mono font-bold text-orange-600 dark:text-orange-400 mb-1 flex items-center justify-between">
+            <div class="mb-2">
+              <div class="text-xs font-mono font-bold text-orange-600 dark:text-orange-400 mb-0.5 flex items-center justify-between">
                 <span class="truncate"><?= htmlspecialchars($bra['no_bra'] ?? '') ?></span>
                 <button type="button"
                         onclick="copyBraNo('<?= htmlspecialchars($bra['no_bra'] ?? '') ?>', this)"
                         title="Salin Nomor Dokumen"
-                        class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0">
+                        class="btn-tactile p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 </button>
               </div>
-              <h3 class="text-sm font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug group-hover:text-orange-600 dark:group-hover:text-orange-400 transition" title="<?= htmlspecialchars($bra['perihal'] ?? '') ?>">
+              <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug group-hover:text-orange-600 dark:group-hover:text-orange-400 transition" title="<?= htmlspecialchars($bra['perihal'] ?? '') ?>">
                 <?= htmlspecialchars($bra['perihal'] ?? 'Naskah Berita Radio SAR') ?>
               </h3>
             </div>
 
             <!-- Meta Info Card -->
-            <div class="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400 mb-3 bg-slate-50 dark:bg-slate-950/70 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div class="space-y-1 text-[11px] text-slate-600 dark:text-slate-400 mb-2.5 bg-slate-50/70 dark:bg-slate-950/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80">
               <div class="flex items-center justify-between">
-                <span>TWU (Waktu Buat):</span>
+                <span class="text-slate-400 font-mono">TWU:</span>
                 <span class="font-mono font-bold text-slate-800 dark:text-slate-200"><?= htmlspecialchars($bra['twu'] ?? '-') ?></span>
               </div>
               <div class="flex items-center justify-between">
-                <span>TWB (Waktu Kirim):</span>
+                <span class="text-slate-400 font-mono">TWB:</span>
                 <span class="font-mono font-bold text-slate-800 dark:text-slate-200"><?= htmlspecialchars($bra['twb'] ?? '-') ?></span>
               </div>
               <div class="flex items-center justify-between">
-                <span>SMC / Pengirim:</span>
-                <span class="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[170px]"><?= htmlspecialchars($bra['nama_smc'] ?? ($bra['pengirim'] ?? '-')) ?></span>
+                <span class="text-slate-400">SMC/Kirim:</span>
+                <span class="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[150px]"><?= htmlspecialchars($bra['nama_smc'] ?? ($bra['pengirim'] ?? '-')) ?></span>
               </div>
             </div>
 
             <!-- Telegram Preview Snippet (if available) -->
             <?php if (!empty($bra['sections'])): ?>
-            <div class="p-2.5 rounded-xl bg-slate-100/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/60 mb-3 font-mono text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+            <div class="p-2 rounded-lg bg-slate-100/60 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 mb-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5">
               <?php foreach (array_slice($bra['sections'], 0, 2) as $sec): ?>
                 <div class="truncate">
-                  <span class="font-bold text-slate-700 dark:text-slate-300"><?= e($sec['kode']) ?>:</span> <?= e(mb_strimwidth($sec['isi'], 0, 60, '...')) ?>
+                  <span class="font-bold text-slate-700 dark:text-slate-300"><?= e($sec['kode']) ?>:</span> <?= e(mb_strimwidth($sec['isi'], 0, 50, '...')) ?>
                 </div>
               <?php endforeach; ?>
             </div>
@@ -357,15 +343,15 @@ $totalFiltered = count($braList);
           </div>
 
           <!-- Bottom Card Buttons -->
-          <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+          <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-1.5">
             <a href="<?= BASE_URL ?>/bra.php?view=<?= $bra['id_bra'] ?>"
-               class="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 rounded-xl shadow-xs transition hover:scale-[1.02]">
+               class="btn-tactile flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 rounded-xl shadow-xs transition">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.264 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
               <span>Lihat Dokumen</span>
             </a>
 
             <a href="<?= BASE_URL ?>/bra.php?action=edit&id=<?= $bra['id_bra'] ?>"
-               class="p-2 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition cursor-pointer"
+               class="btn-tactile p-1.5 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition cursor-pointer"
                title="Koreksi / Edit Naskah">
               <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             </a>
@@ -374,7 +360,7 @@ $totalFiltered = count($braList);
               <form method="POST" action="<?= BASE_URL ?>/bra.php?action=delete" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus naskah Berita Radio SAR <?= htmlspecialchars($bra['no_bra']) ?>? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Dokumen BRA SAR" data-confirm-btn="Ya, Hapus" data-confirm-danger="true">
                 <?= csrfInput() ?>
                 <input type="hidden" name="id" value="<?= (int)$bra['id_bra'] ?>">
-                <button type="submit" class="p-2 text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-500/10 rounded-xl transition cursor-pointer" title="Hapus Dokumen">
+                <button type="submit" class="btn-tactile p-1.5 text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-500/10 rounded-xl transition cursor-pointer" title="Hapus Dokumen">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 </button>
               </form>

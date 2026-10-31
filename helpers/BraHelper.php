@@ -65,11 +65,32 @@ class BraHelper {
         return strtoupper($clean);
     }
 
+    /**
+     * Sandi telegram per baris: baris daftar ("1. ", "A. ") dan judul daftar ("... TTK DUA") cukup kapital,
+     * baris naratif disandikan (KMA/TTK/TTK DUA). Baris baru dipertahankan (sejalan BraTemplates.formatSectionText).
+     */
     public static function sanitizeTelegramPunctuation(string $text): string {
         if ($text === '') return '';
+        $lines = preg_split('/\r\n|\r|\n/', $text);
+        $out = array_map(static function (string $line): string {
+            if (trim($line) === '') return '';
+            $upper = trim(mb_strtoupper($line, 'UTF-8'));
+            if (preg_match('/^(\d+|[A-Z])\.\s/u', $upper) || preg_match('/TTK DUA\s*$/u', $upper)) return $upper;
+            return self::sanitizeTelegramLine($line);
+        }, $lines);
+        return trim(preg_replace('/\n{3,}/', "\n\n", implode("\n", $out)));
+    }
 
+    private static function sanitizeTelegramLine(string $text): string {
         // 1. Ubah ke Uppercase
         $formatted = mb_strtoupper($text, 'UTF-8');
+
+        // Keterangan dalam kurung (mis. pelapor/HP) dipertahankan apa adanya
+        $kurung = [];
+        $formatted = preg_replace_callback('/\([^)]*\)/u', function ($m) use (&$kurung) {
+            $kurung[] = $m[0];
+            return '__KURUNG_' . (count($kurung) - 1) . '__';
+        }, $formatted);
 
         // 1.5. Konversi kebocoran format tanggal ISO YYYY-MM-DD HH:ii:ss atau YYYY-MM-DD ke sandi militer MMDD HHMM H
         $formatted = preg_replace_callback(
@@ -118,6 +139,7 @@ class BraHelper {
         $formatted = preg_replace('/\bTTK(?:\s+TTK)+\b/', 'TTK', $formatted);
         $formatted = preg_replace('/\bKMA(?:\s+KMA)+\b/', 'KMA', $formatted);
         $formatted = preg_replace('/\s+/', ' ', $formatted);
+        $formatted = preg_replace_callback('/__KURUNG_(\d+)__/', fn($m) => $kurung[(int)$m[1]], $formatted);
 
         return trim($formatted);
     }

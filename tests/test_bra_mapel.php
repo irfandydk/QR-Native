@@ -199,8 +199,8 @@ assertCheck(
     "views/bra/form.php uses 'KA KSOP KENDARI DAN KMA KA SROP KENDARI' as AKSI placeholder"
 );
 assertCheck(
-    strpos($formPhp, 'id="vesselPresetsContainer" class="bra-preset-banner mb-4 <?= $currentKategori === \'PERGERAKAN_KAPAL\' ? \'\' : \'hidden\' ?>" style="border-color: rgba(6, 182, 212, 0.4); background: rgba(6, 182, 212, 0.08); display: <?= $currentKategori === \'PERGERAKAN_KAPAL\' ? \'block\' : \'none\' ?>;"') !== false,
-    "views/bra/form.php strictly enforces vessel presets hidden & display:none when not PERGERAKAN_KAPAL"
+    strpos($formPhp, 'id="vesselPresetsContainer"') === false && strpos($formPhp, 'btnPresetPacitan') === false,
+    "views/bra/form.php has no Pergerakan Kapal quick presets (removed on request)"
 );
 assertCheck(
     strpos($formPhp, 'margin: 5mm 15mm 15mm 15mm;') !== false,
@@ -223,19 +223,19 @@ assertCheck(
     "bra_form.js attaches event listener to #btnAutoMapel"
 );
 assertCheck(
-    strpos($braFormJs, "vesselPresets.style.display = 'none';") !== false,
-    "bra_form.js strictly sets vesselPresets.style.display = 'none' when MAPEL is active"
+    strpos($braFormJs, 'applyVesselPreset') === false && strpos($braFormJs, 'VESSEL_SPECS') === false,
+    "bra_form.js has no Pergerakan Kapal preset logic (removed on request)"
 );
 assertCheck(
-    strpos($braFormJs, "applyMapelFromOperation(op") !== false,
-    "bra_form.js delegates MAPEL formatting to applyMapelFromOperation"
+    strpos($braFormJs, "applyDraft(BT.buildMapel(op));") !== false,
+    "bra_form.js delegates MAPEL formatting to BraTemplates.buildMapel"
 );
 assertCheck(
-    strpos($braFormJs, "jabatanSmcInput.value = 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';") !== false,
-    "bra_form.js assigns 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI' on category switch to MAPEL"
+    strpos($braFormJs, "BT.senderTitle(kind, !!(opSelect && opSelect.value), realTitle())") !== false,
+    "bra_form.js sets jabatan via senderTitle (SMC when linked to an operation, real title otherwise)"
 );
 assertCheck(
-    strpos($braFormJs, "currentKat !== 'PERGERAKAN_KAPAL' && currentKat !== 'MAPEL'") !== false,
+    strpos($braFormJs, "if (getSelectedKategori() === 'MAPEL') {") !== false && strpos($braFormJs, "} else if (getSelectedKategori() !== 'PERGERAKAN_KAPAL') {") !== false,
     "bra_form.js preserves MAPEL category when operation is selected"
 );
 assertCheck(
