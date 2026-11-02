@@ -54,14 +54,14 @@ $initialAlutData = $initialAlutData ?? [];
           Detail Operasi
         </a>
         <span>/</span>
-        <span class="text-blue-600 dark:text-blue-400 font-bold"><?= $editMode ? 'Edit SITREP' : 'Penerbitan SITREP' ?></span>
+        <span class="text-blue-600 dark:text-blue-400 font-bold"><?= $editMode ? 'Edit LAPBANG' : 'Penerbitan LAPBANG' ?></span>
       </div>
       <div class="flex flex-wrap items-center gap-2.5">
         <h1 class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
           <?= $editMode ? "Edit Laporan Perkembangan ({$hariKe})" : "Penerbitan Laporan Perkembangan ({$hariKe})" ?>
         </h1>
         <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full <?= $editMode ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30' ?> uppercase tracking-wider shrink-0 font-mono">
-          <?= $editMode ? 'MODE PERBAIKAN' : 'DOKUMEN SITREP' ?>
+          <?= $editMode ? 'MODE PERBAIKAN' : 'DOKUMEN LAPBANG' ?>
         </span>
       </div>
       <p class="text-xs font-semibold text-slate-700 dark:text-slate-300 line-clamp-1 max-w-2xl">
@@ -115,7 +115,7 @@ $initialAlutData = $initialAlutData ?? [];
           </div>
         </div>
         <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
-          SITREP / LAPBANG
+          LAPBANG
         </span>
       </div>
 
@@ -132,7 +132,7 @@ $initialAlutData = $initialAlutData ?? [];
         <div class="flex items-center gap-2">
           <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold <?= $jenisLaporan === 'PERKEMBANGAN' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700' ?>" id="label-jenis-perkembangan">
             <input type="radio" name="jenis_laporan" value="PERKEMBANGAN" <?= $jenisLaporan === 'PERKEMBANGAN' ? 'checked' : '' ?> onchange="handleJenisLaporanChange(this.value)" class="hidden">
-            <span>Laporan Harian (SITREP)</span>
+            <span>Laporan Harian (LAPBANG)</span>
           </label>
           <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold <?= $jenisLaporan === 'PENUTUPAN' ? 'bg-red-600 text-white border-red-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700' ?>" id="label-jenis-penutupan">
             <input type="radio" name="jenis_laporan" value="PENUTUPAN" <?= $jenisLaporan === 'PENUTUPAN' ? 'checked' : '' ?> onchange="handleJenisLaporanChange(this.value)" class="hidden">
@@ -234,9 +234,9 @@ $initialAlutData = $initialAlutData ?? [];
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
             <span class="btn-text">Rapikan dengan AI</span>
           </button>
-          <button type="button" id="btn-open-ai-sitrep-modal" onclick="openAiSitrepModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition cursor-pointer" title="Buka dialog interaktif Asisten AI untuk menyusun narasi resmi SITREP">
+          <button type="button" id="btn-open-ai-sitrep-modal" onclick="openAiSitrepModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition cursor-pointer" title="Buka dialog interaktif Asisten AI untuk menyusun narasi resmi LAPBANG">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-            <span>Asisten AI SITREP</span>
+            <span>Asisten AI LAPBANG</span>
           </button>
         </div>
       </div>
@@ -458,7 +458,7 @@ $initialAlutData = $initialAlutData ?? [];
         </a>
         <button type="submit" id="btn-submit-sitrep" class="btn-tactile px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          <span><?= $editMode ? 'Simpan Perubahan SITREP' : 'Terbitkan Laporan Perkembangan (SITREP)' ?></span>
+          <span><?= $editMode ? 'Simpan Perubahan LAPBANG' : 'Terbitkan Laporan Perkembangan (LAPBANG)' ?></span>
         </button>
       </div>
     </div>
@@ -466,13 +466,13 @@ $initialAlutData = $initialAlutData ?? [];
   </form>
 </div>
 
-<!-- Modal Pratinjau WhatsApp SITREP -->
+<!-- Modal Pratinjau WhatsApp LAPBANG -->
 <div id="modal-preview-sitrep-wa" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs hidden">
   <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
     <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
       <div class="flex items-center gap-2">
         <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Pratinjau Format WhatsApp SITREP</h3>
+        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Pratinjau Format WhatsApp LAPBANG</h3>
       </div>
       <button type="button" onclick="closeModal('modal-preview-sitrep-wa')" aria-label="Tutup" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -494,7 +494,7 @@ $initialAlutData = $initialAlutData ?? [];
   </div>
 </div>
 
-<!-- Modal Asisten AI SITREP -->
+<!-- Modal Asisten AI LAPBANG -->
 <div id="modal-ai-sitrep" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden" style="display: none;">
   <div class="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
     <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -503,7 +503,7 @@ $initialAlutData = $initialAlutData ?? [];
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
         </div>
         <div>
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Asisten AI Laporan Perkembangan (SITREP)</h3>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Asisten AI Laporan Perkembangan (LAPBANG)</h3>
           <p class="text-[11px] text-slate-400">Menyusun ulang hasil operasi harian menjadi narasi resmi standar Basarnas</p>
         </div>
       </div>

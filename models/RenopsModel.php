@@ -432,6 +432,9 @@ class RenopsModel {
             $db->prepare("DELETE FROM RenopsSRU WHERE id_renops = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM Renops WHERE id_renops = :id")->execute([':id' => $id]);
             DocVerifyHelper::forgetDocTokens([DocVerifyHelper::TYPE_RENOPS], $id);
+            if (class_exists('DokumenPetaSnapshotModel')) {
+                DokumenPetaSnapshotModel::deleteByReferensi('RENOPS', $id);
+            }
             if ($db->inTransaction()) {
                 $db->commit();
             }

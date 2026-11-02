@@ -1,6 +1,6 @@
 <?php
 /**
- * QR-SAR - Lembar Dokumen Resmi Laporan Perkembangan (SITREP)
+ * QR-SAR - Lembar Dokumen Resmi Laporan Perkembangan (LAPBANG)
  * KPP Kendari - Basarnas
  * Standar Naskah Dinas Resmi Basarnas Republik Indonesia
  */
@@ -35,12 +35,12 @@ if (!$laporan && $operasi) {
 
 if (!$operasi || !$laporan) {
     if (AuthHelper::isLoggedIn()) {
-        setFlash('error', 'Dokumen Laporan Perkembangan (SITREP) tidak ditemukan.');
+        setFlash('error', 'Dokumen Laporan Perkembangan (LAPBANG) tidak ditemukan.');
         header("Location: " . BASE_URL . "/operasi.php");
         exit;
     }
     http_response_code(404);
-    exit('Dokumen Laporan Perkembangan (SITREP) tidak ditemukan.');
+    exit('Dokumen Laporan Perkembangan (LAPBANG) tidak ditemukan.');
 }
 
 $id = (int)$operasi['id_operasi'];
@@ -97,7 +97,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SITREP <?= e($hariKe) ?> - <?= e($operasi['nama_operasi']) ?> - BASARNAS</title>
+    <title>LAPBANG <?= e($hariKe) ?> - <?= e($operasi['nama_operasi']) ?> - BASARNAS</title>
     <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/images/logo_basarnas.svg">
     <link rel="stylesheet" href="<?= assetUrl('assets/css/tailwind.css') ?>">
     <style>
@@ -273,7 +273,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                 </a>
                 <span class="text-xs text-slate-500 hidden sm:inline">|</span>
                 <span class="text-xs font-mono font-bold text-orange-400">OPS-#<?= $id ?></span>
-                <span class="text-xs text-slate-300 font-semibold truncate max-w-[200px] sm:max-w-xs"><?= e($operasi['nama_operasi']) ?> (SITREP <?= e($hariKe) ?>)</span>
+                <span class="text-xs text-slate-300 font-semibold truncate max-w-[200px] sm:max-w-xs"><?= e($operasi['nama_operasi']) ?> (LAPBANG <?= e($hariKe) ?>)</span>
             </div>
 
             <!-- Paper Size, Zoom & Print Controls -->
@@ -288,7 +288,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                     </button>
                 </div>
 
-                <button type="button" onclick="copyWaText()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition" title="Salin Naskah WhatsApp SITREP">
+                <button type="button" onclick="copyWaText()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition" title="Salin Naskah WhatsApp LAPBANG">
                     <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                     <span class="hidden sm:inline">Salin WA</span>
                 </button>
@@ -299,7 +299,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
                     </a>
                 <?php endif; ?>
 
-                <button type="button" id="btnDownloadPdf" data-pdf-filename="SITREP_<?= e($hariKe ?? 'HARIAN') ?>_OPS_<?= (int)$id ?>_<?= e($operasi['nama_operasi']) ?>" onclick="downloadOfficialPdf(null, this)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="PDF berbentuk gambar (teks tidak bisa dicari). Untuk naskah resmi gunakan Cetak / Simpan PDF.">
+                <button type="button" id="btnDownloadPdf" data-pdf-filename="LAPBANG_<?= e($hariKe ?? 'HARIAN') ?>_OPS_<?= (int)$id ?>_<?= e($operasi['nama_operasi']) ?>" onclick="downloadOfficialPdf(null, this)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer" title="PDF berbentuk gambar (teks tidak bisa dicari). Untuk naskah resmi gunakan Cetak / Simpan PDF.">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
                     <span>PDF Gambar</span>
                 </button>
@@ -321,7 +321,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
 
             <!-- JUDUL DOKUMEN & NOMOR DINAS -->
             <div class="text-center my-4">
-                <h2 class="doc-title">LAPORAN PERKEMBANGAN (SITREP) OPERASI SAR</h2>
+                <h2 class="doc-title">LAPORAN PERKEMBANGAN (LAPBANG) OPERASI SAR</h2>
                 <div class="doc-sub">HARI KE-<?= e($hariKe) ?></div>
                 <div class="doc-number">Nomor : <?= e($nomorSitrep) ?></div>
             </div>
@@ -623,7 +623,7 @@ $fullWaText = $laporan['full_text_wa'] ?? '';
         if (!holder) return;
         const text = holder.innerText;
         navigator.clipboard.writeText(text).then(() => {
-            alert("Naskah WhatsApp SITREP berhasil disalin ke clipboard!");
+            alert("Naskah WhatsApp LAPBANG berhasil disalin ke clipboard!");
         }).catch(err => {
             console.error("Gagal menyalin teks: ", err);
         });

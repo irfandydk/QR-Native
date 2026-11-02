@@ -354,7 +354,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       </div>
 
       <!-- Capture Peta Cetak 16:9 Button -->
-      <button type="button" id="btnToggleCaptureMode" class="btn-tactile flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer" title="Capture / Screenshot Area Peta 16:9 untuk Dokumen Cetak Resmi (Laporan Awal, RENOPS, SITREP, Penutupan)">
+      <button type="button" id="btnToggleCaptureMode" class="btn-tactile flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer" title="Capture / Screenshot Area Peta 16:9 untuk Dokumen Cetak Resmi (Laporan Awal, RENOPS, LAPBANG, Penutupan)">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         <span class="hidden sm:inline">Capture Peta Cetak</span>
       </button>

@@ -14,6 +14,9 @@ if (!defined('APP_NAME')) {
 
 $error = getFlash('error');
 $success = getFlash('success');
+if (empty($success) && isset($_GET['logout'])) {
+    $success = 'Anda telah berhasil keluar dari sesi sistem.';
+}
 $appSettings = SettingsModel::getSettings();
 $uiTheme = (($appSettings['ui_theme'] ?? 'klasik') === 'minimal') ? 'minimal' : 'klasik';
 $logoUrl = getAppLogoUrl();

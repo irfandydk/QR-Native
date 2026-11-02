@@ -63,8 +63,17 @@ class OperasiApiController extends BaseApiController {
         // 3. Operasi Create
         if ($path === '/operasi' && $method === 'POST') {
             self::requireAuth();
-            $newId = OperasiModel::create($input);
-            self::json(['success' => true, 'id' => $newId, 'message' => 'Laporan Awal Operasi SAR berhasil disimpan.']);
+            $namaOperasi = trim((string)($input['nama_operasi'] ?? ''));
+            if ($namaOperasi === '') {
+                self::error('Nama Operasi SAR wajib diisi.', 400);
+            }
+            try {
+                $newId = OperasiModel::create($input);
+                self::json(['success' => true, 'id' => $newId, 'message' => 'Laporan Awal Operasi SAR berhasil disimpan.']);
+            } catch (\Throwable $e) {
+                error_log("QR-SAR API Error creating Operasi: " . $e->getMessage());
+                self::error('Gagal menyimpan operasi SAR: ' . $e->getMessage(), 400);
+            }
             return true;
         }
 
@@ -130,8 +139,13 @@ class OperasiApiController extends BaseApiController {
                 if (!AuthHelper::canDelete()) {
                     self::error('Akses ditolak: Hanya administrator yang dapat menghapus data operasi.', 403);
                 }
-                $ok = OperasiModel::delete($id);
-                self::json(['success' => $ok, 'message' => 'Operasi SAR berhasil dihapus.']);
+                try {
+                    $ok = OperasiModel::delete($id);
+                    self::json(['success' => $ok, 'message' => 'Operasi SAR berhasil dihapus.']);
+                } catch (\Throwable $e) {
+                    error_log("QR-SAR API Error deleting Operasi {$id}: " . $e->getMessage());
+                    self::error('Gagal menghapus operasi SAR: ' . $e->getMessage(), 500);
+                }
                 return true;
             }
         }

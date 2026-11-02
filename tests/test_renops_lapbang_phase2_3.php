@@ -78,7 +78,7 @@ $printViews = [
         'qrcode'
     ],
     'views/operasi/sitrep_print.php' => [
-        'LAPORAN PERKEMBANGAN (SITREP) OPERASI SAR',
+        'LAPORAN PERKEMBANGAN (LAPBANG) OPERASI SAR',
         'II. DATA KORBAN',
         'III. HASIL PELAKSANAAN OPERASI HARI INI',
         'qrcode'

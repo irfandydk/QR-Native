@@ -173,7 +173,7 @@ foreach ($opsMapSnapshots as $snap) {
                         <?php endif; ?>
                     </div>
                     <h4 class="font-bold text-xs text-slate-900 dark:text-white">4. Perkembangan &amp; Penutupan</h4>
-                    <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Laporan Perkembangan (SITREP) serta Perkembangan &amp; Penutupan Operasi SAR (Peta 16:9 1x).</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Laporan Perkembangan (LAPBANG) serta Perkembangan &amp; Penutupan Operasi SAR (Peta 16:9 1x).</p>
                 </div>
                 <div class="space-y-1.5">
                     <div class="grid grid-cols-2 gap-1.5">
@@ -190,10 +190,10 @@ foreach ($opsMapSnapshots as $snap) {
                         ?>
                         <div class="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-200 dark:border-slate-700/60">
                             <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= $singleLapId ?>" target="_blank" class="py-1.5 px-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-[11px] transition flex items-center justify-center gap-1 no-underline">
-                                <span>Cetak SITREP</span>
+                                <span>Cetak LAPBANG</span>
                             </a>
-                            <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= $singleLapId ?>&download_pdf=1" target="_blank" class="py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center justify-center gap-1 no-underline" title="Download PDF SITREP">
-                                <span>PDF SITREP</span>
+                            <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= $singleLapId ?>&download_pdf=1" target="_blank" class="py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center justify-center gap-1 no-underline" title="Download PDF LAPBANG">
+                                <span>PDF LAPBANG</span>
                             </a>
                         </div>
                         <?php else: ?>
@@ -205,10 +205,10 @@ foreach ($opsMapSnapshots as $snap) {
                             </select>
                             <div class="grid grid-cols-2 gap-1.5">
                                 <button type="button" onclick="const lid = document.getElementById('select-sitrep-cetak').value; window.open('<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=' + lid, '_blank');" class="py-1.5 px-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer">
-                                    <span>Cetak SITREP</span>
+                                    <span>Cetak LAPBANG</span>
                                 </button>
-                                <button type="button" onclick="const lid = document.getElementById('select-sitrep-cetak').value; window.open('<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=' + lid + '&download_pdf=1', '_blank');" class="py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer" title="Download PDF SITREP Terpilih">
-                                    <span>PDF SITREP</span>
+                                <button type="button" onclick="const lid = document.getElementById('select-sitrep-cetak').value; window.open('<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=' + lid + '&download_pdf=1', '_blank');" class="py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] transition flex items-center justify-center gap-1 cursor-pointer" title="Download PDF LAPBANG Terpilih">
+                                    <span>PDF LAPBANG</span>
                                 </button>
                             </div>
                         </div>

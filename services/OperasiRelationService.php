@@ -27,6 +27,20 @@ class OperasiRelationService {
         $keptIds = [];
         $pool = $existingRows;
 
+        // Pre-claim explicit IDs so unnamed items in $unsurData cannot steal an ID belonging to a later item
+        $explicitClaimed = [];
+        foreach ($unsurData as $u) {
+            $uId = !empty($u['id_detail_unsur']) ? (int)$u['id_detail_unsur'] : null;
+            if ($uId && in_array($uId, $existingIds, true)) {
+                $explicitClaimed[$uId] = true;
+            }
+        }
+        foreach ($pool as $pIdx => $pItem) {
+            if (isset($explicitClaimed[(int)$pItem['id_detail_unsur']])) {
+                unset($pool[$pIdx]);
+            }
+        }
+
         foreach ($unsurData as $u) {
             if (empty($u['nama_unsur'])) continue;
             $uId = !empty($u['id_detail_unsur']) ? (int)$u['id_detail_unsur'] : null;
@@ -36,12 +50,6 @@ class OperasiRelationService {
             if ($uId && in_array($uId, $existingIds, true) && !in_array($uId, $keptIds, true)) {
                 $stmtUpdate->execute([':uid' => $uId, ':id_ops' => $idOperasi, ':nama' => $nama, ':jml' => $jml]);
                 $keptIds[] = $uId;
-                foreach ($pool as $pIdx => $pItem) {
-                    if ((int)$pItem['id_detail_unsur'] === $uId) {
-                        unset($pool[$pIdx]);
-                        break;
-                    }
-                }
             } elseif (!empty($pool)) {
                 $matchKey = null;
                 foreach ($pool as $pIdx => $pItem) {
@@ -88,6 +96,20 @@ class OperasiRelationService {
         $keptIds = [];
         $pool = $existingRows;
 
+        // Pre-claim explicit IDs so unnamed items in $alutData cannot steal an ID belonging to a later item
+        $explicitClaimed = [];
+        foreach ($alutData as $a) {
+            $aId = !empty($a['id_detail_alut']) ? (int)$a['id_detail_alut'] : null;
+            if ($aId && in_array($aId, $existingIds, true)) {
+                $explicitClaimed[$aId] = true;
+            }
+        }
+        foreach ($pool as $pIdx => $pItem) {
+            if (isset($explicitClaimed[(int)$pItem['id_detail_alut']])) {
+                unset($pool[$pIdx]);
+            }
+        }
+
         foreach ($alutData as $a) {
             if (empty($a['nama_alut'])) continue;
             $aId = !empty($a['id_detail_alut']) ? (int)$a['id_detail_alut'] : null;
@@ -99,12 +121,6 @@ class OperasiRelationService {
             if ($aId && in_array($aId, $existingIds, true) && !in_array($aId, $keptIds, true)) {
                 $stmtUpdate->execute([':aid' => $aId, ':id_ops' => $idOperasi, ':id_alut' => $idAlut, ':nama' => $nama, ':sat' => $satuan, ':jml' => $jml]);
                 $keptIds[] = $aId;
-                foreach ($pool as $pIdx => $pItem) {
-                    if ((int)$pItem['id_detail_alut'] === $aId) {
-                        unset($pool[$pIdx]);
-                        break;
-                    }
-                }
             } elseif (!empty($pool)) {
                 $matchKey = null;
                 foreach ($pool as $pIdx => $pItem) {
@@ -180,14 +196,8 @@ class OperasiRelationService {
         if (!$inTx) $db->beginTransaction();
 
         try {
-            $delUnsur = false;
-            $delAlut = false;
-            if (!empty($unsurData)) {
-                $delUnsur = self::applyDifferentialUnsur($db, $idOperasi, $unsurData);
-            }
-            if (!empty($alutData)) {
-                $delAlut = self::applyDifferentialAlut($db, $idOperasi, $alutData);
-            }
+            $delUnsur = self::applyDifferentialUnsur($db, $idOperasi, $unsurData);
+            $delAlut = self::applyDifferentialAlut($db, $idOperasi, $alutData);
 
             if (!$inTx) {
                 $db->commit();

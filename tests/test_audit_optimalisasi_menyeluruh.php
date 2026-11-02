@@ -192,7 +192,7 @@ ob_start();
 try {
     include dirname(__DIR__) . '/views/operasi/sitrep_print.php';
     $printSitrepHtml = ob_get_clean();
-    $sitrepRenderOk = str_contains($printSitrepHtml, 'LAPORAN PERKEMBANGAN (SITREP)') && str_contains($printSitrepHtml, 'KORBAN SATU');
+    $sitrepRenderOk = (str_contains($printSitrepHtml, 'LAPORAN PERKEMBANGAN (LAPBANG)') || str_contains($printSitrepHtml, 'LAPORAN PERKEMBANGAN (SITREP)')) && str_contains($printSitrepHtml, 'KORBAN SATU');
 } catch (Throwable $e) {
     ob_end_clean();
     $printSitrepHtml = '';

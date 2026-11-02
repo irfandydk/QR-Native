@@ -38,7 +38,8 @@ class SitrepApiController extends BaseApiController {
                 self::error('Data Laporan Perkembangan (SITREP) tidak ditemukan.', 404);
             }
             $parentOps = OperasiModel::getById((int)$existingLap['id_operasi']);
-            if ($parentOps && $parentOps['status'] === 'CLOSED') {
+            $isExistingPenutupan = (strtoupper((string)($existingLap['jenis_laporan'] ?? '')) === 'PENUTUPAN');
+            if ($parentOps && $parentOps['status'] === 'CLOSED' && !($method !== 'DELETE' && $isExistingPenutupan)) {
                 self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Laporan Perkembangan terkunci dan tidak dapat diubah/dihapus kecuali status operasi dibuka kembali.', 403);
             }
 

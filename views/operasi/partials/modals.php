@@ -10,14 +10,16 @@
 <div id="modal-view-wa-awal" class="modal-overlay">
     <div class="modal-container" style="max-width: 760px; width: 95%;">
         <div class="modal-header flex items-center justify-between border-b border-slate-100 dark:border-slate-800 p-4">
-            <div>
+            <div class="min-w-0 pr-3">
                 <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.774-.954l.583-2.183A7.95 7.95 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
+                    <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.774-.954l.583-2.183A7.95 7.95 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
                     <span>Naskah Laporan Awal WhatsApp Resmi</span>
                 </h3>
-                <p class="text-[11px] text-slate-400 mt-0.5"><?= e($operasi['nama_operasi']) ?></p>
+                <p class="text-[11px] text-slate-400 mt-0.5 truncate" title="<?= e($operasi['nama_operasi']) ?>"><?= e($operasi['nama_operasi']) ?></p>
             </div>
-            <button type="button" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" onclick="closeModal('modal-view-wa-awal')"></button>
+            <button type="button" class="btn-tactile p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0" onclick="closeModal('modal-view-wa-awal')" title="Tutup">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
         </div>
         <?php
             $awalWa = trim((string)($operasi['full_text_wa'] ?? ''));
@@ -30,11 +32,11 @@
                 );
             }
         ?>
-        <div class="modal-body p-4">
-            <pre id="wa-awal-modal-text" class="font-mono p-4 rounded-xl text-xs bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 leading-relaxed max-h-[55vh] overflow-y-auto select-all whitespace-pre-wrap"><?= e($awalWa) ?></pre>
+        <div class="modal-body p-4 overflow-y-auto flex-1">
+            <pre id="wa-awal-modal-text" class="font-mono p-4 rounded-xl text-xs bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 leading-relaxed select-all whitespace-pre-wrap m-0"><?= e($awalWa) ?></pre>
         </div>
         <div class="modal-footer flex items-center justify-between p-4 border-t border-slate-100 dark:border-slate-800">
-            <span class="text-[11px] text-slate-400">Format Resmi Basarnas FILE AKTIF</span>
+            <span class="text-[11px] text-slate-400 font-mono">Format Baku FILE AKTIF</span>
             <div class="flex items-center gap-2">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modal-view-wa-awal')">Tutup</button>
                 <button type="button" class="btn btn-primary btn-sm inline-flex items-center gap-1.5" onclick="copyDetailWA()">
@@ -51,12 +53,14 @@
 <!-- ======================================================== -->
 <div id="modal-close-ops-detail" class="modal-overlay">
     <div class="modal-container">
-        <div class="modal-header">
+        <div class="modal-header flex items-center justify-between border-b border-slate-100 dark:border-slate-800 p-4">
             <h3 class="font-bold text-sm text-red-600 flex items-center gap-2">
-                <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+                <svg class="w-4 h-4 text-red-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
                 <span>Tutup Operasi SAR Resmi</span>
             </h3>
-            <button type="button" class="btn btn-secondary btn-sm" data-close-modal></button>
+            <button type="button" class="btn-tactile p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0" data-close-modal title="Tutup">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
         </div>
         <form method="POST" action="<?= BASE_URL ?>/operasi.php?action=close">
             <?= csrfInput() ?>

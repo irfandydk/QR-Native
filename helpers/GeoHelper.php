@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 class GeoHelper {
     /** Koordinat Pangkalan Utama Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari */
-    public const KANSAR_KENDARI_LAT = -4.084194;
-    public const KANSAR_KENDARI_LNG = 122.428389;
+    public const KANSAR_KENDARI_LAT = -4.0378573160673;
+    public const KANSAR_KENDARI_LNG = 122.4866527319;
 
     /**
      * Format a single decimal degree coordinate into DMS (Degrees, Minutes, Seconds).

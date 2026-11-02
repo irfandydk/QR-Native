@@ -3,11 +3,10 @@
  * QR-SAR - Arsip Berita Radio SAR (BRA SAR)
  * Kantor Pencarian dan Pertolongan (KPP) Kendari - Basarnas
  * 
- * Desain Redesain Taktis Dual-Mode:
- * - Card View (Grid Kartu Modern) & List View (Tabel Data Terstruktur)
+ * Desain Taktis Sederhana (List View Baku Basarnas):
  * - 4 Kartu Statistik Ringkasan Interaktif (Semua, MAPEL, SAR UMUM, KAPAL)
- * - Quick Actions Langsung (+ BRA Mapel, + BRA SAR, + BRA Kapal, Segarkan)
- * - Real-Time Search & Category Filter
+ * - Pencarian Real-Time di Samping Tombol Tambah BRA SAR
+ * - Tabel Data Sederhana & Ringkas: 1. No BRA SAR, 2. Kategori, 3. Perihal (+ Aksi)
  * - Full Dark/Light Mode & Palette Compatibility
  */
 
@@ -40,13 +39,13 @@ $totalFiltered = count($braList);
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-4">
 
   <!-- ======================================================== -->
-  <!-- 1. TOP HEADER & COMMAND ACTIONS -->
+  <!-- 1. TOP HEADER & COMMAND ACTIONS WITH SEARCH -->
   <!-- ======================================================== -->
   <div class="bento-card-v1 p-4 sm:p-5 rounded-2xl shadow-sm transition-colors bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
       <div class="flex items-center gap-3">
         <a href="<?= BASE_URL ?>/index.php"
-           class="btn-tactile p-2 rounded-xl border transition-colors border-slate-200 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 shrink-0"
+           class="btn-tactile p-2 rounded-xl border transition-colors border-slate-200 dark:border-slate-700 bg-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 shrink-0"
            title="Kembali ke Dashboard">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
         </a>
@@ -69,22 +68,43 @@ $totalFiltered = count($braList);
         </div>
       </div>
 
-      <!-- Quick Action Buttons -->
-      <div class="flex flex-wrap items-center gap-2">
-        <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=MAPEL"
-           class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all">
-          <span>+ BRA Mapel</span>
-        </a>
+      <!-- Search Box & Quick Action Buttons -->
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+        <!-- Live Search Input -->
+        <div class="relative w-full sm:w-60 md:w-64">
+          <svg class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text"
+                 id="bra-search-input"
+                 name="q"
+                 value="<?= htmlspecialchars($searchQuery) ?>"
+                 placeholder="Cari No BRA, Perihal..."
+                 class="control control-sm w-full placeholder:text-slate-400 dark:placeholder:text-slate-500 pl-9 pr-8 text-xs" />
+          <button type="button"
+                  id="btn-clear-bra-search"
+                  onclick="clearBraSearch()"
+                  class="<?= empty($searchQuery) ? 'hidden' : '' ?> absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Hapus Pencarian">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
 
-        <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=OPERASI_SAR"
-           class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all">
-          <span>+ BRA SAR</span>
-        </a>
+        <!-- Quick Action Buttons -->
+        <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
+          <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=MAPEL"
+             class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all">
+            <span>+ BRA Mapel</span>
+          </a>
 
-        <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=PERGERAKAN_KAPAL"
-           class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all">
-          <span>+ BRA Kapal</span>
-        </a>
+          <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=OPERASI_SAR"
+             class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all">
+            <span>+ BRA SAR</span>
+          </a>
+
+          <a href="<?= BASE_URL ?>/bra.php?action=create&kategori=PERGERAKAN_KAPAL"
+             class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-bold shadow-xs transition-all">
+            <span>+ BRA Kapal</span>
+          </a>
+        </div>
       </div>
     </div>
 
@@ -156,83 +176,6 @@ $totalFiltered = count($braList);
     </div>
   </div>
 
-  <!-- ======================================================== -->
-  <!-- 2. FILTER TOOLBAR, SEARCH BAR & VIEW SWITCHER (CARD vs LIST) -->
-  <!-- ======================================================== -->
-  <div class="cockpit-glass p-3 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-3 transition-colors">
-    <!-- Category Pills -->
-    <div class="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
-      <a href="<?= BASE_URL ?>/bra.php?kategori=SEMUA<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="btn-tactile px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'SEMUA'
-           ? 'bg-orange-600 text-white shadow-xs'
-           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
-        Semua (<?= $countAll ?>)
-      </a>
-      <a href="<?= BASE_URL ?>/bra.php?kategori=MAPEL<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="btn-tactile px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'MAPEL'
-           ? 'bg-orange-600 text-white shadow-xs'
-           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
-        Mapel (<?= $countMapel ?>)
-      </a>
-      <a href="<?= BASE_URL ?>/bra.php?kategori=OPERASI_SAR<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="btn-tactile px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'OPERASI_SAR'
-           ? 'bg-amber-600 text-white shadow-xs'
-           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
-        Operasi SAR (<?= $countOperasiSar ?>)
-      </a>
-      <a href="<?= BASE_URL ?>/bra.php?kategori=PERGERAKAN_KAPAL<?= $searchQuery ? '&q=' . urlencode($searchQuery) : '' ?>"
-         class="btn-tactile px-3 py-1.5 rounded-xl text-xs font-bold transition <?= $kategoriFilter === 'PERGERAKAN_KAPAL'
-           ? 'bg-cyan-600 text-white shadow-xs'
-           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700' ?>">
-        Kapal SAR (<?= $countKapal ?>)
-      </a>
-    </div>
-
-    <!-- Search Input & View Switcher Toggle -->
-    <div class="flex items-center gap-2 w-full md:w-auto">
-      <!-- Live Search Input -->
-      <div class="relative flex-1 md:w-64">
-        <svg class="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-        <input type="text"
-               id="bra-search-input"
-               name="q"
-               value="<?= htmlspecialchars($searchQuery) ?>"
-               placeholder="Cari No BRA, Perihal, SMC..."
-               class="control control-sm w-full placeholder:text-slate-400 dark:placeholder:text-slate-500 pl-9 pr-8" />
-        <button type="button"
-                id="btn-clear-bra-search"
-                onclick="clearBraSearch()"
-                class="<?= empty($searchQuery) ? 'hidden' : '' ?> absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                title="Hapus Pencarian">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-      </div>
-
-      <!-- View Switcher (Card vs List) Toggle -->
-      <div class="flex items-center p-0.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 shrink-0">
-        <!-- Button: Card View -->
-        <button type="button"
-                id="btn-view-card"
-                onclick="setBraView('card')"
-                class="btn-tactile inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer"
-                title="Tampilkan Model Kartu (Grid)">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
-          <span class="hidden sm:inline">Kartu</span>
-        </button>
-
-        <!-- Button: List View -->
-        <button type="button"
-                id="btn-view-list"
-                onclick="setBraView('list')"
-                class="btn-tactile inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer"
-                title="Tampilkan Model Tabel / List">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="2" cy="6" r="1"/><circle cx="2" cy="12" r="1"/><circle cx="2" cy="18" r="1"/></svg>
-          <span class="hidden sm:inline">List</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- Filter Active Info Row -->
   <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
     <div>
@@ -247,7 +190,7 @@ $totalFiltered = count($braList);
   </div>
 
   <!-- ======================================================== -->
-  <!-- 3. MAIN DOCUMENTS CONTAINER (DUAL MODE: CARD & LIST) -->
+  <!-- 2. MAIN DOCUMENTS CONTAINER (LIST / TABLE VIEW) -->
   <!-- ======================================================== -->
   <?php if (empty($braList)): ?>
     <div class="bento-card-v1 p-10 text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900">
@@ -266,124 +209,16 @@ $totalFiltered = count($braList);
     </div>
   <?php else: ?>
 
-    <!-- ======================================================== -->
-    <!-- VIEW MODE 1: GRID OF CARDS -->
-    <!-- ======================================================== -->
-    <div id="bra-container-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-      <?php foreach ($braList as $bra): ?>
-        <?php
-          $kategori = strtoupper($bra['kategori'] ?? 'MAPEL');
-          $badgeClass = match($kategori) {
-              'MAPEL' => 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30',
-              'PERGERAKAN_KAPAL' => 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/30',
-              default => 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30',
-          };
-          $kategoriLabel = match($kategori) {
-              'MAPEL' => 'BRA MAPEL',
-              'PERGERAKAN_KAPAL' => 'BRA KAPAL',
-              default => 'BRA OPS SAR',
-          };
-          $derajat = strtoupper($bra['derajat'] ?? 'SGR');
-          $searchDataStr = strtolower(($bra['no_bra'] ?? '') . ' ' . ($bra['perihal'] ?? '') . ' ' . ($bra['nama_smc'] ?? '') . ' ' . ($bra['pengirim'] ?? '') . ' ' . ($bra['twu'] ?? '') . ' ' . ($bra['twb'] ?? '') . ' ' . ($bra['nama_operasi'] ?? ''));
-        ?>
-        <div class="bra-item-card bento-card-v1 p-3.5 sm:p-4 rounded-2xl transition-all flex flex-col justify-between group hover:border-orange-500/50 hover:shadow-md" data-search="<?= htmlspecialchars($searchDataStr) ?>">
-          <div>
-            <!-- Top Card Header: Category Badge & Derajat -->
-            <div class="flex items-center justify-between gap-2 mb-2">
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-lg border font-mono <?= $badgeClass ?>">
-                <span><?= $kategoriLabel ?></span>
-              </span>
-              <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                <?= htmlspecialchars($derajat) ?>
-              </span>
-            </div>
-
-            <!-- Number & Copy Trigger -->
-            <div class="mb-2">
-              <div class="text-xs font-mono font-bold text-orange-600 dark:text-orange-400 mb-0.5 flex items-center justify-between">
-                <span class="truncate"><?= htmlspecialchars($bra['no_bra'] ?? '') ?></span>
-                <button type="button"
-                        onclick="copyBraNo('<?= htmlspecialchars($bra['no_bra'] ?? '') ?>', this)"
-                        title="Salin Nomor Dokumen"
-                        class="btn-tactile p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                </button>
-              </div>
-              <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white line-clamp-2 leading-snug group-hover:text-orange-600 dark:group-hover:text-orange-400 transition" title="<?= htmlspecialchars($bra['perihal'] ?? '') ?>">
-                <?= htmlspecialchars($bra['perihal'] ?? 'Naskah Berita Radio SAR') ?>
-              </h3>
-            </div>
-
-            <!-- Meta Info Card -->
-            <div class="space-y-1 text-[11px] text-slate-600 dark:text-slate-400 mb-2.5 bg-slate-50/70 dark:bg-slate-950/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/80">
-              <div class="flex items-center justify-between">
-                <span class="text-slate-400 font-mono">TWU:</span>
-                <span class="font-mono font-bold text-slate-800 dark:text-slate-200"><?= htmlspecialchars($bra['twu'] ?? '-') ?></span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-slate-400 font-mono">TWB:</span>
-                <span class="font-mono font-bold text-slate-800 dark:text-slate-200"><?= htmlspecialchars($bra['twb'] ?? '-') ?></span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-slate-400">SMC/Kirim:</span>
-                <span class="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[150px]"><?= htmlspecialchars($bra['nama_smc'] ?? ($bra['pengirim'] ?? '-')) ?></span>
-              </div>
-            </div>
-
-            <!-- Telegram Preview Snippet (if available) -->
-            <?php if (!empty($bra['sections'])): ?>
-            <div class="p-2 rounded-lg bg-slate-100/60 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/50 mb-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5">
-              <?php foreach (array_slice($bra['sections'], 0, 2) as $sec): ?>
-                <div class="truncate">
-                  <span class="font-bold text-slate-700 dark:text-slate-300"><?= e($sec['kode']) ?>:</span> <?= e(mb_strimwidth($sec['isi'], 0, 50, '...')) ?>
-                </div>
-              <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
-          </div>
-
-          <!-- Bottom Card Buttons -->
-          <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-1.5">
-            <a href="<?= BASE_URL ?>/bra.php?view=<?= $bra['id_bra'] ?>"
-               class="btn-tactile flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-500 rounded-xl shadow-xs transition">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.264 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-              <span>Lihat Dokumen</span>
-            </a>
-
-            <a href="<?= BASE_URL ?>/bra.php?action=edit&id=<?= $bra['id_bra'] ?>"
-               class="btn-tactile p-1.5 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white bg-slate-100 dark:bg-slate-800 rounded-xl transition cursor-pointer"
-               title="Koreksi / Edit Naskah">
-              <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            </a>
-
-            <?php if (AuthHelper::canDelete()): ?>
-              <form method="POST" action="<?= BASE_URL ?>/bra.php?action=delete" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus naskah Berita Radio SAR <?= htmlspecialchars($bra['no_bra']) ?>? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Dokumen BRA SAR" data-confirm-btn="Ya, Hapus" data-confirm-danger="true">
-                <?= csrfInput() ?>
-                <input type="hidden" name="id" value="<?= (int)$bra['id_bra'] ?>">
-                <button type="submit" class="btn-tactile p-1.5 text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-500/10 rounded-xl transition cursor-pointer" title="Hapus Dokumen">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                </button>
-              </form>
-            <?php endif; ?>
-          </div>
-        </div>
-      <?php endforeach; ?>
-    </div>
-
-    <!-- ======================================================== -->
-    <!-- VIEW MODE 2: STRUCTURED TACTICAL LIST / TABLE -->
-    <!-- ======================================================== -->
-    <div id="bra-container-list" class="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden hidden">
+    <!-- STRUCTURED TACTICAL LIST / TABLE -->
+    <div id="bra-container-list" class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              <th class="px-5 py-3.5">Nomor Telegram & Derajat</th>
-              <th class="px-4 py-3.5">Kategori</th>
-              <th class="px-4 py-3.5">Perihal & Pejabat SMC</th>
-              <th class="px-4 py-3.5">Waktu (TWU / TWB)</th>
-              <th class="px-4 py-3.5">Detail Sandi</th>
-              <th class="px-5 py-3.5 text-right">Aksi</th>
+              <th class="px-5 py-3.5" style="width: 28%;">No BRA SAR</th>
+              <th class="px-4 py-3.5" style="width: 20%;">Kategori</th>
+              <th class="px-4 py-3.5">Perihal</th>
+              <th class="px-5 py-3.5 text-right" style="width: 14%;">Aksi</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
@@ -401,70 +236,43 @@ $totalFiltered = count($braList);
                     default => '📋',
                 };
                 $kategoriLabel = match($kategori) {
-                    'MAPEL' => 'MAPEL',
-                    'PERGERAKAN_KAPAL' => 'KAPAL',
-                    default => 'OPERASI SAR',
+                    'MAPEL' => 'BRA MAPEL',
+                    'PERGERAKAN_KAPAL' => 'BRA KAPAL',
+                    default => 'BRA OPS SAR',
                 };
-                $derajat = strtoupper($bra['derajat'] ?? 'SGR');
-                $searchDataStr = strtolower(($bra['no_bra'] ?? '') . ' ' . ($bra['perihal'] ?? '') . ' ' . ($bra['nama_smc'] ?? '') . ' ' . ($bra['pengirim'] ?? '') . ' ' . ($bra['twu'] ?? '') . ' ' . ($bra['twb'] ?? '') . ' ' . ($bra['nama_operasi'] ?? ''));
+                $searchDataStr = strtolower(($bra['no_bra'] ?? '') . ' ' . ($bra['perihal'] ?? '') . ' ' . ($bra['nama_smc'] ?? '') . ' ' . ($bra['pengirim'] ?? '') . ' ' . ($bra['nama_operasi'] ?? ''));
               ?>
               <tr class="bra-item-row hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors" data-search="<?= htmlspecialchars($searchDataStr) ?>">
-                <!-- Col 1: No BRA & Derajat -->
-                <td class="px-5 py-4 align-top">
+                <!-- 1. No BRA SAR -->
+                <td class="px-5 py-3.5 align-middle">
                   <div class="flex items-center gap-1.5 font-mono font-bold text-orange-600 dark:text-orange-400">
-                    <span><?= htmlspecialchars($bra['no_bra'] ?? '-') ?></span>
+                    <span class="truncate"><?= htmlspecialchars($bra['no_bra'] ?? '-') ?></span>
                     <button type="button"
                             onclick="copyBraNo('<?= htmlspecialchars($bra['no_bra'] ?? '') ?>', this)"
                             title="Salin Nomor Dokumen"
-                            class="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer">
+                            class="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer shrink-0">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                     </button>
                   </div>
-                  <div class="mt-1 flex items-center gap-1.5">
-                    <span class="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-                      <?= htmlspecialchars($derajat) ?>
-                    </span>
-                    <?php if (!empty($bra['id_operasi'])): ?>
-                      <span class="text-[11px] text-slate-400 font-mono">Ops #<?= (int)$bra['id_operasi'] ?></span>
-                    <?php endif; ?>
-                  </div>
                 </td>
 
-                <!-- Col 2: Kategori -->
-                <td class="px-4 py-4 align-top">
-                  <span class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border <?= $badgeClass ?>">
+                <!-- 2. Kategori -->
+                <td class="px-4 py-3.5 align-middle">
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg border font-mono <?= $badgeClass ?>">
                     <span><?= $kategoriIcon ?></span>
                     <span><?= $kategoriLabel ?></span>
                   </span>
                 </td>
 
-                <!-- Col 3: Perihal & SMC -->
-                <td class="px-4 py-4 align-top max-w-md">
+                <!-- 3. Perihal -->
+                <td class="px-4 py-3.5 align-middle">
                   <a href="<?= BASE_URL ?>/bra.php?view=<?= $bra['id_bra'] ?>" class="font-bold text-slate-900 dark:text-white hover:text-orange-600 dark:hover:text-orange-400 transition block leading-snug">
                     <?= htmlspecialchars($bra['perihal'] ?? 'Naskah Berita Radio SAR') ?>
                   </a>
-                  <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-2">
-                    <span>SMC: <strong class="text-slate-700 dark:text-slate-300"><?= htmlspecialchars($bra['nama_smc'] ?? ($bra['pengirim'] ?? '-')) ?></strong></span>
-                    <?php if (!empty($bra['nama_operasi'])): ?>
-                      <span>• <span class="truncate max-w-[140px] inline-block align-bottom"><?= htmlspecialchars($bra['nama_operasi']) ?></span></span>
-                    <?php endif; ?>
-                  </div>
                 </td>
 
-                <!-- Col 4: Parameter Waktu -->
-                <td class="px-4 py-4 align-top whitespace-nowrap font-mono text-[11px] text-slate-600 dark:text-slate-400">
-                  <div>TWU: <strong class="text-slate-800 dark:text-slate-200"><?= htmlspecialchars($bra['twu'] ?? '-') ?></strong></div>
-                  <div class="mt-0.5">TWB: <strong class="text-slate-800 dark:text-slate-200"><?= htmlspecialchars($bra['twb'] ?? '-') ?></strong></div>
-                </td>
-
-                <!-- Col 5: Detail Sandi -->
-                <td class="px-4 py-4 align-top text-[11px] text-slate-500 dark:text-slate-400">
-                  <div>Kata: <strong class="text-slate-800 dark:text-slate-200"><?= (int)($bra['jumlah_kata'] ?? 0) ?></strong></div>
-                  <div>Seksi: <strong class="text-slate-800 dark:text-slate-200"><?= count($bra['sections'] ?? []) ?></strong></div>
-                </td>
-
-                <!-- Col 6: Aksi Cepat -->
-                <td class="px-5 py-4 align-top text-right whitespace-nowrap">
+                <!-- Aksi Cepat -->
+                <td class="px-5 py-3.5 align-middle text-right whitespace-nowrap">
                   <div class="inline-flex items-center gap-1.5">
                     <a href="<?= BASE_URL ?>/bra.php?view=<?= $bra['id_bra'] ?>"
                        class="px-2.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs transition"
@@ -501,50 +309,11 @@ $totalFiltered = count($braList);
 </div>
 
 <!-- ======================================================== -->
-<!-- 4. VIEW SWITCHER & UTILITY SCRIPTS -->
+<!-- 3. SEARCH & UTILITY SCRIPTS -->
 <!-- ======================================================== -->
 <script>
-function setBraView(mode) {
-  const containerCards = document.getElementById('bra-container-cards');
-  const containerList = document.getElementById('bra-container-list');
-  const btnCard = document.getElementById('btn-view-card');
-  const btnList = document.getElementById('btn-view-list');
-
-  const activeBtnClasses = ['bg-white', 'dark:bg-slate-900', 'text-orange-600', 'dark:text-orange-400', 'shadow-xs'];
-  const inactiveBtnClasses = ['text-slate-600', 'dark:text-slate-400', 'hover:text-slate-900', 'dark:hover:text-white'];
-
-  if (mode === 'list') {
-    if (containerCards) containerCards.classList.add('hidden');
-    if (containerList) containerList.classList.remove('hidden');
-
-    if (btnList) {
-      btnList.classList.add(...activeBtnClasses);
-      btnList.classList.remove(...inactiveBtnClasses);
-    }
-    if (btnCard) {
-      btnCard.classList.remove(...activeBtnClasses);
-      btnCard.classList.add(...inactiveBtnClasses);
-    }
-    localStorage.setItem('qr_sar_bra_view', 'list');
-  } else {
-    if (containerCards) containerCards.classList.remove('hidden');
-    if (containerList) containerList.classList.add('hidden');
-
-    if (btnCard) {
-      btnCard.classList.add(...activeBtnClasses);
-      btnCard.classList.remove(...inactiveBtnClasses);
-    }
-    if (btnList) {
-      btnList.classList.remove(...activeBtnClasses);
-      btnList.classList.add(...inactiveBtnClasses);
-    }
-    localStorage.setItem('qr_sar_bra_view', 'card');
-  }
-}
-
 function copyBraNo(noBra, btnEl) {
   if (!navigator.clipboard) {
-    // Fallback prompt or execCommand
     const tempInput = document.createElement('input');
     tempInput.value = noBra;
     document.body.appendChild(tempInput);
@@ -565,7 +334,6 @@ function copyBraNo(noBra, btnEl) {
 
 function filterBraLive(query) {
   const q = (query || '').toLowerCase().trim();
-  const cards = document.querySelectorAll('.bra-item-card');
   const rows = document.querySelectorAll('.bra-item-row');
   const clearBtn = document.getElementById('btn-clear-bra-search');
 
@@ -576,15 +344,6 @@ function filterBraLive(query) {
       clearBtn.classList.add('hidden');
     }
   }
-
-  cards.forEach(card => {
-    const text = card.getAttribute('data-search') || card.textContent.toLowerCase();
-    if (!q || text.includes(q)) {
-      card.style.display = '';
-    } else {
-      card.style.display = 'none';
-    }
-  });
 
   rows.forEach(row => {
     const text = row.getAttribute('data-search') || row.textContent.toLowerCase();
@@ -606,15 +365,11 @@ function clearBraSearch() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const savedView = localStorage.getItem('qr_sar_bra_view') || 'card';
-  setBraView(savedView);
-
   const searchInput = document.getElementById('bra-search-input');
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       filterBraLive(e.target.value);
     });
-    // If there's an initial query, trigger filter once
     if (searchInput.value.trim().length > 0) {
       filterBraLive(searchInput.value.trim());
     }

@@ -60,8 +60,12 @@ class AuthController extends BaseController {
         }
 
         AuthHelper::logout();
+        if (session_status() !== PHP_SESSION_ACTIVE && !headers_sent()) {
+            @session_start();
+            @session_regenerate_id(true);
+        }
         $this->setFlash('success', 'Anda telah berhasil keluar dari sesi sistem.');
-        $this->redirect('/login.php');
+        $this->redirect('/login.php?logout=1');
     }
 
     /**
@@ -100,7 +104,8 @@ class AuthController extends BaseController {
                     $this->setFlash('error', 'Konfirmasi kata sandi baru tidak cocok.');
                 } else {
                     $role = $currentUser['role'] ?? 'USER';
-                    $res = SettingsModel::changePassword($role, $oldPass, $newPass);
+                    $userId = $currentUser['id'] ?? null;
+                    $res = SettingsModel::changePassword($role, $oldPass, $newPass, $userId);
                     if ($res['success']) {
                         $this->setFlash('success', 'Kata sandi akun Anda berhasil diperbarui! Gunakan sandi baru untuk login selanjutnya.');
                     } else {

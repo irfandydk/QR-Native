@@ -610,11 +610,16 @@ class OperasiModel {
             $db->prepare("DELETE FROM GisRoute WHERE id_operasi = :id OR id = :rt_id")->execute([':id' => $id, ':rt_id' => "route-op-{$id}"]);
             $db->prepare("DELETE FROM GisSearchPattern WHERE id_operasi = :id")->execute([':id' => $id]);
 
+            // 7b. Delete map snapshots and unlink physical image files
+            if (class_exists('DokumenPetaSnapshotModel')) {
+                DokumenPetaSnapshotModel::deleteByOperasi($id);
+            }
+
             // 8. Finally delete the Operasi record
             $stmtDelOps = $db->prepare("DELETE FROM Operasi WHERE id_operasi = :id");
             $result = $stmtDelOps->execute([':id' => $id]);
 
-            if (!$inTx) {
+            if (!$inTx && $db->inTransaction()) {
                 $db->commit();
             }
 

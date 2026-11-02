@@ -7,7 +7,7 @@
  * dan audit tanda tangan elektronik pada dokumen resmi operasional SAR:
  * - Laporan Awal Operasi SAR
  * - Rencana Operasi SAR (RENOPS)
- * - Laporan Perkembangan Operasi SAR (SITREP / Lapbang)
+ * - Laporan Perkembangan Operasi SAR (LAPBANG)
  * - Berita Acara Pengusulan Penutupan Operasi SAR
  */
 
@@ -53,7 +53,7 @@ class DocVerifyHelper {
         return match ($normType) {
             self::TYPE_LAPORAN_AWAL => 'Laporan Awal Operasi SAR',
             self::TYPE_RENOPS => 'Rencana Operasi SAR (RENOPS) ' . strtoupper(trim((string)($docData['hari_ke'] ?? 'H.1'))),
-            self::TYPE_SITREP => 'Laporan Perkembangan Operasi SAR (SITREP) ' . strtoupper(trim((string)($docData['hari_ke'] ?? 'H.1'))),
+            self::TYPE_SITREP => 'Laporan Perkembangan Operasi SAR (LAPBANG) ' . strtoupper(trim((string)($docData['hari_ke'] ?? 'H.1'))),
             self::TYPE_PENUTUPAN => 'Berita Acara Pengusulan Penutupan Operasi SAR',
         };
     }

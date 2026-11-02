@@ -269,6 +269,11 @@ assertTest(strpos($formContentUpdated, 'onchange="handleJarakUnitChange(this.val
 assertTest(strpos($jsContentUpdated, 'function handleJarakUnitChange(newUnit)') !== false, "operasi_form.js implements handleJarakUnitChange()");
 assertTest(strpos($jsContentUpdated, 'val * 1.852') !== false && strpos($jsContentUpdated, 'val / 1.852') !== false, "operasi_form.js correctly converts distance between NM and KM using 1.852 factor");
 
+// Clean up test leftovers
+getDB()->prepare("DELETE FROM GisRoutePoint WHERE routeId IN (SELECT id FROM GisRoute WHERE id_operasi = :id)")->execute([':id' => $testOpsId]);
+getDB()->prepare("DELETE FROM GisPoint WHERE id_operasi = :id")->execute([':id' => $testOpsId]);
+getDB()->prepare("DELETE FROM GisRoute WHERE id_operasi = :id")->execute([':id' => $testOpsId]);
+
 echo "\n=== TEST SUMMARY ===\n";
 echo "Total Passed: {$passed}\n";
 echo "Total Failed: {$failed}\n";

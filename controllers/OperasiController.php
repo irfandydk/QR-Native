@@ -650,8 +650,9 @@ class OperasiController extends BaseController {
             $this->redirect("/operasi_detail.php?id={$idOperasi}&tab=sitrep");
         }
 
-        // Check if operation is CLOSED
-        if ($operasi['status'] === 'CLOSED') {
+        // Check if operation is CLOSED (allow editing the PENUTUPAN report itself)
+        $isExistingPenutupan = ($editMode && $laporan && strtoupper((string)($laporan['jenis_laporan'] ?? '')) === 'PENUTUPAN');
+        if ($operasi['status'] === 'CLOSED' && !$isExistingPenutupan) {
             $this->setFlash('error', 'Operasi SAR telah berstatus DITUTUP (CLOSED). Laporan Perkembangan tidak dapat ditambahkan atau diubah kecuali operasi dibuka kembali (Rollback).');
             $this->redirect("/operasi_detail.php?id={$idOperasi}&tab=sitrep");
         }

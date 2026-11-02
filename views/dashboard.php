@@ -643,7 +643,9 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
         </h3>
         <p id="modalOpsWaSubtitle" class="text-xs text-orange-600 dark:text-orange-400 font-semibold mt-0.5"></p>
       </div>
-      <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modalOpsWaPreview')"></button>
+      <button type="button" class="btn-tactile p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer" onclick="closeModal('modalOpsWaPreview')" title="Tutup">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
     </div>
     <div class="modal-body space-y-3">
       <div class="relative">
@@ -950,7 +952,7 @@ async function deleteOpsHandler(e, id, name) {
         showToast('Operasi SAR berhasil dihapus!', 'success');
         setTimeout(() => location.reload(), 700);
       } else {
-        showToast(json.error || 'Gagal menghapus data operasi', 'error');
+        showToast(json.message || json.error || 'Gagal menghapus data operasi', 'error');
       }
     } catch {
       showToast('Terjadi kesalahan jaringan', 'error');

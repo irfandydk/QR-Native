@@ -316,6 +316,7 @@ if ($opId > 0) {
         $db->exec("DELETE FROM Renops WHERE id_renops = " . (int)$renopsId);
     }
     $db->exec("DELETE FROM Korban WHERE id_operasi = " . (int)$opId);
+    $db->prepare("DELETE FROM GisPoint WHERE id_operasi = :id OR id = :pt_id")->execute([':id' => $opId, ':pt_id' => "pt-lkp-op-{$opId}"]);
     $db->exec("DELETE FROM Operasi WHERE id_operasi = " . (int)$opId);
     check("Pembersihan data transaksi uji tuntas & pangkalan data bersih", true);
 }

@@ -50,7 +50,7 @@ function handleJenisLaporanChange(val) {
     if (btnSubmit) {
       btnSubmit.classList.remove('bg-red-600', 'hover:bg-red-500');
       btnSubmit.classList.add('bg-blue-600', 'hover:bg-blue-500');
-      btnSubmit.querySelector('span:last-child').textContent = 'Terbitkan Laporan Perkembangan (SITREP)';
+      btnSubmit.querySelector('span:last-child').textContent = isSitrepEditMode ? 'Simpan Perubahan LAPBANG' : 'Terbitkan Laporan Perkembangan (LAPBANG)';
     }
   }
 }
@@ -195,10 +195,10 @@ async function generateAiSitrep() {
   const originalHtml = btn ? btn.innerHTML : '';
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = `<svg class="animate-spin w-3.5 h-3.5 inline mr-1 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> <span>Menyusun Narasi SITREP...</span>`;
+    btn.innerHTML = `<svg class="animate-spin w-3.5 h-3.5 inline mr-1 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> <span>Menyusun Narasi LAPBANG...</span>`;
   }
 
-  if (typeof showToast === 'function') showToast('Asisten AI sedang menyusun narasi resmi SITREP...', 'info');
+  if (typeof showToast === 'function') showToast('Asisten AI sedang menyusun narasi resmi LAPBANG...', 'info');
 
   try {
     const res = await fetch((window.BASE_URL || '') + '/api/index.php?path=/ai/refine-sitrep', {
@@ -521,7 +521,7 @@ function copySitrepWa() {
   const content = document.getElementById('sitrep-wa-preview-content')?.textContent || '';
   if (navigator.clipboard) {
     navigator.clipboard.writeText(content).then(() => {
-      if (typeof showToast === 'function') showToast('Format WA SITREP berhasil disalin!', 'success');
+      if (typeof showToast === 'function') showToast('Format WA LAPBANG berhasil disalin!', 'success');
     });
   } else {
     const ta = document.createElement('textarea');
@@ -530,7 +530,7 @@ function copySitrepWa() {
     ta.select();
     document.execCommand('copy');
     document.body.removeChild(ta);
-    if (typeof showToast === 'function') showToast('Format WA SITREP berhasil disalin!', 'success');
+    if (typeof showToast === 'function') showToast('Format WA LAPBANG berhasil disalin!', 'success');
   }
 }
 
@@ -597,7 +597,7 @@ function restoreSitrepDraft() {
     if (Array.isArray(d.alut) && d.alut.length > 0) { currentAlutList = d.alut; renderAlutList(); }
     
     if (typeof showToast === 'function') {
-      showToast('Draf SITREP tersimpan berhasil dipulihkan otomatis.', 'info');
+      showToast('Draf LAPBANG tersimpan berhasil dipulihkan otomatis.', 'info');
     }
   } catch (e) {}
 }

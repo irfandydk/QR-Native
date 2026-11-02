@@ -278,14 +278,30 @@ class SettingsModel {
         }
     }
 
-    public static function changePassword(string $role, string $oldPass, string $newPass): array {
+    public static function changePassword(string $role, string $oldPass, string $newPass, ?string $userId = null): array {
         $db = getDB();
-        $settings = self::getSettings();
-
         $roleUpper = strtoupper($role);
-        $currPass = $roleUpper === 'ADMIN' ? ($settings['admin_password'] ?? '') : ($settings['user_password'] ?? '');
 
-        if ($currPass === '' || !AuthHelper::verifyPassword($oldPass, (string)$currPass)) {
+        // Cari user pada tabel Users
+        $targetUser = null;
+        if (!empty($userId)) {
+            $targetUser = UserModel::getById($userId);
+        }
+        if (!$targetUser) {
+            $usrId = ($roleUpper === 'ADMIN') ? 'USR-ADMIN' : 'USR-USER';
+            $targetUser = UserModel::getById($usrId) ?? UserModel::getByUsername(strtolower($roleUpper));
+        }
+
+        $currHash = '';
+        if ($targetUser && !empty($targetUser['password_hash'])) {
+            $currHash = (string)$targetUser['password_hash'];
+        } else {
+            // Fallback ke AppSettings bila tabel Users belum tersinkronisasi
+            $settings = self::getSettings();
+            $currHash = $roleUpper === 'ADMIN' ? ($settings['admin_password'] ?? '') : ($settings['user_password'] ?? '');
+        }
+
+        if ($currHash === '' || !AuthHelper::verifyPassword($oldPass, $currHash)) {
             return ['success' => false, 'error' => 'Kata sandi lama tidak cocok.'];
         }
 
@@ -299,26 +315,23 @@ class SettingsModel {
         try {
             $newHash = password_hash($newPass, PASSWORD_DEFAULT);
 
+            // 1. Simpan di AppSettings untuk kompatibilitas legacy fallback
             if ($roleUpper === 'ADMIN') {
-                $stmt = $db->prepare("UPDATE AppSettings SET admin_password = :p WHERE id = 1");
+                $db->prepare("UPDATE AppSettings SET admin_password = :p WHERE id = 1")->execute([':p' => $newHash]);
             } else {
-                $stmt = $db->prepare("UPDATE AppSettings SET user_password = :p WHERE id = 1");
+                $db->prepare("UPDATE AppSettings SET user_password = :p WHERE id = 1")->execute([':p' => $newHash]);
             }
 
-            $res = $stmt->execute([':p' => $newHash]);
+            // 2. Perbarui tabel Users secara presisi (HANYA id target, tanpa menimpa akun lain yang satu role)
+            UserModel::ensureTableExists();
+            $targetId = $targetUser['id'] ?? (($roleUpper === 'ADMIN') ? 'USR-ADMIN' : 'USR-USER');
+            $db->prepare("UPDATE `Users` SET password_hash = :p, updated_at = :now WHERE id = :id")->execute([
+                ':p' => $newHash,
+                ':now' => date('Y-m-d H:i:s'),
+                ':id' => $targetId
+            ]);
 
-            if ($res) {
-                UserModel::ensureTableExists();
-                $usrId = ($roleUpper === 'ADMIN') ? 'USR-ADMIN' : 'USR-USER';
-                $db->prepare("UPDATE `Users` SET password_hash = :p, updated_at = :now WHERE id = :id OR role = :role")->execute([
-                    ':p' => $newHash,
-                    ':now' => date('Y-m-d H:i:s'),
-                    ':id' => $usrId,
-                    ':role' => $roleUpper
-                ]);
-
-                AuditHelper::log('PASSWORD_CHANGE', "Mengubah kata sandi untuk otoritas {$roleUpper}", 'Users', $roleUpper);
-            }
+            AuditHelper::log('PASSWORD_CHANGE', "Mengubah kata sandi untuk akun {$targetId} ({$roleUpper})", 'Users', $targetId);
 
             if (!$inTx) $db->commit();
             return ['success' => true, 'message' => 'Kata sandi berhasil diperbarui dengan aman.'];

@@ -1,6 +1,6 @@
 <?php
 /**
- * QR-SAR - Tab Laporan Perkembangan (SITREP)
+ * QR-SAR - Tab Laporan Perkembangan (LAPBANG)
  * Kantor Pencarian dan Pertolongan (Basarnas) Kendari
  */
 ?>
@@ -9,13 +9,13 @@
     <div class="flex items-center justify-between gap-3 mb-2">
         <h3 class="text-xs font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
-            <span>Daftar Laporan Perkembangan (LAPBANG / SITREP) &bull; <?= $countSitrep ?> Dokumen</span>
+            <span>Daftar Laporan Perkembangan (LAPBANG) &bull; <?= $countSitrep ?> Dokumen</span>
         </h3>
         <div class="flex items-center gap-2">
             <?php if ($isOpen): ?>
             <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs transition cursor-pointer">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-                <span>+ Terbitkan SITREP <?= e($nextLapbang['hari_ke'] ?? $hariKe) ?></span>
+                <span>+ Terbitkan LAPBANG <?= e($nextLapbang['hari_ke'] ?? $hariKe) ?></span>
             </a>
             <?php endif; ?>
             <a href="<?= BASE_URL ?>/bra.php?action=create&id_operasi=<?= $id ?>&kategori=OPERASI_SAR" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white border border-slate-200 dark:border-slate-700 font-semibold text-xs transition" title="Buat Berita Radio dari Laporan Perkembangan">
@@ -28,10 +28,10 @@
     <?php if (!$isOpen): ?>
     <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center gap-2.5">
-            <svg class="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+            <svg class="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 00-2.25 2.25z"/></svg>
             <div>
                 <h4 class="font-bold text-xs text-amber-900 dark:text-amber-100">Operasi Telah Ditutup (CLOSED)</h4>
-                <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">Penambahan SITREP dinonaktifkan demi integritas arsip.</p>
+                <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">Penambahan LAPBANG dinonaktifkan demi integritas arsip.</p>
             </div>
         </div>
         <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition whitespace-nowrap cursor-pointer">
@@ -40,20 +40,20 @@
     </div>
     <?php endif; ?>
 
-    <!-- LIST FEED SITREP (BERSIH TANPA KARTU KPI REDUNDAN) -->
+    <!-- LIST FEED LAPBANG (BERSIH TANPA KARTU KPI REDUNDAN) -->
     <?php if (empty($operasi['laporan_harian'])): ?>
     <div class="p-8 sm:p-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs text-center">
         <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-3">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
         </div>
-        <h3 class="text-sm font-bold text-slate-900 dark:white mb-1">Belum Ada Laporan Perkembangan (SITREP)</h3>
+        <h3 class="text-sm font-bold text-slate-900 dark:white mb-1">Belum Ada Laporan Perkembangan (LAPBANG)</h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-4 leading-relaxed">
             Laporan perkembangan memuat evaluasi hasil pencarian harian tim gabungan dan debriefing lapangan.
         </p>
         <?php if ($isOpen): ?>
         <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs transition">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-            <span>+ Terbitkan SITREP <?= e($nextLapbang['hari_ke'] ?? $hariKe) ?></span>
+            <span>+ Terbitkan LAPBANG <?= e($nextLapbang['hari_ke'] ?? $hariKe) ?></span>
         </a>
         <?php endif; ?>
     </div>
@@ -82,7 +82,7 @@
         ?>
         <div id="card-sitrep-<?= (int)($lap['id_laporan'] ?? ($lap['id_lapbang'] ?? 0)) ?>" class="rounded-2xl bg-white dark:bg-slate-900 border <?= $isPenutupan ? 'border-red-500/30 dark:border-red-900/50' : 'border-slate-200 dark:border-slate-800' ?> shadow-xs overflow-hidden transition-all">
             
-            <!-- Sitrep Header -->
+            <!-- Lapbang Header -->
             <div class="p-3.5 sm:p-4 border-b <?= $isPenutupan ? 'bg-red-50/40 dark:bg-red-950/20 border-red-200/50 dark:border-red-900/40' : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800' ?> flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="px-2.5 py-0.5 rounded-lg font-mono font-bold text-xs <?= $isPenutupan ? 'bg-red-500 text-white shadow-xs' : 'bg-blue-600 text-white shadow-xs' ?>">
@@ -98,7 +98,12 @@
 
                 <!-- Action Toolbar -->
                 <div class="flex items-center gap-1.5 flex-wrap no-print">
-                    <button type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer" onclick='copyTextToClipboard(<?= htmlspecialchars(json_encode($lapWa), ENT_QUOTES) ?>, "Naskah SITREP WhatsApp Berhasil Disalin!")'>
+                    <button type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer" onclick="openModal('modal-view-wa-sitrep-<?= (int)($lap['id_laporan'] ?? ($lap['id_lapbang'] ?? 0)) ?>')" title="Lihat pratinjau format WhatsApp LAPBANG">
+                        <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.774-.954l.583-2.183A7.95 7.95 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
+                        <span>Naskah WA</span>
+                    </button>
+
+                    <button type="button" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer" onclick='copyTextToClipboard(<?= htmlspecialchars(json_encode($lapWa), ENT_QUOTES) ?>, "Naskah LAPBANG WhatsApp Berhasil Disalin!")'>
                         <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"/></svg>
                         <span>Salin WA</span>
                     </button>
@@ -113,11 +118,11 @@
                         <span>Unduh PDF</span>
                     </a>
                     <?php else: ?>
-                    <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= (int)$lap['id_laporan'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold text-xs transition cursor-pointer" title="Cetak Lembar Resmi SITREP Harian (A4 Basarnas)">
+                    <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= (int)$lap['id_laporan'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold text-xs transition cursor-pointer" title="Cetak Lembar Resmi LAPBANG Harian (A4 Basarnas)">
                         <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
-                        <span>Cetak SITREP</span>
+                        <span>Cetak LAPBANG</span>
                     </a>
-                    <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= (int)$lap['id_laporan'] ?>&download_pdf=1" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition cursor-pointer" title="Download PDF Lembar Resmi SITREP Harian (A4 Basarnas)">
+                    <a href="<?= BASE_URL ?>/operasi.php?action=print_sitrep&id=<?= $id ?>&id_laporan=<?= (int)$lap['id_laporan'] ?>&download_pdf=1" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition cursor-pointer" title="Download PDF Lembar Resmi LAPBANG Harian (A4 Basarnas)">
                         <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
                         <span>Unduh PDF</span>
                     </a>
@@ -132,7 +137,7 @@
 
                     <a href="<?= BASE_URL ?>/bra.php?action=create&id_operasi=<?= $id ?>&from=sitrep&id_laporan=<?= $lap['id_laporan'] ?>" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/10 hover:bg-orange-500 text-orange-600 dark:text-orange-400 hover:text-white border border-orange-500/20 font-semibold text-xs transition cursor-pointer" title="Buat Berita Radio dari laporan ini">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
-                        <span>BRA Sitrep</span>
+                        <span>BRA LAPBANG</span>
                     </a>
 
                     <?php if ($isOpen && AuthHelper::canDelete()): ?>
@@ -143,7 +148,7 @@
                 </div>
             </div>
 
-            <!-- Sitrep Body -->
+            <!-- Lapbang Body -->
             <div class="p-4 sm:p-5 space-y-4">
                 <!-- Hasil Pencarian -->
                 <div class="p-3.5 sm:p-4 rounded-xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200/70 dark:border-slate-800 text-xs sm:text-sm leading-relaxed text-slate-800 dark:text-slate-200">
@@ -156,10 +161,17 @@
                     </div>
                     
                     <?php if (!empty($lap['waktu_debrief'])): ?>
-                    <div class="mt-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-xs">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
-                        <span>Debriefing Resmi Penutupan: <?= TemplateHelper::formatTanggalIndo($lap['waktu_debrief']) ?> Pukul <?= TemplateHelper::formatJamWITA($lap['waktu_debrief']) ?> WITA</span>
-                    </div>
+                        <?php if ($isPenutupan): ?>
+                        <div class="mt-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-xs">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+                            <span>Debriefing Resmi Penutupan: <?= TemplateHelper::formatTanggalIndo($lap['waktu_debrief']) ?> Pukul <?= TemplateHelper::formatJamWITA($lap['waktu_debrief']) ?> WITA</span>
+                        </div>
+                        <?php else: ?>
+                        <div class="mt-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center gap-2 text-slate-700 dark:text-slate-300 font-semibold text-xs">
+                            <svg class="w-4 h-4 text-blue-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span>Penutupan Sementara: <?= TemplateHelper::formatTanggalIndo($lap['waktu_debrief']) ?> Pukul <?= TemplateHelper::formatJamWITA($lap['waktu_debrief']) ?> WITA</span>
+                        </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
 
@@ -206,19 +218,37 @@
                     </div>
                 </div>
 
-                <!-- Collapsible WhatsApp Output -->
-                <details class="group rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-                    <summary class="px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/30 transition">
-                        <span class="flex items-center gap-2">
-                            <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.774-.954l.583-2.183A7.95 7.95 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
-                            <span>Format Naskah WhatsApp Resmi</span>
-                        </span>
-                        <span class="text-[11px] font-mono text-slate-400 group-open:rotate-180 transition-transform">&dtrif;</span>
-                    </summary>
-                    <div class="p-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950">
-                        <pre class="font-mono text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed select-all max-h-72 overflow-y-auto"><?= e($lapWa) ?></pre>
+            </div>
+        </div>
+
+        <!-- MODAL: VIEW WA LAPBANG -->
+        <div id="modal-view-wa-sitrep-<?= (int)($lap['id_laporan'] ?? ($lap['id_lapbang'] ?? 0)) ?>" class="modal-overlay">
+            <div class="modal-container" style="max-width: 760px; width: 95%;">
+                <div class="modal-header flex items-center justify-between border-b border-slate-100 dark:border-slate-800 p-4">
+                    <div class="min-w-0 pr-3">
+                        <h3 class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                            <svg class="w-4 h-4 text-emerald-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.774-.954l.583-2.183A7.95 7.95 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
+                            <span>Naskah <?= $isPenutupan ? 'Penutupan Operasi' : "LAPBANG (" . e($dynamicHariKeLap) . ")" ?> WhatsApp Resmi</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-400 mt-0.5 truncate" title="<?= e($operasi['nama_operasi']) ?>"><?= e($operasi['nama_operasi']) ?></p>
                     </div>
-                </details>
+                    <button type="button" class="btn-tactile p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer shrink-0" onclick="closeModal('modal-view-wa-sitrep-<?= (int)($lap['id_laporan'] ?? ($lap['id_lapbang'] ?? 0)) ?>')" data-close-modal title="Tutup">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="modal-body p-4 overflow-y-auto flex-1">
+                    <pre id="wa-sitrep-text-<?= (int)($lap['id_laporan'] ?? ($lap['id_lapbang'] ?? 0)) ?>" class="font-mono p-4 rounded-xl text-xs bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-800 leading-relaxed select-all whitespace-pre-wrap m-0"><?= e($lapWa) ?></pre>
+                </div>
+                <div class="modal-footer flex items-center justify-between p-4 border-t border-slate-100 dark:border-slate-800">
+                    <span class="text-[11px] text-slate-400 font-mono">Format Baku FILE AKTIF</span>
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modal-view-wa-sitrep-<?= (int)($lap['id_laporan'] ?? ($lap['id_lapbang'] ?? 0)) ?>')" data-close-modal>Tutup</button>
+                        <button type="button" class="btn btn-primary btn-sm inline-flex items-center gap-1.5" onclick='copyTextToClipboard(<?= htmlspecialchars(json_encode($lapWa), ENT_QUOTES) ?>, "Naskah LAPBANG WhatsApp Berhasil Disalin!")'>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"/></svg>
+                            <span>Salin Naskah</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
         <?php endforeach; ?>

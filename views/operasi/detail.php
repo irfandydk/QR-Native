@@ -78,7 +78,7 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
     </div>
 
     <?php if (AuthHelper::canDelete()): ?>
-    <form method="POST" action="<?= BASE_URL ?>/operasi.php?action=delete" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus Operasi SAR ini secara permanen beserta seluruh Renops, Sitrep, dan data terkait? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Operasi SAR Permanen" data-confirm-btn="Ya, Hapus Permanen" data-confirm-danger="true">
+    <form method="POST" action="<?= BASE_URL ?>/operasi.php?action=delete" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus Operasi SAR ini secara permanen beserta seluruh Renops, Lapbang, dan data terkait? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Operasi SAR Permanen" data-confirm-btn="Ya, Hapus Permanen" data-confirm-danger="true">
         <?= csrfInput() ?>
         <input type="hidden" name="id" value="<?= $id ?>">
         <button type="submit" class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/20 font-semibold text-xs transition cursor-pointer" title="Hapus Operasi">

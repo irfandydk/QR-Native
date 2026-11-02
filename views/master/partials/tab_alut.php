@@ -53,7 +53,7 @@ $isAdmin = AuthHelper::isAdmin();
           <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/></svg>
           <span>Mode Baca (Read-Only)</span>
         </div>
-        <p>• Seluruh armada Alut/Palsar di samping dapat dipilih langsung pada formulir Operasi SAR, RENOPS, dan SITREP.</p>
+        <p>• Seluruh armada Alut/Palsar di samping dapat dipilih langsung pada formulir Operasi SAR, RENOPS, dan LAPBANG.</p>
         <p>• Penambahan armada baru, pengubahan nama/satuan, serta penghapusan master data dipusatkan pada <strong>Administrator Utama</strong>.</p>
       </div>
     </div>

@@ -44,7 +44,8 @@ class AuthApiController extends BaseApiController {
             $role = $currentUser['role'] ?? 'USER';
             $old = $input['oldPassword'] ?? '';
             $new = $input['newPassword'] ?? '';
-            $res = SettingsModel::changePassword($role, $old, $new);
+            $userId = $currentUser['id'] ?? null;
+            $res = SettingsModel::changePassword($role, $old, $new, $userId);
             if (!$res['success']) {
                 self::json($res, 400);
             }

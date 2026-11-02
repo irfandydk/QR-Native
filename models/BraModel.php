@@ -515,43 +515,11 @@ class BraModel {
      * Memakai HMAC-SHA256 yang memvalidasi integritas penuh: ID, No BRA, TWU, SMC ter-standarisasi, Perihal, dan Checksum Seksi (AAA-ZZZ)
      */
     public static function generateVerifyToken(array $bra): string {
-        $id = (string)($bra['id_bra'] ?? '');
-        $noBra = strtoupper(trim((string)($bra['no_bra'] ?? '')));
-        $twu = strtoupper(trim((string)($bra['twu'] ?? '')));
+        $normalizedBra = $bra;
         // Normalisasi nama dan pangkat SMC agar tahan terhadap variasi tanda titik/spasi gelar
-        $smc = preg_replace('/[^A-Z0-9]/', '', strtoupper(trim((string)($bra['nama_smc'] ?? ''))));
-        $pangkat = preg_replace('/[^A-Z0-9]/', '', strtoupper(trim((string)($bra['pangkat_smc'] ?? ''))));
-        $perihal = strtoupper(trim((string)($bra['perihal'] ?? '')));
-
-        // Checksum isi seluruh seksi berita (AAA-ZZZ)
-        $sections = $bra['sections'] ?? [];
-        if (empty($sections) && !empty($id) && is_numeric($id)) {
-            try {
-                $db = getDB();
-                $stmtSec = $db->prepare("SELECT kode, isi FROM BraSection WHERE id_bra = :id ORDER BY id ASC");
-                $stmtSec->execute([':id' => (int)$id]);
-                $sections = $stmtSec->fetchAll();
-            } catch (Throwable) {
-                $sections = [];
-            }
-        }
-
-        $secSignatures = [];
-        if (is_array($sections)) {
-            foreach ($sections as $s) {
-                $k = strtoupper(trim((string)($s['kode'] ?? '')));
-                $i = trim((string)($s['isi'] ?? ''));
-                if ($k !== '' || $i !== '') {
-                    $normalizedIsi = preg_replace('/\s+/', ' ', $i);
-                    $secSignatures[] = "{$k}=" . md5($normalizedIsi);
-                }
-            }
-        }
-        $sectionsHash = implode(';', $secSignatures);
-
-        $salt = defined('APP_KEY') ? APP_KEY : 'BASARNAS_KENDARI_BRA_SECRET_SALT_2026';
-        $payload = "BASARNAS_BRA:{$id}:{$noBra}:{$twu}:{$smc}:{$pangkat}:" . md5($perihal) . ":{$sectionsHash}";
-        return strtoupper(substr(hash_hmac('sha256', $payload, $salt), 0, 16));
+        $normalizedBra['nama_smc'] = preg_replace('/[^A-Z0-9]/', '', strtoupper(trim((string)($bra['nama_smc'] ?? ''))));
+        $normalizedBra['pangkat_smc'] = preg_replace('/[^A-Z0-9]/', '', strtoupper(trim((string)($bra['pangkat_smc'] ?? ''))));
+        return self::generateVerifyTokenRaw($normalizedBra);
     }
 
     /**

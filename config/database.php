@@ -11,29 +11,11 @@ class Database {
 
     public static function getConnection(): PDO {
         if (self::$instance === null) {
-            $host = getenv('DB_HOST') ?: '127.0.0.1';
-            $port = getenv('DB_PORT') ?: '3306';
-            $dbname = getenv('DB_DATABASE') ?: 'qrsar';
-            $username = getenv('DB_USERNAME') ?: 'root';
-            $password = getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : '';
-
-            // Check if .env file exists and parse it if not already in getenv
-            $envFile = dirname(__DIR__) . '/.env';
-            if (file_exists($envFile)) {
-                $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-                foreach ($lines as $line) {
-                    if (str_starts_with(trim($line), '#') || !str_contains($line, '=')) continue;
-                    [$key, $val] = explode('=', $line, 2);
-                    $key = trim($key);
-                    $val = trim($val, " \t\n\r\0\x0B\"'");
-                    // Variabel environment proses (mis. DB_DATABASE=qrsar_test saat test) menang atas .env
-                    if ($key === 'DB_HOST' && getenv('DB_HOST') === false) $host = $val;
-                    if ($key === 'DB_PORT' && getenv('DB_PORT') === false) $port = $val;
-                    if (($key === 'DB_DATABASE' || $key === 'DB_NAME') && getenv('DB_DATABASE') === false) $dbname = $val;
-                    if (($key === 'DB_USERNAME' || $key === 'DB_USER') && getenv('DB_USERNAME') === false) $username = $val;
-                    if (($key === 'DB_PASSWORD' || $key === 'DB_PASS') && getenv('DB_PASSWORD') === false) $password = $val;
-                }
-            }
+            $host = getenv('DB_HOST') ?: ($_ENV['DB_HOST'] ?? ($_SERVER['DB_HOST'] ?? '127.0.0.1'));
+            $port = getenv('DB_PORT') ?: ($_ENV['DB_PORT'] ?? ($_SERVER['DB_PORT'] ?? '3306'));
+            $dbname = getenv('DB_DATABASE') ?: (getenv('DB_NAME') ?: ($_ENV['DB_DATABASE'] ?? ($_SERVER['DB_DATABASE'] ?? 'qrsar')));
+            $username = getenv('DB_USERNAME') ?: (getenv('DB_USER') ?: ($_ENV['DB_USERNAME'] ?? ($_SERVER['DB_USERNAME'] ?? 'root')));
+            $password = getenv('DB_PASSWORD') !== false ? getenv('DB_PASSWORD') : (getenv('DB_PASS') !== false ? getenv('DB_PASS') : ($_ENV['DB_PASSWORD'] ?? ($_SERVER['DB_PASSWORD'] ?? '')));
 
             $dsn = "mysql:host={$host};port={$port};dbname={$dbname};charset=utf8mb4";
             $options = [

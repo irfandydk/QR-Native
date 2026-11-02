@@ -296,6 +296,10 @@ class LaporanModel {
         $stmt = $db->prepare("DELETE FROM LaporanHarian WHERE id_laporan = :id");
         $ok = $stmt->execute([':id' => $id]);
         DocVerifyHelper::forgetDocTokens([DocVerifyHelper::TYPE_SITREP, DocVerifyHelper::TYPE_PENUTUPAN], $id);
+        if (class_exists('DokumenPetaSnapshotModel')) {
+            DokumenPetaSnapshotModel::deleteByReferensi('SITREP', $id);
+            DokumenPetaSnapshotModel::deleteByReferensi('PENUTUPAN', $id);
+        }
         return $ok;
     }
 }

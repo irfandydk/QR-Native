@@ -1408,17 +1408,13 @@ input[type="datetime-local"] {
   box-shadow: 0 14px 35px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+/* Kartu membungkus form: tanpa transform agar klik/hover tidak menggoyang isi (hanya bayangan) */
 .bento-card-v1:hover {
-  transform: translateY(-2px);
   box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.08);
 }
 
 .dark .bento-card-v1:hover {
   box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
-
-.bento-card-v1:active {
-  transform: scale(0.99) translateY(0);
 }
 
 /* Liquid Glass Cockpit Panel */

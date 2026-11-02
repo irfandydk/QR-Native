@@ -19,12 +19,18 @@ class DokumenPetaSnapshotModel {
      * Memastikan tabel DokumenPetaSnapshot tersedia di database.
      */
     public static function ensureSchemaUpdated(bool $force = false): void {
-        if (!$force && self::$schemaChecked) {
+        if (!$force) {
+            return;
+        }
+        if (self::$schemaChecked) {
             return;
         }
         self::$schemaChecked = true;
         try {
             $db = getDB();
+            if ($db->inTransaction()) {
+                return;
+            }
             $db->exec("CREATE TABLE IF NOT EXISTS `DokumenPetaSnapshot` (
                 `id_snapshot` INT AUTO_INCREMENT PRIMARY KEY,
                 `id_operasi` INT NOT NULL,
@@ -288,6 +294,48 @@ class DokumenPetaSnapshotModel {
         self::removeImageFile((string)($existing['image_path'] ?? ''));
         $stmt = $db->prepare("DELETE FROM DokumenPetaSnapshot WHERE id_snapshot = :id");
         return $stmt->execute([':id' => $idSnapshot]);
+    }
+
+    /**
+     * Menghapus seluruh snapshot peta beserta file fisik gambar milik operasi tertentu.
+     */
+    public static function deleteByOperasi(int $idOperasi): void {
+        self::ensureSchemaUpdated();
+        try {
+            $db = getDB();
+            $stmt = $db->prepare("SELECT image_path FROM DokumenPetaSnapshot WHERE id_operasi = :op");
+            $stmt->execute([':op' => $idOperasi]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $r) {
+                self::removeImageFile((string)($r['image_path'] ?? ''));
+            }
+            $db->prepare("DELETE FROM DokumenPetaSnapshot WHERE id_operasi = :op")->execute([':op' => $idOperasi]);
+        } catch (Throwable $e) {
+            error_log("[DokumenPetaSnapshotModel deleteByOperasi] " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Menghapus snapshot peta berdasarkan referensi dokumen (RENOPS/SITREP/PENUTUPAN).
+     */
+    public static function deleteByReferensi(string $tipeDokumen, int $idReferensi): void {
+        self::ensureSchemaUpdated();
+        try {
+            $db = getDB();
+            $jenisDokumen = self::normalizeJenisDokumen($tipeDokumen);
+            $stmt = $db->prepare("SELECT image_path FROM DokumenPetaSnapshot WHERE jenis_dokumen = :jd AND id_referensi = :ref");
+            $stmt->execute([':jd' => $jenisDokumen, ':ref' => $idReferensi]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $r) {
+                self::removeImageFile((string)($r['image_path'] ?? ''));
+            }
+            $db->prepare("DELETE FROM DokumenPetaSnapshot WHERE jenis_dokumen = :jd AND id_referensi = :ref")->execute([
+                ':jd' => $jenisDokumen,
+                ':ref' => $idReferensi
+            ]);
+        } catch (Throwable $e) {
+            error_log("[DokumenPetaSnapshotModel deleteByReferensi] " . $e->getMessage());
+        }
     }
 
     /**

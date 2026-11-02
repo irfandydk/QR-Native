@@ -110,6 +110,7 @@ class GisApiController extends BaseApiController {
 
         if (($path === '/gis/point' || $path === '/gis/points') && in_array($method, ['POST', 'PUT'])) {
             self::requireAuth();
+            self::assertCanMutateGis('GisPoint', null, $input);
             $id = GisModel::savePoint($input);
             self::json(['success' => true, 'id' => $id, 'data' => $input]);
             return true;
@@ -117,7 +118,9 @@ class GisApiController extends BaseApiController {
 
         if (preg_match('#^/gis/point(?:s)?/(.+)$#', $path, $m) && in_array($method, ['POST', 'PUT'])) {
             self::requireAuth();
-            $input['id'] = $m[1];
+            $targetId = $m[1];
+            $input['id'] = $targetId;
+            self::assertCanMutateGis('GisPoint', $targetId, $input);
             $id = GisModel::savePoint($input);
             self::json(['success' => true, 'id' => $id, 'data' => $input]);
             return true;
@@ -125,7 +128,9 @@ class GisApiController extends BaseApiController {
 
         if (preg_match('#^/gis/point(?:s)?/(.+)$#', $path, $m) && $method === 'DELETE') {
             self::requireAuth();
-            $ok = GisModel::deletePoint($m[1]);
+            $targetId = $m[1];
+            self::assertCanMutateGis('GisPoint', $targetId);
+            $ok = GisModel::deletePoint($targetId);
             self::json(['success' => $ok]);
             return true;
         }
@@ -168,6 +173,7 @@ class GisApiController extends BaseApiController {
 
         if (($path === '/gis/polygon' || $path === '/gis/polygons') && in_array($method, ['POST', 'PUT'])) {
             self::requireAuth();
+            self::assertCanMutateGis('GisPolygon', null, $input);
             $id = GisModel::savePolygon($input);
             self::json(['success' => true, 'id' => $id, 'data' => $input]);
             return true;
@@ -175,7 +181,9 @@ class GisApiController extends BaseApiController {
 
         if (preg_match('#^/gis/polygon(?:s)?/(.+)$#', $path, $m) && in_array($method, ['POST', 'PUT'])) {
             self::requireAuth();
-            $input['id'] = $m[1];
+            $targetId = $m[1];
+            $input['id'] = $targetId;
+            self::assertCanMutateGis('GisPolygon', $targetId, $input);
             $id = GisModel::savePolygon($input);
             self::json(['success' => true, 'id' => $id, 'data' => $input]);
             return true;
@@ -183,7 +191,9 @@ class GisApiController extends BaseApiController {
 
         if (preg_match('#^/gis/polygon(?:s)?/(.+)$#', $path, $m) && $method === 'DELETE') {
             self::requireAuth();
-            $ok = GisModel::deletePolygon($m[1]);
+            $targetId = $m[1];
+            self::assertCanMutateGis('GisPolygon', $targetId);
+            $ok = GisModel::deletePolygon($targetId);
             self::json(['success' => $ok]);
             return true;
         }
@@ -204,6 +214,7 @@ class GisApiController extends BaseApiController {
 
         if (($path === '/gis/pattern' || $path === '/gis/patterns' || $path === '/gis/search-patterns') && in_array($method, ['POST', 'PUT'])) {
             self::requireAuth();
+            self::assertCanMutateGis('GisSearchPattern', null, $input);
             $id = GisModel::saveSearchPattern($input);
             self::json(['success' => true, 'id' => $id, 'data' => $input]);
             return true;
@@ -211,7 +222,9 @@ class GisApiController extends BaseApiController {
 
         if (preg_match('#^/gis/(?:pattern|search-pattern)(?:s)?/(.+)$#', $path, $m) && in_array($method, ['POST', 'PUT'])) {
             self::requireAuth();
-            $input['id'] = $m[1];
+            $targetId = $m[1];
+            $input['id'] = $targetId;
+            self::assertCanMutateGis('GisSearchPattern', $targetId, $input);
             $id = GisModel::saveSearchPattern($input);
             self::json(['success' => true, 'id' => $id, 'data' => $input]);
             return true;
@@ -219,7 +232,9 @@ class GisApiController extends BaseApiController {
 
         if (preg_match('#^/gis/(?:pattern|search-pattern)(?:s)?/(.+)$#', $path, $m) && $method === 'DELETE') {
             self::requireAuth();
-            $ok = GisModel::deleteSearchPattern($m[1]);
+            $targetId = $m[1];
+            self::assertCanMutateGis('GisSearchPattern', $targetId);
+            $ok = GisModel::deleteSearchPattern($targetId);
             self::json(['success' => $ok]);
             return true;
         }
@@ -240,6 +255,17 @@ class GisApiController extends BaseApiController {
 
         if (($path === '/gis/route' || $path === '/gis/routes') && in_array($method, ['POST', 'PUT'])) {
             self::requireAuth();
+            self::assertCanMutateGis('GisRoute', null, $input);
+            $id = GisModel::saveRoute($input);
+            self::json(['success' => true, 'id' => $id]);
+            return true;
+        }
+
+        if (preg_match('#^/gis/route(?:s)?/(.+)$#', $path, $m) && in_array($method, ['POST', 'PUT'])) {
+            self::requireAuth();
+            $targetId = $m[1];
+            $input['id'] = $targetId;
+            self::assertCanMutateGis('GisRoute', $targetId, $input);
             $id = GisModel::saveRoute($input);
             self::json(['success' => true, 'id' => $id]);
             return true;
@@ -247,7 +273,9 @@ class GisApiController extends BaseApiController {
 
         if (preg_match('#^/gis/route(?:s)?/(.+)$#', $path, $m) && $method === 'DELETE') {
             self::requireAuth();
-            $ok = GisModel::deleteRoute($m[1]);
+            $targetId = $m[1];
+            self::assertCanMutateGis('GisRoute', $targetId);
+            $ok = GisModel::deleteRoute($targetId);
             self::json(['success' => $ok]);
             return true;
         }
@@ -552,6 +580,9 @@ class GisApiController extends BaseApiController {
     }
 
     private static function handleDeleteCustomIcon(array $input): void {
+        if (!AuthHelper::isAdmin()) {
+            self::error('Akses ditolak: Hanya Administrator yang berwenang menghapus aset logo/ikon kustom.', 403);
+        }
         $filename = trim((string)($input['filename'] ?? ''));
         if (empty($filename) || !preg_match('/^[a-zA-Z0-9_\-\.]+$/', $filename)) {
             self::error('Nama berkas ikon tidak valid.', 400);
@@ -719,6 +750,13 @@ class GisApiController extends BaseApiController {
 
         if (($path === '/gis/snapshot' || $path === '/gis/snapshots') && in_array($method, ['POST', 'PUT'], true)) {
             self::requireAuth();
+            $idOperasi = isset($input['id_operasi']) && $input['id_operasi'] !== '' ? (int)$input['id_operasi'] : 0;
+            if ($idOperasi > 0) {
+                $ops = OperasiModel::getById($idOperasi);
+                if ($ops && ($ops['status'] ?? '') === 'CLOSED') {
+                    self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Cuplikan peta resmi terkunci.', 403);
+                }
+            }
             try {
                 $saved = DokumenPetaSnapshotModel::saveSnapshot($input);
                 unset($saved['image_data_uri']);
@@ -738,6 +776,13 @@ class GisApiController extends BaseApiController {
         if (preg_match('#^/gis/snapshot(?:s)?/(\d+)$#', $path, $m) && $method === 'DELETE') {
             self::requireAuth();
             $idSnap = (int)$m[1];
+            $existing = DokumenPetaSnapshotModel::getById($idSnap);
+            if ($existing && !empty($existing['id_operasi'])) {
+                $ops = OperasiModel::getById((int)$existing['id_operasi']);
+                if ($ops && $ops['status'] === 'CLOSED') {
+                    self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Cuplikan peta resmi terkunci.', 403);
+                }
+            }
             $ok = DokumenPetaSnapshotModel::deleteSnapshot($idSnap);
             self::json(['success' => $ok]);
             return true;
@@ -757,15 +802,32 @@ class GisApiController extends BaseApiController {
                 http_response_code(400);
                 exit;
             }
+
+            // Disk cache lookup in storage/cache/tiles/
+            $cacheKey = md5($tileUrl);
+            $cacheDir = (defined('STORAGE_DIR') ? STORAGE_DIR : (ROOT_DIR . '/storage')) . '/cache/tiles';
+            $cacheFile = $cacheDir . '/' . $cacheKey . '.img';
+
+            if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < 604800)) {
+                $imgBytes = @file_get_contents($cacheFile);
+                if ($imgBytes !== false && strlen($imgBytes) >= 32) {
+                    header('Content-Type: image/png');
+                    header('Cache-Control: public, max-age=604800, immutable');
+                    header('Access-Control-Allow-Origin: *');
+                    echo $imgBytes;
+                    exit;
+                }
+            }
+
             $ctx = stream_context_create([
                 'http' => [
                     'method' => 'GET',
-                    'timeout' => 4,
+                    'timeout' => 5,
                     'header' => "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) QR-SAR-GIS/2.5\r\n"
                 ],
                 'ssl' => [
-                    'verify_peer' => false,
-                    'verify_peer_name' => false
+                    'verify_peer' => true,
+                    'verify_peer_name' => true
                 ]
             ]);
             $imgBytes = @file_get_contents($tileUrl, false, $ctx);
@@ -773,13 +835,61 @@ class GisApiController extends BaseApiController {
                 http_response_code(404);
                 exit;
             }
+
+            if (!is_dir($cacheDir)) {
+                @mkdir($cacheDir, 0755, true);
+            }
+            @file_put_contents($cacheFile, $imgBytes);
+
             header('Content-Type: image/png');
-            header('Cache-Control: public, max-age=86400');
+            header('Cache-Control: public, max-age=604800, immutable');
             header('Access-Control-Allow-Origin: *');
             echo $imgBytes;
             exit;
         }
 
         return false;
+    }
+
+    /**
+     * Memverifikasi hak akses modifikasi data GIS:
+     * - Master data spasial global (id_operasi === null) hanya boleh dibuat/diubah/dihapus oleh Administrator.
+     * - Operasi SAR yang berstatus 'CLOSED' terkunci untuk seluruh modifikasi data spasial (tambah/edit/hapus).
+     *
+     * @param string $table Nama tabel GIS (GisPoint, GisPolygon, GisSearchPattern, GisRoute)
+     * @param string|null $id ID target jika operasi update/delete
+     * @param array $input Payload input jika operasi create/update
+     */
+    private static function assertCanMutateGis(string $table, ?string $id = null, array $input = []): void {
+        $targetId = $id ?? ($input['id'] ?? null);
+        $db = getDB();
+        $existingRow = null;
+        if (!empty($targetId)) {
+            $stmt = $db->prepare("SELECT id, id_operasi FROM `{$table}` WHERE id = :id");
+            $stmt->execute([':id' => $targetId]);
+            $existingRow = $stmt->fetch();
+        }
+
+        // Tentukan id_operasi: prioritas dari input jika diberikan, atau fallback ke data yang sudah ada di DB
+        $idOperasi = null;
+        if (array_key_exists('id_operasi', $input)) {
+            $idOperasi = ($input['id_operasi'] !== '' && $input['id_operasi'] !== null) ? (int)$input['id_operasi'] : null;
+        } elseif ($existingRow && $existingRow['id_operasi'] !== null) {
+            $idOperasi = (int)$existingRow['id_operasi'];
+        }
+
+        // 1. Data master spasial global (id_operasi === null)
+        if (($existingRow && $existingRow['id_operasi'] === null) || $idOperasi === null) {
+            if (!AuthHelper::isAdmin()) {
+                self::error('Akses ditolak: Hanya Administrator yang berwenang menambah, mengubah, atau menghapus data master spasial global.', 403);
+            }
+            return;
+        }
+
+        // 2. Data spasial yang terikat dengan operasi SAR
+        $ops = OperasiModel::getById($idOperasi);
+        if ($ops && ($ops['status'] ?? '') === 'CLOSED') {
+            self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Data spasial terkait operasi ini terkunci.', 403);
+        }
     }
 }

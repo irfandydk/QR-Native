@@ -22,17 +22,18 @@ class BackupService {
         'Renops', 'RenopsSRU', 'LaporanHarian', 'BraSar', 'BraSection',
         'GisPoint', 'GisPolygon', 'GisPolygonPoint', 'GisRoute', 'GisRoutePoint',
         'GisSearchPattern', 'GisSearchPatternWaypoint', 'GisCustomIcon',
-        'Users', 'AuditLog', 'DokumenToken'
+        'DokumenPetaSnapshot', 'DokumenToken',
+        'Users', 'AuditLog'
     ];
 
     /**
      * Mapping for JSON backup key to physical database table name.
      */
     public const JSON_TABLE_MAP = [
+        'pejabat' => 'Pejabat',
         'master_alut' => 'MasterAlut',
         'master_tim' => 'MasterTim',
         'sar_units' => 'SarUnit',
-        'pejabat' => 'Pejabat',
         'operasi' => 'Operasi',
         'korban' => 'Korban',
         'detail_unsur' => 'DetailUnsur',
@@ -42,10 +43,17 @@ class BackupService {
         'renops_sru' => 'RenopsSRU',
         'laporan_harian' => 'LaporanHarian',
         'bra_sar' => 'BraSar',
+        'bra_sections' => 'BraSection',
         'gis_points' => 'GisPoint',
         'gis_polygons' => 'GisPolygon',
+        'gis_polygon_points' => 'GisPolygonPoint',
         'gis_routes' => 'GisRoute',
+        'gis_route_points' => 'GisRoutePoint',
         'gis_search_patterns' => 'GisSearchPattern',
+        'gis_search_pattern_waypoints' => 'GisSearchPatternWaypoint',
+        'gis_custom_icons' => 'GisCustomIcon',
+        'dokumen_peta_snapshots' => 'DokumenPetaSnapshot',
+        'dokumen_tokens' => 'DokumenToken',
         'users' => 'Users',
         'audit_log' => 'AuditLog'
     ];
@@ -97,28 +105,53 @@ class BackupService {
             $cleanSettings['gemini_api_key'] = '********';
         }
 
+        $safeQuery = function(string $table, string $orderCol) use ($db): array {
+            try {
+                return $db->query("SELECT * FROM `{$table}` ORDER BY `{$orderCol}` ASC")->fetchAll();
+            } catch (Throwable) {
+                return [];
+            }
+        };
+
         $backup = [
             'version' => defined('APP_VERSION') ? APP_VERSION : '2.5.0',
             'appName' => 'SISTEM QR SAR - KPP KENDARI (PHP NATIVE)',
             'exported_at' => date('Y-m-d H:i:s'),
             'app_settings' => $cleanSettings,
-            'master_alut' => class_exists('MasterModel') ? MasterModel::getAlut() : [],
-            'master_tim' => class_exists('MasterModel') ? MasterModel::getTim() : [],
-            'sar_units' => class_exists('MasterModel') ? MasterModel::getSarUnits() : [],
-            'operasi' => $db->query("SELECT * FROM Operasi ORDER BY id_operasi ASC")->fetchAll(),
-            'korban' => $db->query("SELECT * FROM Korban ORDER BY id_korban ASC")->fetchAll(),
-            'detail_unsur' => $db->query("SELECT * FROM DetailUnsur ORDER BY id_detail_unsur ASC")->fetchAll(),
-            'detail_alut' => $db->query("SELECT * FROM DetailAlut ORDER BY id_detail_alut ASC")->fetchAll(),
-            'detail_tim_berangkat' => $db->query("SELECT * FROM DetailTimBerangkat ORDER BY id_detail_tim ASC")->fetchAll(),
-            'renops' => $db->query("SELECT * FROM Renops ORDER BY id_renops ASC")->fetchAll(),
-            'renops_sru' => $db->query("SELECT * FROM RenopsSRU ORDER BY id_sru ASC")->fetchAll(),
-            'laporan_harian' => $db->query("SELECT * FROM LaporanHarian ORDER BY id_laporan ASC")->fetchAll(),
-            'bra_sar' => class_exists('BraModel') ? BraModel::getAll() : [],
-            'gis_points' => class_exists('GisModel') ? GisModel::getPoints() : [],
-            'gis_polygons' => class_exists('GisModel') ? GisModel::getPolygons() : [],
-            'gis_routes' => class_exists('GisModel') ? GisModel::getRoutes() : [],
-            'gis_search_patterns' => class_exists('GisModel') ? GisModel::getSearchPatterns() : [],
-            'users' => class_exists('UserModel') ? UserModel::getAll() : [],
+            'pejabat' => $safeQuery('Pejabat', 'id_pejabat'),
+            'master_alut' => $safeQuery('MasterAlut', 'id_alut'),
+            'master_tim' => $safeQuery('MasterTim', 'id_tim'),
+            'sar_units' => $safeQuery('SarUnit', 'id_unit'),
+            'operasi' => $safeQuery('Operasi', 'id_operasi'),
+            'korban' => $safeQuery('Korban', 'id_korban'),
+            'detail_unsur' => $safeQuery('DetailUnsur', 'id_detail_unsur'),
+            'detail_alut' => $safeQuery('DetailAlut', 'id_detail_alut'),
+            'detail_tim_berangkat' => $safeQuery('DetailTimBerangkat', 'id_detail_tim'),
+            'renops' => $safeQuery('Renops', 'id_renops'),
+            'renops_sru' => $safeQuery('RenopsSRU', 'id_sru'),
+            'laporan_harian' => $safeQuery('LaporanHarian', 'id_laporan'),
+            // Query raw BraSar directly to prevent virtual 'sections' & 'total_sections' array pollution
+            'bra_sar' => $safeQuery('BraSar', 'id_bra'),
+            'bra_sections' => $safeQuery('BraSection', 'id'),
+            // Query raw GIS tables directly to prevent virtual 'points' / 'waypoints' array pollution
+            'gis_points' => $safeQuery('GisPoint', 'id'),
+            'gis_polygons' => $safeQuery('GisPolygon', 'id'),
+            'gis_polygon_points' => $safeQuery('GisPolygonPoint', 'id'),
+            'gis_routes' => $safeQuery('GisRoute', 'id'),
+            'gis_route_points' => $safeQuery('GisRoutePoint', 'id'),
+            'gis_search_patterns' => $safeQuery('GisSearchPattern', 'id'),
+            'gis_search_pattern_waypoints' => $safeQuery('GisSearchPatternWaypoint', 'id'),
+            'gis_custom_icons' => $safeQuery('GisCustomIcon', 'id'),
+            'dokumen_peta_snapshots' => $safeQuery('DokumenPetaSnapshot', 'id_snapshot'),
+            'dokumen_tokens' => $safeQuery('DokumenToken', 'id'),
+            // Export users WITH password_hash so credentials survive restore
+            'users' => (function() use ($db) {
+                try {
+                    return $db->query("SELECT id, username, password_hash, nama_lengkap, role, created_at, updated_at FROM `Users` ORDER BY id ASC")->fetchAll();
+                } catch (Throwable) {
+                    return [];
+                }
+            })(),
             'audit_log' => class_exists('AuditHelper') ? AuditHelper::getLogs(200) : []
         ];
 
@@ -152,18 +185,51 @@ class BackupService {
                 SettingsModel::updateSettings($cleanSettings);
             }
 
+            // Cache current users' password hashes in case imported JSON lacked password_hash
+            $existingUsers = [];
+            try {
+                $uStmt = $db->query("SELECT id, username, password_hash FROM `Users`");
+                while ($uRow = $uStmt->fetch()) {
+                    $existingUsers[$uRow['username']] = $uRow;
+                    $existingUsers[$uRow['id']] = $uRow;
+                }
+            } catch (Throwable) {}
+
             // Helper to import array table safely
-            $importTable = function(string $table, array $rows) use ($db) {
+            $importTable = function(string $table, array $rows) use ($db, $existingUsers) {
                 if (empty($rows) || !in_array($table, self::MANAGED_TABLES, true)) return;
+
+                // Discover existing physical columns to silently filter out virtual fields (e.g. 'points', 'sections')
+                try {
+                    $realCols = $db->query("SHOW COLUMNS FROM `{$table}`")->fetchAll(PDO::FETCH_COLUMN);
+                    $allowedColsMap = array_flip($realCols);
+                } catch (Throwable $e) {
+                    return; // Table might not exist yet
+                }
+
                 $db->exec("DELETE FROM `{$table}`");
                 foreach ($rows as $row) {
                     if (!is_array($row)) continue;
+
+                    // If restoring Users table and row has empty password_hash, preserve existing password
+                    if ($table === 'Users') {
+                        if (empty($row['password_hash'])) {
+                            $uKey = $row['username'] ?? ($row['id'] ?? '');
+                            if (isset($existingUsers[$uKey]) && !empty($existingUsers[$uKey]['password_hash'])) {
+                                $row['password_hash'] = $existingUsers[$uKey]['password_hash'];
+                            } else {
+                                $row['password_hash'] = password_hash(DEFAULT_RESET_PASSWORD, PASSWORD_DEFAULT);
+                            }
+                        }
+                    }
+
                     $cols = array_keys($row);
-                    // Sanitasi nama kolom
                     $safeCols = [];
                     foreach ($cols as $c) {
-                        if (preg_match('/^[a-zA-Z0-9_]+$/', (string)$c)) {
-                            $safeCols[] = $c;
+                        $cStr = (string)$c;
+                        // Column must match valid regex AND exist physically in MySQL table schema
+                        if (preg_match('/^[a-zA-Z0-9_]+$/', $cStr) && isset($allowedColsMap[$cStr])) {
+                            $safeCols[] = $cStr;
                         }
                     }
                     if (empty($safeCols)) continue;

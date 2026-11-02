@@ -96,7 +96,8 @@ class AdminController extends BaseController {
                 } elseif ($newPass !== $confirmPass) {
                     $this->setFlash('error', 'Konfirmasi kata sandi baru tidak cocok.');
                 } else {
-                    $res = SettingsModel::changePassword('ADMIN', $oldPass, $newPass);
+                    $userId = $_SESSION['user']['id'] ?? null;
+                    $res = SettingsModel::changePassword('ADMIN', $oldPass, $newPass, $userId);
                     if ($res['success']) {
                         $this->setFlash('success', 'Kata sandi Administrator berhasil diubah. Gunakan sandi baru untuk login selanjutnya.');
                     } else {

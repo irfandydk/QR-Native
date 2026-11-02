@@ -25,24 +25,7 @@ function executeSqlMigrationFile(PDO $db, string $filePath): void {
         return;
     }
 
-    $lines = explode("\n", $sqlContent);
-    $currentStmt = '';
-    $statements = [];
-
-    foreach ($lines as $line) {
-        $trimmed = trim($line);
-        if ($trimmed === '' || str_starts_with($trimmed, '--') || str_starts_with($trimmed, '/*')) {
-            continue;
-        }
-        $currentStmt .= $line . "\n";
-        if (str_ends_with(rtrim($trimmed), ';')) {
-            $statements[] = trim($currentStmt);
-            $currentStmt = '';
-        }
-    }
-    if (trim($currentStmt) !== '') {
-        $statements[] = trim($currentStmt);
-    }
+    $statements = BackupService::splitSqlStatements($sqlContent);
 
     foreach ($statements as $stmt) {
         if ($stmt === '') continue;
@@ -193,18 +176,18 @@ try {
         }
     }
 
-    // 2c. Ensure all 9 official Basarnas Sultra SarUnit bases exist
+    // 2c. Ensure all 9 official Basarnas Sultra SarUnit bases exist with verified true coordinates
     echo "[RUN] Checking SarUnit bases (Kansar, Pos SAR, Unit Siaga SAR)...\n";
     $sarUnitsSeed = [
-        [1, 'Kansar Kendari (Kantor Utama)', 'KANTOR_SAR', 'Kota Kendari / Konawe Selatan', -4.084194, 122.428389, '04° 05\' 03" S - 122° 25\' 42" E', 'Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan', '(0401) 3122115 / Emergency 115', 1],
-        [2, 'Pos SAR Kolaka', 'POS_SAR', 'Kabupaten Kolaka', -4.053889, 121.604167, '04° 03\' 14" S - 121° 36\' 15" E', 'Kompleks Pelabuhan Ferry Kolaka, Jl. Dermaga Ferry Kolaka, Kel. Kolakaasi, Kec. Latambaga, Kab. Kolaka', '0811-4091-115', 0],
-        [3, 'Pos SAR Baubau', 'POS_SAR', 'Kota Baubau & Buton', -5.463889, 122.604167, '05° 27\' 50" S - 122° 36\' 15" E', 'Kawasan Pelabuhan Murhum / Jembatan Batu, Kel. Batulo, Kec. Wolio, Kota Baubau, Sulawesi Tenggara', '0811-4092-115', 0],
-        [4, 'Pos SAR Wakatobi', 'POS_SAR', 'Kabupaten Wakatobi', -5.326389, 123.588889, '05° 19\' 35" S - 123° 35\' 20" E', 'Kawasan Pelabuhan Mandati / Pangulubelo, Wangi-Wangi Selatan, Kab. Wakatobi, Sulawesi Tenggara', '0811-4093-115', 0],
-        [5, 'Pos SAR Konawe Utara', 'POS_SAR', 'Kabupaten Konawe Utara', -3.513889, 122.180556, '03° 30\' 50" S - 122° 10\' 50" E', 'Jl. Poros Trans Sulawesi Kendari - Morowali, Wanggudu / Kec. Asera, Kab. Konawe Utara, Sulawesi Tenggara', '0811-4094-115', 0],
-        [6, 'Unit Siaga SAR Muna', 'UNIT_SIAGA', 'Kabupaten Muna', -4.836111, 122.719444, '04° 50\' 10" S - 122° 43\' 10" E', 'Kawasan Pelabuhan Nusantara Raha / Jl. By Pass, Kota Raha, Kab. Muna, Sulawesi Tenggara', '0811-4095-115', 0],
-        [7, 'Unit Siaga SAR Konawe', 'UNIT_SIAGA', 'Kabupaten Konawe', -3.905556, 122.047222, '03° 54\' 20" S - 122° 02\' 50" E', 'Jl. Poros Kendari - Kolaka, Kota Unaaha, Kab. Konawe, Sulawesi Tenggara', '0811-4096-115', 0],
-        [8, 'Unit Siaga SAR Kolaka Utara', 'UNIT_SIAGA', 'Kabupaten Kolaka Utara', -3.425000, 120.897000, '03° 25\' 30" S - 120° 53\' 49" E', 'Kawasan Pelabuhan Penyeberangan Tobaku / Jl. Poros Lasusua, Kec. Lasusua, Kab. Kolaka Utara', '0811-4097-115', 0],
-        [9, 'Dermaga SAR Kendari (KN SAR / RB)', 'KN_SAR', 'Kota Kendari (Bungkutoko)', -3.974167, 122.585000, '03° 58\' 27" S - 122° 35\' 06" E', 'Kawasan Pelabuhan Bungkutoko (Pangkalan KN SAR Pacitan / RB 210 / RB 307), Kota Kendari', '(0401) 3122115', 0]
+        [1, 'Kansar Kendari (Kantor Utama)', 'KANTOR_SAR', 'Kota Kendari / Konawe Selatan', -4.0378573160673, 122.4866527319, '04° 02\' 16.3" S - 122° 29\' 11.9" E', 'Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan', '(0401) 3122115 / Emergency 115', 1],
+        [2, 'Pos SAR Kolaka', 'POS_SAR', 'Kabupaten Kolaka', -4.0654939493596, 121.60832650959, '04° 03\' 55.8" S - 121° 36\' 30.0" E', 'Kompleks Pelabuhan Ferry Kolaka, Jl. Dermaga Ferry Kolaka, Kel. Kolakaasi, Kec. Latambaga, Kab. Kolaka', '0811-4091-115', 0],
+        [3, 'Pos SAR Baubau', 'POS_SAR', 'Kota Baubau & Buton', -5.5119777777778, 122.560300, '05° 30\' 43.1" S - 122° 33\' 37.1" E', 'Kawasan Pelabuhan Murhum / Jembatan Batu, Kel. Batulo, Kec. Wolio, Kota Baubau, Sulawesi Tenggara', '0811-4092-115', 0],
+        [4, 'Pos SAR Wakatobi', 'POS_SAR', 'Kabupaten Wakatobi', -5.3539166666667, 123.551500, '05° 21\' 14.1" S - 123° 33\' 05.4" E', 'Kawasan Pelabuhan Mandati / Pangulubelo, Wangi-Wangi Selatan, Kab. Wakatobi, Sulawesi Tenggara', '0811-4093-115', 0],
+        [5, 'Pos SAR Konawe Utara', 'POS_SAR', 'Kabupaten Konawe Utara', -3.5290805555556, 122.13168333333, '03° 31\' 44.7" S - 122° 07\' 54.1" E', 'Jl. Poros Trans Sulawesi Kendari - Morowali, Wanggudu / Kec. Asera, Kab. Konawe Utara, Sulawesi Tenggara', '0811-4094-115', 0],
+        [6, 'Unit Siaga SAR Muna', 'UNIT_SIAGA', 'Kabupaten Muna', -4.8441666666667, 122.72583333333, '04° 50\' 39.0" S - 122° 43\' 33.0" E', 'Kawasan Pelabuhan Nusantara Raha / Jl. By Pass, Kota Raha, Kab. Muna, Sulawesi Tenggara', '0811-4095-115', 0],
+        [7, 'Unit Siaga SAR Konawe', 'UNIT_SIAGA', 'Kabupaten Konawe', -3.905556, 122.047222, '03° 54\' 20.0" S - 122° 02\' 50.0" E', 'Jl. Poros Kendari - Kolaka, Kota Unaaha, Kab. Konawe, Sulawesi Tenggara', '0811-4096-115', 0],
+        [8, 'Unit Siaga SAR Kolaka Utara', 'UNIT_SIAGA', 'Kabupaten Kolaka Utara', -3.425000, 120.897000, '03° 25\' 30.0" S - 120° 53\' 49.2" E', 'Kawasan Pelabuhan Penyeberangan Tobaku / Jl. Poros Lasusua, Kec. Lasusua, Kab. Kolaka Utara', '0811-4097-115', 0],
+        [9, 'Dermaga SAR Kendari (KN SAR / RB)', 'KN_SAR', 'Kota Kendari (Bungkutoko)', -3.9774826095434, 122.59606942534, '03° 58\' 38.9" S - 122° 35\' 45.8" E', 'Kawasan Pelabuhan Bungkutoko (Pangkalan KN SAR Pacitan / RB 210 / RB 307), Kota Kendari', '(0401) 3122115', 0]
     ];
     $stmtUnit = $db->prepare("INSERT INTO SarUnit (id_unit, nama_unit, jenis_unit, wilayah, latitude, longitude, koordinat_dms, alamat, no_telp, is_default)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -222,18 +205,19 @@ try {
     }
     echo "[OK] All 9 SarUnit bases verified.\n";
 
-    // 2d. Ensure master GIS base points exist in GisPoint for tactical map plotting & routing
+    // 2d. Ensure master GIS base points exist in GisPoint for tactical map plotting & routing with true coordinates and custom icon
     echo "[RUN] Checking GisPoint master bases (pt-kansar, POS SAR, etc.)...\n";
+    $iconBasarnas = 'uploads/icons/icon_1792053884_34b3a7b0.png';
     $masterBasesGis = [
-        ['pt-kansar', -4.084194, 122.428389, 'Kantor SAR Kendari', 'custom_upload', 'assets/img/basarnas-logo.png', 'Kantor Pencarian dan Pertolongan Kelas A Kendari', 'Kantor SAR', 'A', null],
-        ['pt-pos-kolaka', -4.053889, 121.604167, 'POS SAR KOLAKA', 'custom_upload', 'assets/img/basarnas-logo.png', 'Pos SAR Kolaka', 'POS SAR', 'A', null],
-        ['pt-pos-baubau', -5.463889, 122.604167, 'POS SAR BAU BAU', 'custom_upload', 'assets/img/basarnas-logo.png', 'Pos SAR Baubau', 'POS SAR', 'A', null],
-        ['pt-pos-wakatobi', -5.326389, 123.588889, 'POS SAR WAKATOBI', 'custom_upload', 'assets/img/basarnas-logo.png', 'Pos SAR Wakatobi', 'POS SAR', 'A', null],
-        ['pt-pos-konut', -3.513889, 122.180556, 'POS SAR KONAWE UTARA', 'custom_upload', 'assets/img/basarnas-logo.png', 'Pos SAR Konawe Utara', 'POS SAR', 'A', null],
-        ['pt-unit-muna', -4.836111, 122.719444, 'UNIT SIAGA SAR MUNA', 'custom_upload', 'assets/img/basarnas-logo.png', 'Unit Siaga SAR Muna', 'Unit Siaga SAR', 'A', null],
-        ['pt-unit-konawe', -3.905556, 122.047222, 'UNIT SIAGA SAR KONAWE', 'custom_upload', 'assets/img/basarnas-logo.png', 'Unit Siaga SAR Konawe', 'Unit Siaga SAR', 'A', null],
-        ['pt-unit-kolut', -3.425000, 120.897000, 'UNIT SIAGA SAR KOLAKA UTARA', 'custom_upload', 'assets/img/basarnas-logo.png', 'Unit Siaga SAR Kolaka Utara', 'Unit Siaga SAR', 'A', null],
-        ['pt-dermaga-kdr', -3.974167, 122.585000, 'Dermaga SAR Kendari', 'custom_upload', 'assets/img/basarnas-logo.png', 'Pangkalan Armada SAR Kendari', 'Dermaga', 'A', null]
+        ['pt-kansar', -4.0378573160673, 122.4866527319, 'Kantor SAR Kendari', 'custom_upload', $iconBasarnas, 'Kantor Pencarian dan Pertolongan Kelas A Kendari', 'Kantor SAR', 'A', null],
+        ['pt-pos-kolaka', -4.0654939493596, 121.60832650959, 'POS SAR KOLAKA', 'custom_upload', $iconBasarnas, 'Pos SAR Kolaka', 'POS SAR', 'A', null],
+        ['pt-pos-baubau', -5.5119777777778, 122.560300, 'POS SAR BAU BAU', 'custom_upload', $iconBasarnas, 'Pos SAR Baubau', 'POS SAR', 'A', null],
+        ['pt-pos-wakatobi', -5.3539166666667, 123.551500, 'POS SAR WAKATOBI', 'custom_upload', $iconBasarnas, 'Pos SAR Wakatobi', 'POS SAR', 'A', null],
+        ['pt-pos-konut', -3.5290805555556, 122.13168333333, 'POS SAR KONAWE UTARA', 'custom_upload', $iconBasarnas, 'Pos SAR Konawe Utara', 'POS SAR', 'A', null],
+        ['pt-unit-muna', -4.8441666666667, 122.72583333333, 'UNIT SIAGA SAR MUNA', 'custom_upload', $iconBasarnas, 'Unit Siaga SAR Muna', 'Unit Siaga SAR', 'A', null],
+        ['pt-unit-konawe', -3.905556, 122.047222, 'UNIT SIAGA SAR KONAWE', 'custom_upload', $iconBasarnas, 'Unit Siaga SAR Konawe', 'Unit Siaga SAR', 'A', null],
+        ['pt-unit-kolut', -3.425000, 120.897000, 'UNIT SIAGA SAR KOLAKA UTARA', 'custom_upload', $iconBasarnas, 'Unit Siaga SAR Kolaka Utara', 'Unit Siaga SAR', 'A', null],
+        ['pt-dermaga-kdr', -3.9774826095434, 122.59606942534, 'Dermaga Utama Basarnas Kawasan Timur', 'custom_upload', $iconBasarnas, 'Pangkalan Armada KN SAR Kendari (Bungkutoko)', 'Dermaga SAR', 'A', null]
     ];
     $stmtGis = $db->prepare("INSERT INTO GisPoint (id, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar, id_operasi)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -241,12 +225,24 @@ try {
             lat = VALUES(lat),
             lng = VALUES(lng),
             label = VALUES(label),
-            customIconUrl = COALESCE(NULLIF(customIconUrl, ''), VALUES(customIconUrl)),
+            customIconUrl = VALUES(customIconUrl),
+            description = VALUES(description),
             category = VALUES(category)");
     foreach ($masterBasesGis as $bg) {
         $stmtGis->execute($bg);
     }
-    echo "[OK] All 9 GisPoint master bases verified.\n";
+    echo "[OK] All 9 GisPoint master bases verified with verified true coordinates.\n";
+
+    // 2e. Clean up duplicate manual GisPoint entries and orphaned test artifacts
+    echo "[RUN] Cleaning up duplicate manual points & test artifacts in GisPoint...\n";
+    $db->exec("DELETE FROM GisPoint WHERE id IN (
+        'pt-1792041945789', 'pt-1792046759003', 'pt-1792046854270',
+        'pt-1792046969319', 'pt-1792047663139', 'pt-1792149545168'
+    )");
+    $db->exec("DELETE FROM GisRoutePoint WHERE routeId IN ('route-op-8', 'route-op-88888') OR routeId NOT IN (SELECT id FROM GisRoute)");
+    $db->exec("DELETE FROM GisRoute WHERE id_operasi IN (8, 88888) OR (id_operasi IS NOT NULL AND id_operasi NOT IN (SELECT id_operasi FROM Operasi))");
+    $db->exec("DELETE FROM GisPoint WHERE id IN ('pt-lkp-op-8', 'pt-lkp-op-88888') OR (id_operasi IS NOT NULL AND id_operasi NOT IN (SELECT id_operasi FROM Operasi))");
+    echo "[OK] Obsolete duplicates and orphaned test points cleaned up.\n";
 
     // 3. Ensure DetailTimBerangkat is populated for any existing operations
     if (class_exists('OperasiModel')) {
