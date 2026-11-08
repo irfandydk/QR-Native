@@ -190,9 +190,29 @@ class GisModel {
         return $bases;
     }
 
+    /** ID objek GIS dirender ke atribut HTML/JS di klien, jadi karakternya dibatasi */
+    private static function validId(string $id): string {
+        if (!preg_match('/^[A-Za-z0-9_.:-]{1,100}$/', $id)) {
+            throw new InvalidArgumentException('ID objek peta tidak valid.');
+        }
+        return $id;
+    }
+
+    /** Referensi ke objek GIS lain: kosongkan bila bukan ID yang sah */
+    private static function refId($id): string {
+        $id = (string)$id;
+        return preg_match('/^[A-Za-z0-9_.:-]{0,100}$/', $id) ? $id : '';
+    }
+
+    /** Warna masuk ke style/atribut SVG: hanya hex, rgb(a), hsl(a) atau nama warna */
+    private static function safeColor($color, string $default): string {
+        $color = trim((string)$color);
+        return preg_match('/^(#[0-9a-fA-F]{3,8}|(rgb|hsl)a?\([0-9.,%\/ ]+\)|[a-zA-Z]{3,20})$/', $color) ? $color : $default;
+    }
+
     public static function savePoint(array $data): string {
         $db = getDB();
-        $id = $data['id'] ?? ('pt-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
+        $id = self::validId((string)($data['id'] ?? ('pt-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4))));
         $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
             ? (int)$data['id_operasi']
             : (isset($data['idOperasi']) && $data['idOperasi'] !== '' && $data['idOperasi'] !== null ? (int)$data['idOperasi'] : null);
@@ -218,7 +238,8 @@ class GisModel {
             ':customIcon' => $customIcon,
             ':desc' => $data['description'] ?? '',
             ':category' => $data['category'] ?? 'Tanpa Kategori',
-            ':alphabetChar' => $data['alphabetChar'] ?? 'A'
+            // Label huruf/emoji pendek yang dirender ke HTML: tolak karakter markup
+            ':alphabetChar' => preg_match('/^[^<>&"\'`\s]{1,4}$/u', (string)($data['alphabetChar'] ?? '')) ? $data['alphabetChar'] : 'A'
         ]);
 
         return $id;
@@ -284,7 +305,7 @@ class GisModel {
         $db = getDB();
         $db->beginTransaction();
         try {
-            $id = $data['id'] ?? ('poly-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
+            $id = self::validId((string)($data['id'] ?? ('poly-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4))));
             $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
                 ? (int)$data['id_operasi']
                 : (isset($data['idOperasi']) && $data['idOperasi'] !== '' && $data['idOperasi'] !== null ? (int)$data['idOperasi'] : null);
@@ -312,9 +333,9 @@ class GisModel {
                 ':id' => $id,
                 ':id_ops' => $idOperasi,
                 ':name' => $data['name'] ?? 'Area Pencarian',
-                ':sc' => $data['strokeColor'] ?? '#ea580c',
+                ':sc' => self::safeColor($data['strokeColor'] ?? null, '#ea580c'),
                 ':sw' => (float)($data['strokeWeight'] ?? 2.5),
-                ':fc' => $data['fillColor'] ?? '#ea580c',
+                ':fc' => self::safeColor($data['fillColor'] ?? null, '#ea580c'),
                 ':fo' => (float)($data['fillOpacity'] ?? 0.2),
                 ':st' => $data['shapeType'] ?? 'polygon',
                 ':clat' => isset($data['centerLat']) ? (float)$data['centerLat'] : null,
@@ -439,7 +460,7 @@ class GisModel {
         $db = getDB();
         $db->beginTransaction();
         try {
-            $id = $data['id'] ?? ('route-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
+            $id = self::validId((string)($data['id'] ?? ('route-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4))));
             $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
                 ? (int)$data['id_operasi']
                 : (isset($data['idOperasi']) && $data['idOperasi'] !== '' && $data['idOperasi'] !== null ? (int)$data['idOperasi'] : null);
@@ -464,7 +485,7 @@ class GisModel {
                 ':id_ops' => $idOperasi,
                 ':name' => $data['name'] ?? 'Rute Operasi',
                 ':speed' => (float)($data['vesselSpeedKnots'] ?? 25),
-                ':color' => $data['strokeColor'] ?? '#059669',
+                ':color' => self::safeColor($data['strokeColor'] ?? null, '#059669'),
                 ':weight' => (float)($data['strokeWeight'] ?? 3.5),
                 ':opacity' => (float)($data['strokeOpacity'] ?? 0.9),
                 ':created' => $data['createdAt'] ?? (date('Y-m-d H:i') . ' WITA')
@@ -582,7 +603,7 @@ class GisModel {
         $db = getDB();
         $db->beginTransaction();
         try {
-            $id = $data['id'] ?? ('pattern-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4));
+            $id = self::validId((string)($data['id'] ?? ('pattern-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4))));
             $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
                 ? (int)$data['id_operasi']
                 : (isset($data['idOperasi']) && $data['idOperasi'] !== '' && $data['idOperasi'] !== null ? (int)$data['idOperasi'] : null);
@@ -602,14 +623,14 @@ class GisModel {
                 ':id' => $id,
                 ':id_ops' => $idOperasi,
                 ':name' => $data['name'] ?? 'Pola Pencarian SAR',
-                ':polyId' => $data['polygonId'] ?? '',
+                ':polyId' => self::refId($data['polygonId'] ?? ''),
                 ':polyName' => $data['polygonName'] ?? '',
                 ':pt' => $data['patternType'] ?? 'parallel_track',
                 ':spacing' => (float)($data['trackSpacingNm'] ?? 1.0),
                 ':legs' => (int)($data['legsCount'] ?? 5),
-                ':poskoId' => $data['poskoId'] ?? '',
+                ':poskoId' => self::refId($data['poskoId'] ?? ''),
                 ':poskoName' => $data['poskoName'] ?? '',
-                ':color' => $data['color'] ?? '#0284c7',
+                ':color' => self::safeColor($data['color'] ?? null, '#0284c7'),
                 ':opacity' => isset($data['opacity']) ? (float)$data['opacity'] : 0.9,
                 ':weight' => isset($data['strokeWeight']) ? (float)$data['strokeWeight'] : (isset($data['weight']) ? (float)$data['weight'] : 3.0),
                 ':dist' => (float)($data['totalDistanceNm'] ?? 0),

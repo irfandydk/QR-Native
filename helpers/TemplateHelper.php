@@ -63,6 +63,24 @@ class TemplateHelper {
         return SarCalculationService::hitungHariKe($waktuOrOperasi, $targetDate, $fallbackHariKe);
     }
 
+    /** Bilangan bulat -> kata Indonesia ("21" -> "dua puluh satu"). Mendukung hingga triliunan. */
+    public static function terbilang(int $n): string {
+        if ($n < 0) return 'minus ' . self::terbilang(-$n);
+        $s = ['nol', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+        if ($n < 12) return $s[$n];
+        if ($n < 20) return $s[$n - 10] . ' belas';
+        if ($n < 100) return trim($s[intdiv($n, 10)] . ' puluh ' . ($n % 10 ? $s[$n % 10] : ''));
+        if ($n < 200) return trim('seratus ' . ($n % 100 ? self::terbilang($n % 100) : ''));
+        if ($n < 1000) return trim($s[intdiv($n, 100)] . ' ratus ' . ($n % 100 ? self::terbilang($n % 100) : ''));
+        if ($n < 2000) return trim('seribu ' . ($n % 1000 ? self::terbilang($n % 1000) : ''));
+        foreach ([[1000000000000, 'triliun'], [1000000000, 'miliar'], [1000000, 'juta'], [1000, 'ribu']] as [$unit, $name]) {
+            if ($n >= $unit) {
+                return trim(self::terbilang(intdiv($n, $unit)) . " {$name} " . ($n % $unit ? self::terbilang($n % $unit) : ''));
+            }
+        }
+        return (string)$n;
+    }
+
     public static function hitungResponseTime(?string $waktuLapor, ?string $waktuBerangkat): array {
         return SarCalculationService::hitungResponseTime($waktuLapor, $waktuBerangkat);
     }
@@ -91,20 +109,8 @@ class TemplateHelper {
 
     // --- DOCUMENT NUMBERING DELEGATES ---
 
-    public static function generateNomorLaporanAwal(array $ops, ?string $satkerKode = null): string {
-        return DocumentNumberService::generateNomorLaporanAwal($ops, $satkerKode);
-    }
-
     public static function generateNomorRenops(array $ops, array $renops, ?string $satkerKode = null): string {
         return DocumentNumberService::generateNomorRenops($ops, $renops, $satkerKode);
-    }
-
-    public static function generateNomorSitrep(array $ops, array $laporan, ?string $satkerKode = null): string {
-        return DocumentNumberService::generateNomorSitrep($ops, $laporan, $satkerKode);
-    }
-
-    public static function generateNomorBeritaAcara(array $ops, array $laporan = [], ?string $satkerKode = null): string {
-        return DocumentNumberService::generateNomorBeritaAcara($ops, $laporan, $satkerKode);
     }
 
     // --- WHATSAPP & TELEGRAM TEMPLATE DELEGATES ---

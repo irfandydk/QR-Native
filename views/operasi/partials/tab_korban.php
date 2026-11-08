@@ -117,7 +117,7 @@
                             <td class="py-2.5 px-3.5 text-slate-500 text-[11px]"><?= e($k['alamat'] ?: '-') ?></td>
                             <td class="py-2.5 px-3.5 text-center">
                                 <span class="px-2 py-0.5 rounded-lg font-bold font-mono text-[11px] <?= $stClass ?>">
-                                    <?= TemplateHelper::getLabelStatusKorban($st) ?>
+                                    <?= e(TemplateHelper::getLabelStatusKorban($st)) ?>
                                 </span>
                             </td>
                         </tr>

@@ -127,11 +127,27 @@ define('DEFAULT_SATKER_KODE', 'SAR-304');
 define('DEFAULT_SATKER_NAMA', 'Kantor Pencarian dan Pertolongan Kelas A Kendari');
 
 // Cryptographic Key for HMAC & Signatures (Instance-specific)
-$appKey = getenv('APP_KEY') ?: ($_ENV['APP_KEY'] ?? '');
-if (empty($appKey)) {
-    $appKey = 'BASARNAS_KENDARI_SECURE_HMAC_KEY_V2_' . sha1(__DIR__);
+/**
+ * APP_KEY dari env. Bila kosong, kunci acak dibuat sekali di $keyFile (izin 0600) lalu dipakai ulang;
+ * tidak pernah jatuh ke kunci yang bisa ditebak. Gagal keras bila kunci tidak bisa disimpan.
+ */
+function qrsar_resolve_app_key(string $envKey, string $keyFile): string {
+    if (trim($envKey) !== '') {
+        return trim($envKey);
+    }
+    $h = @fopen($keyFile, 'x');
+    if ($h !== false) {
+        fwrite($h, bin2hex(random_bytes(32)));
+        fclose($h);
+        @chmod($keyFile, 0600);
+    }
+    $saved = is_file($keyFile) ? trim((string)file_get_contents($keyFile)) : '';
+    if ($saved === '') {
+        throw new RuntimeException('APP_KEY kosong dan berkas kunci ' . $keyFile . ' tidak dapat dibuat. Isi APP_KEY di .env.');
+    }
+    return $saved;
 }
-define('APP_KEY', (string)$appKey);
+define('APP_KEY', qrsar_resolve_app_key((string)(getenv('APP_KEY') ?: ($_ENV['APP_KEY'] ?? '')), dirname(__DIR__) . '/storage/app.key'));
 
 // Base URL detection with Host Header sanitization & optional APP_URL override
 $appUrlEnv = getenv('APP_URL') ?: (getenv('BASE_URL') ?: null);
@@ -360,55 +376,50 @@ function getAppLogoUrl(): string {
  */
 function getAppLogoDataUri(): string {
     static $cachedDataUri = null;
-    if ($cachedDataUri !== null) {
-        return $cachedDataUri;
+    if ($cachedDataUri === null) {
+        $cachedDataUri = qrsar_logo_data_uri('logo_url', ROOT_DIR . '/assets/images/logo_basarnas.svg');
     }
+    return $cachedDataUri;
+}
 
+/**
+ * Logo kedua kop dokumen (kanan, mis. SAR Nasional) dari AppSettings.logo_url_2; kosong = logo bawaan SAR Nasional.
+ */
+function getAppLogo2DataUri(): string {
+    static $cachedDataUri = null;
+    if ($cachedDataUri === null) {
+        $cachedDataUri = qrsar_logo_data_uri('logo_url_2', ROOT_DIR . '/assets/images/logo_sar_nasional.jpg');
+    }
+    return $cachedDataUri;
+}
+
+/**
+ * Data URI logo dari kolom pengaturan $settingKey (data URI atau berkas di uploads/), atau $defaultPath bila kosong/tidak ada.
+ */
+function qrsar_logo_data_uri(string $settingKey, string $defaultPath): string {
+    $mimeOf = fn(string $path): string => match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+        'png' => 'image/png',
+        'jpg', 'jpeg' => 'image/jpeg',
+        'svg' => 'image/svg+xml',
+        'webp' => 'image/webp',
+        'gif' => 'image/gif',
+        default => 'image/png'
+    };
     try {
-        $settings = SettingsModel::getSettings();
-        $rawLogo = trim((string)($settings['logo_url'] ?? ''));
-
-        if (!empty($rawLogo)) {
-            if (str_starts_with($rawLogo, 'data:image/')) {
-                $cachedDataUri = $rawLogo;
-                return $cachedDataUri;
-            }
-            if (strpos($rawLogo, '/uploads/') !== false || str_starts_with($rawLogo, 'uploads/')) {
-                $parsedPath = parse_url($rawLogo, PHP_URL_PATH) ?? $rawLogo;
-                $filename = basename($parsedPath);
-                $filePath = UPLOADS_DIR . '/' . $filename;
-                if (file_exists($filePath)) {
-                    $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-                    $mime = match ($ext) {
-                        'png' => 'image/png',
-                        'jpg', 'jpeg' => 'image/jpeg',
-                        'svg' => 'image/svg+xml',
-                        'webp' => 'image/webp',
-                        'gif' => 'image/gif',
-                        default => 'image/png'
-                    };
-                    $data = file_get_contents($filePath);
-                    if ($data !== false) {
-                        $cachedDataUri = 'data:' . $mime . ';base64,' . base64_encode($data);
-                        return $cachedDataUri;
-                    }
-                }
+        $rawLogo = trim((string)(SettingsModel::getSettings()[$settingKey] ?? ''));
+        if (str_starts_with($rawLogo, 'data:image/')) {
+            return $rawLogo;
+        }
+        if ($rawLogo !== '' && (strpos($rawLogo, '/uploads/') !== false || str_starts_with($rawLogo, 'uploads/'))) {
+            $filePath = UPLOADS_DIR . '/' . basename(parse_url($rawLogo, PHP_URL_PATH) ?? $rawLogo);
+            $data = is_file($filePath) ? file_get_contents($filePath) : false;
+            if ($data !== false) {
+                return 'data:' . $mimeOf($filePath) . ';base64,' . base64_encode($data);
             }
         }
     } catch (Throwable $e) {
-        // Fallback
+        // Fallback ke logo bawaan
     }
-
-    // Default Basarnas logo SVG Data URI
-    $svgPath = ROOT_DIR . '/assets/images/logo_basarnas.svg';
-    if (file_exists($svgPath)) {
-        $data = file_get_contents($svgPath);
-        if ($data !== false) {
-            $cachedDataUri = 'data:image/svg+xml;base64,' . base64_encode($data);
-            return $cachedDataUri;
-        }
-    }
-
-    $cachedDataUri = '';
-    return $cachedDataUri;
+    $data = is_file($defaultPath) ? file_get_contents($defaultPath) : false;
+    return $data !== false ? 'data:' . $mimeOf($defaultPath) . ';base64,' . base64_encode($data) : '';
 }

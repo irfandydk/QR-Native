@@ -7,8 +7,86 @@
 declare(strict_types=1);
 
 class AuthHelper {
+    /** Umur mutlak sesi sejak login (detik), terlepas dari aktivitas */
+    private const SESSION_MAX_AGE = 43200;
+
+    /**
+     * Sesi sah hanya bila akun masih aktif, sandinya belum berubah sejak login (sidik kredensial cocok)
+     * dan belum melewati umur mutlak. Sesi yang tidak sah dibersihkan.
+     */
     public static function isLoggedIn(): bool {
-        return !empty($_SESSION['user_id']);
+        if (empty($_SESSION['user_id'])) {
+            return false;
+        }
+        if (!class_exists('UserModel')) {
+            return true;
+        }
+        try {
+            $row = UserModel::getById((string)$_SESSION['user_id']);
+        } catch (Throwable $e) {
+            return false;
+        }
+        $fp = $row ? hash('sha256', (string)($row['password_hash'] ?? '')) : '';
+        if ($row && empty($_SESSION['cred_fp'])) {
+            // Sesi dari sebelum fitur ini: adopsi sidik kredensial saat ini
+            $_SESSION['cred_fp'] = $fp;
+            $_SESSION['auth_at'] = $_SESSION['auth_at'] ?? time();
+        }
+        $ok = $row && !empty($row['is_active'])
+            && hash_equals($fp, (string)($_SESSION['cred_fp'] ?? ''))
+            && (time() - (int)($_SESSION['auth_at'] ?? 0)) < self::SESSION_MAX_AGE;
+        if (!$ok) {
+            $_SESSION = [];
+            return false;
+        }
+        // Sandi bawaan dicek sekali per perubahan kredensial (password_verify mahal)
+        if (($_SESSION['pw_check_fp'] ?? '') !== $fp) {
+            $_SESSION['must_change_password'] = defined('DEFAULT_RESET_PASSWORD')
+                && password_verify(DEFAULT_RESET_PASSWORD, (string)($row['password_hash'] ?? ''));
+            $_SESSION['pw_check_fp'] = $fp;
+        }
+        return true;
+    }
+
+    /**
+     * Nama skrip halaman tanpa .php dari URL permintaan, untuk gerbang wajib-ganti-sandi.
+     * Permintaan ber-PATH_INFO (/operasi.php/profile) dapat nama kosong agar tidak menyamar sebagai halaman pengecualian.
+     */
+    public static function currentPageName(array $server): string {
+        if (($server['PATH_INFO'] ?? '') !== '') {
+            return '';
+        }
+        return preg_replace('/\.php$/', '', basename((string)parse_url((string)($server['REQUEST_URI'] ?? ''), PHP_URL_PATH)));
+    }
+
+    /** Akun masih memakai sandi bawaan dan wajib menggantinya sebelum memakai aplikasi */
+    public static function mustChangePassword(): bool {
+        return self::isLoggedIn() && !empty($_SESSION['must_change_password']);
+    }
+
+    /**
+     * Halaman tujuan ganti sandi bila permintaan ini tidak termasuk alur ganti sandi, null bila boleh lanjut.
+     * $page: nama skrip tanpa .php (mis. 'profile', 'admin').
+     */
+    public static function passwordChangeRedirect(string $role, string $page, array $get, string $method, array $post): ?string {
+        if (in_array($page, ['logout', 'login'], true)) {
+            return null;
+        }
+        if (strtoupper($role) === 'ADMIN') {
+            $isChangeForm = $page === 'admin' && (
+                (strtoupper($method) === 'GET' && ($get['tab'] ?? 'admin') === 'admin' && empty($get['action']))
+                || (strtoupper($method) === 'POST' && ($post['action'] ?? ($get['action'] ?? '')) === 'change_admin_pass')
+            );
+            return $isChangeForm ? null : BASE_URL . '/admin.php?tab=admin';
+        }
+        return $page === 'profile' ? null : BASE_URL . '/profile.php';
+    }
+
+    /** Sandi akun sesi ini baru saja diganti oleh pemiliknya: perbarui sidik agar sesi ini tetap sah */
+    public static function refreshCredentialFingerprint(string $userId, string $newHash): void {
+        if (($_SESSION['user_id'] ?? null) === $userId) {
+            $_SESSION['cred_fp'] = hash('sha256', $newHash);
+        }
     }
 
     public static function requireLogin(): void {
@@ -27,6 +105,18 @@ class AuthHelper {
             }
             header("Location: " . BASE_URL . "/login.php");
             exit;
+        }
+        // Sandi bawaan wajib diganti dulu (CLI dikecualikan: tidak ada halaman tujuan)
+        if (PHP_SAPI !== 'cli' && self::mustChangePassword()) {
+            $page = self::currentPageName($_SERVER);
+            $to = self::passwordChangeRedirect((string)($_SESSION['role'] ?? 'USER'), $page, $_GET, (string)($_SERVER['REQUEST_METHOD'] ?? 'GET'), $_POST);
+            if ($to !== null) {
+                if (function_exists('setFlash')) {
+                    setFlash('warning', 'Akun Anda masih memakai kata sandi bawaan. Ganti kata sandi terlebih dahulu untuk melanjutkan.');
+                }
+                header('Location: ' . $to);
+                exit;
+            }
         }
     }
 
@@ -294,6 +384,9 @@ class AuthHelper {
         $_SESSION['no_hp'] = $user['no_hp'] ?? '';
         $_SESSION['login_at'] = $user['loginAt'] ?? ($user['login_at'] ?? date('Y-m-d H:i:s'));
         $_SESSION['user'] = $user;
+        $_SESSION['auth_at'] = time();
+        $row = class_exists('UserModel') && !empty($user['id']) ? UserModel::getById((string)$user['id']) : null;
+        $_SESSION['cred_fp'] = $row ? hash('sha256', (string)($row['password_hash'] ?? '')) : '';
     }
 
     public static function logout(): void {

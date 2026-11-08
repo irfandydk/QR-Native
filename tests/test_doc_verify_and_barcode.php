@@ -32,20 +32,17 @@ function assertTest(string $desc, bool $condition, string $detail = ''): void {
 // 1. Pengujian Autoloading & Struktur DocVerifyHelper
 echo "--- 1. Pengujian Class & Autoloading DocVerifyHelper ---\n";
 assertTest("Class DocVerifyHelper tersedia di autoloader", class_exists('DocVerifyHelper'));
-$types = DocVerifyHelper::supportedTypes();
-assertTest("Mendukung 4 tipe dokumen resmi", count($types) === 4 && in_array('laporan_awal', $types) && in_array('renops', $types) && in_array('sitrep', $types) && in_array('penutupan', $types));
+// Dokumen cetak Laporan Awal, LAPBANG & Penutupan dihapus: QR lama hanya untuk RENOPS.
+assertTest("Hanya tipe RENOPS yang dikenali", DocVerifyHelper::normalizeType('renops') === 'renops'
+    && DocVerifyHelper::normalizeType('laporan_awal') === null && DocVerifyHelper::normalizeType('sitrep') === null && DocVerifyHelper::normalizeType('penutupan') === null);
 
 // 2. Mock Data Operasi
 $mockOperasi = [
     'id_operasi' => 101,
     'nama_operasi' => 'KMM ORANG TENGGELAM DI TELUK KENDARI',
     'waktu_lapor' => '2026-10-21 08:30:00',
-    'waktu_kejadian' => '2026-10-21 07:45:00',
     'status' => 'OPEN',
-    'korban' => [],
-    'jumlah_pob' => 1
 ];
-
 $mockRenops = [
     'id_renops' => 202,
     'id_operasi' => 101,
@@ -54,62 +51,19 @@ $mockRenops = [
     'waktu_briefing' => '2026-10-21 06:30:00'
 ];
 
-$mockSitrep = [
-    'id_laporan' => 303,
-    'id_operasi' => 101,
-    'hari_ke' => 'H.1',
-    'waktu_laporan' => '2026-10-21 17:30:00',
-    'waktu_debrief' => '2026-10-21 17:30:00',
-    'jenis_laporan' => 'PERKEMBANGAN'
-];
-
-$mockPenutupan = [
-    'id_laporan' => 304,
-    'id_operasi' => 101,
-    'hari_ke' => 'H.2',
-    'waktu_laporan' => '2026-10-22 14:00:00',
-    'waktu_debrief' => '2026-10-22 14:00:00',
-    'jenis_laporan' => 'PENUTUPAN'
-];
-
-// 3. Pengujian Kriptografis Token HMAC Dokumen
-echo "\n--- 2. Pengujian Kriptografis Token HMAC Dokumen Operasi ---\n";
-
-// Laporan Awal
-$tokLapAwal = DocVerifyHelper::generateToken('laporan_awal', $mockOperasi);
-assertTest("Token Laporan Awal berformat 16 char hex uppercase", strlen($tokLapAwal) === 16 && ctype_xdigit($tokLapAwal) && strtoupper($tokLapAwal) === $tokLapAwal);
-assertTest("Token Laporan Awal valid diverifikasi", DocVerifyHelper::verifyToken('laporan_awal', $mockOperasi, null, $tokLapAwal));
-assertTest("Token Laporan Awal salah ditolak", !DocVerifyHelper::verifyToken('laporan_awal', $mockOperasi, null, 'INVALIDTOKEN1234'));
-
-// RENOPS
-$tokRenops = DocVerifyHelper::generateToken('renops', $mockOperasi, $mockRenops);
-assertTest("Token RENOPS berformat 16 char hex uppercase", strlen($tokRenops) === 16 && ctype_xdigit($tokRenops));
-assertTest("Token RENOPS valid diverifikasi", DocVerifyHelper::verifyToken('renops', $mockOperasi, $mockRenops, $tokRenops));
-assertTest("Token RENOPS beda ref_id ditolak", !DocVerifyHelper::verifyToken('renops', $mockOperasi, ['id_renops' => 999], $tokRenops));
-
-// SITREP
-$tokSitrep = DocVerifyHelper::generateToken('sitrep', $mockOperasi, $mockSitrep);
-assertTest("Token SITREP berformat 16 char hex uppercase", strlen($tokSitrep) === 16 && ctype_xdigit($tokSitrep));
-assertTest("Token SITREP valid diverifikasi", DocVerifyHelper::verifyToken('sitrep', $mockOperasi, $mockSitrep, $tokSitrep));
-
-// Penutupan
-$tokPenutupan = DocVerifyHelper::generateToken('penutupan', $mockOperasi, $mockPenutupan);
-assertTest("Token Penutupan berformat 16 char hex uppercase", strlen($tokPenutupan) === 16 && ctype_xdigit($tokPenutupan));
-assertTest("Token Penutupan valid diverifikasi", DocVerifyHelper::verifyToken('penutupan', $mockOperasi, $mockPenutupan, $tokPenutupan));
-
-// 4. Pengujian URL Verifikasi Publik
-echo "\n--- 3. Pengujian URL Verifikasi Publik Resmi ---\n";
-$urlLapAwal = DocVerifyHelper::generateVerifyUrl('laporan_awal', $mockOperasi);
-assertTest("URL Laporan Awal mengandung action=verify dan token", str_contains($urlLapAwal, 'action=verify') && str_contains($urlLapAwal, 'type=laporan_awal') && str_contains($urlLapAwal, "token={$tokLapAwal}"));
-
-$urlRenops = DocVerifyHelper::generateVerifyUrl('renops', $mockOperasi, $mockRenops);
-assertTest("URL RENOPS mengandung ref=202 dan token", str_contains($urlRenops, 'ref=202') && str_contains($urlRenops, "token={$tokRenops}"));
-
-$urlSitrep = DocVerifyHelper::generateVerifyUrl('sitrep', $mockOperasi, $mockSitrep);
-assertTest("URL SITREP mengandung ref=303 dan token", str_contains($urlSitrep, 'ref=303') && str_contains($urlSitrep, "token={$tokSitrep}"));
-
-$urlPenutupan = DocVerifyHelper::generateVerifyUrl('penutupan', $mockOperasi, $mockPenutupan);
-assertTest("URL Penutupan mengandung ref=304 dan token", str_contains($urlPenutupan, 'ref=304') && str_contains($urlPenutupan, "token={$tokPenutupan}"));
+// 3. Pengujian Kriptografis Token HMAC QR RENOPS lama
+echo "\n--- 2. Pengujian Token HMAC QR RENOPS lama ---\n";
+$tokRenops = DocVerifyHelper::generateToken($mockOperasi, $mockRenops);
+assertTest("Token RENOPS berformat 16 char hex uppercase", strlen($tokRenops) === 16 && ctype_xdigit($tokRenops) && strtoupper($tokRenops) === $tokRenops);
+assertTest("Token RENOPS valid diverifikasi", DocVerifyHelper::verifyToken($mockOperasi, $mockRenops, $tokRenops));
+assertTest("Token RENOPS beda ref_id ditolak", !DocVerifyHelper::verifyToken($mockOperasi, ['id_renops' => 999], $tokRenops));
+assertTest("Token salah ditolak", !DocVerifyHelper::verifyToken($mockOperasi, $mockRenops, 'INVALIDTOKEN1234'));
+// Rumus token tidak boleh berubah: QR RENOPS lama yang sudah tercetak tetap sah.
+$expectRumus = strtoupper(substr(hash_hmac('sha256', 'BASARNAS_OPS_DOC:renops:101:202:2026-10-21:SMC UJI:KMM ORANG TENGGELAM DI TELUK KENDARI', APP_KEY), 0, 16));
+assertTest("Rumus token QR RENOPS lama tetap sama", DocVerifyHelper::generateToken($mockOperasi, $mockRenops, 'SMC Uji') === $expectRumus);
+assertTest("Token legacy RENOPS tetap sah", DocVerifyHelper::verifyToken($mockOperasi, $mockRenops,
+    strtoupper(substr(hash_hmac('sha256', 'BASARNAS_OPS_DOC:renops:101:202', APP_KEY), 0, 16))));
+assertTest("URL cetak verifikasi menuju print_renops", DocVerifyHelper::getPrintUrl(101, 202) === BASE_URL . '/operasi.php?action=print_renops&id=101&id_renops=202');
 
 // 5. Pengujian Data URI Logo Aplikasi
 echo "\n--- 4. Pengujian Logo HD Data URI ---\n";
@@ -117,29 +71,17 @@ $logoDataUri = getAppLogoDataUri();
 assertTest("Logo Data URI non-empty", !empty($logoDataUri));
 assertTest("Logo Data URI berformat data:image/", str_starts_with($logoDataUri, 'data:image/'));
 
-// 6. Pengujian Integritas File Cetak Dokumen Operasi
-echo "\n--- 5. Pengujian Integritas 4 File Cetak Dokumen Operasional ---\n";
+// 6. Dokumen cetak lama sudah dihapus
+echo "\n--- 5. Pengujian Berkas Cetak Dokumen ---\n";
 $viewsDir = dirname(__DIR__) . '/views/operasi';
-
-$filesToCheck = [
-    'Laporan Awal' => $viewsDir . '/laporan_awal_print.php',
-    'RENOPS' => $viewsDir . '/renops_print.php',
-    'SITREP' => $viewsDir . '/sitrep_print.php',
-    'Penutupan' => $viewsDir . '/penutupan_print.php'
-];
-
-foreach ($filesToCheck as $name => $filePath) {
-    assertTest("File {$name} ada di filesystem", file_exists($filePath));
-    $content = file_get_contents($filePath);
-    
-    assertTest("{$name} memiliki class .signature-block", str_contains($content, 'signature-block'));
-    assertTest("{$name} memanggil DocVerifyHelper::generateVerifyUrl", str_contains($content, 'DocVerifyHelper::generateVerifyUrl'));
-    assertTest("{$name} memanggil getAppLogoDataUri()", str_contains($content, 'getAppLogoDataUri()'));
-    assertTest("{$name} memiliki fungsi drawCenterEmblem", str_contains($content, 'drawCenterEmblem'));
-    assertTest("{$name} memiliki font-family Times New Roman", str_contains($content, "'Times New Roman', Times, serif"));
-    assertTest("{$name} memiliki font-size 12pt", str_contains($content, '12pt'));
-    assertTest("{$name} memiliki padding bawah 25mm", str_contains($content, '25mm'));
+foreach (['laporan_awal_print.php', 'sitrep_print.php', 'penutupan_print.php'] as $f) {
+    assertTest("Berkas cetak lama {$f} sudah dihapus", !file_exists($viewsDir . '/' . $f));
 }
+
+// RENOPS format SMEAC (A4 landscape): halaman cetak + partial dokumen, tanpa aturan tipografi portrait
+$renopsSmeac = file_get_contents($viewsDir . '/renops_smeac_print.php') . file_get_contents($viewsDir . '/partials/renops_smeac_doc.php');
+assertTest("RENOPS (SMEAC) memiliki .signature-block, getAppLogoDataUri() & drawCenterEmblem",
+    str_contains($renopsSmeac, 'signature-block') && str_contains($renopsSmeac, 'getAppLogoDataUri()') && str_contains($renopsSmeac, 'drawCenterEmblem'));
 
 // 7. Pengujian Exporter PDF
 echo "\n--- 6. Pengujian Engine PDF Exporter (pdf_document_exporter.js) ---\n";

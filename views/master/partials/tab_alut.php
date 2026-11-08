@@ -33,6 +33,17 @@ $isAdmin = AuthHelper::isAdmin();
 
       <div>
         <div class="field">
+          <label class="field-label">Kategori <span class="text-red-500">*</span></label>
+          <select name="kategori" required class="field-input w-full font-medium">
+            <?php foreach (AlutKategori::LABEL as $kode => $label): ?>
+              <option value="<?= e($kode) ?>"><?= e($label) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div class="field">
           <label class="field-label">Satuan Ukuran</label>
           <input type="text" name="satuan" value="Unit" placeholder="Unit, Set, Buah, dsb." class="field-input w-full font-medium">
         </div>
@@ -78,6 +89,7 @@ $isAdmin = AuthHelper::isAdmin();
           <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-bold text-[11px] uppercase tracking-wider">
             <th class="py-2.5 px-3">#</th>
             <th class="py-2.5 px-3">Nama Alut / Palsar</th>
+            <th class="py-2.5 px-3">Kategori</th>
             <th class="py-2.5 px-3">Satuan</th>
             <?php if ($isAdmin): ?>
             <th class="py-2.5 px-3 text-right">Aksi</th>
@@ -91,6 +103,11 @@ $isAdmin = AuthHelper::isAdmin();
               <td class="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-100">
                 <?= e($a['nama_alut']) ?>
               </td>
+              <td class="py-2.5 px-3">
+                <span class="px-2 py-0.5 rounded-md text-[11px] font-bold border <?= AlutKategori::isAlut(AlutKategori::resolve($a)) ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30' ?>">
+                  <?= e(AlutKategori::label(AlutKategori::resolve($a))) ?>
+                </span>
+              </td>
               <td class="py-2.5 px-3 text-slate-500 dark:text-slate-400">
                 <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                   <?= e($a['satuan'] ?? 'Unit') ?>
@@ -99,7 +116,7 @@ $isAdmin = AuthHelper::isAdmin();
               <?php if ($isAdmin): ?>
               <td class="py-2.5 px-3 text-right">
                 <div class="inline-flex items-center gap-1 justify-end">
-                  <button type="button" onclick="openEditAlutModal(<?= (int)$a['id_alut'] ?>, '<?= e(addslashes($a['nama_alut'])) ?>', '<?= e(addslashes($a['satuan'] ?? 'Unit')) ?>')" class="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Edit Alut">
+                  <button type="button" onclick="openEditAlutModal(<?= (int)$a['id_alut'] ?>, '<?= e(addslashes($a['nama_alut'])) ?>', '<?= e(addslashes($a['satuan'] ?? 'Unit')) ?>', '<?= e(AlutKategori::resolve($a)) ?>')" class="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Edit Alut">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
                   <form method="POST" action="<?= BASE_URL ?>/master.php?action=delete_alut" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus alut &quot;<?= e($a['nama_alut']) ?>&quot; dari master data?" data-confirm-title="Hapus Master Alut" data-confirm-btn="Ya, Hapus" data-confirm-danger="true">
@@ -116,7 +133,7 @@ $isAdmin = AuthHelper::isAdmin();
           <?php endforeach; ?>
           <?php if (empty($masterAlut)): ?>
             <tr>
-              <td colspan="<?= $isAdmin ? 4 : 3 ?>" class="py-8 text-center text-slate-400 italic">Belum ada data Alut SAR.</td>
+              <td colspan="<?= $isAdmin ? 5 : 4 ?>" class="py-8 text-center text-slate-400 italic">Belum ada data Alut SAR.</td>
             </tr>
           <?php endif; ?>
         </tbody>

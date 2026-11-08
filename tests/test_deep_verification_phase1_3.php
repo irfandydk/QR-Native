@@ -351,7 +351,7 @@ foreach ($routes as $route) {
     $isLogin = ($script === 'login.php');
     $sessionInit = $isLogin 
         ? "session_start();" 
-        : "session_start(); \$_SESSION['user_id'] = 1; \$_SESSION['username'] = 'admin_auditor'; \$_SESSION['role'] = 'ADMIN';";
+        : "session_start(); \$_SESSION['user_id'] = 'USR-ADMIN'; \$_SESSION['username'] = 'admin_auditor'; \$_SESSION['role'] = 'ADMIN';";
 
     $getExport = var_export($route['get'], true);
     $scriptPath = BASE_PATH . '/' . $script;
@@ -384,7 +384,7 @@ foreach ($routes as $route) {
 echo "\n--- 6. VERIFIKASI PETA TAKTIS GIS & ENDPOINT JSON BUNDLE ---\n";
 
 $apiScriptPath = BASE_PATH . '/api/index.php';
-$apiEvalCode = "session_start(); \$_SESSION['user_id'] = 1; \$_SESSION['username'] = 'admin_auditor'; \$_SESSION['role'] = 'ADMIN'; \$_SERVER['REQUEST_METHOD'] = 'GET'; \$_SERVER['REQUEST_URI'] = '/api/gis/bundle?id_operasi=1'; \$_GET = ['id_operasi' => 1]; ob_start(); include '{$apiScriptPath}'; \$out = ob_get_clean(); echo \$out;";
+$apiEvalCode = "session_start(); \$_SESSION['user_id'] = 'USR-ADMIN'; \$_SESSION['username'] = 'admin_auditor'; \$_SESSION['role'] = 'ADMIN'; \$_SERVER['REQUEST_METHOD'] = 'GET'; \$_SERVER['REQUEST_URI'] = '/api/gis/bundle?id_operasi=1'; \$_GET = ['id_operasi' => 1]; ob_start(); include '{$apiScriptPath}'; \$out = ob_get_clean(); echo \$out;";
 $apiEncoded = base64_encode($apiEvalCode);
 $apiCmd = sprintf("%s -r 'eval(base64_decode(\"%s\"));'", escapeshellcmd($phpBin), $apiEncoded);
 $apiOutput = shell_exec($apiCmd);

@@ -17,7 +17,11 @@ class MasterApiController extends BaseApiController {
             }
             if ($method === 'POST') {
                 self::requireAdmin();
-                $id = MasterModel::createAlut($input['nama_alut'] ?? '', $input['satuan'] ?? 'Unit');
+                try {
+                    $id = MasterModel::createAlut((string)($input['nama_alut'] ?? ''), (string)($input['satuan'] ?? 'Unit'), (string)($input['kategori'] ?? ''));
+                } catch (InvalidArgumentException $e) {
+                    self::error($e->getMessage(), 422);
+                }
                 self::json(['success' => true, 'id' => $id]);
                 return true;
             }
@@ -27,7 +31,11 @@ class MasterApiController extends BaseApiController {
             $id = (int)$m[1];
             if ($method === 'PUT' || $method === 'POST') {
                 self::requireAdmin();
-                $ok = MasterModel::updateAlut($id, $input['nama_alut'] ?? '', $input['satuan'] ?? 'Unit');
+                try {
+                    $ok = MasterModel::updateAlut($id, (string)($input['nama_alut'] ?? ''), (string)($input['satuan'] ?? 'Unit'), (string)($input['kategori'] ?? ''));
+                } catch (InvalidArgumentException $e) {
+                    self::error($e->getMessage(), 422);
+                }
                 self::json(['success' => $ok]);
                 return true;
             }

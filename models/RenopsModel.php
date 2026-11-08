@@ -120,7 +120,7 @@ class RenopsModel {
     public static function resolveUnsurAlut(array $ops, array $data, ?array $existing = null): array {
         $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : (($existing['detail_unsur'] ?? null) ?: ($ops['detail_unsur'] ?? []));
         $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : (($existing['detail_alut'] ?? null) ?: ($ops['detail_alut'] ?? []));
-        return [$unsur, $alut];
+        return [$unsur, AlutKategori::normalizeList($alut)];
     }
 
     /**
@@ -429,14 +429,18 @@ class RenopsModel {
         $db = getDB();
         $db->beginTransaction();
         try {
+            $filePaths = class_exists('RenopsDokumenModel') ? RenopsDokumenModel::collectFilePaths($id) : [];
             $db->prepare("DELETE FROM RenopsSRU WHERE id_renops = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM Renops WHERE id_renops = :id")->execute([':id' => $id]);
-            DocVerifyHelper::forgetDocTokens([DocVerifyHelper::TYPE_RENOPS], $id);
+            DocVerifyHelper::forgetRenopsTokens($id);
             if (class_exists('DokumenPetaSnapshotModel')) {
-                DokumenPetaSnapshotModel::deleteByReferensi('RENOPS', $id);
+                DokumenPetaSnapshotModel::deleteByReferensi('RENOPS_RENCANA', $id);
             }
             if ($db->inTransaction()) {
                 $db->commit();
+            }
+            if ($filePaths) {
+                RenopsDokumenModel::deleteFiles($filePaths); // setelah commit; rollback = berkas utuh
             }
             return true;
         } catch (Throwable $e) {

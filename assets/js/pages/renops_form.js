@@ -16,6 +16,8 @@ const escapeHtml = (window.QrSarUtils && window.QrSarUtils.escapeHtml) || functi
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 };
+// Argumen string untuk handler onclick: JSON literal lalu di-escape untuk atribut HTML
+const jsArg = (v) => escapeHtml(JSON.stringify(String(v ?? '')));
 
 // Master Measurement Unit state (NM, KM, M)
 let activeRenopsUnit = (function() {
@@ -659,6 +661,7 @@ function renderAlutList() {
     `;
   } else {
     currentAlutList.forEach((item, idx) => {
+      if (!AlutKategoriUI.normalize(item.kategori)) item.kategori = AlutKategoriUI.kategoriOf(item);
       const jml = parseInt(item.jumlah_alut, 10) || 1;
       totalAlut += jml;
 
@@ -681,6 +684,7 @@ function renderAlutList() {
             <option value="Batang" ${item.satuan === 'Batang' ? 'selected' : ''}>Batang</option>
             <option value="Orang" ${item.satuan === 'Orang' ? 'selected' : ''}>Orang</option>
           </select>
+          <select onchange="updateAlutItem(${idx}, 'kategori', this.value)" class="control control-sm" title="Kategori">${AlutKategoriUI.options(AlutKategoriUI.kategoriOf(item))}</select>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
             <button type="button" onclick="moveAlutRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Atas (Prioritas Naik)">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
@@ -714,6 +718,8 @@ function pickMasterAlut(jsonStr) {
       if (item.satuan) {
         document.getElementById('alut-input-satuan').value = item.satuan;
       }
+      document.getElementById('alut-input-kategori').value = AlutKategoriUI.normalize(item.kategori) || AlutKategoriUI.tebak(item.nama_alut);
+      document.getElementById('alut-input-kategori').dataset.manual = '1';
       document.getElementById('alut-input-nama').focus();
     }
   } catch (e) {}
@@ -736,12 +742,14 @@ function handleAddAlutClick() {
   currentAlutList.push({
     nama_alut: nama,
     jumlah_alut: jml,
-    satuan: sat
+    satuan: sat,
+    kategori: AlutKategoriUI.normalize(document.getElementById('alut-input-kategori').value) || AlutKategoriUI.tebak(nama)
   });
 
   namaInput.value = '';
   jmlInput.value = '1';
   document.getElementById('select-master-alut').value = '';
+  AlutKategoriUI.resetInput('alut-input-kategori');
   renderAlutList();
 }
 
@@ -771,7 +779,7 @@ function syncAlutFields() {
   const textEl = document.getElementById('alut_text');
   if (jsonEl) jsonEl.value = JSON.stringify(currentAlutList);
   if (textEl) {
-    textEl.value = currentAlutList.map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n');
+    textEl.value = AlutKategoriUI.sort(currentAlutList).map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n');
   }
 }
 
@@ -1150,14 +1158,14 @@ function renderGisImportModalContent() {
 ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
           </div>
           <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-            <button type="button" onclick="copyGisDmsText(\`${encodeURIComponent(coordsPreview)}\`, '${escapeHtml(p.name)}')" class="px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 transition cursor-pointer">
+            <button type="button" onclick="copyGisDmsText(${jsArg(encodeURIComponent(coordsPreview))}, ${jsArg(p.name)})" class="px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 transition cursor-pointer">
               📋 Salin Koordinat
             </button>
             <div class="flex items-center gap-2">
               <select id="${selId}" class="control control-sm">
                 ${getSruOptionsHtml()}
               </select>
-              <button type="button" onclick="handleImportPolyClick('${p.id}', '${selId}')" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-500 text-white shadow-xs transition cursor-pointer">
+              <button type="button" onclick="handleImportPolyClick(${jsArg(p.id)}, ${jsArg(selId)})" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-500 text-white shadow-xs transition cursor-pointer">
                 Terapkan ke SRU
               </button>
             </div>
@@ -1222,7 +1230,7 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
             <select id="${selId}" class="control control-sm">
               ${getSruOptionsHtml()}
             </select>
-            <button type="button" onclick="handleImportPatternClick('${p.id}', '${selId}')" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-500 text-white shadow-xs transition cursor-pointer">
+            <button type="button" onclick="handleImportPatternClick(${jsArg(p.id)}, ${jsArg(selId)})" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-orange-600 hover:bg-orange-500 text-white shadow-xs transition cursor-pointer">
               Terapkan Pola ke SRU
             </button>
           </div>
@@ -1273,7 +1281,7 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
             <select id="${selId}" class="control control-sm">
               ${getSruOptionsHtml()}
             </select>
-            <button type="button" onclick="handleImportRouteClick('${r.id}', '${selId}')" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition cursor-pointer">
+            <button type="button" onclick="handleImportRouteClick(${jsArg(r.id)}, ${jsArg(selId)})" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition cursor-pointer">
               Sisipkan ke SRU
             </button>
           </div>
@@ -1320,14 +1328,14 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
           </div>
           ${pt.description ? `<p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">${escapeHtml(pt.description)}</p>` : ''}
           <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-            <button type="button" onclick="copyGisDmsText(\`${encodeURIComponent(dms)}\`, '${escapeHtml(pt.label)}')" class="px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 transition cursor-pointer">
+            <button type="button" onclick="copyGisDmsText(${jsArg(encodeURIComponent(dms))}, ${jsArg(pt.label)})" class="px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 transition cursor-pointer">
               📋 Salin DMS
             </button>
             <div class="flex items-center gap-2">
               <select id="${selId}" class="control control-sm">
                 ${getSruOptionsHtml()}
               </select>
-              <button type="button" onclick="handleImportPointClick('${pt.id}', '${selId}')" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-xs transition cursor-pointer">
+              <button type="button" onclick="handleImportPointClick(${jsArg(pt.id)}, ${jsArg(selId)})" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-xs transition cursor-pointer">
                 Sisipkan ke SRU
               </button>
             </div>
@@ -1776,3 +1784,6 @@ window.addEventListener('focus', () => {
     refreshGisBundle(false);
   }
 });
+
+// Kategori input alut: tebakan otomatis dari nama sampai pengguna memilih sendiri.
+document.addEventListener('DOMContentLoaded', () => AlutKategoriUI.bindInput('alut-input-nama', 'alut-input-kategori'));

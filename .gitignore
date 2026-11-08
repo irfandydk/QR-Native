@@ -18,3 +18,12 @@ storage/cache/*
 storage/backups/*
 !storage/backups/.gitkeep
 scratch/
+
+# Artefak deploy, dump database dan cookie sesi tidak boleh masuk repo (kebocoran 8b11dcc)
+*.zip
+*.bundle
+database/*.sql
+!database/migrations/*.sql
+*cookie*.txt
+storage/app.key
+.superpowers/

@@ -2,14 +2,9 @@
  * QR-SAR — Official Electronic Document PDF Exporter
  * Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
  *
- * Mengonversi lembar naskah dinas (.page-sheet) menjadi dokumen elektronik PDF A4 Portrait
- * yang tajam, presisi, 100% identik dengan tampilan Print Preview, dan anti-terpotong.
- *
- * Spesifikasi Margin Resmi:
- * - Halaman 1: Margin Atas 10mm (Tinggi area cetak = 275mm)
- * - Halaman Seterusnya (2+): Margin Atas 15mm (Tinggi area cetak = 270mm)
- * - Margin Kiri Visual: 15mm, Margin Kanan Visual: 15mm
- * - Margin Bawah: 12mm
+ * Mengonversi lembar-lembar Dokumen Rencana Operasi SAR (SMEAC, .page-sheet) menjadi satu PDF A4 yang tajam
+ * dan anti-terpotong. Tiap lembar memakai orientasinya sendiri (data-pdf-orientation: portrait/landscape),
+ * margin visual ~20mm (bawah 18mm) di semua halaman, plus header berjalan (data-pdf-header) & "Halaman X dari Y".
  */
 (function () {
     'use strict';
@@ -115,24 +110,22 @@
                     return;
                 }
 
-                // Kanvas container memiliki lebar 188mm (leftMargin = 13mm, rightMargin = 9mm)
-                // dengan padding internal .page-sheet kiri 6px (~1.6mm) dan kanan 24px (~6.3mm).
-                // Sehingga posisi konten visual di atas kertas A4 (210mm) adalah:
-                // - Margin Kiri Visual  = 13mm + 1.6mm = ~14.6mm (15mm)
-                // - Margin Kanan Visual = 9mm  + 6.3mm = ~15.3mm (15mm)
-                // - Tersedia 24px (6.3mm) ruang putih di dalam sisi kanan kanvas agar border kanan tabel
-                //   dan teks rata kanan-kiri (justify) TIDAK PERNAH terpotong oleh batas kanvas!
-                var pageWidthMm = 210;
-                var pageHeightMm = 297;
+                // Padding internal .page-sheet kiri 6px & kanan 24px: border kanan tabel dan teks justify tidak terpotong kanvas.
+                // Landscape (data-pdf-orientation="landscape"): 297x210, margin atas sama di semua halaman.
+                var landscape = !!(opt.jsPDF && opt.jsPDF.orientation === 'landscape');
+                // Lembar berikutnya dalam satu PDF: halaman pertamanya juga halaman baru.
+                var appendFirst = !!window.__pdfAppend;
+                window.__pdfAppend = false;
+                var pageWidthMm = landscape ? 297 : 210;
+                var pageHeightMm = landscape ? 210 : 297;
                 var leftMarginMm = (opt.margin && opt.margin[1] != null) ? opt.margin[1] : 13;
                 var rightMarginMm = (opt.margin && opt.margin[3] != null) ? opt.margin[3] : 9;
                 var bottomMarginMm = (opt.margin && opt.margin[2] != null) ? opt.margin[2] : 12;
                 var innerWidthMm = pageWidthMm - leftMarginMm - rightMarginMm; // 188mm
 
-                // Halaman 1: Margin Atas 10mm (Tinggi area konten = 275mm)
-                // Halaman 2+: Margin Atas 15mm (Tinggi area konten = 270mm)
-                var topMarginPage1 = 10;
-                var topMarginPageNext = 15;
+                // Margin atas seragam di semua halaman.
+                var topMarginPage1 = opt.margin[0];
+                var topMarginPageNext = opt.margin[0];
 
                 var innerHeightPage1Mm = pageHeightMm - topMarginPage1 - bottomMarginMm; // 275mm
                 var innerHeightPageNextMm = pageHeightMm - topMarginPageNext - bottomMarginMm; // 270mm
@@ -154,12 +147,14 @@
 
                 var currentY = 0;
                 var pageIndex = 0;
+                // Landscape: sisa yang hanya berisi padding bawah 25mm (pelindung tanda tangan) tidak dijadikan halaman kosong.
+                var tailPx = Math.ceil(canvasWidth * 25 / innerWidthMm) + 6;
 
                 while (currentY < totalHeightPx) {
                     var maxSliceH = (pageIndex === 0) ? maxSlicePxPage1 : maxSlicePxPageNext;
                     var remainingH = totalHeightPx - currentY;
 
-                    if (pageIndex > 0 && remainingH <= 6) {
+                    if (pageIndex > 0 && remainingH <= tailPx) {
                         break;
                     }
 
@@ -224,8 +219,8 @@
                         actualSliceH
                     );
 
-                    if (pageIndex > 0) {
-                        pdf.addPage();
+                    if (pageIndex > 0 || appendFirst) {
+                        pdf.addPage('a4', landscape ? 'landscape' : 'portrait');
                     }
                     var imgData = sliceCanvas.toDataURL('image/' + opt.image.type, opt.image.quality);
                     pdf.addImage(
@@ -240,8 +235,28 @@
                     currentY += actualSliceH;
                     pageIndex++;
                 }
+
             });
         };
+    }
+
+    /** Header berjalan & "Halaman X dari Y" untuk RENOPS SMEAC (@page margin box tidak ikut html2canvas); ukuran per halaman. */
+    function stampHeaderFooter(pdf, runningHeader) {
+        var totalPages = pdf.internal.getNumberOfPages();
+        pdf.setFontSize(8);
+        pdf.setTextColor(89, 89, 89);
+        pdf.setDrawColor(166, 166, 166);
+        pdf.setLineWidth(0.2);
+        for (var p = 1; p <= totalPages; p++) {
+            pdf.setPage(p);
+            var w = pdf.internal.pageSize.getWidth();
+            var h = pdf.internal.pageSize.getHeight();
+            if (runningHeader) {
+                pdf.text(runningHeader, w - 20, 13, { align: 'right' });
+                pdf.line(20, 14.5, w - 20, 14.5);
+            }
+            pdf.text('Halaman ' + p + ' dari ' + totalPages, w / 2, h - 9, { align: 'center' });
+        }
     }
 
     window.downloadOfficialPdf = function (customFilename, buttonEl) {
@@ -273,19 +288,23 @@
         const finalFilename = sanitizeFilename(rawName.replace(/\.pdf$/i, '')) + '.pdf';
 
         // Deteksi koordinat vertikal elemen blok tanda tangan agar dilarang dipotong di tengah
-        const sheetRect = sheet.getBoundingClientRect();
-        const sigBlocks = sheet.querySelectorAll('.signature-block, #signatureBlock, .legalisasi-block, [data-avoid-cut="true"]');
-        const forbiddenZones = [];
-        sigBlocks.forEach(function (sb) {
-            const bRect = sb.getBoundingClientRect();
-            if (sheetRect.height > 0) {
-                forbiddenZones.push({
-                    topRatio: Math.max(0, (bRect.top - sheetRect.top) / sheetRect.height),
-                    bottomRatio: Math.min(1, (bRect.bottom - sheetRect.top) / sheetRect.height)
-                });
-            }
-        });
-        window.__pdfForbiddenZones = forbiddenZones;
+        const sigSelector = '.signature-block';
+        const zonesOf = function (el) {
+            const rect = el.getBoundingClientRect();
+            if (!(rect.height > 0)) return [];
+            return Array.prototype.map.call(el.querySelectorAll(sigSelector), function (sb) {
+                const r = sb.getBoundingClientRect();
+                return {
+                    topRatio: Math.max(0, (r.top - rect.top) / rect.height),
+                    bottomRatio: Math.min(1, (r.bottom - rect.top) / rect.height)
+                };
+            });
+        };
+
+        // Beberapa lembar, tiap lembar orientasinya sendiri (isi portrait, struktur organisasi landscape), satu PDF.
+        window.__pdfRunningHeader = sheet.dataset.pdfHeader || '';
+        const sheets = Array.prototype.slice.call(document.querySelectorAll('.page-sheet'));
+        const isLandscape = function (el) { return el.dataset.pdfOrientation === 'landscape'; };
 
         const printFontFamily = "'Times New Roman', Times, serif";
         const printFontSize = '12pt';
@@ -296,65 +315,52 @@
         const prevScrollY = window.scrollY || window.pageYOffset || 0;
         window.scrollTo(0, 0);
 
-        // 2. Simpan state style inline asli sebelum normalisasi dimensi cetak
-        const prevTransform = sheet.style.transform;
-        const prevTransformOrigin = sheet.style.transformOrigin;
-        const prevBoxShadow = sheet.style.boxShadow;
-        const prevBorder = sheet.style.border;
-        const prevMargin = sheet.style.margin;
-        const prevPadding = sheet.style.padding;
-        const prevWidth = sheet.style.width;
-        const prevMaxWidth = sheet.style.maxWidth;
-        const prevMinHeight = sheet.style.minHeight;
-        const prevBoxSizing = sheet.style.boxSizing;
-        const prevOverflow = sheet.style.overflow;
-        const prevOverflowX = sheet.style.overflowX;
-        const prevFontFamily = sheet.style.fontFamily;
-        const prevFontSize = sheet.style.fontSize;
-        const prevLineHeight = sheet.style.lineHeight;
+        // 2-3. Simpan style inline asli lalu normalisasi dimensi cetak tiap lembar:
+        // width 100% dari container html2pdf, padding kanan 24px & bawah 25mm (pelindung tanda tangan/NIP SMC).
+        const STYLE_KEYS = ['transform', 'transformOrigin', 'boxShadow', 'border', 'margin', 'padding', 'width', 'maxWidth',
+            'minHeight', 'boxSizing', 'overflow', 'overflowX', 'fontFamily', 'fontSize', 'lineHeight', 'zoom', 'breakBefore', 'pageBreakBefore'];
+        const restores = sheets.map(function (el) {
+            const prev = {};
+            STYLE_KEYS.forEach(function (k) { prev[k] = el.style[k]; });
+            Object.assign(el.style, {
+                width: '100%', maxWidth: '100%', boxSizing: 'border-box', transform: 'none', border: 'none',
+                boxShadow: 'none', margin: '0', minHeight: 'auto', padding: '0 24px 25mm 6px', overflow: 'visible',
+                overflowX: 'visible', fontFamily: printFontFamily, fontSize: printFontSize, lineHeight: printLineHeight,
+                // Zoom muat-pas-lebar layar (RENOPS) tidak boleh ikut ke kanvas html2pdf.
+                zoom: '1',
+                // Ganti halaman antarlembar diatur exporter; break-before cetak tidak boleh jadi spasi kosong html2pdf.
+                breakBefore: 'auto',
+                pageBreakBefore: 'auto'
+            });
+            return function () { STYLE_KEYS.forEach(function (k) { el.style[k] = prev[k]; }); };
+        });
 
-        // 3. Gunakan width: 100% dari container html2pdf (188mm) dengan padding kanan 24px
-        // dan padding bawah 25mm sebagai pelindung anti-terpotongnya teks tanda tangan dan NIP SMC.
-        sheet.style.width = '100%';
-        sheet.style.maxWidth = '100%';
-        sheet.style.boxSizing = 'border-box';
-        sheet.style.transform = 'none';
-        sheet.style.border = 'none';
-        sheet.style.boxShadow = 'none';
-        sheet.style.margin = '0';
-        sheet.style.minHeight = 'auto';
-        sheet.style.padding = '0 24px 25mm 6px';
-        sheet.style.overflow = 'visible';
-        sheet.style.overflowX = 'visible';
-        sheet.style.fontFamily = printFontFamily;
-        sheet.style.fontSize = printFontSize;
-        sheet.style.lineHeight = printLineHeight;
-
-        // Satu kanvas untuk seluruh dokumen: Safari iOS membatasi ~16,7 juta piksel (lebih besar = halaman kosong).
-        // Turunkan skala untuk dokumen panjang agar tetap di bawah batas (skala 2 hanya untuk dokumen pendek).
+        // Satu kanvas per lembar: Safari iOS membatasi ~16,7 juta piksel (lebih besar = halaman kosong).
+        // Turunkan skala untuk lembar panjang agar tetap di bawah batas (skala 2 hanya untuk lembar pendek).
         const MAX_CANVAS_PIXELS = 16000000;
-        const sheetArea = Math.max(1, sheet.scrollWidth * sheet.scrollHeight);
-        const canvasScale = Math.max(1, Math.min(2, Math.sqrt(MAX_CANVAS_PIXELS / sheetArea)));
-
-        const opt = {
-            margin: [10, 13, 15, 9], // [top, left, bottom, right] dalam mm -> bottomMargin = 15mm
-            filename: finalFilename,
-            image: {
-                type: 'jpeg',
-                quality: 0.95
-            },
-            html2canvas: {
-                scale: canvasScale,
-                useCORS: true,
-                letterRendering: true,
-                scrollX: 0,
-                scrollY: 0,
-                backgroundColor: '#ffffff',
-                logging: false,
-                onclone: function (clonedDoc) {
-                    try {
-                        const styleTag = clonedDoc.createElement('style');
-                        styleTag.textContent = `
+        const optFor = function (el) {
+            const sheetArea = Math.max(1, el.scrollWidth * el.scrollHeight);
+            const canvasScale = Math.max(1, Math.min(2, Math.sqrt(MAX_CANVAS_PIXELS / sheetArea)));
+            return {
+                // [top, left, bottom, right] dalam mm: kiri 18 + padding 6px, kanan 14 + padding 24px -> margin visual ~20mm.
+                margin: [20, 18, 18, 14],
+                filename: finalFilename,
+                image: {
+                    type: 'jpeg',
+                    quality: 0.95
+                },
+                html2canvas: {
+                    scale: canvasScale,
+                    useCORS: true,
+                    letterRendering: true,
+                    scrollX: 0,
+                    scrollY: 0,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    onclone: function (clonedDoc) {
+                        try {
+                            const styleTag = clonedDoc.createElement('style');
+                            styleTag.textContent = `
                             html, body {
                                 background: #ffffff !important;
                                 color: #000000 !important;
@@ -386,7 +392,7 @@
                                 text-align: justify !important;
                                 text-justify: inter-word !important;
                             }
-                            .page-sheet p, .page-sheet li, .page-sheet .narrative-text {
+                            .page-sheet p, .page-sheet li {
                                 font-family: ${printFontFamily} !important;
                                 font-size: 10.5pt !important;
                                 text-align: justify !important;
@@ -401,55 +407,12 @@
                                 box-sizing: border-box !important;
                                 max-width: 100% !important;
                             }
-                            .page-sheet table:not(.kop-table):not(.kop-contact-table):not(.kop-contact-row):not(.kop-phone-table) {
+                            .page-sheet table {
                                 width: 100% !important;
                                 max-width: 100% !important;
                                 table-layout: fixed !important;
                                 border-collapse: collapse !important;
                                 font-family: ${printFontFamily} !important;
-                            }
-                            .page-sheet .kop-table {
-                                width: 100% !important;
-                                border-collapse: collapse !important;
-                                table-layout: auto !important;
-                                border: none !important;
-                                font-family: Arial, Helvetica, sans-serif !important;
-                            }
-                            .page-sheet .kop-table td, .page-sheet .kop-table th {
-                                border: none !important;
-                                font-family: Arial, Helvetica, sans-serif !important;
-                            }
-                            .page-sheet .kop-contact-row {
-                                width: 100% !important;
-                                max-width: 100% !important;
-                                table-layout: auto !important;
-                                border-collapse: collapse !important;
-                                border: none !important;
-                                margin: 0 !important;
-                            }
-                            .page-sheet .kop-contact-row td {
-                                border: none !important;
-                                font-family: Arial, Helvetica, sans-serif !important;
-                            }
-                            .page-sheet .kop-contact-table, .page-sheet .kop-phone-table {
-                                width: auto !important;
-                                max-width: none !important;
-                                table-layout: auto !important;
-                                border-collapse: collapse !important;
-                                border: none !important;
-                                margin-left: auto !important;
-                                margin-right: 0 !important;
-                            }
-                            .page-sheet .kop-contact-table td, .page-sheet .kop-phone-table td {
-                                border: none !important;
-                                padding: 0.5px 3px !important;
-                                font-size: 8pt !important;
-                                line-height: 1.35 !important;
-                                font-family: Arial, Helvetica, sans-serif !important;
-                                white-space: nowrap !important;
-                            }
-                            .kop-surat-container, .kop-surat-container * {
-                                font-family: Arial, Helvetica, sans-serif !important;
                             }
                             .table-dinas {
                                 font-size: 9pt !important;
@@ -476,87 +439,91 @@
                                 word-break: break-word !important;
                                 font-family: ${printFontFamily} !important;
                             }
-                            .table-borderless td {
-                                font-family: ${printFontFamily} !important;
-                                font-size: 9.5pt !important;
-                                padding: 2.5px 4px !important;
-                                vertical-align: top !important;
-                                line-height: 1.35 !important;
-                                word-wrap: break-word !important;
-                                overflow-wrap: break-word !important;
-                            }
                             .page-sheet th, .page-sheet td {
                                 word-wrap: break-word !important;
                                 overflow-wrap: break-word !important;
                                 word-break: break-word !important;
                                 font-family: ${printFontFamily} !important;
                             }
-                            .signature-block, #signatureBlock, .legalisasi-block, [data-avoid-cut="true"] {
+                            .signature-block {
                                 page-break-inside: avoid !important;
                                 break-inside: avoid !important;
                             }
                         `;
-                        clonedDoc.head.appendChild(styleTag);
-                    } catch (styleErr) {
-                        console.warn('Gagal menyuntikkan style print:', styleErr);
-                    }
+                            clonedDoc.head.appendChild(styleTag);
+                        } catch (styleErr) {
+                            console.warn('Gagal menyuntikkan style print:', styleErr);
+                        }
 
-                    // Pastikan seluruh <canvas> (QR Code) tersalin sebagai <img> tajam
-                    try {
-                        const originalCanvases = sheet.querySelectorAll('canvas');
-                        const clonedCanvases = clonedDoc.querySelectorAll('canvas');
-                        originalCanvases.forEach(function (origCv, i) {
-                            const targetCv = clonedCanvases[i];
-                            if (targetCv && origCv.width > 0 && origCv.height > 0) {
-                                try {
-                                    const img = clonedDoc.createElement('img');
-                                    img.src = origCv.toDataURL('image/png');
-                                    img.style.width = (origCv.style.width || (origCv.width + 'px'));
-                                    img.style.height = (origCv.style.height || (origCv.height + 'px'));
-                                    img.className = origCv.className;
-                                    img.setAttribute('alt', 'QR Code');
-                                    if (targetCv.parentNode) {
-                                        targetCv.parentNode.replaceChild(img, targetCv);
-                                    }
-                                } catch (cvErr) {
-                                    console.warn('Gagal mengkloning kanvas ke img:', cvErr);
-                                }
+                        // Salinan html2pdf = .page-sheet terakhir di dokumen kloning.
+                        const cSheets = clonedDoc.querySelectorAll('.page-sheet');
+                        const cSheet = cSheets[cSheets.length - 1];
+
+                        // Ukur ulang zona tanda tangan pada tata letak ekspor, karena lembar mengalir ulang
+                        // cukup jauh dari tampilan layar.
+                        if (cSheet) {
+                            try {
+                                window.__pdfForbiddenZones = zonesOf(cSheet);
+                            } catch (zoneErr) {
+                                console.warn('Gagal mengukur ulang zona tanda tangan:', zoneErr);
                             }
-                        });
-                    } catch (cloneErr) {
-                        console.warn('Error onclone canvas handler:', cloneErr);
+                        }
+
+                        // SVG inline (mis. diagram jaring komunikasi) berukuran CSS: html2canvas menggambarnya pada ukuran
+                        // viewBox asli lalu memotongnya. Tetapkan atribut width/height = ukuran tampil di salinan.
+                        if (cSheet) {
+                            Array.prototype.forEach.call(cSheet.querySelectorAll('svg'), function (svg) {
+                                const r = svg.getBoundingClientRect();
+                                if (r.width > 0 && r.height > 0) {
+                                    svg.setAttribute('width', String(Math.round(r.width)));
+                                    svg.setAttribute('height', String(Math.round(r.height)));
+                                }
+                            });
+                        }
+
+                        // Pastikan seluruh <canvas> (QR Code) lembar ini tersalin sebagai <img> tajam
+                        try {
+                            const originalCanvases = el.querySelectorAll('canvas');
+                            const clonedCanvases = cSheet ? cSheet.querySelectorAll('canvas') : [];
+                            originalCanvases.forEach(function (origCv, i) {
+                                const targetCv = clonedCanvases[i];
+                                if (targetCv && origCv.width > 0 && origCv.height > 0) {
+                                    try {
+                                        const img = clonedDoc.createElement('img');
+                                        img.src = origCv.toDataURL('image/png');
+                                        img.style.width = (origCv.style.width || (origCv.width + 'px'));
+                                        img.style.height = (origCv.style.height || (origCv.height + 'px'));
+                                        img.className = origCv.className;
+                                        img.setAttribute('alt', 'QR Code');
+                                        if (targetCv.parentNode) {
+                                            targetCv.parentNode.replaceChild(img, targetCv);
+                                        }
+                                    } catch (cvErr) {
+                                        console.warn('Gagal mengkloning kanvas ke img:', cvErr);
+                                    }
+                                }
+                            });
+                        } catch (cloneErr) {
+                            console.warn('Error onclone canvas handler:', cloneErr);
+                        }
                     }
+                },
+                jsPDF: {
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: isLandscape(el) ? 'landscape' : 'portrait',
+                    compress: true
+                },
+                pagebreak: {
+                    mode: ['css', 'legacy'],
+                    avoid: ['.break-inside-avoid', 'tr']
                 }
-            },
-            jsPDF: {
-                unit: 'mm',
-                format: 'a4',
-                orientation: 'portrait',
-                compress: true
-            },
-            pagebreak: {
-                mode: ['css', 'legacy'],
-                avoid: ['.break-inside-avoid', 'tr']
-            }
+            };
         };
 
         const restoreStylesAndState = function () {
-            sheet.style.transform = prevTransform;
-            sheet.style.transformOrigin = prevTransformOrigin;
-            sheet.style.boxShadow = prevBoxShadow;
-            sheet.style.border = prevBorder;
-            sheet.style.margin = prevMargin;
-            sheet.style.padding = prevPadding;
-            sheet.style.width = prevWidth;
-            sheet.style.maxWidth = prevMaxWidth;
-            sheet.style.minHeight = prevMinHeight;
-            sheet.style.boxSizing = prevBoxSizing;
-            sheet.style.overflow = prevOverflow;
-            sheet.style.overflowX = prevOverflowX;
-            sheet.style.fontFamily = prevFontFamily;
-            sheet.style.fontSize = prevFontSize;
-            sheet.style.lineHeight = prevLineHeight;
-
+            restores.forEach(function (fn) { fn(); });
+            window.__pdfAppend = false;
             window.scrollTo(prevScrollX, prevScrollY);
 
             if (btn) {
@@ -565,9 +532,22 @@
             }
         };
 
-        html2pdf()
-            .set(opt)
-            .from(sheet)
+        window.__pdfAppend = false;
+        window.__pdfForbiddenZones = zonesOf(sheets[0]);
+        let worker = html2pdf().set(optFor(sheets[0])).from(sheets[0]).toPdf();
+        sheets.slice(1).forEach(function (el) {
+            worker = worker.then(function () {
+                // Lembar berikut: kanvas & container baru, halaman pertamanya halaman baru di PDF yang sama.
+                this.prop.canvas = null;
+                this.prop.container = null;
+                window.__pdfAppend = true;
+                window.__pdfForbiddenZones = zonesOf(el);
+            }).set(optFor(el)).from(el).toPdf();
+        });
+        worker = worker.get('pdf').then(function (pdf) {
+            stampHeaderFooter(pdf, window.__pdfRunningHeader);
+        });
+        worker
             .save()
             .then(function () {
                 restoreStylesAndState();

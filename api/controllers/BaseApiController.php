@@ -36,9 +36,33 @@ abstract class BaseApiController {
     /**
      * Authentication Middleware Check
      */
-    public static function requireAuth(): void {
+    /**
+     * Origin CORS sah bila skema, host dan port sama persis dengan BASE_URL.
+     * Saat pengembangan, localhost/127.0.0.1 port mana pun ikut diizinkan.
+     */
+    public static function isAllowedOrigin(string $origin, string $baseUrl, bool $isDev): bool {
+        $norm = static function (string $url): ?string {
+            $p = parse_url($url);
+            if (!is_array($p) || empty($p['scheme']) || empty($p['host'])) {
+                return null;
+            }
+            $scheme = strtolower($p['scheme']);
+            return $scheme . '://' . strtolower($p['host']) . ':' . ($p['port'] ?? ($scheme === 'https' ? 443 : 80));
+        };
+        $o = $norm($origin);
+        if ($o === null) {
+            return false;
+        }
+        return $o === $norm($baseUrl)
+            || ($isDev && in_array(strtolower((string)parse_url($origin, PHP_URL_HOST)), ['localhost', '127.0.0.1'], true));
+    }
+
+    public static function requireAuth(bool $allowPendingPasswordChange = false): void {
         if (!AuthHelper::isLoggedIn()) {
             self::error('Akses ditolak: Sesi login diperlukan.', 401, 'UNAUTHORIZED');
+        }
+        if (!$allowPendingPasswordChange && PHP_SAPI !== 'cli' && AuthHelper::mustChangePassword()) {
+            self::error('Akun masih memakai kata sandi bawaan. Ganti kata sandi terlebih dahulu.', 403, 'PASSWORD_CHANGE_REQUIRED');
         }
     }
 
@@ -46,6 +70,8 @@ abstract class BaseApiController {
      * Administrator Privilege Middleware Check
      */
     public static function requireAdmin(): void {
+        // Sesi sah + gerbang wajib-ganti-sandi berlaku juga untuk endpoint admin
+        self::requireAuth();
         if (!AuthHelper::isAdmin()) {
             self::error('Akses ditolak: Hanya Administrator yang diizinkan melakukan tindakan ini.', 403, 'FORBIDDEN');
         }

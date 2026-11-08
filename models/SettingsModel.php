@@ -68,7 +68,7 @@ class SettingsModel {
         $db = getDB();
         $fields = [
             'satker_kode', 'satker_nama', 'alamat', 'no_telp', 'email',
-            'call_sign', 'frekuensi_default', 'default_theme', 'ui_theme', 'logo_url', 'gemini_api_key'
+            'call_sign', 'frekuensi_default', 'default_theme', 'ui_theme', 'logo_url', 'logo_url_2', 'gemini_api_key'
         ];
 
         $sets = [];
@@ -331,6 +331,8 @@ class SettingsModel {
                 ':id' => $targetId
             ]);
 
+            // Refresh dulu: AuditHelper::log membaca sesi lewat isLoggedIn, sidik lama akan menghapus sesi
+            AuthHelper::refreshCredentialFingerprint((string)$targetId, $newHash);
             AuditHelper::log('PASSWORD_CHANGE', "Mengubah kata sandi untuk akun {$targetId} ({$roleUpper})", 'Users', $targetId);
 
             if (!$inTx) $db->commit();
@@ -359,6 +361,8 @@ class SettingsModel {
                     ':now' => date('Y-m-d H:i:s')
                 ]);
 
+                // Admin yang menjalankan reset tetap login; sesi akun lain gugur (refresh sebelum log, lihat changePassword)
+                AuthHelper::refreshCredentialFingerprint((string)($_SESSION['user_id'] ?? ''), $defaultHash);
                 AuditHelper::log('PASSWORD_RESET', "Mereset semua kata sandi pengguna ke bawaan sistem", 'Users', 'ALL');
             }
 

@@ -162,8 +162,8 @@ assertCondition(
     "views/operasi/partials/tab_cetak.php tidak lagi merujuk ke parameter print=1"
 );
 assertCondition(
-    strpos($tabCetakContent, "xl:grid-cols-4") !== false,
-    "views/operasi/partials/tab_cetak.php menggunakan grid 4 kolom proporsional untuk 4 dokumen utama"
+    strpos($tabCetakContent, "md:grid-cols-2") !== false,
+    "views/operasi/partials/tab_cetak.php menggunakan grid 2 kolom: Rencana Operasi SAR & BRA SAR"
 );
 
 $gisViewContent = file_get_contents(BASE_PATH . '/views/gis.php');

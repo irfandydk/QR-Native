@@ -17,8 +17,8 @@ Sistem ini mengadopsi arsitektur **Modular MVC (Model-View-Controller) dengan Se
 3. **Laporan Perkembangan Harian (SITREP / LAPBANG)**: Pemantauan harian hasil pencarian, pembaruan status korban (*Selamat / Meninggal Dunia / Dalam Pencarian / Hilang*), kondisi cuaca maritim BMKG, dan faktor penghambat di lapangan.
 4. **Penutupan Operasi & Rollback Dinamis**: Debriefing resmi penutupan operasi, pembuatan Berita Acara Penutupan, dan opsi pemulihan status (*rollback*) jika ada laporan korban lanjutan.
 5. **Naskah Berita Radio SAR (BRA Standar Senkom)**: Kategori `BRA MAPEL`, `BRA SAR`, dan `BRA PERGERAKAN KAPAL` dengan format resmi dinas Senkom: Panggilan, Jenis, Derajat `SGR`, DARI, AKSI, INFO, TWU, TWB, Seksi dinas alfabetis `AAA–ZZZ`, *live word counter*, dan tabel 4 kolom komunikasi Senkom.
-6. **Verifikasi Keabsahan Dokumen Digital (HMAC QR Code)**: Seluruh dokumen resmi (Laporan Awal, RENOPS, SITREP, Berita Acara Penutupan, dan BRA SAR) dilengkapi Barcode QR beresolusi tinggi dengan emblem logo Basarnas di tengah dan token kriptografis HMAC SHA-256 yang terverifikasi ke portal publik mandiri (*Zero-Login Public Verification*).
-7. **Studio Capture Peta 16:9 & Map Snapshot**: Fitur tangkapan layar peta taktikal rasio 16:9 terintegrasi pada GIS yang secara otomatis mendeteksi komponen spasial di dalam bingkai (titik LKP, lokasi korban, poligon pencarian, rute alut) dan menyematkannya langsung ke dalam dokumen cetak resmi berserta tabel keterangan komponen.
+6. **Verifikasi Keabsahan Dokumen Digital (HMAC QR Code)**: Dokumen Rencana Operasi SAR (RENOPS) dan BRA SAR dilengkapi Barcode QR beresolusi tinggi dengan emblem logo Basarnas di tengah dan token kriptografis HMAC SHA-256 yang terverifikasi ke portal publik mandiri (*Zero-Login Public Verification*).
+7. **Studio Capture Peta 16:9 & Map Snapshot**: Fitur tangkapan layar peta taktikal rasio 16:9 terintegrasi pada GIS yang secara otomatis mendeteksi komponen spasial di dalam bingkai (titik LKP, lokasi korban, poligon pencarian, rute alut) untuk Dokumen RENOPS: Peta Lokasi LKP (1x per operasi) dan Peta Rencana Operasi (per hari RENOPS).
 8. **Tactical Maritime GIS & Kalkulator Pola IAMSAR**: Peta interaktif Leaflet dengan citra Satelit Resolusi Tinggi (Esri World Imagery) dan Peta Vektor OSM, radar pulsing LKP, pengukur rute berkecepatan knot alut Basarnas, kalkulator pola pencarian maritim IAMSAR (*Parallel Sweep, Creeping Line, Expanding Square, Sector Search*), serta ekspor data spasial GeoJSON & KML.
 9. **Official PDF Exporter (Anti-Cut Smart Slicing)**: Konversi lembar naskah dinas A4 Portrait menjadi dokumen elektronik PDF yang tajam, presisi, dan bebas huruf terpotong melalui algoritma deteksi spasi putih antar-baris teks (*safe page-cut detection*).
 10. **Master Data & Pengaturan Terpusat**: Manajemen 9 Pangkalan Resmi Basarnas Sultra (Kansar Kendari, Pos SAR Kolaka, Baubau, Wakatobi, Konawe Utara, Unit Siaga Muna, Konawe, Kolaka Utara, Dermaga Sandar Bungkutoko), armada Alut, potensi SAR gabungan, data Pejabat SMC, profil Satker `SAR-304`, backup JSON/SQL, dan audit trail log pengguna.
@@ -79,10 +79,11 @@ QR-SAR/
 │   │   ├── detail.php                # Tabbed Hub Utama Operasi SAR
 │   │   ├── renops_form.php           # Form pembuatan Rencana Operasi SAR & pembagian SRU
 │   │   ├── sitrep_form.php           # Form Laporan Perkembangan harian SITREP/LAPBANG
-│   │   ├── laporan_awal_print.php    # Dokumen cetak resmi fisik & PDF Laporan Awal (+ Peta 16:9 & QR)
-│   │   ├── renops_print.php          # Dokumen cetak resmi fisik & PDF RENOPS H.X (+ Peta 16:9 & QR)
-│   │   ├── sitrep_print.php          # Dokumen cetak resmi fisik & PDF SITREP H.X (+ Peta 16:9 & QR)
-│   │   ├── penutupan_print.php       # Berita Acara Penutupan Operasi (+ Peta 16:9 & QR)
+│   │   ├── renops_dokumen.php        # Editor draf Dokumen RENOPS SMEAC (sunting di kertas, foto, terbitkan QR)
+│   │   ├── renops_smeac_print.php    # Cetak internal & halaman publik bertoken Dokumen RENOPS SMEAC A4 landscape (+ QR berversi)
+│   │   ├── partials/renops_smeac_doc.php         # Renderer tunggal Dokumen RENOPS SMEAC (mode draf & final)
+│   │   ├── partials/renops_jaring_komunikasi.php # Diagram jaring komunikasi & koordinasi (SVG inline)
+│   │   ├── partials/renops_struktur_org.php      # Bagan struktur organisasi operasi SAR
 │   │   ├── verify_public.php         # Portal verifikasi keabsahan dokumen publik mandiri
 │   │   └── partials/                 # Komponen Tab Modular Operasi
 │   │       ├── tab_hierarchy.php         # Timeline hierarkis runtut waktu (Laporan Awal, Renops, Sitrep)
@@ -93,7 +94,6 @@ QR-SAR/
 │   │       ├── tab_gis.php               # Tampilan peta taktis terintegrasi per operasi
 │   │       ├── tab_bra.php               # Naskah telegram radio yang tertaut dengan operasi
 │   │       ├── tab_cetak.php             # Pusat komando cetak PDF & manajemen snapshot peta 16:9
-│   │       ├── print_map_snapshot_block.php # Komponen render visual peta 16:9 & tabel komponen
 │   │       └── modals.php                # Dialog modal penutupan, rollback, dan hapus operasi
 │   ├── bra/                 # Modul Berita Radio SAR
 │   │   ├── form.php                  # Builder telegram radio Senkom & live word counter
@@ -212,14 +212,14 @@ Aplikasi QR-SAR mendukung dua opsi eksekusi:
 Sangat praktis untuk pengujian di laptop dinas menggunakan PHP Built-in Server:
 
 ```bash
-php -S 127.0.0.1:8000 router.php
+php -d upload_max_filesize=6M -d post_max_size=64M -S 127.0.0.1:8000 router.php
 ```
 
 #### Opsi B: Mode Standar Produksi (Public Document Root)
 Direkomendasikan untuk keamanan maksimal pada server produksi (seluruh kode privat berada di luar Document Root):
 
 ```bash
-php -S 127.0.0.1:8000 -t public public/router.php
+php -d upload_max_filesize=6M -d post_max_size=64M -S 127.0.0.1:8000 -t public public/router.php
 ```
 
 #### Manajemen Aset Publik (Single Source of Truth)
@@ -276,7 +276,7 @@ Kredensial akun tidak dicantumkan di repositori. Segera ganti kata sandi bawaan 
 - **Tab Matriks Korban**: Visualisasi status korban terkini (*Selamat, Meninggal Dunia, Dalam Pencarian, Hilang*) dengan kalkulasi otomatis.
 - **Tab Kekuatan Personel & Alut**: Ringkasan kesiapan personel rescuer, potensi SAR gabungan (TNI/Polri/Masyarakat), dan alut yang dikerahkan.
 - **Tab Berita Radio SAR Terkait**: Akses langsung ke naskah telegram radio yang tertaut dengan operasi.
-- **Tab Cetak Dokumen & Snapshot**: Pusat komando pencetakan PDF resmi (Laporan Awal, Renops, Sitrep, Penutupan) dan manajemen studio capture peta 16:9.
+- **Tab Cetak Dokumen & Snapshot**: Cetak/unduh PDF Dokumen Rencana Operasi SAR (draf atau terbit ber-QR) dan BRA SAR, plus capture Peta Lokasi LKP (1x) & Peta Rencana Operasi (per hari).
 - **Tutup & Rollback Operasi**: Fitur penutupan resmi operasi dan pengembalian (*rollback*) status jika terdapat informasi korban lanjutan.
 
 ### 3. Berita Radio SAR (BRA) Standar Senkom
@@ -292,15 +292,14 @@ Kredensial akun tidak dicantumkan di repositori. Segera ganti kata sandi bawaan 
   - Tabel 4 kolom buku komunikasi operator Senkom (T.W.T, T.W.K, SISTEM, PARAF).
 
 ### 4. Verifikasi Keabsahan Dokumen Digital (HMAC QR Code)
-- Setiap dokumen operasional SAR (Laporan Awal, Renops, Sitrep, Penutupan, dan BRA) memiliki token keabsahan digital yang dienkripsi menggunakan algoritma HMAC-SHA256.
-- Barcode QR pada dokumen cetak langsung menautkan publik ke portal verifikasi resmi:  
-  `http://domain/operasi.php?action=verify_public&token=...`
+- Dokumen Rencana Operasi SAR (per versi terbit) dan BRA SAR memiliki token keabsahan digital HMAC-SHA256.
+- Barcode QR pada dokumen cetak menautkan publik ke portal verifikasi resmi (`operasi.php?action=verify&type=renops&...`); versi yang digantikan tampil "telah diubah" dengan tautan ke versi terbaru.
 - Menampilkan rincian integritas dokumen: Judul Resmi, Nomor Dokumen, Timestamp Pengesahan, Nama Pejabat SMC penandatangan, NIP, Pangkat/Jabatan, dan Status Keabsahan Elektronik tanpa mewajibkan pemindai untuk masuk (*login*).
 
 ### 5. Studio Capture Peta Taktis 16:9 & Map Snapshot
 - Mode penangkapan layar peta pada antarmuka GIS dengan panduan bingkai rasio 16:9.
 - Algoritma spasial mendeteksi seluruh komponen taktis yang berada di dalam area tangkapan (titik LKP, lokasi korban, poligon sektor pencarian, rute pergerakan kapal).
-- Menghasilkan gambar peta beresolusi tinggi (1280x720) yang tersimpan pada tabel `DokumenPetaSnapshot` dan tersemat rapi pada lembar cetak Laporan Awal, Renops, Sitrep, dan Penutupan Operasi disertai **Tabel Keterangan Komponen**.
+- Menghasilkan gambar peta beresolusi tinggi (1280x720) yang tersimpan pada tabel `DokumenPetaSnapshot` dan tersemat pada Dokumen RENOPS: Peta Lokasi LKP (1x per operasi, dipakai semua hari) dan Peta Rencana Operasi (per hari RENOPS).
 
 ### 6. Tactical Maritime GIS & Generator Pola IAMSAR
 - Pemetaan maritim interaktif Leaflet dengan citra Satelit Resolusi Tinggi (Esri World Imagery) dan Peta Vektor OSM.

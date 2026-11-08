@@ -164,134 +164,8 @@ class AdminController extends BaseController {
                         'ui_theme' => in_array($_POST['ui_theme'] ?? '', ['klasik', 'minimal'], true) ? $_POST['ui_theme'] : 'klasik'
                     ];
 
-                    // Handle logo URL or File Upload with strict validation, GD auto-compression & orphan cleanup
-                    if (!empty($_FILES['logo_file']['name']) && $_FILES['logo_file']['error'] === UPLOAD_ERR_OK) {
-                        if ($_FILES['logo_file']['size'] > 5 * 1024 * 1024) {
-                            $this->setFlash('error', 'Ukuran berkas logo terlalu besar (Maksimal 5 MB).');
-                            $this->redirect('/admin.php?tab=satker');
-                        }
-
-                        $ext = strtolower(pathinfo($_FILES['logo_file']['name'], PATHINFO_EXTENSION));
-                        $allowed = ['png', 'jpg', 'jpeg', 'svg', 'webp'];
-
-                        if (in_array($ext, $allowed, true)) {
-                            $tmpPath = $_FILES['logo_file']['tmp_name'];
-                            $uploadDir = ROOT_DIR . '/uploads';
-                            if (!is_dir($uploadDir)) {
-                                @mkdir($uploadDir, 0755, true);
-                            }
-
-                            $uploadedUrl = null;
-
-                            // A. Validate SVG against Stored XSS
-                            if ($ext === 'svg') {
-                                $svgContent = file_get_contents($tmpPath);
-                                if ($svgContent !== false && preg_match('/<script|javascript:|onload|onerror|onclick|onmouseover|<iframe|<embed|<object|<foreignobject/i', $svgContent)) {
-                                    $this->setFlash('error', 'Berkas SVG ditolak: Terdeteksi skrip atau tag tidak aman.');
-                                    $this->redirect('/admin.php?tab=satker');
-                                }
-                                $filename = 'satker_logo_' . time() . '_' . bin2hex(random_bytes(4)) . '.svg';
-                                $dest = $uploadDir . '/' . $filename;
-                                if (move_uploaded_file($tmpPath, $dest)) {
-                                    $uploadedUrl = BASE_URL . '/uploads/' . $filename;
-                                }
-                            } else {
-                                // B. Validate Raster Images MIME
-                                $finfo = new finfo(FILEINFO_MIME_TYPE);
-                                $mime = $finfo->file($tmpPath);
-                                $validMimes = ['image/png', 'image/jpeg', 'image/webp'];
-                                if (!in_array($mime, $validMimes, true)) {
-                                    $this->setFlash('error', 'Format gambar tidak valid atau rusak.');
-                                    $this->redirect('/admin.php?tab=satker');
-                                }
-
-                                // C. GD Auto-Resize & WebP Compression
-                                $srcImg = null;
-                                if ($mime === 'image/jpeg') {
-                                    $srcImg = @imagecreatefromjpeg($tmpPath);
-                                } elseif ($mime === 'image/png') {
-                                    $srcImg = @imagecreatefrompng($tmpPath);
-                                } elseif ($mime === 'image/webp' && function_exists('imagecreatefromwebp')) {
-                                    $srcImg = @imagecreatefromwebp($tmpPath);
-                                }
-
-                                $savedOptimized = false;
-                                if ($srcImg) {
-                                    $origW = imagesx($srcImg);
-                                    $origH = imagesy($srcImg);
-                                    $maxDim = 400; // Optimal bounding box for Basarnas letterhead & mobile
-
-                                    if ($origW > $maxDim || $origH > $maxDim) {
-                                        if ($origW >= $origH) {
-                                            $targetW = $maxDim;
-                                            $targetH = (int)round(($origH / $origW) * $maxDim);
-                                        } else {
-                                            $targetH = $maxDim;
-                                            $targetW = (int)round(($origW / $origH) * $maxDim);
-                                        }
-                                    } else {
-                                        $targetW = $origW;
-                                        $targetH = $origH;
-                                    }
-
-                                    $dstImg = imagecreatetruecolor($targetW, $targetH);
-                                    imagealphablending($dstImg, false);
-                                    imagesavealpha($dstImg, true);
-                                    $transCol = imagecolorallocatealpha($dstImg, 0, 0, 0, 127);
-                                    imagefilledrectangle($dstImg, 0, 0, $targetW, $targetH, $transCol);
-                                    imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $targetW, $targetH, $origW, $origH);
-
-                                    if (function_exists('imagewebp')) {
-                                        $filename = 'satker_logo_' . time() . '_' . bin2hex(random_bytes(4)) . '.webp';
-                                        $dest = $uploadDir . '/' . $filename;
-                                        $savedOptimized = imagewebp($dstImg, $dest, 90);
-                                    } else {
-                                        $filename = 'satker_logo_' . time() . '_' . bin2hex(random_bytes(4)) . '.png';
-                                        $dest = $uploadDir . '/' . $filename;
-                                        $savedOptimized = imagepng($dstImg, $dest, 8);
-                                    }
-
-                                    unset($dstImg, $srcImg);
-
-                                    if ($savedOptimized) {
-                                        $uploadedUrl = BASE_URL . '/uploads/' . $filename;
-                                    }
-                                }
-
-                                // Fallback if GD is unavailable or fails
-                                if (!$savedOptimized) {
-                                    $filename = 'satker_logo_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-                                    $dest = $uploadDir . '/' . $filename;
-                                    if (move_uploaded_file($tmpPath, $dest)) {
-                                        $uploadedUrl = BASE_URL . '/uploads/' . $filename;
-                                    }
-                                }
-                            }
-
-                            if ($uploadedUrl) {
-                                // D. Clean up previous orphan logo file safely
-                                $currSettings = SettingsModel::getSettings();
-                                $oldLogo = $currSettings['logo_url'] ?? '';
-                                if (!empty($oldLogo) && str_contains($oldLogo, '/uploads/satker_logo_')) {
-                                    $oldBase = basename($oldLogo);
-                                    $oldPath = $uploadDir . '/' . $oldBase;
-
-                                    $db = getDB();
-                                    $chk = $db->prepare("SELECT COUNT(*) FROM BraSar WHERE logo_url LIKE :oldF");
-                                    $chk->execute([':oldF' => "%{$oldBase}%"]);
-                                    $inUse = (int)$chk->fetchColumn();
-
-                                    if ($inUse === 0 && file_exists($oldPath) && is_file($oldPath)) {
-                                        @unlink($oldPath);
-                                    }
-                                }
-
-                                $data['logo_url'] = $uploadedUrl;
-                            }
-                        }
-                    } elseif (!empty($_POST['logo_url'])) {
-                        $data['logo_url'] = trim($_POST['logo_url']);
-                    }
+                    $this->prosesLogoSatker('logo_file', 'logo_url', $data);
+                    $this->prosesLogoSatker('logo_file_2', 'logo_url_2', $data);
 
                     SettingsModel::updateSettings($data);
                     if ((SettingsModel::getSettings()['ui_theme'] ?? null) === null) {
@@ -383,5 +257,140 @@ class AdminController extends BaseController {
             'navbarTitle' => 'Pengaturan Administrator & Satker',
             'navbarSubtitle' => 'Konfigurasi Akun, Sandi, Identitas Pangkalan SAR, serta Cadangan Database'
         ]);
+    }
+
+    /**
+     * Unggah/URL logo kop (logo_url = kiri, logo_url_2 = kanan): validasi ketat, kompres GD & bersihkan berkas lama.
+     * Hasil ditulis ke $data[$urlField]; galat validasi = flash + redirect.
+     */
+    private function prosesLogoSatker(string $fileField, string $urlField, array &$data): void {
+                // Handle logo URL or File Upload with strict validation, GD auto-compression & orphan cleanup
+                if (!empty($_FILES[$fileField]['name']) && $_FILES[$fileField]['error'] === UPLOAD_ERR_OK) {
+                    if ($_FILES[$fileField]['size'] > 5 * 1024 * 1024) {
+                        $this->setFlash('error', 'Ukuran berkas logo terlalu besar (Maksimal 5 MB).');
+                        $this->redirect('/admin.php?tab=satker');
+                    }
+
+                    $ext = strtolower(pathinfo($_FILES[$fileField]['name'], PATHINFO_EXTENSION));
+                    $allowed = ['png', 'jpg', 'jpeg', 'svg', 'webp'];
+
+                    if (in_array($ext, $allowed, true)) {
+                        $tmpPath = $_FILES[$fileField]['tmp_name'];
+                        $uploadDir = ROOT_DIR . '/uploads';
+                        if (!is_dir($uploadDir)) {
+                            @mkdir($uploadDir, 0755, true);
+                        }
+
+                        $uploadedUrl = null;
+
+                        // A. Validate SVG against Stored XSS
+                        if ($ext === 'svg') {
+                            $svgContent = file_get_contents($tmpPath);
+                            if ($svgContent !== false && preg_match('/<script|javascript:|onload|onerror|onclick|onmouseover|<iframe|<embed|<object|<foreignobject/i', $svgContent)) {
+                                $this->setFlash('error', 'Berkas SVG ditolak: Terdeteksi skrip atau tag tidak aman.');
+                                $this->redirect('/admin.php?tab=satker');
+                            }
+                            $filename = 'satker_logo_' . time() . '_' . bin2hex(random_bytes(4)) . '.svg';
+                            $dest = $uploadDir . '/' . $filename;
+                            if (move_uploaded_file($tmpPath, $dest)) {
+                                $uploadedUrl = BASE_URL . '/uploads/' . $filename;
+                            }
+                        } else {
+                            // B. Validate Raster Images MIME
+                            $finfo = new finfo(FILEINFO_MIME_TYPE);
+                            $mime = $finfo->file($tmpPath);
+                            $validMimes = ['image/png', 'image/jpeg', 'image/webp'];
+                            if (!in_array($mime, $validMimes, true)) {
+                                $this->setFlash('error', 'Format gambar tidak valid atau rusak.');
+                                $this->redirect('/admin.php?tab=satker');
+                            }
+
+                            // C. GD Auto-Resize & WebP Compression
+                            $srcImg = null;
+                            if ($mime === 'image/jpeg') {
+                                $srcImg = @imagecreatefromjpeg($tmpPath);
+                            } elseif ($mime === 'image/png') {
+                                $srcImg = @imagecreatefrompng($tmpPath);
+                            } elseif ($mime === 'image/webp' && function_exists('imagecreatefromwebp')) {
+                                $srcImg = @imagecreatefromwebp($tmpPath);
+                            }
+
+                            $savedOptimized = false;
+                            if ($srcImg) {
+                                $origW = imagesx($srcImg);
+                                $origH = imagesy($srcImg);
+                                $maxDim = 400; // Optimal bounding box for Basarnas letterhead & mobile
+
+                                if ($origW > $maxDim || $origH > $maxDim) {
+                                    if ($origW >= $origH) {
+                                        $targetW = $maxDim;
+                                        $targetH = (int)round(($origH / $origW) * $maxDim);
+                                    } else {
+                                        $targetH = $maxDim;
+                                        $targetW = (int)round(($origW / $origH) * $maxDim);
+                                    }
+                                } else {
+                                    $targetW = $origW;
+                                    $targetH = $origH;
+                                }
+
+                                $dstImg = imagecreatetruecolor($targetW, $targetH);
+                                imagealphablending($dstImg, false);
+                                imagesavealpha($dstImg, true);
+                                $transCol = imagecolorallocatealpha($dstImg, 0, 0, 0, 127);
+                                imagefilledrectangle($dstImg, 0, 0, $targetW, $targetH, $transCol);
+                                imagecopyresampled($dstImg, $srcImg, 0, 0, 0, 0, $targetW, $targetH, $origW, $origH);
+
+                                if (function_exists('imagewebp')) {
+                                    $filename = 'satker_logo_' . time() . '_' . bin2hex(random_bytes(4)) . '.webp';
+                                    $dest = $uploadDir . '/' . $filename;
+                                    $savedOptimized = imagewebp($dstImg, $dest, 90);
+                                } else {
+                                    $filename = 'satker_logo_' . time() . '_' . bin2hex(random_bytes(4)) . '.png';
+                                    $dest = $uploadDir . '/' . $filename;
+                                    $savedOptimized = imagepng($dstImg, $dest, 8);
+                                }
+
+                                unset($dstImg, $srcImg);
+
+                                if ($savedOptimized) {
+                                    $uploadedUrl = BASE_URL . '/uploads/' . $filename;
+                                }
+                            }
+
+                            // Fallback if GD is unavailable or fails
+                            if (!$savedOptimized) {
+                                $filename = 'satker_logo_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+                                $dest = $uploadDir . '/' . $filename;
+                                if (move_uploaded_file($tmpPath, $dest)) {
+                                    $uploadedUrl = BASE_URL . '/uploads/' . $filename;
+                                }
+                            }
+                        }
+
+                        if ($uploadedUrl) {
+                            // D. Clean up previous orphan logo file safely
+                            $currSettings = SettingsModel::getSettings();
+                            $oldLogo = $currSettings[$urlField] ?? '';
+                            if (!empty($oldLogo) && str_contains($oldLogo, '/uploads/satker_logo_')) {
+                                $oldBase = basename($oldLogo);
+                                $oldPath = $uploadDir . '/' . $oldBase;
+
+                                $db = getDB();
+                                $chk = $db->prepare("SELECT COUNT(*) FROM BraSar WHERE logo_url LIKE :oldF");
+                                $chk->execute([':oldF' => "%{$oldBase}%"]);
+                                $inUse = (int)$chk->fetchColumn();
+
+                                if ($inUse === 0 && file_exists($oldPath) && is_file($oldPath)) {
+                                    @unlink($oldPath);
+                                }
+                            }
+
+                            $data[$urlField] = $uploadedUrl;
+                        }
+                    }
+                } elseif (!empty($_POST[$urlField])) {
+                    $data[$urlField] = trim((string)$_POST[$urlField]);
+                }
     }
 }

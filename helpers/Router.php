@@ -39,12 +39,30 @@ class Router {
     ];
 
     /**
+     * Path permintaan yang tidak boleh dipakai mencari berkas: dot segment, backslash, NUL.
+     */
+    public static function isUnsafePath(string $path): bool {
+        return (bool)preg_match('#(^|/)\.{1,2}(/|$)|[\\\\\x00]#', $path);
+    }
+
+    /** Tolak permintaan dengan path tidak aman (400) */
+    public static function rejectUnsafePath(string $path): void {
+        if (self::isUnsafePath($path)) {
+            http_response_code(400);
+            header('Content-Type: text/plain; charset=UTF-8');
+            echo 'Permintaan tidak valid.';
+            exit;
+        }
+    }
+
+    /**
      * Dispatches current HTTP request to appropriate controller
      */
     public static function dispatch(?string $uri = null): bool {
         $rawUri = $uri ?? ($_SERVER['REQUEST_URI'] ?? '/');
         $parsedPath = parse_url($rawUri, PHP_URL_PATH);
         $path = urldecode($parsedPath ?: '/');
+        self::rejectUnsafePath($path);
 
         // Normalize base path relative to configured or detected BASE_URL
         if (defined('BASE_URL')) {
@@ -133,14 +151,16 @@ class Router {
         // 4. Exact physical PHP script matching (e.g. /operasi.php)
         $cleanRelPath = ltrim($path, '/');
         $physicalFile = ROOT_DIR . '/' . $cleanRelPath;
-        if (str_ends_with($cleanRelPath, '.php') && file_exists($physicalFile) && !is_dir($physicalFile)) {
+        // Hanya skrip dispatcher di root proyek (bukan subfolder, bukan router.php itu sendiri)
+        $isRootScript = preg_match('#^[A-Za-z0-9_-]+(\.php)?$#', $cleanRelPath) && !in_array($cleanRelPath, ['router', 'router.php'], true);
+        if ($isRootScript && str_ends_with($cleanRelPath, '.php') && file_exists($physicalFile) && !is_dir($physicalFile)) {
             require_once $physicalFile;
             return true;
         }
 
         // 5. Check if clean path with .php exists (e.g. /operasi -> /operasi.php)
         $phpCandidate = ROOT_DIR . '/' . $cleanRelPath . '.php';
-        if (file_exists($phpCandidate) && !is_dir($phpCandidate)) {
+        if ($isRootScript && file_exists($phpCandidate) && !is_dir($phpCandidate)) {
             require_once $phpCandidate;
             return true;
         }

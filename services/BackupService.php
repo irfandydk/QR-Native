@@ -254,6 +254,8 @@ class BackupService {
 
             $db->exec("SET FOREIGN_KEY_CHECKS = 1");
             $db->commit();
+            // Cadangan sebelum fitur kategori alut: isi ulang master & item laporan (DDL di luar transaksi).
+            AlutKategori::pulihkan($db, AlutKategori::cadanganTanpaKategori($data));
             if (class_exists('AuditHelper')) {
                 AuditHelper::log('DATABASE_RESTORE', "Memulihkan basis data dari berkas cadangan JSON", 'Database', 'SYSTEM');
             }
@@ -496,6 +498,8 @@ class BackupService {
             }
 
             $db->exec("SET FOREIGN_KEY_CHECKS = 1");
+            // Dump sebelum fitur kategori alut menghapus kolomnya; migrations tetap mencatatnya sudah jalan.
+            AlutKategori::pulihkan($db);
             if (class_exists('AuditHelper')) {
                 AuditHelper::log('DATABASE_RESTORE', "Memulihkan basis data dari berkas cadangan SQL Dump", 'Database', 'SYSTEM');
             }

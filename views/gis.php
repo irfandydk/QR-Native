@@ -1418,9 +1418,8 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
               <div class="field">
                 <label for="captureSelectJenisDokumen" class="field-label">2. Sasaran Dokumen Cetak Resmi</label>
                 <select id="captureSelectJenisDokumen" class="field-input w-full font-bold text-emerald-700 dark:text-emerald-400">
-                <option value="LAPORAN_AWAL">Laporan Awal Operasi SAR (1x Capture)</option>
-                <option value="RENOPS">Rencana Operasi / RENOPS (Per Hari Operasi)</option>
-                <option value="PENUTUPAN">Laporan Perkembangan &amp; Penutupan (1x Capture)</option>
+                <option value="RENOPS">RENOPS &mdash; Peta Lokasi LKP (1x per Operasi)</option>
+                <option value="RENOPS_RENCANA">RENOPS &mdash; Peta Rencana Operasi (Per Hari Operasi)</option>
               </select>
               </div>
             </div>

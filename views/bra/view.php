@@ -583,37 +583,37 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
   if (btnCopy) {
     btnCopy.addEventListener('click', function() {
       let txt = "BRA SAR\nBADAN NASIONAL PENCARIAN DAN PERTOLONGAN\n\n";
-      txt += "DARI : <?= addslashes($bra['dari'] ?? '') ?>\n";
-      txt += "AKSI : <?= addslashes($bra['aksi'] ?? '') ?>\n";
-      txt += "INFO : <?= addslashes($bra['info'] ?? '') ?>\n";
-      txt += "TWU  : <?= addslashes($bra['twu'] ?? '') ?>\n";
-      txt += "JUMLAH KATA : <?= addslashes($jumlahKataStr) ?>\n\n";
-      txt += "NO.    : <?= addslashes($bra['no_bra'] ?? '') ?>\n";
+      txt += "DARI : " + <?= jsonSafe((string)($bra['dari'] ?? '')) ?> + "\n";
+      txt += "AKSI : " + <?= jsonSafe((string)($bra['aksi'] ?? '')) ?> + "\n";
+      txt += "INFO : " + <?= jsonSafe((string)($bra['info'] ?? '')) ?> + "\n";
+      txt += "TWU  : " + <?= jsonSafe((string)($bra['twu'] ?? '')) ?> + "\n";
+      txt += "JUMLAH KATA : " + <?= jsonSafe((string)($jumlahKataStr)) ?> + "\n\n";
+      txt += "NO.    : " + <?= jsonSafe((string)($bra['no_bra'] ?? '')) ?> + "\n";
       <?php if (!empty($bra['menbra']) && strtoupper(trim((string)$bra['menbra'])) !== 'SEGERA' && trim((string)$bra['menbra']) !== '-'): ?>
-      txt += "MENBRA : <?= addslashes($bra['menbra']) ?>\n";
+      txt += "MENBRA : " + <?= jsonSafe((string)($bra['menbra'])) ?> + "\n";
       <?php endif; ?>
       <?php if (!empty($bra['perihal'])): ?>
-      txt += "<?= addslashes($bra['perihal']) ?>\n\n";
+      txt += "" + <?= jsonSafe((string)($bra['perihal'])) ?> + "\n\n";
       <?php endif; ?>
       <?php foreach ($sections as $s): 
           $isiRaw = trim((string)($s['isi'] ?? ''));
           $lines = preg_split('/\r?\n/', $isiRaw);
           $first = array_shift($lines);
       ?>
-      txt += "<?= addslashes($s['kode'] ?? '') ?> : <?= addslashes((string)$first) ?>\n";
+      txt += "" + <?= jsonSafe((string)($s['kode'] ?? '')) ?> + " : " + <?= jsonSafe((string)$first) ?> + "\n";
       <?php foreach ($lines as $subLine): 
           $subTrim = trim((string)$subLine);
           if ($subTrim === '') continue;
       ?>
-      txt += "      <?= addslashes($subTrim) ?>\n";
+      txt += "      " + <?= jsonSafe((string)($subTrim)) ?> + "\n";
       <?php endforeach; ?>
       txt += "\n";
       <?php endforeach; ?>
-      txt += "TWB : <?= addslashes($bra['twb'] ?? '') ?>\n";
-      txt += "PENGIRIM : <?= addslashes($bra['pengirim'] ?? '') ?>\n";
-      txt += "NAMA     : <?= addslashes($bra['nama_smc'] ?? '') ?>\n";
-      txt += "PANGKAT  : <?= addslashes($bra['pangkat_smc'] ?? '') ?>\n";
-      txt += "JABATAN  : <?= addslashes($bra['jabatan_smc'] ?? '') ?>\n";
+      txt += "TWB : " + <?= jsonSafe((string)($bra['twb'] ?? '')) ?> + "\n";
+      txt += "PENGIRIM : " + <?= jsonSafe((string)($bra['pengirim'] ?? '')) ?> + "\n";
+      txt += "NAMA     : " + <?= jsonSafe((string)($bra['nama_smc'] ?? '')) ?> + "\n";
+      txt += "PANGKAT  : " + <?= jsonSafe((string)($bra['pangkat_smc'] ?? '')) ?> + "\n";
+      txt += "JABATAN  : " + <?= jsonSafe((string)($bra['jabatan_smc'] ?? '')) ?> + "\n";
       txt += "LINK VERIFIKASI DIGITAL : " + verifyUrl + "\n";
 
       navigator.clipboard.writeText(txt).then(() => {

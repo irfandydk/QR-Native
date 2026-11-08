@@ -96,19 +96,14 @@ echo "\n3. Menguji Fungsionalitas DocumentNumberService:\n";
 assertCondition("Class DocumentNumberService dapat di-autoload", class_exists('DocumentNumberService'));
 
 $mockOps = ['id_operasi' => 12, 'waktu_lapor' => '2026-10-18 08:00:00', 'nama_operasi' => 'KMM Nelayan Hilang'];
-$noLA = DocumentNumberService::generateNomorLaporanAwal($mockOps, 'SAR-304');
-assertCondition("generateNomorLaporanAwal menghasilkan format LA-181026-012/OPS-SAR/SAR-304/1026", str_contains($noLA, 'LA-181026-012/OPS-SAR/SAR-304/1026'));
-
 $mockRenops = ['waktu_briefing' => '2026-10-18 06:00:00', 'hari_ke' => 'H.2'];
 $noRenops = DocumentNumberService::generateNomorRenops($mockOps, $mockRenops, 'SAR-304');
 assertCondition("generateNomorRenops menghasilkan format RENOPS-181026-H2/OPS-SAR/SAR-304/1026", str_contains($noRenops, 'RENOPS-181026-H2/OPS-SAR/SAR-304/1026'));
 
-$mockLaporan = ['waktu_debrief' => '2026-10-18 17:30:00', 'hari_ke' => 'H.2'];
-$noSitrep = DocumentNumberService::generateNomorSitrep($mockOps, $mockLaporan, 'SAR-304');
-assertCondition("generateNomorSitrep menghasilkan format SITREP-181026-H2/OPS-SAR/SAR-304/1026", str_contains($noSitrep, 'SITREP-181026-H2/OPS-SAR/SAR-304/1026'));
-
-$noBA = DocumentNumberService::generateNomorBeritaAcara($mockOps, $mockLaporan, 'SAR-304');
-assertCondition("generateNomorBeritaAcara menghasilkan format BA-TUTUP-181026-012/OPS-SAR/SAR-304/1026", str_contains($noBA, 'BA-TUTUP-181026-012/OPS-SAR/SAR-304/1026'));
+// Dokumen cetak Laporan Awal, LAPBANG & Penutupan dihapus: hanya nomor RENOPS yang tersisa.
+assertCondition("Nomor dokumen lama (LA/SITREP/BA) tidak ada lagi",
+    !method_exists('DocumentNumberService', 'generateNomorLaporanAwal') && !method_exists('DocumentNumberService', 'generateNomorSitrep')
+    && !method_exists('DocumentNumberService', 'generateNomorBeritaAcara'));
 
 // 4. Pengujian WhatsAppTemplateService
 echo "\n4. Menguji Fungsionalitas WhatsAppTemplateService:\n";
@@ -157,8 +152,8 @@ assertCondition("TemplateHelper::hitungHariKe identik dengan SarCalculationServi
     TemplateHelper::hitungHariKe('2026-10-15 08:00:00', '2026-10-18 10:00:00') === SarCalculationService::hitungHariKe('2026-10-15 08:00:00', '2026-10-18 10:00:00')
 );
 
-assertCondition("TemplateHelper::generateNomorLaporanAwal identik dengan DocumentNumberService::generateNomorLaporanAwal",
-    TemplateHelper::generateNomorLaporanAwal($mockOps, 'SAR-304') === DocumentNumberService::generateNomorLaporanAwal($mockOps, 'SAR-304')
+assertCondition("TemplateHelper::generateNomorRenops identik dengan DocumentNumberService::generateNomorRenops",
+    TemplateHelper::generateNomorRenops($mockOps, $mockRenops, 'SAR-304') === DocumentNumberService::generateNomorRenops($mockOps, $mockRenops, 'SAR-304')
 );
 
 assertCondition("TemplateHelper::generateLaporanAwalWA identik dengan WhatsAppTemplateService::generateLaporanAwalWA",

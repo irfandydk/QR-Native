@@ -3,11 +3,7 @@
  * QR-SAR - Operasi SAR Controller & Action Handler
  * KPP Kendari - Basarnas
  *
- * Routes and print actions delegated to OperasiController:
- * - print_renops
- * - print_penutupan
- * - print_sitrep
- * - print_laporan_awal
+ * Routes and print actions delegated to OperasiController (cetak dokumen: print_renops).
  */
 
 declare(strict_types=1);

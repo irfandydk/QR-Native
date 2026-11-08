@@ -27,10 +27,6 @@ class LaporanModel {
             } else {
                 $row['detail_alut'] = [];
             }
-
-            if (class_exists('TemplateHelper')) {
-                $row['nomor_laporan'] = TemplateHelper::generateNomorSitrep(['id_operasi' => $row['id_operasi']], $row);
-            }
         }
 
         return $rows;
@@ -57,14 +53,6 @@ class LaporanModel {
             $row['detail_alut'] = [];
         }
 
-        if (class_exists('TemplateHelper')) {
-            $db = getDB();
-            $stmtOps = $db->prepare("SELECT id_operasi, waktu_berangkat, created_at FROM Operasi WHERE id_operasi = :id LIMIT 1");
-            $stmtOps->execute([':id' => (int)$row['id_operasi']]);
-            $ops = $stmtOps->fetch(PDO::FETCH_ASSOC) ?: ['id_operasi' => $row['id_operasi']];
-            $row['nomor_laporan'] = TemplateHelper::generateNomorSitrep($ops, $row);
-        }
-
         return $row;
     }
 
@@ -74,7 +62,7 @@ class LaporanModel {
     public static function resolveUnsurAlut(array $ops, array $data, ?array $existing = null): array {
         $unsur = !empty($data['detail_unsur']) && is_array($data['detail_unsur']) ? $data['detail_unsur'] : (($existing['detail_unsur'] ?? null) ?: ($ops['detail_unsur'] ?? []));
         $alut = !empty($data['detail_alut']) && is_array($data['detail_alut']) ? $data['detail_alut'] : (($existing['detail_alut'] ?? null) ?: ($ops['detail_alut'] ?? []));
-        return [$unsur, $alut];
+        return [$unsur, AlutKategori::normalizeList($alut)];
     }
 
     /**
@@ -85,7 +73,7 @@ class LaporanModel {
         $statusBaru = is_array($data['update_korban'] ?? null) ? $data['update_korban'] : [];
         foreach ($ops['korban'] ?? [] as $i => $k) {
             if (isset($statusBaru[$k['id_korban']])) {
-                $ops['korban'][$i]['status_korban'] = strtoupper(trim((string)$statusBaru[$k['id_korban']]));
+                $ops['korban'][$i]['status_korban'] = OperasiModel::normalizeStatusKorban($statusBaru[$k['id_korban']]) ?? $k['status_korban'];
             }
         }
         [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $existing);
@@ -108,7 +96,8 @@ class LaporanModel {
             if (!empty($data['update_korban']) && is_array($data['update_korban'])) {
                 $stmtK = $db->prepare("UPDATE Korban SET status_korban = :st WHERE id_korban = :kid AND id_operasi = :oid");
                 foreach ($data['update_korban'] as $kid => $st) {
-                    $stUpper = strtoupper(trim((string)$st));
+                    $stUpper = OperasiModel::normalizeStatusKorban($st);
+                    if ($stUpper === null) continue;
                     $stmtK->execute([
                         ':st' => $stUpper,
                         ':kid' => (int)$kid,
@@ -212,7 +201,8 @@ class LaporanModel {
             if (!empty($data['update_korban']) && is_array($data['update_korban'])) {
                 $stmtK = $db->prepare("UPDATE Korban SET status_korban = :st WHERE id_korban = :kid AND id_operasi = :oid");
                 foreach ($data['update_korban'] as $kid => $st) {
-                    $stUpper = strtoupper(trim((string)$st));
+                    $stUpper = OperasiModel::normalizeStatusKorban($st);
+                    if ($stUpper === null) continue;
                     $stmtK->execute([
                         ':st' => $stUpper,
                         ':kid' => (int)$kid,
@@ -294,12 +284,6 @@ class LaporanModel {
     public static function delete(int $id): bool {
         $db = getDB();
         $stmt = $db->prepare("DELETE FROM LaporanHarian WHERE id_laporan = :id");
-        $ok = $stmt->execute([':id' => $id]);
-        DocVerifyHelper::forgetDocTokens([DocVerifyHelper::TYPE_SITREP, DocVerifyHelper::TYPE_PENUTUPAN], $id);
-        if (class_exists('DokumenPetaSnapshotModel')) {
-            DokumenPetaSnapshotModel::deleteByReferensi('SITREP', $id);
-            DokumenPetaSnapshotModel::deleteByReferensi('PENUTUPAN', $id);
-        }
-        return $ok;
+        return $stmt->execute([':id' => $id]);
     }
 }

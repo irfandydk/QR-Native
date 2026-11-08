@@ -1,98 +1,43 @@
 <?php
 /**
- * QR-SAR - Document Verification & Cryptographic HMAC Token Helper
+ * QR-SAR - Verifikasi QR lama Dokumen RENOPS (token HMAC sebelum format SMEAC bertoken per versi)
  * Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
  *
- * Mengelola pembuatan token keabsahan digital, URL verifikasi publik,
- * dan audit tanda tangan elektronik pada dokumen resmi operasional SAR:
- * - Laporan Awal Operasi SAR
- * - Rencana Operasi SAR (RENOPS)
- * - Laporan Perkembangan Operasi SAR (LAPBANG)
- * - Berita Acara Pengusulan Penutupan Operasi SAR
+ * Dokumen RENOPS format baru diverifikasi lewat RenopsDokumenPublisher/RenopsDokumenModel (token per versi).
+ * Helper ini hanya menjaga QR RENOPS lama tetap dapat dipindai: rumus token tidak boleh diubah.
  */
 
 declare(strict_types=1);
 
 class DocVerifyHelper {
-    public const TYPE_LAPORAN_AWAL = 'laporan_awal';
     public const TYPE_RENOPS = 'renops';
-    public const TYPE_SITREP = 'sitrep';
-    public const TYPE_PENUTUPAN = 'penutupan';
 
-    /**
-     * Daftar tipe dokumen resmi yang didukung
-     */
-    public static function supportedTypes(): array {
-        return [
-            self::TYPE_LAPORAN_AWAL,
-            self::TYPE_RENOPS,
-            self::TYPE_SITREP,
-            self::TYPE_PENUTUPAN
-        ];
+    /** Tipe dokumen yang masih dapat diverifikasi lewat QR lama; selain RENOPS = null (tidak valid). */
+    public static function normalizeType(?string $rawType): ?string {
+        return strtolower(trim((string)$rawType)) === self::TYPE_RENOPS ? self::TYPE_RENOPS : null;
     }
 
-    /**
-     * Normalisasi tipe dokumen
-     */
-    public static function normalizeType(?string $rawType): string {
-        $t = strtolower(trim((string)$rawType));
-        return match ($t) {
-            'lap_awal', 'laporan_awal', 'awal' => self::TYPE_LAPORAN_AWAL,
-            'renops' => self::TYPE_RENOPS,
-            'sitrep', 'lapbang', 'laporan_perkembangan' => self::TYPE_SITREP,
-            'penutupan', 'berita_acara', 'ba_penutupan' => self::TYPE_PENUTUPAN,
-            default => self::TYPE_LAPORAN_AWAL
-        };
+    public static function getDocTitle(?array $docData = null): string {
+        return 'Rencana Operasi SAR (RENOPS) ' . strtoupper(trim((string)($docData['hari_ke'] ?? 'H.1')));
     }
 
-    /**
-     * Menghasilkan Judul Resmi Dokumen berdasarkan tipenya
-     */
-    public static function getDocTitle(string $type, array $operasi, ?array $docData = null): string {
-        $normType = self::normalizeType($type);
-        return match ($normType) {
-            self::TYPE_LAPORAN_AWAL => 'Laporan Awal Operasi SAR',
-            self::TYPE_RENOPS => 'Rencana Operasi SAR (RENOPS) ' . strtoupper(trim((string)($docData['hari_ke'] ?? 'H.1'))),
-            self::TYPE_SITREP => 'Laporan Perkembangan Operasi SAR (LAPBANG) ' . strtoupper(trim((string)($docData['hari_ke'] ?? 'H.1'))),
-            self::TYPE_PENUTUPAN => 'Berita Acara Pengusulan Penutupan Operasi SAR',
-        };
-    }
-
-    /**
-     * Menghasilkan Nomor Dokumen Resmi
-     */
-    public static function getDocNumber(string $type, array $operasi, ?array $docData = null, string $satkerKode = 'SAR-304'): string {
-        $normType = self::normalizeType($type);
+    public static function getDocNumber(array $operasi, ?array $docData = null, string $satkerKode = 'SAR-304'): string {
         try {
-            return match ($normType) {
-                self::TYPE_LAPORAN_AWAL => TemplateHelper::generateNomorLaporanAwal($operasi, $satkerKode),
-                self::TYPE_RENOPS => TemplateHelper::generateNomorRenops($operasi, $docData ?? [], $satkerKode),
-                self::TYPE_SITREP => TemplateHelper::generateNomorSitrep($operasi, $docData ?? [], $satkerKode),
-                self::TYPE_PENUTUPAN => TemplateHelper::generateNomorBeritaAcara($operasi, $docData ?? [], $satkerKode),
-            };
+            return TemplateHelper::generateNomorRenops($operasi, $docData ?? [], $satkerKode);
         } catch (Throwable) {
             $id = (int)($operasi['id_operasi'] ?? 0);
             return "OPS-{$id}/{$satkerKode}/" . date('Y');
         }
     }
 
-    /**
-     * Menghasilkan Waktu Utama Pengesahan Dokumen
-     */
-    public static function getDocTimestamp(string $type, array $operasi, ?array $docData = null): string {
-        $normType = self::normalizeType($type);
-        return match ($normType) {
-            self::TYPE_LAPORAN_AWAL => (string)($operasi['waktu_lapor'] ?? ($operasi['created_at'] ?? date('Y-m-d H:i:s'))),
-            self::TYPE_RENOPS => (string)($docData['waktu_briefing'] ?? ($docData['tanggal_laporan'] ?? date('Y-m-d H:i:s'))),
-            self::TYPE_SITREP => (string)($docData['waktu_debrief'] ?? ($docData['waktu_laporan'] ?? date('Y-m-d H:i:s'))),
-            self::TYPE_PENUTUPAN => (string)($docData['waktu_debrief'] ?? ($operasi['waktu_selesai'] ?? date('Y-m-d H:i:s'))),
-        };
+    public static function getDocTimestamp(?array $docData = null): string {
+        return (string)($docData['waktu_briefing'] ?? ($docData['tanggal_laporan'] ?? date('Y-m-d H:i:s')));
     }
 
     /**
      * Ekstraksi Nama SMC Resmi
      */
-    public static function getSmcName(?array $defaultSmc = null, ?array $docData = null, ?array $operasi = null): string {
+    public static function getSmcName(?array $defaultSmc = null, ?array $docData = null): string {
         if (!empty($docData['nama_smc'])) {
             return mb_strtoupper(trim((string)$docData['nama_smc']), 'UTF-8');
         }
@@ -113,27 +58,17 @@ class DocVerifyHelper {
     }
 
     /**
-     * Menghasilkan Token Kriptografis HMAC-SHA256 untuk Dokumen Operasi SAR
-     * (16 Karakter Hex Uppercase)
+     * Token HMAC-SHA256 QR RENOPS lama (16 karakter hex uppercase).
      */
-    public static function generateToken(string $type, array $operasi, ?array $docData = null, ?string $smcName = null): string {
-        $normType = self::normalizeType($type);
+    public static function generateToken(array $operasi, ?array $docData = null, ?string $smcName = null): string {
         $idOps = (int)($operasi['id_operasi'] ?? 0);
-        $refId = 0;
-
-        if ($normType === self::TYPE_RENOPS) {
-            $refId = (int)($docData['id_renops'] ?? 0);
-        } elseif ($normType === self::TYPE_SITREP || $normType === self::TYPE_PENUTUPAN) {
-            $refId = (int)($docData['id_laporan'] ?? 0);
-        }
-
-        $waktu = self::getDocTimestamp($normType, $operasi, $docData);
-        $cleanWaktu = date('Y-m-d', strtotime($waktu) ?: time());
+        $refId = (int)($docData['id_renops'] ?? 0);
+        $cleanWaktu = date('Y-m-d', strtotime(self::getDocTimestamp($docData)) ?: time());
         $namaOps = mb_strtoupper(trim((string)($operasi['nama_operasi'] ?? '')), 'UTF-8');
-        $smc = mb_strtoupper(trim((string)($smcName ?: self::getSmcName(null, $docData, $operasi))), 'UTF-8');
+        $smc = mb_strtoupper(trim((string)($smcName ?: self::getSmcName(null, $docData))), 'UTF-8');
 
         $salt = defined('APP_KEY') ? APP_KEY : 'BASARNAS_KENDARI_SECURE_HMAC_KEY_V2';
-        $payload = "BASARNAS_OPS_DOC:{$normType}:{$idOps}:{$refId}:{$cleanWaktu}:{$smc}:{$namaOps}";
+        $payload = 'BASARNAS_OPS_DOC:' . self::TYPE_RENOPS . ":{$idOps}:{$refId}:{$cleanWaktu}:{$smc}:{$namaOps}";
 
         return strtoupper(substr(hash_hmac('sha256', $payload, $salt), 0, 16));
     }
@@ -141,40 +76,38 @@ class DocVerifyHelper {
     /**
      * Token fallback yang lebih fleksibel (tanpa tanggal spesifik jika format tanggal berubah)
      */
-    public static function generateLegacyToken(string $type, array $operasi, ?array $docData = null): string {
-        $normType = self::normalizeType($type);
+    public static function generateLegacyToken(array $operasi, ?array $docData = null): string {
         $idOps = (int)($operasi['id_operasi'] ?? 0);
-        $refId = (int)($docData['id_renops'] ?? ($docData['id_laporan'] ?? 0));
+        $refId = (int)($docData['id_renops'] ?? 0);
         $salt = defined('APP_KEY') ? APP_KEY : 'BASARNAS_KENDARI_SECURE_HMAC_KEY_V2';
-        $payload = "BASARNAS_OPS_DOC:{$normType}:{$idOps}:{$refId}";
+        $payload = 'BASARNAS_OPS_DOC:' . self::TYPE_RENOPS . ":{$idOps}:{$refId}";
         return strtoupper(substr(hash_hmac('sha256', $payload, $salt), 0, 16));
     }
 
     /**
-     * Memvalidasi Token Tanda Tangan Dokumen Operasi SAR
+     * Memvalidasi token QR RENOPS lama.
      */
-    public static function verifyToken(string $type, array $operasi, ?array $docData, ?string $token): bool {
+    public static function verifyToken(array $operasi, ?array $docData, ?string $token): bool {
         if ($token === null || trim($token) === '') {
             return false;
         }
         $cleanToken = strtoupper(trim($token));
 
         // 1. Token yang tersimpan saat dokumen pertama kali dicetak (tidak berubah walau SMC / nama operasi diganti)
-        $stored = self::getStoredToken($type, $operasi, $docData);
+        $stored = self::getStoredToken($operasi, $docData);
         if ($stored !== null && hash_equals($stored, $cleanToken)) {
             return true;
         }
 
         // 2. Token dihitung dari data terkini (SMC default saat ini)
-        $expected = self::generateToken($type, $operasi, $docData);
-        if (hash_equals($expected, $cleanToken)) {
+        if (hash_equals(self::generateToken($operasi, $docData), $cleanToken)) {
             return true;
         }
 
         // 3. Dokumen cetakan lama: token dibuat dengan SMC default saat itu, coba semua pejabat terdaftar
         try {
             foreach (PejabatModel::getAll() as $pejabat) {
-                if (!empty($pejabat['nama']) && hash_equals(self::generateToken($type, $operasi, $docData, (string)$pejabat['nama']), $cleanToken)) {
+                if (!empty($pejabat['nama']) && hash_equals(self::generateToken($operasi, $docData, (string)$pejabat['nama']), $cleanToken)) {
                     return true;
                 }
             }
@@ -183,57 +116,23 @@ class DocVerifyHelper {
         }
 
         // 4. Fallback token legacy
-        $expectedLegacy = self::generateLegacyToken($type, $operasi, $docData);
-        return hash_equals($expectedLegacy, $cleanToken);
+        return hash_equals(self::generateLegacyToken($operasi, $docData), $cleanToken);
     }
 
     /**
-     * ID baris dokumen: id_operasi (Laporan Awal), id_renops (RENOPS), id_laporan (SITREP / Penutupan).
+     * Token tersimpan untuk RENOPS ini, atau null bila belum pernah dicetak / tabel belum dimigrasi.
      */
-    private static function getRefId(string $normType, array $operasi, ?array $docData): int {
-        return match ($normType) {
-            self::TYPE_RENOPS => (int)($docData['id_renops'] ?? 0),
-            self::TYPE_SITREP, self::TYPE_PENUTUPAN => (int)($docData['id_laporan'] ?? 0),
-            default => (int)($operasi['id_operasi'] ?? 0),
-        };
-    }
-
-    /**
-     * Token tersimpan untuk dokumen ini, atau null bila belum pernah dicetak / tabel belum dimigrasi.
-     */
-    public static function getStoredToken(string $type, array $operasi, ?array $docData = null): ?string {
-        $normType = self::normalizeType($type);
-        $refId = self::getRefId($normType, $operasi, $docData);
+    public static function getStoredToken(array $operasi, ?array $docData = null): ?string {
+        $refId = (int)($docData['id_renops'] ?? 0);
         if ($refId <= 0) return null;
         try {
             $stmt = getDB()->prepare("SELECT token FROM DokumenToken WHERE doc_type = :t AND ref_id = :r AND id_operasi = :o LIMIT 1");
-            $stmt->execute([':t' => $normType, ':r' => $refId, ':o' => (int)($operasi['id_operasi'] ?? 0)]);
+            $stmt->execute([':t' => self::TYPE_RENOPS, ':r' => $refId, ':o' => (int)($operasi['id_operasi'] ?? 0)]);
             $token = $stmt->fetchColumn();
             return $token !== false ? (string)$token : null;
         } catch (Throwable) {
             return null;
         }
-    }
-
-    /**
-     * Token untuk QR dokumen: pakai token tersimpan, atau terbitkan & simpan token baru saat cetak pertama.
-     */
-    public static function issueToken(string $type, array $operasi, ?array $docData = null): string {
-        $stored = self::getStoredToken($type, $operasi, $docData);
-        if ($stored !== null) return $stored;
-
-        $normType = self::normalizeType($type);
-        $token = self::generateToken($normType, $operasi, $docData);
-        $refId = self::getRefId($normType, $operasi, $docData);
-        if ($refId <= 0) return $token;
-        try {
-            getDB()->prepare("INSERT IGNORE INTO DokumenToken (doc_type, ref_id, id_operasi, token, issued_at) VALUES (:t, :r, :o, :k, :at)")
-                ->execute([':t' => $normType, ':r' => $refId, ':o' => (int)($operasi['id_operasi'] ?? 0), ':k' => $token, ':at' => date('Y-m-d H:i:s')]);
-        } catch (Throwable) {
-            return $token; // Tabel belum dimigrasi: tetap pakai token terhitung
-        }
-        // Bila dua cetak bersamaan, pakai token yang menang INSERT
-        return self::getStoredToken($normType, $operasi, $docData) ?? $token;
     }
 
     /**
@@ -243,9 +142,8 @@ class DocVerifyHelper {
         self::deleteTokens("DELETE FROM DokumenToken WHERE id_operasi = ?", [$idOperasi]);
     }
 
-    public static function forgetDocTokens(array $docTypes, int $refId): void {
-        $in = implode(',', array_fill(0, count($docTypes), '?'));
-        self::deleteTokens("DELETE FROM DokumenToken WHERE doc_type IN ({$in}) AND ref_id = ?", [...$docTypes, $refId]);
+    public static function forgetRenopsTokens(int $idRenops): void {
+        self::deleteTokens("DELETE FROM DokumenToken WHERE doc_type = ? AND ref_id = ?", [self::TYPE_RENOPS, $idRenops]);
     }
 
     private static function deleteTokens(string $sql, array $params): void {
@@ -257,40 +155,9 @@ class DocVerifyHelper {
     }
 
     /**
-     * Menghasilkan URL Verifikasi Publik Resmi
+     * URL cetak internal RENOPS dari halaman verifikasi.
      */
-    public static function generateVerifyUrl(string $type, array $operasi, ?array $docData = null): string {
-        $normType = self::normalizeType($type);
-        $idOps = (int)($operasi['id_operasi'] ?? 0);
-        $token = self::issueToken($normType, $operasi, $docData);
-
-        $params = [
-            'action' => 'verify',
-            'type' => $normType,
-            'id' => $idOps
-        ];
-
-        if ($normType === self::TYPE_RENOPS && !empty($docData['id_renops'])) {
-            $params['ref'] = (int)$docData['id_renops'];
-        } elseif (($normType === self::TYPE_SITREP || $normType === self::TYPE_PENUTUPAN) && !empty($docData['id_laporan'])) {
-            $params['ref'] = (int)$docData['id_laporan'];
-        }
-
-        $params['token'] = $token;
-
-        return BASE_URL . '/operasi.php?' . http_build_query($params);
-    }
-
-    /**
-     * URL tautan cetak langsung dari dokumen
-     */
-    public static function getPrintUrl(string $type, int $idOps, int $refId = 0): string {
-        $normType = self::normalizeType($type);
-        return match ($normType) {
-            self::TYPE_LAPORAN_AWAL => BASE_URL . "/operasi.php?action=print_laporan_awal&id={$idOps}",
-            self::TYPE_RENOPS => BASE_URL . "/operasi.php?action=print_renops&id={$idOps}" . ($refId > 0 ? "&id_renops={$refId}" : ""),
-            self::TYPE_SITREP => BASE_URL . "/operasi.php?action=print_sitrep&id={$idOps}" . ($refId > 0 ? "&id_laporan={$refId}" : ""),
-            self::TYPE_PENUTUPAN => BASE_URL . "/operasi.php?action=print_penutupan&id={$idOps}" . ($refId > 0 ? "&id_laporan={$refId}" : ""),
-        };
+    public static function getPrintUrl(int $idOps, int $refId = 0): string {
+        return BASE_URL . "/operasi.php?action=print_renops&id={$idOps}" . ($refId > 0 ? "&id_renops={$refId}" : '');
     }
 }

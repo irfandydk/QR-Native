@@ -47,7 +47,7 @@ echo "--- 1. Audit Otorisasi RBAC & Metode Akses Penghapusan ---\n";
 
 // Skenario A: Operator Biasa (Role USER)
 $userOperator = [
-    'id' => 'USR-TEST-OP',
+    'id' => 'USR-USER',
     'username' => 'operator_sar',
     'role' => 'USER'
 ];
@@ -58,7 +58,7 @@ report("Operator biasa (USER) DITOLAK menghapus Master Data", AuthHelper::canDel
 
 // Skenario B: Administrator (Role ADMIN)
 $userAdmin = [
-    'id' => 'USR-TEST-ADM',
+    'id' => 'USR-ADMIN',
     'username' => 'admin_sar',
     'role' => 'ADMIN'
 ];

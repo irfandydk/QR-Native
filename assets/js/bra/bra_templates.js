@@ -96,8 +96,16 @@
       upper(r.nama_unsur) + (r.jumlah_personil ? ` : ${r.jumlah_personil} ORANG` : ''));
   }
 
+  // Urutan kategori alut (sama dengan AlutKategori::URUTAN di PHP); tanpa kategori di akhir.
+  const KATEGORI_URUT = ['ALUT_DARAT', 'ALUT_LAUT', 'ALUT_UDARA', 'PALSAR'];
+  const urutKategori = (r) => {
+    const i = KATEGORI_URUT.indexOf(upper(r.kategori));
+    return i === -1 ? KATEGORI_URUT.length : i;
+  };
+
   function alutItems(rows) {
-    return (rows || []).filter((r) => r && upper(r.nama_alut)).map((r) =>
+    return (rows || []).filter((r) => r && upper(r.nama_alut))
+      .map((r, i) => [r, i]).sort((a, b) => urutKategori(a[0]) - urutKategori(b[0]) || a[1] - b[1]).map(([r]) => r).map((r) =>
       upper(r.nama_alut) + (r.jumlah_alut ? ` : ${r.jumlah_alut} ${upper(r.satuan)}`.trimEnd() : ''));
   }
 
@@ -109,6 +117,13 @@
 
   function isTransportAlut(nama) {
     return TRANSPORT_RE.test(upper(nama));
+  }
+
+  /** Kendaraan untuk kalimat "MENGGUNAKAN": kategori ALUT_* kecuali drone; data lama tanpa kategori pakai tebakan nama. */
+  function isKendaraanAlut(row) {
+    const kat = upper(row && row.kategori);
+    if (!kat) return isTransportAlut(row && row.nama_alut);
+    return kat.startsWith('ALUT_') && !/\bDRONE\b/.test(upper(row.nama_alut));
   }
 
   /** Urai teks koordinat_area SRU (hasil Impor GIS form RENOPS) menjadi koordinat batas + entry/exit. */
@@ -177,7 +192,7 @@
   }
 
   function buildLaporanAwal(op) {
-    const angkut = (op.detail_alut || []).filter((a) => isTransportAlut(a.nama_alut))
+    const angkut = (op.detail_alut || []).filter(isKendaraanAlut)
       .map((a) => `${a.jumlah_alut || 1} ${upper(a.satuan)} ${upper(a.nama_alut)}`.replace(/\s+/g, ' ')).join(' DAN ');
     const jarak = upper(op.jarak), radial = upper(op.radial), eta = upper(op.eta_lokasi);
     const bbb = `TERSEBUT AAA DIATAS, ${timOf(op)} DIBERANGKATKAN MENUJU LKP`
@@ -257,7 +272,8 @@
     return draft(`PERMINTAAN PEMAPELAN DAN PEMANTAUAN TERHADAP ${kejadianOf(op)}.`, 'KA KSOP KENDARI KMA KA SROP KENDARI', KABASARNAS, 'LANJUTAN', [
       toSentence(`${terimaInfoText(op)} TERHADAP KEJADIAN TERSEBUT ${timOf(op)} TELAH DIBERANGKATKAN MENUJU LKP UNTUK MELAKSANAKAN PENCARIAN.`, { k: op.koordinat }),
       'TERKAIT INFO MUSIBAH TSB MHN BANTUAN PEMANTAUAN DAN PEMAPELAN KEPADA KAPALS YANG MELINTASI DI AREA TERSEBUT KMA APABILA MENEMUKAN TANDAS KEBERADAAN KAPAL TERSEBUT AGAR DAPAT MEMBERIKAN PERTOLONGAN PERTAMA SERTA MELAPORKAN KPD BASARNAS KENDARI TTK',
-      'ATAS PERHATIAN DAN KERJASAMANYA DIUCAPKAN TERIMA KASIH KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS'
+      // Tanpa operasi tertaut (preset) pengirim memakai jabatan asli, bukan SMC
+      `ATAS PERHATIAN DAN KERJASAMANYA DIUCAPKAN TERIMA KASIH KMA KA KPP KENDARI${op.id_operasi ? ' SELAKU SMC' : ''} KRM TTK HBS`
     ]);
   }
 
@@ -306,7 +322,7 @@
 
   const BraTemplates = {
     toSentence, formatSectionText, militaryTime, hariNumber, numberedList, letteredList,
-    unsurItems, alutItems, cuacaItems, isTransportAlut, parseSruArea,
+    unsurItems, alutItems, cuacaItems, isTransportAlut, isKendaraanAlut, parseSruArea,
     buildLaporanAwal, buildRenops, buildLapbang, buildPenutupan, buildMapel, referenceOptions, senderTitle, inheritHeader,
     KABASARNAS
   };

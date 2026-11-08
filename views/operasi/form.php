@@ -266,6 +266,23 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
           </div>
         </div>
 
+        <!-- Jenis Kejadian (dipakai kop & Tabel 1 dokumen RENOPS) -->
+        <div>
+          <div class="field">
+            <label class="field-label">Jenis Kejadian / Musibah</label>
+            <input class="field-input w-full" type="text" name="jenis_kejadian" id="jenis_kejadian" list="jenis_kejadian_opsi" maxlength="191"
+            placeholder="Pilih atau ketik, contoh: Kondisi Membahayakan Manusia"
+            value="<?= e($operasi['jenis_kejadian'] ?? '') ?>"  />
+            <datalist id="jenis_kejadian_opsi">
+              <option value="Kecelakaan Kapal"></option>
+              <option value="Kecelakaan Pesawat Udara"></option>
+              <option value="Kondisi Membahayakan Manusia"></option>
+              <option value="Bencana"></option>
+              <option value="Kecelakaan dengan Penanganan Khusus"></option>
+            </datalist>
+          </div>
+        </div>
+
         <!-- Data Pelapor Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
           <div>
@@ -958,8 +975,8 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
               <select id="select-master-alut" onchange="pickMasterAlut(this.value)" class="field-input flex-1">
               <option value="">-- Cari / Pilih dari Master Data Alut Basarnas --</option>
               <?php foreach ($masterAlut as $ma): ?>
-                <option value="<?= htmlspecialchars(json_encode(['id_alut' => $ma['id_alut'], 'nama_alut' => $ma['nama_alut'], 'satuan' => $ma['satuan'] ?? 'Unit', 'kategori' => $ma['kategori'] ?? 'ALUT']), ENT_QUOTES, 'UTF-8') ?>">
-                  [<?= htmlspecialchars($ma['kategori'] ?? 'ALUT') ?>] <?= htmlspecialchars($ma['nama_alut']) ?> (<?= htmlspecialchars($ma['satuan'] ?? 'Unit') ?>)
+                <option value="<?= htmlspecialchars(json_encode(['id_alut' => $ma['id_alut'], 'nama_alut' => $ma['nama_alut'], 'satuan' => $ma['satuan'] ?? 'Unit', 'kategori' => AlutKategori::resolve($ma)]), ENT_QUOTES, 'UTF-8') ?>">
+                  [<?= htmlspecialchars(AlutKategori::label(AlutKategori::resolve($ma))) ?>] <?= htmlspecialchars($ma['nama_alut']) ?> (<?= htmlspecialchars($ma['satuan'] ?? 'Unit') ?>)
                 </option>
               <?php endforeach; ?>
             </select>
@@ -970,8 +987,15 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <!-- Input Bar (Nama, Jumlah, Satuan, Tambah) -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40">
           <input type="hidden" id="alut-input-id" value="">
-          <div class="sm:col-span-7">
+          <div class="sm:col-span-4">
             <input type="text" id="alut-input-nama" placeholder="Ketik nama alut / palsar (contoh: Mobil Rescue, RIB 01)..." class="control control-sm w-full">
+          </div>
+          <div class="sm:col-span-3">
+            <select id="alut-input-kategori" class="control control-sm w-full" title="Kategori Alut / Palsar">
+              <?php foreach (AlutKategori::LABEL as $kodeKat => $labelKat): ?>
+                <option value="<?= e($kodeKat) ?>"<?= $kodeKat === AlutKategori::PALSAR ? ' selected' : '' ?>><?= e($labelKat) ?></option>
+              <?php endforeach; ?>
+            </select>
           </div>
           <div class="sm:col-span-2">
             <input type="number" id="alut-input-jml" min="1" max="999" value="1" placeholder="Qty" class="control control-sm w-full text-center font-bold font-mono">
@@ -1128,7 +1152,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 
 <!-- Modal 3: AI Kronologi Assistant Modal -->
 <div id="modal-ai-kronologi" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md hidden" style="display: none;">
-  <div class="bento-card-v1 w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+  <div class="bento-card-v1 w-full max-w-6xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
     <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/20 flex items-center justify-center font-mono font-bold text-xs">
@@ -1144,26 +1168,25 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       </button>
     </div>
 
-    <div class="p-6 space-y-4 overflow-y-auto">
+    <div class="p-6 overflow-y-auto grid md:grid-cols-2 gap-5">
       <div>
         <div class="field">
           <label class="field-label">Laporan / Catatan Mentah dari Pelapor:</label>
-          <textarea id="ai-draft-input" rows="4" placeholder="Tuliskan cerita/laporan mentah kejadian di sini (contoh: kemarin sore sekitar jam 5 terjadi kapal mati mesin di selat buton, korban 2 orang...)" class="field-input w-full"></textarea>
+          <textarea id="ai-draft-input" rows="14" style="min-height: 20rem;" placeholder="Tuliskan cerita/laporan mentah kejadian di sini (contoh: kemarin sore sekitar jam 5 terjadi kapal mati mesin di selat buton, korban 2 orang...)" class="field-input w-full"></textarea>
         </div>
         <p class="text-[11px] text-purple-600 dark:text-purple-400 mt-1">Asisten AI berfokus penuh menyusun ulang kalimat laporan mentah di atas tanpa mengubah waktu atau alur kejadian yang Anda tulis.</p>
 
-      </div>
-
-      <div class="flex justify-end">
+        <div class="flex justify-end mt-3">
         <button type="button" id="btn-generate-ai" onclick="generateAiKronologi()" class="btn-tactile inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm transition cursor-pointer">
           Susun Narasi Resmi
         </button>
+        </div>
       </div>
 
       <div>
         <div class="field">
           <label class="field-label">Hasil Narasi Kronologi Resmi Basarnas:</label>
-          <textarea id="ai-result-output" rows="4" placeholder="Hasil olahan narasi AI akan muncul di sini..." class="field-input w-full leading-relaxed font-mono"></textarea>
+          <textarea id="ai-result-output" rows="14" style="min-height: 20rem;" placeholder="Hasil olahan narasi AI akan muncul di sini..." class="field-input w-full leading-relaxed font-mono"></textarea>
         </div>
       </div>
     </div>
@@ -1180,22 +1203,22 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
 </div>
 
 <!-- Modal 4: Fullscreen Tactical Map Routing Modal -->
-<div id="modal-fullscreen-map" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md hidden" style="display: none;">
-  <div class="bento-card-v1 w-full max-w-7xl h-[92vh] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+<div id="modal-fullscreen-map" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-0 bg-slate-950/80 backdrop-blur-md hidden" style="display: none;">
+  <div class="bg-white dark:bg-slate-900 overflow-hidden flex flex-col" style="width: 100vw; height: 100vh; height: 100dvh;">
     <!-- Modal Header -->
-    <div class="px-6 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/80 shrink-0">
-      <div class="flex items-center gap-3">
+    <div class="px-4 py-2 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50/80 dark:bg-slate-950/80 shrink-0">
+      <div class="flex items-center gap-3 min-w-0">
         <div class="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 flex items-center justify-center text-xs font-mono font-bold">
           GIS
         </div>
         <div>
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <span>Peta Taktis LKP & Plotting Jalur Tempuh SAR (Fullscreen)</span>
+          <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 min-w-0">
+            <span class="truncate">Peta Taktis LKP &amp; Jalur Tempuh SAR</span>
             <span id="map-modal-route-mode-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono">
               GARIS LURUS
             </span>
           </h3>
-          <p class="text-[11px] text-slate-500 dark:text-slate-400">Tentukan titik LKP dengan presisi dan buat rute navigasi laut melewati selat/pulau</p>
+          <p class="hidden md:block text-[11px] text-slate-500 dark:text-slate-400 truncate">Tentukan titik LKP dengan presisi dan buat rute navigasi laut melewati selat/pulau</p>
         </div>
       </div>
 
@@ -1218,7 +1241,8 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
       <div id="lkp_modal_map" style="width: 100%; height: 100%; z-index: 1;"></div>
 
       <!-- Floating Toolbar inside Modal -->
-      <div class="absolute top-4 left-4 z-[1000] flex flex-col gap-2 max-w-md pointer-events-auto">
+      <!-- Digeser ke kanan kontrol zoom Leaflet (kiri atas) agar tidak saling menutupi -->
+      <div class="absolute top-4 z-[1000] flex flex-col gap-2 max-w-md pointer-events-auto" style="left: 3.5rem;">
         <div class="p-3 rounded-2xl bg-slate-900/90 backdrop-blur-md border border-white/20 shadow-xl space-y-2 text-white">
           <div class="flex items-center justify-between gap-2">
             <span class="text-xs font-bold uppercase tracking-wider text-orange-400 font-mono">Mode Rute:</span>
@@ -1267,7 +1291,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
     </div>
 
     <!-- Modal Footer -->
-    <div class="px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/80 shrink-0">
+    <div class="px-4 py-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-950/80 shrink-0">
       <button type="button" onclick="closeFullscreenMapModal()" class="btn-tactile px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
         Tutup
       </button>
@@ -1279,6 +1303,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
   </div>
 </div>
 
+<script>window.ALUT_KATEGORI = <?= jsonSafe(AlutKategori::configJs()) ?>;</script>
 <script>
 window.__OPS_FORM_CONFIG__ = <?= jsonSafe([
     'initialUnsurData' => $initialUnsurData,
@@ -1292,4 +1317,5 @@ window.__OPS_FORM_CONFIG__ = <?= jsonSafe([
 ]) ?>;
 </script>
 <script src="<?= assetUrl('assets/js/pages/operasi_form_map.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/alut_kategori.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/pages/operasi_form.js') ?>"></script>

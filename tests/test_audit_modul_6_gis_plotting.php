@@ -371,7 +371,7 @@ function simulateGisApi(string $path, string $method = 'GET', array $params = []
     $script = sprintf(
         'require "%s/config/app.php";
         if (%s) {
-            $_SESSION["user_id"] = 1;
+            $_SESSION["user_id"] = "USR-ADMIN";
             $_SESSION["role"] = "admin";
             $_SESSION["username"] = "admin_sar";
             $_SESSION["nama_lengkap"] = "Administrator SAR";

@@ -283,7 +283,7 @@ function showToast(message, type = 'info') {
         });
         Toast.fire({
             icon: iconType,
-            title: message
+            titleText: message
         });
         return;
     }
@@ -372,6 +372,9 @@ function openModal(id) {
 
     // Track active element to restore focus on close
     m.__prevActiveElement = document.activeElement;
+
+    // Modal yang tersimpan di dalam tab tersembunyi (mis. Naskah WA Lapbang dibuka dari tab Hierarki) tidak akan tampil; pindahkan ke body
+    if (m.parentElement !== document.body) document.body.appendChild(m);
 
     m.classList.remove('hidden');
     m.classList.add('open');

@@ -66,7 +66,7 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - Verifikasi Resmi Basarnas" : "V
                     toast: true,
                     position: 'top-end',
                     icon: type,
-                    title: message,
+                    titleText: message,
                     showConfirmButton: false,
                     timer: 3000,
                     timerProgressBar: true

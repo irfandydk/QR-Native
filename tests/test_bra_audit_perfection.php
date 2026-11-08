@@ -260,7 +260,8 @@ echo "\n--- 8. ISSUE-BRA-06 & 09: Template & Cleanup Verification ---\n";
 $indoDate = TemplateHelper::formatTanggalIndo(date('Y-m-d'));
 assertTest(
     "TemplateHelper::formatTanggalIndo menghasilkan tanggal Indonesia ('{$indoDate}')",
-    !empty($indoDate) && !preg_match('/(January|February|March|April|May|June|July|August|September|October|November|December)/', $indoDate)
+    // April, September dan November sama dalam bahasa Indonesia; cek hanya nama bulan khas bahasa Inggris
+    !empty($indoDate) && !preg_match('/(January|February|March|May|June|July|August|October|December)/', $indoDate)
 );
 
 // Hapus data uji

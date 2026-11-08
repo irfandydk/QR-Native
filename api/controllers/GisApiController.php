@@ -698,7 +698,7 @@ class GisApiController extends BaseApiController {
             $idReferensi = isset($_GET['id_referensi']) && $_GET['id_referensi'] !== '' ? (int)$_GET['id_referensi'] : null;
 
             if ($idOperasi <= 0) {
-                self::json(['success' => true, 'data' => [], 'renops_list' => [], 'sitrep_list' => []]);
+                self::json(['success' => true, 'data' => [], 'renops_list' => []]);
                 return true;
             }
 
@@ -709,11 +709,6 @@ class GisApiController extends BaseApiController {
             }
 
             $all = DokumenPetaSnapshotModel::getAllByOperasi($idOperasi);
-            // Strip heavy base64 data URI from bulk list for fast network transfer
-            foreach ($all as &$item) {
-                unset($item['image_data_uri']);
-            }
-            unset($item);
 
             $renopsList = [];
             foreach (RenopsModel::getByOperasiId($idOperasi) as $r) {
@@ -724,26 +719,14 @@ class GisApiController extends BaseApiController {
                 ];
             }
 
-            $sitrepList = [];
-            foreach (LaporanModel::getByOperasiId($idOperasi) as $l) {
-                $sitrepList[] = [
-                    'id_laporan' => (int)$l['id_laporan'],
-                    'hari_ke' => $l['hari_ke'] ?? 'H.1',
-                    'jenis_laporan' => $l['jenis_laporan'] ?? 'Harian',
-                    'waktu_laporan' => $l['waktu_laporan'] ?? ''
-                ];
-            }
-
             self::json([
                 'success' => true,
                 'data' => [
                     'snapshots' => $all,
-                    'renops_list' => $renopsList,
-                    'sitrep_list' => $sitrepList
+                    'renops_list' => $renopsList
                 ],
                 'snapshots' => $all,
-                'renops_list' => $renopsList,
-                'sitrep_list' => $sitrepList
+                'renops_list' => $renopsList
             ]);
             return true;
         }
@@ -759,7 +742,6 @@ class GisApiController extends BaseApiController {
             }
             try {
                 $saved = DokumenPetaSnapshotModel::saveSnapshot($input);
-                unset($saved['image_data_uri']);
                 self::json([
                     'success' => true,
                     'message' => 'Cuplikan peta 16:9 beserta keterangan komponen berhasil disimpan untuk dokumen cetak.',

@@ -2618,7 +2618,7 @@
         const iconDisplay = normIcon
           ? `<img src="${escapeHtml(normIcon)}" class="w-full h-full object-contain rounded-lg p-0.5">`
           : pt.pointType === 'alphabet'
-            ? `<span class="font-black text-sm">${pt.alphabetChar || 'A'}</span>`
+            ? `<span class="font-black text-sm">${escapeHtml(pt.alphabetChar || 'A')}</span>`
             : `<span class="text-base">${preset.emoji}</span>`;
 
         const safeId = escapeHtml(pt.id);
@@ -6679,7 +6679,6 @@
   };
   let cachedOperasiSnapshots = [];
   let cachedOperasiRenopsList = [];
-  let cachedOperasiSitrepList = [];
 
   function initDocumentCaptureUI() {
     const btnToggle = document.getElementById('btnToggleCaptureMode');
@@ -6696,6 +6695,8 @@
     const inputKet = document.getElementById('captureInputKeterangan');
 
     if (!btnToggle || !overlay || !frameBox || !panel) return;
+    // Dokumen RENOPS: Peta Lokasi LKP (RENOPS) 1x per operasi; Peta Rencana Operasi (RENOPS_RENCANA) per hari (id_referensi = id_renops).
+    const isPerHari = (j) => j === 'RENOPS_RENCANA';
 
     function computeCaptureFrameGeometry() {
       const wrapper = document.getElementById('gisMapWrapper');
@@ -7047,7 +7048,6 @@
       if (!idOp || idOp <= 0) {
         cachedOperasiSnapshots = [];
         cachedOperasiRenopsList = [];
-        cachedOperasiSitrepList = [];
         updateCaptureRefDropdown();
         updateSavedStatusBanner();
         return;
@@ -7058,10 +7058,8 @@
         if (json && json.success) {
           const rawSnaps = Array.isArray(json.data?.snapshots) ? json.data.snapshots : (Array.isArray(json.snapshots) ? json.snapshots : (Array.isArray(json.data) ? json.data : []));
           const rawRenops = Array.isArray(json.renops_list) ? json.renops_list : (Array.isArray(json.data?.renops_list) ? json.data.renops_list : []);
-          const rawSitrep = Array.isArray(json.sitrep_list) ? json.sitrep_list : (Array.isArray(json.data?.sitrep_list) ? json.data.sitrep_list : []);
           cachedOperasiSnapshots = rawSnaps;
           cachedOperasiRenopsList = rawRenops;
-          cachedOperasiSitrepList = rawSitrep;
         }
       } catch (e) {
         console.warn('[Capture] Gagal memuat metadata snapshot:', e);
@@ -7075,10 +7073,8 @@
       const jenis = selJenis.value;
       const prevVal = selRef.value;
 
-      // Requirement 3:
-      // - LAPORAN_AWAL & PENUTUPAN: 1x capture per operasi (id_referensi = NULL)
-      // - RENOPS: Berbeda-beda setiap hari RENOPS (per id_renops)
-      if (jenis === 'RENOPS') {
+      // Peta LKP (RENOPS): 1x per operasi (id_referensi = NULL). Peta Rencana Operasi: per hari RENOPS (id_renops).
+      if (isPerHari(jenis)) {
         refWrapper.classList.remove('hidden');
         if (cachedOperasiRenopsList.length === 0) {
           selRef.innerHTML = `<option value="">⚠️ Belum ada dokumen RENOPS pada operasi ini</option>`;
@@ -7095,20 +7091,16 @@
         }
       } else {
         refWrapper.classList.add('hidden');
-        selRef.innerHTML = `<option value="">1x Capture Operasi SAR</option>`;
+        selRef.innerHTML = `<option value="">1x per Operasi SAR</option>`;
         selRef.value = '';
       }
     }
 
     function getPrintUrlForSelection(idOp, jenis, idRef) {
       if (!idOp) return '#';
-      if (jenis === 'LAPORAN_AWAL') return `${BASE_URL}/operasi.php?action=print_laporan_awal&id=${idOp}`;
-      if (jenis === 'RENOPS') {
-        const ref = idRef || (cachedOperasiRenopsList[0] ? cachedOperasiRenopsList[0].id_renops : '');
-        return ref ? `${BASE_URL}/operasi.php?action=print_renops&id_operasi=${idOp}&id_renops=${ref}` : `${BASE_URL}/operasi_detail.php?id=${idOp}&tab=cetak`;
-      }
-      if (jenis === 'PENUTUPAN') return `${BASE_URL}/operasi.php?action=print_penutupan&id=${idOp}`;
-      return `${BASE_URL}/operasi_detail.php?id=${idOp}&tab=cetak`;
+      // Kembali ke editor draf dokumen RENOPS (hari terpilih, atau hari pertama untuk Peta LKP); cetak draf/terbit dari sana.
+      const ref = idRef || (cachedOperasiRenopsList[0] ? cachedOperasiRenopsList[0].id_renops : '');
+      return ref ? `${BASE_URL}/operasi.php?action=renops_dokumen&id_renops=${ref}` : `${BASE_URL}/operasi_detail.php?id=${idOp}&tab=cetak`;
     }
 
     function updateSavedStatusBanner() {
@@ -7116,7 +7108,7 @@
       if (!banner || !selOperasi || !selJenis) return;
       const idOp = parseInt(selOperasi.value, 10) || 0;
       const jenis = selJenis.value;
-      const idRef = (jenis === 'RENOPS' && selRef && selRef.value) ? parseInt(selRef.value, 10) : null;
+      const idRef = (isPerHari(jenis) && selRef && selRef.value) ? parseInt(selRef.value, 10) : null;
 
       if (!idOp) {
         banner.classList.add('hidden');
@@ -7124,9 +7116,9 @@
       }
 
       let found = null;
-      if (jenis === 'RENOPS') {
+      if (isPerHari(jenis)) {
         found = cachedOperasiSnapshots.find((s) => {
-          return String(s.jenis_dokumen) === 'RENOPS' && parseInt(s.id_referensi, 10) === idRef;
+          return String(s.jenis_dokumen) === jenis && parseInt(s.id_referensi, 10) === idRef;
         });
       } else {
         found = cachedOperasiSnapshots.find((s) => String(s.jenis_dokumen) === String(jenis));
@@ -7206,10 +7198,8 @@
         selOperasi.value = String(currentOperasiId);
       }
       if (docType && selJenis) {
-        const normalizedDoc = docType === 'SITREP' ? 'PENUTUPAN' : docType;
-        const validDocs = ['LAPORAN_AWAL', 'RENOPS', 'PENUTUPAN'];
-        if (validDocs.includes(normalizedDoc)) {
-          selJenis.value = normalizedDoc;
+        if (['RENOPS', 'RENOPS_RENCANA'].includes(docType)) {
+          selJenis.value = docType;
         }
       }
 
@@ -7218,7 +7208,7 @@
 
       const opIdToFetch = selOperasi && selOperasi.value ? parseInt(selOperasi.value, 10) : currentOperasiId;
       fetchOperasiSnapshotMeta(opIdToFetch).then(() => {
-        if (refId && selRef && selJenis && selJenis.value === 'RENOPS') {
+        if (refId && selRef && selJenis && isPerHari(selJenis.value)) {
           selRef.value = String(refId);
           updateSavedStatusBanner();
         }
@@ -7680,17 +7670,15 @@
       const opObj = operasiList.find(o => parseInt(o.id_operasi, 10) === opId) || currentOperasi;
       const opTitle = opObj ? `OPS #${opObj.id_operasi} - ${opObj.nama_operasi}` : 'PETA TAKTIS OPERASI SAR';
       const docLabelMap = {
-        LAPORAN_AWAL: 'LAPORAN AWAL OPERASI SAR',
-        RENOPS: 'RENCANA OPERASI SAR (RENOPS)',
-        SITREP: 'LAPORAN PERKEMBANGAN (SITREP)',
-        PENUTUPAN: 'BERITA ACARA PENUTUPAN OPS SAR'
+        RENOPS: 'PETA LOKASI LKP OPERASI SAR',
+        RENOPS_RENCANA: 'PETA RENCANA OPERASI SAR (RENOPS)'
       };
-      const selectedJenis = selJenis?.value || 'LAPORAN_AWAL';
+      const selectedJenis = selJenis?.value || 'RENOPS';
       let docTitle = docLabelMap[selectedJenis] || 'DOKUMEN OPERASI SAR';
-      if (selectedJenis === 'RENOPS' && selRef && selRef.value) {
+      if (isPerHari(selectedJenis) && selRef && selRef.value) {
         const foundRenops = cachedOperasiRenopsList.find(r => String(r.id_renops) === String(selRef.value));
         if (foundRenops && foundRenops.hari_ke) {
-          docTitle = `RENCANA OPERASI SAR (RENOPS ${foundRenops.hari_ke})`;
+          docTitle = `PETA RENCANA OPERASI SAR (RENOPS ${foundRenops.hari_ke})`;
         }
       }
 
@@ -7816,9 +7804,9 @@
           return;
         }
 
-        const jenis = selJenis ? selJenis.value : 'LAPORAN_AWAL';
-        const idRef = (jenis === 'RENOPS' && selRef && selRef.value) ? parseInt(selRef.value, 10) : null;
-        if (jenis === 'RENOPS' && (!idRef || idRef <= 0)) {
+        const jenis = selJenis ? selJenis.value : 'RENOPS';
+        const idRef = (isPerHari(jenis) && selRef && selRef.value) ? parseInt(selRef.value, 10) : null;
+        if (isPerHari(jenis) && (!idRef || idRef <= 0)) {
           showToast('Silakan pilih Hari RENOPS tujuan terlebih dahulu (atau buat dokumen RENOPS pada operasi ini).', 'error');
           return;
         }

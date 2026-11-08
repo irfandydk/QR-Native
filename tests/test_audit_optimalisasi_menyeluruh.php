@@ -84,20 +84,6 @@ assertAudit("Data relasi DetailAlut lengkap (4 alut)", count($fetchedOp['detail_
 assertAudit("SSOT Unsur Terlibat terformat bullet list", str_contains($fetchedOp['unsur_terlibat'] ?? '', '• SMC'));
 assertAudit("SSOT Alut/Palsar terformat bullet list", str_contains($fetchedOp['alut_palsar'] ?? '', '• 1 Set Palsar Medis'));
 
-// B. Uji Render Lembar Cetak Laporan Awal (No PHP Notice/Warning/Error)
-$_GET['id'] = $opId;
-ob_start();
-try {
-    include dirname(__DIR__) . '/views/operasi/laporan_awal_print.php';
-    $printLaporanAwalHtml = ob_get_clean();
-    $laporanAwalRenderOk = str_contains($printLaporanAwalHtml, 'LAPORAN AWAL OPERASI SAR') && str_contains($printLaporanAwalHtml, 'KORBAN SATU');
-} catch (Throwable $e) {
-    ob_end_clean();
-    $printLaporanAwalHtml = '';
-    $laporanAwalRenderOk = false;
-}
-assertAudit("Lembar Cetak Laporan Awal A4 berhasil di-render tanpa error", $laporanAwalRenderOk);
-
 
 // ---------------------------------------------------------------------
 // 2. AUDIT MODUL 2: RENCANA OPERASI (RENOPS) H.1 & H.2
@@ -132,14 +118,18 @@ assertAudit(
 assertAudit("Snapshot unsur RENOPS H.1 otomatis mewarisi unsur operasi", !empty($fetchedRenops1['unsur_text']));
 assertAudit("Snapshot alut RENOPS H.1 otomatis mewarisi alut operasi", !empty($fetchedRenops1['alut_text']));
 
-// B. Uji Render Lembar Cetak RENOPS
-$_GET['id'] = $opId;
-$_GET['id_renops'] = $renops1Id;
+// B. Uji Render Lembar Cetak RENOPS (format SMEAC, A4 landscape)
 ob_start();
 try {
-    include dirname(__DIR__) . '/views/operasi/renops_print.php';
+    $doc = RenopsDokumenService::resolve($renops1Id);
+    $qrUrl = BASE_URL . '/operasi.php?action=verify&type=renops';
+    $versiLabel = 'v1';
+    $isPublic = false;
+    $backUrl = null;
+    $digantikanOleh = null;
+    include dirname(__DIR__) . '/views/operasi/renops_smeac_print.php';
     $printRenopsHtml = ob_get_clean();
-    $renopsRenderOk = str_contains($printRenopsHtml, 'RENCANA OPERASI PENCARIAN DAN PERTOLONGAN (RENOPS)') && str_contains($printRenopsHtml, 'SRU 1');
+    $renopsRenderOk = str_contains($printRenopsHtml, 'RENCANA OPERASI SAR HARI KE-') && str_contains($printRenopsHtml, 'MISSION (TUGAS)') && str_contains($printRenopsHtml, 'SRU 1');
 } catch (Throwable $e) {
     ob_end_clean();
     $printRenopsHtml = '';
@@ -173,10 +163,6 @@ $sitrep1Id = LaporanModel::create($sitrep1Data);
 assertAudit("SITREP H.1 berhasil diterbitkan dengan ID #{$sitrep1Id}", $sitrep1Id > 0);
 
 $fetchedSitrep1 = LaporanModel::getById($sitrep1Id);
-assertAudit(
-    "Nomor SITREP terformat baku resmi: {$fetchedSitrep1['nomor_laporan']}",
-    str_starts_with($fetchedSitrep1['nomor_laporan'] ?? '', 'SITREP-') && str_contains($fetchedSitrep1['nomor_laporan'] ?? '', '-H1/')
-);
 
 // Verifikasi status korban di basis data diperbarui sebelum draft WA digenerate
 $checkKorban1 = $db->query("SELECT status_korban FROM Korban WHERE id_korban = {$korbanId1}")->fetchColumn();
@@ -184,21 +170,6 @@ $checkKorban2 = $db->query("SELECT status_korban FROM Korban WHERE id_korban = {
 assertAudit("Status Korban #{$korbanId1} di database telah terbarui menjadi 'S' (Selamat)", $checkKorban1 === 'S');
 assertAudit("Status Korban #{$korbanId2} di database tetap 'DP' (Dalam Pencarian)", $checkKorban2 === 'DP');
 assertAudit("Teks WA SITREP memuat angka 'S : 1 ORANG'", str_contains($fetchedSitrep1['full_text_wa'] ?? '', 'S : 1 ORANG'));
-
-// B. Uji Render Lembar Cetak SITREP
-$_GET['id'] = $opId;
-$_GET['id_laporan'] = $sitrep1Id;
-ob_start();
-try {
-    include dirname(__DIR__) . '/views/operasi/sitrep_print.php';
-    $printSitrepHtml = ob_get_clean();
-    $sitrepRenderOk = (str_contains($printSitrepHtml, 'LAPORAN PERKEMBANGAN (LAPBANG)') || str_contains($printSitrepHtml, 'LAPORAN PERKEMBANGAN (SITREP)')) && str_contains($printSitrepHtml, 'KORBAN SATU');
-} catch (Throwable $e) {
-    ob_end_clean();
-    $printSitrepHtml = '';
-    $sitrepRenderOk = false;
-}
-assertAudit("Lembar Cetak SITREP A4 berhasil di-render tanpa error", $sitrepRenderOk);
 
 
 // ---------------------------------------------------------------------
@@ -241,20 +212,6 @@ $updateLapOk = LaporanModel::update($sitrep2Id, [
     'jenis_laporan' => 'PENUTUPAN'
 ]);
 assertAudit("LaporanModel::update() mengizinkan penyuntingan laporan penutupan pada operasi CLOSED", $updateLapOk === true);
-
-// C. Uji Render Lembar Cetak Berita Acara Penutupan
-$_GET['id'] = $opId;
-ob_start();
-try {
-    include dirname(__DIR__) . '/views/operasi/penutupan_print.php';
-    $printPenutupanHtml = ob_get_clean();
-    $penutupanRenderOk = str_contains($printPenutupanHtml, 'BERITA ACARA PENGUSULAN PENUTUPAN') && (str_contains($printPenutupanHtml, 'AMIRUDDIN A.S., S.SOS.') || str_contains($printPenutupanHtml, 'AMIRUDDIN A.S., S.Sos.'));
-} catch (Throwable $e) {
-    ob_end_clean();
-    $printPenutupanHtml = '';
-    $penutupanRenderOk = false;
-}
-assertAudit("Lembar Cetak Berita Acara Penutupan A4 berhasil di-render tanpa error", $penutupanRenderOk);
 
 
 // ---------------------------------------------------------------------

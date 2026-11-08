@@ -85,6 +85,19 @@ FOOTER;
     /**
      * Generate WhatsApp message for Laporan Awal Operasi SAR.
      */
+    /** Daftar "ALUT DAN PALSAR" naskah WA: satu judul gabungan, isi diurutkan Darat → Laut → Udara → PALSAR. */
+    private static function formatAlutLines(array $alut): string {
+        if (empty($alut)) {
+            return "• Belum ada data alut";
+        }
+        $aList = [];
+        foreach (AlutKategori::sort($alut) as $a) {
+            $sat = ($a['satuan'] ?? '') ?: 'Unit';
+            $aList[] = "• {$a['jumlah_alut']} {$sat} {$a['nama_alut']}";
+        }
+        return implode("\n", $aList);
+    }
+
     public static function generateLaporanAwalWA(array $ops, array $korban = [], array $unsur = [], array $alut = []): string {
         $header = self::getHeaderWA(
             'LAPORAN AWAL OPS SAR',
@@ -143,16 +156,7 @@ FOOTER;
         }
 
         // Alut & Palsar
-        if (empty($alut)) {
-            $alutText = "• Belum ada data alut";
-        } else {
-            $aList = [];
-            foreach ($alut as $a) {
-                $sat = $a['satuan'] ?: 'Unit';
-                $aList[] = "• {$a['jumlah_alut']} {$sat} {$a['nama_alut']}";
-            }
-            $alutText = implode("\n", $aList);
-        }
+        $alutText = self::formatAlutLines($alut);
 
         $pelapor = ($ops['nama_pelapor'] ?? '') ?: '-';
         $hub = ($ops['hubungan_pelapor'] ?? '') ?: '-';
@@ -289,16 +293,7 @@ BODY;
             $unsurText = implode("\n", $uList);
         }
 
-        if (empty($alut)) {
-            $alutText = "• Belum ada data alut";
-        } else {
-            $aList = [];
-            foreach ($alut as $a) {
-                $sat = $a['satuan'] ?: 'Unit';
-                $aList[] = "• {$a['jumlah_alut']} {$sat} {$a['nama_alut']}";
-            }
-            $alutText = implode("\n", $aList);
-        }
+        $alutText = self::formatAlutLines($alut);
 
         $cuaca = !empty($renops['cuaca']) ? $renops['cuaca'] : (!empty($ops['cuaca']) ? $ops['cuaca'] : '-');
         $sruCount = count($srus);
@@ -383,16 +378,7 @@ BODY;
             $unsurText = implode("\n", $uList);
         }
 
-        if (empty($alut)) {
-            $alutText = "• Belum ada data alut";
-        } else {
-            $aList = [];
-            foreach ($alut as $a) {
-                $sat = $a['satuan'] ?: 'Unit';
-                $aList[] = "• {$a['jumlah_alut']} {$sat} {$a['nama_alut']}";
-            }
-            $alutText = implode("\n", $aList);
-        }
+        $alutText = self::formatAlutLines($alut);
 
         $isi = !empty($laporan['isi_laporan']) ? $laporan['isi_laporan'] : '-';
 

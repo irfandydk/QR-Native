@@ -39,7 +39,7 @@ class AuthApiController extends BaseApiController {
 
         // 4. Change Password
         if ($path === '/auth/change-password' && $method === 'POST') {
-            self::requireAuth();
+            self::requireAuth(true);
             $currentUser = AuthHelper::getCurrentUser();
             $role = $currentUser['role'] ?? 'USER';
             $old = $input['oldPassword'] ?? '';

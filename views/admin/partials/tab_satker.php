@@ -47,6 +47,25 @@ $logoUrl = $logoUrl ?? getAppLogoUrl();
         </div>
       </div>
 
+      <!-- Logo Kedua (kanan kop Dokumen Rencana Operasi SAR) -->
+      <div class="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 flex flex-col sm:flex-row items-center gap-5">
+        <div class="w-20 h-20 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center p-2 shrink-0 shadow-xs">
+          <img src="<?= e(getAppLogo2DataUri()) ?>" alt="Logo kedua kop dokumen" class="max-w-full max-h-full object-contain" id="satkerLogo2Preview" />
+        </div>
+        <div class="flex-1 min-w-0 space-y-2 text-center sm:text-left">
+          <p class="text-xs font-bold text-slate-800 dark:text-slate-200">Logo Kedua Kop Dokumen (kanan)</p>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400">Tampil di sisi kanan kop Dokumen Rencana Operasi SAR (mis. logo SAR Nasional). Kosongkan untuk memakai logo SAR Nasional bawaan.</p>
+          <div class="flex flex-wrap items-center gap-2 justify-center sm:justify-start pt-1">
+            <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold cursor-pointer shadow-xs transition-colors">
+              <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+              <span>Pilih Berkas Logo Kedua</span>
+              <input type="file" name="logo_file_2" accept="image/*" class="hidden" onchange="previewLogoFile(this, 'satkerLogo2Preview')" />
+            </label>
+            <input type="text" name="logo_url_2" value="<?= e($settings['logo_url_2'] ?? '') ?>" placeholder="Atau tempel URL gambar logo kedua..." class="control control-sm flex-1 min-w-[200px]" />
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         
         <!-- Kode Satker -->
@@ -198,11 +217,11 @@ $logoUrl = $logoUrl ?? getAppLogoUrl();
 </div>
 
 <script>
-function previewLogoFile(input) {
+function previewLogoFile(input, previewId) {
   if (input.files && input.files[0]) {
     const reader = new FileReader();
     reader.onload = function(e) {
-      const preview = document.getElementById('satkerLogoPreview');
+      const preview = document.getElementById(previewId || 'satkerLogoPreview');
       if (preview) {
         preview.src = e.target.result;
       }

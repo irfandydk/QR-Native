@@ -63,11 +63,12 @@ $totalAlutKekuatan = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 1)
 
             <?php if (!empty($operasi['detail_alut'])): ?>
             <div class="space-y-1.5">
-                <?php foreach ($operasi['detail_alut'] as $a): ?>
+                <?php foreach (AlutKategori::sort($operasi['detail_alut']) as $a): $katA = AlutKategori::resolve($a); ?>
                 <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
                     <span class="font-medium text-slate-800 dark:text-slate-200 flex items-center gap-2">
                         <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
                         <span><?= e($a['nama_alut']) ?></span>
+                        <span class="px-1.5 py-0.5 rounded-md text-[10px] font-bold border <?= AlutKategori::isAlut($katA) ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30' ?>"><?= e(AlutKategori::label($katA)) ?></span>
                     </span>
                     <span class="px-2 py-0.5 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 font-mono font-bold text-xs">
                         <?= (int)($a['jumlah_alut'] ?? 1) ?> <?= e($a['satuan'] ?? 'Unit') ?>

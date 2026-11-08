@@ -317,8 +317,8 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
               <select id="select-master-alut" onchange="pickMasterAlut(this.value)" class="field-input flex-1">
               <option value="">-- Cari / Pilih dari Master Data Alut Basarnas --</option>
               <?php foreach ($masterAlut as $ma): ?>
-                <option value="<?= htmlspecialchars(json_encode(['id_alut' => $ma['id_alut'], 'nama_alut' => $ma['nama_alut'], 'satuan' => $ma['satuan'] ?? 'Unit', 'kategori' => $ma['kategori'] ?? 'ALUT']), ENT_QUOTES, 'UTF-8') ?>">
-                  [<?= htmlspecialchars($ma['kategori'] ?? 'ALUT') ?>] <?= htmlspecialchars($ma['nama_alut']) ?> (<?= htmlspecialchars($ma['satuan'] ?? 'Unit') ?>)
+                <option value="<?= htmlspecialchars(json_encode(['id_alut' => $ma['id_alut'], 'nama_alut' => $ma['nama_alut'], 'satuan' => $ma['satuan'] ?? 'Unit', 'kategori' => AlutKategori::resolve($ma)]), ENT_QUOTES, 'UTF-8') ?>">
+                  [<?= htmlspecialchars(AlutKategori::label(AlutKategori::resolve($ma))) ?>] <?= htmlspecialchars($ma['nama_alut']) ?> (<?= htmlspecialchars($ma['satuan'] ?? 'Unit') ?>)
                 </option>
               <?php endforeach; ?>
             </select>
@@ -328,8 +328,15 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
 
         <!-- Input Bar (Manual Add) -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40">
-          <div class="sm:col-span-7">
+          <div class="sm:col-span-4">
             <input type="text" id="alut-input-nama" placeholder="Ketik nama alut / palsar (contoh: Rescue Car, RIB 01)..." class="control control-sm w-full">
+          </div>
+          <div class="sm:col-span-3">
+            <select id="alut-input-kategori" class="control control-sm w-full" title="Kategori Alut / Palsar">
+              <?php foreach (AlutKategori::LABEL as $kodeKat => $labelKat): ?>
+                <option value="<?= e($kodeKat) ?>"<?= $kodeKat === AlutKategori::PALSAR ? ' selected' : '' ?>><?= e($labelKat) ?></option>
+              <?php endforeach; ?>
+            </select>
           </div>
           <div class="sm:col-span-2">
             <input type="number" id="alut-input-jml" min="1" max="999" value="1" placeholder="Qty" class="control control-sm w-full text-center font-bold">
@@ -506,6 +513,7 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
   </div>
 </div>
 
+<script>window.ALUT_KATEGORI = <?= jsonSafe(AlutKategori::configJs()) ?>;</script>
 <script>
 window.__RENOPS_PAGE_CONFIG__ = <?= jsonSafe([
     'idOperasi' => $idOperasi,
@@ -522,4 +530,5 @@ window.__RENOPS_PAGE_CONFIG__ = <?= jsonSafe([
     'satuanJarak' => $satuanJarak,
 ]) ?>;
 </script>
+<script src="<?= assetUrl('assets/js/alut_kategori.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/pages/renops_form.js') ?>"></script>

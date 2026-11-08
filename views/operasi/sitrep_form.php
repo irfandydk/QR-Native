@@ -399,8 +399,8 @@ $initialAlutData = $initialAlutData ?? [];
               <select id="select-master-alut" onchange="pickMasterAlut(this.value)" class="field-input flex-1">
               <option value="">-- Cari / Pilih dari Master Data Alut Basarnas --</option>
               <?php foreach ($masterAlut as $ma): ?>
-                <option value="<?= htmlspecialchars(json_encode(['id_alut' => $ma['id_alut'], 'nama_alut' => $ma['nama_alut'], 'satuan' => $ma['satuan'] ?? 'Unit', 'kategori' => $ma['kategori'] ?? 'ALUT']), ENT_QUOTES, 'UTF-8') ?>">
-                  [<?= htmlspecialchars($ma['kategori'] ?? 'ALUT') ?>] <?= htmlspecialchars($ma['nama_alut']) ?> (<?= htmlspecialchars($ma['satuan'] ?? 'Unit') ?>)
+                <option value="<?= htmlspecialchars(json_encode(['id_alut' => $ma['id_alut'], 'nama_alut' => $ma['nama_alut'], 'satuan' => $ma['satuan'] ?? 'Unit', 'kategori' => AlutKategori::resolve($ma)]), ENT_QUOTES, 'UTF-8') ?>">
+                  [<?= htmlspecialchars(AlutKategori::label(AlutKategori::resolve($ma))) ?>] <?= htmlspecialchars($ma['nama_alut']) ?> (<?= htmlspecialchars($ma['satuan'] ?? 'Unit') ?>)
                 </option>
               <?php endforeach; ?>
             </select>
@@ -410,8 +410,15 @@ $initialAlutData = $initialAlutData ?? [];
 
         <!-- Input Bar (Manual Add) -->
         <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40">
-          <div class="sm:col-span-7">
+          <div class="sm:col-span-4">
             <input type="text" id="alut-input-nama" placeholder="Ketik nama alut / palsar (contoh: Rubber Boat, Aqua Eye)..." class="control control-sm w-full">
+          </div>
+          <div class="sm:col-span-3">
+            <select id="alut-input-kategori" class="control control-sm w-full" title="Kategori Alut / Palsar">
+              <?php foreach (AlutKategori::LABEL as $kodeKat => $labelKat): ?>
+                <option value="<?= e($kodeKat) ?>"<?= $kodeKat === AlutKategori::PALSAR ? ' selected' : '' ?>><?= e($labelKat) ?></option>
+              <?php endforeach; ?>
+            </select>
           </div>
           <div class="sm:col-span-2">
             <input type="number" id="alut-input-jml" min="1" max="999" value="1" placeholder="Qty" class="control control-sm w-full text-center font-bold">
@@ -496,7 +503,7 @@ $initialAlutData = $initialAlutData ?? [];
 
 <!-- Modal Asisten AI LAPBANG -->
 <div id="modal-ai-sitrep" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden" style="display: none;">
-  <div class="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+  <div class="w-full max-w-6xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
     <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center">
@@ -512,26 +519,25 @@ $initialAlutData = $initialAlutData ?? [];
       </button>
     </div>
 
-    <div class="p-6 space-y-4 overflow-y-auto">
+    <div class="p-6 overflow-y-auto grid md:grid-cols-2 gap-5">
       <div>
         <div class="field">
           <label class="field-label">Catatan / Catatan Mentah Lapangan:</label>
-          <textarea id="ai-sitrep-draft-input" rows="4" placeholder="Tuliskan catatan hasil pencarian hari ini (contoh: tim sru 1 menyisir 5 mil laut, ombak tinggi, hasil sampai sore masih nihil, besok lanjut jam 7 pagi...)" class="field-input w-full"></textarea>
+          <textarea id="ai-sitrep-draft-input" rows="14" style="min-height: 20rem;" placeholder="Tuliskan catatan hasil pencarian hari ini (contoh: tim sru 1 menyisir 5 mil laut, ombak tinggi, hasil sampai sore masih nihil, besok lanjut jam 7 pagi...)" class="field-input w-full"></textarea>
         </div>
         <p class="text-[11px] text-purple-600 dark:text-purple-400 mt-1">Asisten AI akan merangkai kalimat menjadi narasi resmi laporan perkembangan harian Basarnas.</p>
 
-      </div>
-
-      <div class="flex justify-end">
+        <div class="flex justify-end mt-3">
         <button type="button" id="btn-generate-ai-sitrep" onclick="generateAiSitrep()" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-sm transition cursor-pointer">
           Susun Narasi Resmi
         </button>
+        </div>
       </div>
 
       <div>
         <div class="field">
           <label class="field-label">Hasil Narasi Resmi Basarnas:</label>
-          <textarea id="ai-sitrep-result-output" rows="4" placeholder="Hasil olahan narasi AI akan muncul di sini..." class="field-input w-full leading-relaxed font-mono"></textarea>
+          <textarea id="ai-sitrep-result-output" rows="14" style="min-height: 20rem;" placeholder="Hasil olahan narasi AI akan muncul di sini..." class="field-input w-full leading-relaxed font-mono"></textarea>
         </div>
       </div>
     </div>
@@ -547,6 +553,7 @@ $initialAlutData = $initialAlutData ?? [];
   </div>
 </div>
 
+<script>window.ALUT_KATEGORI = <?= jsonSafe(AlutKategori::configJs()) ?>;</script>
 <script>
 window.__SITREP_FORM_CONFIG__ = <?= jsonSafe([
     'idOperasi' => $idOperasi,
@@ -560,4 +567,5 @@ window.__SITREP_FORM_CONFIG__ = <?= jsonSafe([
     'operasiBaseHariReopen' => (int)TemplateHelper::getBaseHariSebelumReopen($operasi),
 ]) ?>;
 </script>
+<script src="<?= assetUrl('assets/js/alut_kategori.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/pages/sitrep_form.js') ?>"></script>

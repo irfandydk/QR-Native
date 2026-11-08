@@ -44,6 +44,17 @@ if (!defined('APP_NAME')) {
 
         <div>
           <div class="field">
+            <label class="field-label">Kategori <span class="text-red-500">*</span></label>
+            <select name="kategori" id="edit_kategori_alut" required class="field-input w-full font-medium">
+              <?php foreach (AlutKategori::LABEL as $kode => $label): ?>
+                <option value="<?= e($kode) ?>"><?= e($label) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <div class="field">
             <label class="field-label">Satuan Ukuran</label>
             <input type="text" name="satuan" id="edit_satuan_alut" placeholder="Unit, Set, Buah, dsb." class="field-input w-full font-medium">
           </div>
@@ -200,10 +211,11 @@ function filterTable(inputId, tableId) {
 }
 
 // Open Edit Alut Modal
-function openEditAlutModal(id, nama, satuan) {
+function openEditAlutModal(id, nama, satuan, kategori) {
   document.getElementById('edit_id_alut').value = id;
   document.getElementById('edit_nama_alut').value = nama;
   document.getElementById('edit_satuan_alut').value = satuan || 'Unit';
+  document.getElementById('edit_kategori_alut').value = kategori || 'PALSAR';
   openModal('modal-edit-alut');
 }
 

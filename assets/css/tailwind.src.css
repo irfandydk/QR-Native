@@ -67,20 +67,6 @@
     @apply bg-red-600 text-white hover:bg-red-700;
   }
 
-  /* ---------- Naskah dinas cetak (Laporan Awal, RENOPS, SITREP, BA): hitam-putih, ukuran pt seragam ---------- */
-  .doc-title {
-    @apply m-0 text-[12pt] font-bold uppercase tracking-wide text-black underline underline-offset-4;
-  }
-  .doc-sub {
-    @apply m-0 mt-1 text-[10pt] font-bold uppercase text-black;
-  }
-  .doc-number {
-    @apply m-0 mt-0.5 text-[10pt] font-bold text-black;
-  }
-  .doc-section {
-    @apply mb-1.5 border border-black bg-slate-100 px-2 py-0.5 text-[10pt] font-bold uppercase text-black;
-  }
-
   /* ---------- Kartu ---------- */
   .surface {
     @apply rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900;
@@ -97,7 +83,8 @@
   animation-duration: 160ms;
 }
 .page-body {
-  animation: page-enter 180ms ease-out both;
+  /* backwards: tanpa sisa transform setelah animasi, agar modal position:fixed tetap relatif ke layar */
+  animation: page-enter 180ms ease-out backwards;
 }
 /* Konten tidak pernah mulai transparan: halaman berat (GIS) tidak tampak kosong saat JS/peta sedang dimuat */
 @keyframes page-enter {

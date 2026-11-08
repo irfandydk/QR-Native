@@ -3,9 +3,9 @@
  * QR-SAR - Dokumen Peta Snapshot Model
  * Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
  *
- * Mengelola penyimpanan, pengambilan, dan penghapusan cuplikan layar (snapshot) peta taktis 16:9
- * beserta daftar komponen spasial yang berada di dalam area bidikan (Bounding Box)
- * untuk dicetak pada Laporan Awal, RENOPS, SITREP (Lapbang), dan Laporan Penutupan.
+ * Mengelola penyimpanan, pengambilan, dan penghapusan cuplikan peta 16:9 untuk Dokumen Rencana Operasi SAR:
+ * - RENOPS         : Peta Lokasi (LKP), 1x per operasi (id_referensi NULL), dipakai semua hari RENOPS.
+ * - RENOPS_RENCANA : Peta Rencana Operasi, per hari RENOPS (id_referensi = id_renops).
  */
 
 declare(strict_types=1);
@@ -13,7 +13,7 @@ declare(strict_types=1);
 class DokumenPetaSnapshotModel {
     private static bool $schemaChecked = false;
 
-    public const ALLOWED_TYPES = ['LAPORAN_AWAL', 'RENOPS', 'SITREP', 'PENUTUPAN'];
+    public const ALLOWED_TYPES = ['RENOPS', 'RENOPS_RENCANA'];
 
     /**
      * Memastikan tabel DokumenPetaSnapshot tersedia di database.
@@ -34,7 +34,7 @@ class DokumenPetaSnapshotModel {
             $db->exec("CREATE TABLE IF NOT EXISTS `DokumenPetaSnapshot` (
                 `id_snapshot` INT AUTO_INCREMENT PRIMARY KEY,
                 `id_operasi` INT NOT NULL,
-                `jenis_dokumen` VARCHAR(30) NOT NULL DEFAULT 'LAPORAN_AWAL',
+                `jenis_dokumen` VARCHAR(30) NOT NULL DEFAULT 'RENOPS',
                 `id_referensi` INT NULL DEFAULT NULL,
                 `image_path` VARCHAR(255) NOT NULL,
                 `bounds_json` TEXT NULL,
@@ -66,17 +66,11 @@ class DokumenPetaSnapshotModel {
     }
 
     /**
-     * Normalisasi jenis dokumen ke daftar konstan yang diizinkan.
+     * Normalisasi jenis dokumen; null bila bukan jenis yang diizinkan.
      */
-    public static function normalizeJenisDokumen(string $jenis): string {
+    public static function normalizeJenisDokumen(string $jenis): ?string {
         $upper = strtoupper(trim($jenis));
-        if ($upper === 'LAPBANG' || $upper === 'LAPORAN_HARIAN') {
-            return 'SITREP';
-        }
-        if (in_array($upper, self::ALLOWED_TYPES, true)) {
-            return $upper;
-        }
-        return 'LAPORAN_AWAL';
+        return in_array($upper, self::ALLOWED_TYPES, true) ? $upper : null;
     }
 
     /**
@@ -91,13 +85,17 @@ class DokumenPetaSnapshotModel {
             throw new InvalidArgumentException('ID Operasi tidak valid untuk menyimpan cuplikan peta.');
         }
 
-        $jenisDokumen = self::normalizeJenisDokumen((string)($data['jenis_dokumen'] ?? 'LAPORAN_AWAL'));
-        $idReferensi = isset($data['id_referensi']) && $data['id_referensi'] !== '' && (int)$data['id_referensi'] > 0
-            ? (int)$data['id_referensi']
-            : null;
-
-        if ($jenisDokumen === 'LAPORAN_AWAL' || $jenisDokumen === 'PENUTUPAN') {
-            $idReferensi = null;
+        $jenisDokumen = self::normalizeJenisDokumen((string)($data['jenis_dokumen'] ?? ''));
+        if ($jenisDokumen === null) {
+            throw new InvalidArgumentException('Sasaran capture peta tidak dikenal (hanya Peta Lokasi LKP atau Peta Rencana Operasi RENOPS).');
+        }
+        // Peta LKP: 1x per operasi. Peta Rencana Operasi: wajib hari RENOPS.
+        $idReferensi = null;
+        if ($jenisDokumen === 'RENOPS_RENCANA') {
+            $idReferensi = (int)($data['id_referensi'] ?? 0);
+            if ($idReferensi <= 0) {
+                throw new InvalidArgumentException('Pilih hari RENOPS untuk Peta Rencana Operasi.');
+            }
         }
 
         // Proses data gambar base64
@@ -210,60 +208,22 @@ class DokumenPetaSnapshotModel {
     }
 
     /**
-     * Mengambil snapshot terbaik untuk suatu dokumen cetak operasi.
-     * - RENOPS: Berbeda-beda setiap hari RENOPS (berdasarkan id_referensi = id_renops).
-     * - LAPORAN_AWAL & PENUTUPAN: Hanya 1 kali per operasi (id_referensi IS NULL).
+     * Snapshot dokumen RENOPS: Peta LKP operasi (RENOPS) atau Peta Rencana Operasi hari tertentu (RENOPS_RENCANA).
      */
     public static function getSnapshot(int $idOperasi, string $jenisDokumen, ?int $idReferensi = null): ?array {
-        if ($idOperasi <= 0) {
+        $jenis = self::normalizeJenisDokumen($jenisDokumen);
+        if ($idOperasi <= 0 || $jenis === null || ($jenis === 'RENOPS_RENCANA' && (int)$idReferensi <= 0)) {
             return null;
         }
         self::ensureSchemaUpdated();
-        $db = getDB();
-        $jenis = self::normalizeJenisDokumen($jenisDokumen);
-
-        // 1. Untuk RENOPS: ambil spesifik sesuai id_renops hari tersebut (tidak mencampur hari RENOPS lain)
-        if ($jenis === 'RENOPS' && $idReferensi !== null && $idReferensi > 0) {
-            $stmt = $db->prepare("SELECT * FROM DokumenPetaSnapshot
-                WHERE id_operasi = :op AND jenis_dokumen = 'RENOPS' AND id_referensi = :ref
-                ORDER BY updated_at DESC, id_snapshot DESC LIMIT 1");
-            $stmt->execute([':op' => $idOperasi, ':ref' => $idReferensi]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($row) {
-                return self::hydrateRow($row);
-            }
-            // Fallback hanya ke snapshot umum jika ada (id_referensi IS NULL), jangan ambil milik id_renops hari lain
-            $stmtNull = $db->prepare("SELECT * FROM DokumenPetaSnapshot
-                WHERE id_operasi = :op AND jenis_dokumen = 'RENOPS' AND id_referensi IS NULL
-                ORDER BY updated_at DESC, id_snapshot DESC LIMIT 1");
-            $stmtNull->execute([':op' => $idOperasi]);
-            $rowNull = $stmtNull->fetch(PDO::FETCH_ASSOC);
-            return $rowNull ? self::hydrateRow($rowNull) : null;
-        }
-
-        // 2. Untuk LAPORAN_AWAL dan PENUTUPAN (1x capture per operasi)
-        $stmt = $db->prepare("SELECT * FROM DokumenPetaSnapshot
-            WHERE id_operasi = :op AND jenis_dokumen = :jenis
-            ORDER BY (id_referensi IS NULL) DESC, updated_at DESC, id_snapshot DESC LIMIT 1");
-        $stmt->execute([':op' => $idOperasi, ':jenis' => $jenis]);
+        $sql = "SELECT * FROM DokumenPetaSnapshot WHERE id_operasi = :op AND jenis_dokumen = :jenis AND "
+            . ($jenis === 'RENOPS' ? 'id_referensi IS NULL' : 'id_referensi = :ref')
+            . ' ORDER BY updated_at DESC, id_snapshot DESC LIMIT 1';
+        $params = [':op' => $idOperasi, ':jenis' => $jenis] + ($jenis === 'RENOPS' ? [] : [':ref' => (int)$idReferensi]);
+        $stmt = getDB()->prepare($sql);
+        $stmt->execute($params);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($row) {
-            return self::hydrateRow($row);
-        }
-
-        // 3. Jika jenis adalah PENUTUPAN dan belum ada snapshot khusus PENUTUPAN, fallback ke SITREP jika pernah disimpan sebelumnya
-        if ($jenis === 'PENUTUPAN') {
-            $stmtSitrep = $db->prepare("SELECT * FROM DokumenPetaSnapshot
-                WHERE id_operasi = :op AND jenis_dokumen = 'SITREP'
-                ORDER BY updated_at DESC, id_snapshot DESC LIMIT 1");
-            $stmtSitrep->execute([':op' => $idOperasi]);
-            $rowSitrep = $stmtSitrep->fetch(PDO::FETCH_ASSOC);
-            if ($rowSitrep) {
-                return self::hydrateRow($rowSitrep);
-            }
-        }
-
-        return null;
+        return $row ? self::hydrateRow($row) : null;
     }
 
     /**
@@ -316,13 +276,16 @@ class DokumenPetaSnapshotModel {
     }
 
     /**
-     * Menghapus snapshot peta berdasarkan referensi dokumen (RENOPS/SITREP/PENUTUPAN).
+     * Menghapus snapshot peta milik satu hari RENOPS (Peta Rencana Operasi) beserta berkasnya.
      */
     public static function deleteByReferensi(string $tipeDokumen, int $idReferensi): void {
         self::ensureSchemaUpdated();
+        $jenisDokumen = self::normalizeJenisDokumen($tipeDokumen);
+        if ($jenisDokumen === null) {
+            return;
+        }
         try {
             $db = getDB();
-            $jenisDokumen = self::normalizeJenisDokumen($tipeDokumen);
             $stmt = $db->prepare("SELECT image_path FROM DokumenPetaSnapshot WHERE jenis_dokumen = :jd AND id_referensi = :ref");
             $stmt->execute([':jd' => $jenisDokumen, ':ref' => $idReferensi]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -336,6 +299,67 @@ class DokumenPetaSnapshotModel {
         } catch (Throwable $e) {
             error_log("[DokumenPetaSnapshotModel deleteByReferensi] " . $e->getMessage());
         }
+    }
+
+    /**
+     * Perapian data lama (idempoten, dijalankan database/migrate.php) setelah dokumen cetak Laporan Awal,
+     * LAPBANG & Penutupan dihapus dan Peta LKP menjadi 1x per operasi:
+     * - Peta LKP operasi = RENOPS tanpa hari; bila belum ada, RENOPS hari paling awal, lalu peta Laporan Awal lama.
+     * - Snapshot lain selain Peta Rencana Operasi per hari (RENOPS hari lain, LAPORAN_AWAL, SITREP, PENUTUPAN)
+     *   serta snapshot milik operasi yang sudah terhapus: baris & berkasnya dihapus.
+     * - Token QR dokumen selain RENOPS dihapus.
+     * Berkas tanpa baris tidak disapu: folder uploads dapat dipakai bersama oleh DB lain (mis. DB test).
+     *
+     * @return array{snapshot:int, lkp:int, token:int}
+     */
+    public static function rapikanDataLama(PDO $db): array {
+        self::ensureSchemaUpdated(true);
+        $hasil = ['snapshot' => 0, 'lkp' => 0, 'token' => 0];
+        $opsAda = array_flip(array_map('intval', $db->query('SELECT id_operasi FROM Operasi')->fetchAll(PDO::FETCH_COLUMN)));
+        $rows = $db->query("SELECT id_snapshot, id_operasi, jenis_dokumen, id_referensi, image_path FROM DokumenPetaSnapshot
+            ORDER BY id_operasi, (id_referensi IS NULL) DESC, id_referensi ASC, updated_at DESC, id_snapshot DESC")->fetchAll(PDO::FETCH_ASSOC);
+        $perOps = [];
+        foreach ($rows as $r) {
+            $perOps[(int)$r['id_operasi']][] = $r;
+        }
+        $hapus = $db->prepare('DELETE FROM DokumenPetaSnapshot WHERE id_snapshot = :id');
+        $jadikanLkp = $db->prepare("UPDATE DokumenPetaSnapshot SET jenis_dokumen = 'RENOPS', id_referensi = NULL WHERE id_snapshot = :id");
+        foreach ($perOps as $idOps => $list) {
+            $lkp = null;
+            if (isset($opsAda[$idOps])) {
+                foreach (['RENOPS', 'LAPORAN_AWAL'] as $jenis) {
+                    foreach ($list as $r) {
+                        if ($lkp === null && $r['jenis_dokumen'] === $jenis) {
+                            $lkp = $r;
+                        }
+                    }
+                }
+            }
+            foreach ($list as $r) {
+                $simpan = isset($opsAda[$idOps]) && $r['jenis_dokumen'] === 'RENOPS_RENCANA' && (int)$r['id_referensi'] > 0;
+                if ($simpan) {
+                    continue;
+                }
+                if ($lkp !== null && $r['id_snapshot'] === $lkp['id_snapshot']) {
+                    if ($r['jenis_dokumen'] !== 'RENOPS' || $r['id_referensi'] !== null) {
+                        $jadikanLkp->execute([':id' => $r['id_snapshot']]);
+                        $hasil['lkp']++;
+                    }
+                    continue;
+                }
+                self::removeImageFile((string)$r['image_path']);
+                $hapus->execute([':id' => $r['id_snapshot']]);
+                $hasil['snapshot']++;
+            }
+        }
+        try {
+            $hasil['token'] = $db->exec("DELETE FROM DokumenToken WHERE doc_type <> 'renops'") ?: 0;
+        } catch (PDOException $e) {
+            if ($e->getCode() !== '42S02') { // tabel DokumenToken belum ada
+                throw $e;
+            }
+        }
+        return $hasil;
     }
 
     /**
@@ -364,19 +388,9 @@ class DokumenPetaSnapshotModel {
         $baseUrl = defined('BASE_URL') ? rtrim(BASE_URL, '/') : '';
         $row['image_url'] = $relPath !== '' ? ($baseUrl . '/' . $relPath) : '';
 
-        // Data URI untuk penyematan langsung yang tahan terhadap kendala jaringan saat print
         $rootDir = defined('ROOT_DIR') ? ROOT_DIR : dirname(__DIR__);
         $fullPath = $rootDir . '/' . $relPath;
         $row['image_exists'] = ($relPath !== '' && file_exists($fullPath) && is_file($fullPath));
-        $row['image_data_uri'] = '';
-        if ($row['image_exists']) {
-            $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-            $mime = ($ext === 'jpg' || $ext === 'jpeg') ? 'image/jpeg' : ($ext === 'webp' ? 'image/webp' : 'image/png');
-            $bytes = @file_get_contents($fullPath);
-            if ($bytes !== false) {
-                $row['image_data_uri'] = 'data:' . $mime . ';base64,' . base64_encode($bytes);
-            }
-        }
 
         $bounds = !empty($row['bounds_json']) ? json_decode((string)$row['bounds_json'], true) : [];
         $row['bounds'] = is_array($bounds) ? $bounds : [];

@@ -40,3 +40,9 @@ RedirectMatch 403 ^/(database|config|models|controllers|services|helpers|views|s
     Header always set X-XSS-Protection "1; mode=block"
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
+
+# Batas unggahan (mod_php): foto dokumen RENOPS maks 5 MB per berkas
+<IfModule mod_php.c>
+    php_value upload_max_filesize 6M
+    php_value post_max_size 64M
+</IfModule>

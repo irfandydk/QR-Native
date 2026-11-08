@@ -18,6 +18,10 @@ class AuditHelper {
 
         try {
             $db = getDB();
+            // DDL memicu implicit commit MySQL: di dalam transaksi model, commit() pemanggil akan gagal walau data tersimpan
+            if ($db->inTransaction()) {
+                return;
+            }
             $db->exec("CREATE TABLE IF NOT EXISTS `AuditLog` (
                 `id` INT AUTO_INCREMENT PRIMARY KEY,
                 `user_id` VARCHAR(50) DEFAULT NULL,
@@ -203,7 +207,8 @@ class AuditHelper {
             fputcsv($output, ['ID', 'Waktu (WITA)', 'Tindakan (Action)', 'Pengguna', 'Role', 'Tipe Target', 'ID Target', 'Alamat IP', 'Deskripsi'], ',', '"', "\\");
 
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                fputcsv($output, [
+                // Sel berawalan = + - @ tab/CR diberi ' agar tidak dieksekusi sebagai rumus spreadsheet
+                fputcsv($output, array_map(static fn($v) => is_string($v) && $v !== '-' && preg_match('/^[=+\-@\t\r]/', $v) ? "'" . $v : $v, [
                     $row['id'],
                     $row['created_at'],
                     $row['action'],
@@ -213,7 +218,7 @@ class AuditHelper {
                     $row['target_id'] ?? '-',
                     $row['ip_address'],
                     $row['description']
-                ], ',', '"', "\\");
+                ]), ',', '"', "\\");
             }
             fclose($output);
         }

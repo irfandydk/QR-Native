@@ -256,3 +256,37 @@ test('inherit: excludes the BRA being edited and returns null when none', () => 
   assert.equal(T.inheritHeader({ bra_sar: [] }, 'OPERASI_SAR', 0), null);
   assert.equal(T.inheritHeader(null, 'OPERASI_SAR', 0), null);
 });
+
+test('mapel closing says SELAKU SMC only when linked to an operation', () => {
+  assert.match(T.buildMapel(op).sections[2].isi, /KA KPP KENDARI SELAKU SMC KRM TTK HBS$/);
+  assert.equal(T.buildMapel({ nama_operasi: 'LONGBOAT MATI MESIN' }).sections[2].isi,
+    'ATAS PERHATIAN DAN KERJASAMANYA DIUCAPKAN TERIMA KASIH KMA KA KPP KENDARI KRM TTK HBS');
+});
+
+test('kategori alut: kendaraan = ALUT_* kecuali drone; cadangan nama bila tanpa kategori', () => {
+  assert.equal(T.isKendaraanAlut({ nama_alut: 'Drone Thermal', kategori: 'ALUT_UDARA' }), false);
+  assert.equal(T.isKendaraanAlut({ nama_alut: 'KN SAR Pacitan', kategori: 'ALUT_LAUT' }), true);
+  assert.equal(T.isKendaraanAlut({ nama_alut: 'Rescue Car' }), true);
+  assert.equal(T.isKendaraanAlut({ nama_alut: 'Palsar Medis', kategori: 'PALSAR' }), false);
+  assert.equal(T.isKendaraanAlut({ nama_alut: 'Rescue Car Cadangan', kategori: 'PALSAR' }), false);
+});
+test('kategori alut: alutItems urut Darat, Laut, Udara, PALSAR, tanpa kategori di akhir', () => {
+  assert.deepEqual(T.alutItems([
+    { nama_alut: 'Palsar Medis', jumlah_alut: 1, satuan: 'Set', kategori: 'PALSAR' },
+    { nama_alut: 'Lama', jumlah_alut: 1, satuan: 'Unit' },
+    { nama_alut: 'Drone', jumlah_alut: 1, satuan: 'Unit', kategori: 'ALUT_UDARA' },
+    { nama_alut: 'RIB', jumlah_alut: 1, satuan: 'Unit', kategori: 'ALUT_LAUT' },
+    { nama_alut: 'Rescue Car', jumlah_alut: 2, satuan: 'Unit', kategori: 'ALUT_DARAT' },
+  ]), ['RESCUE CAR : 2 UNIT', 'RIB : 1 UNIT', 'DRONE : 1 UNIT', 'PALSAR MEDIS : 1 SET', 'LAMA : 1 UNIT']);
+});
+test('kategori alut: kalimat MENGGUNAKAN tanpa drone dan palsar', () => {
+  const s = T.buildLaporanAwal({ ...op, detail_alut: [
+    { nama_alut: 'Rescue Car', jumlah_alut: 1, satuan: 'Unit', kategori: 'ALUT_DARAT' },
+    { nama_alut: 'Drone Thermal', jumlah_alut: 1, satuan: 'Unit', kategori: 'ALUT_UDARA' },
+    { nama_alut: 'Palsar Medis', jumlah_alut: 1, satuan: 'Set', kategori: 'PALSAR' },
+  ] });
+  const txt = JSON.stringify(s);
+  assert.match(txt, /MENGGUNAKAN 1 UNIT RESCUE CAR/);
+  assert.doesNotMatch(txt, /MENGGUNAKAN[^.]*DRONE/);
+  assert.doesNotMatch(txt, /MENGGUNAKAN[^.]*PALSAR/);
+});

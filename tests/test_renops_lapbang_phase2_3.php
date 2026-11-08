@@ -51,36 +51,15 @@ assertTest(
     "Nomor RENOPS Hari ke-1 terformat dengan benar: $nomorRenops"
 );
 
-$nomorSitrep = TemplateHelper::generateNomorSitrep($sampleOps, $sampleSitrep, 'SAR-KDI');
-assertTest(
-    strpos($nomorSitrep, 'SITREP-191026-H2/OPS-SAR/SAR-KDI/1026') !== false,
-    "Nomor SITREP Hari ke-2 terformat dengan benar: $nomorSitrep"
-);
-
-$nomorBA = TemplateHelper::generateNomorBeritaAcara($sampleOps, $sampleSitrep, 'SAR-KDI');
-assertTest(
-    strpos($nomorBA, 'BA-TUTUP-191026-012/OPS-SAR/SAR-KDI/1026') !== false,
-    "Nomor Berita Acara terformat dengan benar: $nomorBA"
-);
-
 // --- 2. Syntax & Template File Existence ---
 $printViews = [
-    'views/operasi/renops_print.php' => [
-        'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI',
-        'RENCANA OPERASI SAR (RENOPS)',
-        'SAR Mission Coordinator (SMC)',
-        'qrcode'
+    'views/operasi/partials/renops_smeac_doc.php' => [
+        'RENCANA OPERASI SAR HARI KE-',
+        'MISSION (TUGAS)',
+        'qrCanvas'
     ],
-    'views/operasi/penutupan_print.php' => [
-        'BERITA ACARA PENGUSULAN PENUTUPAN OPERASI PENCARIAN DAN PERTOLONGAN',
-        'musyawarah mufakat bersama unsur Potensi SAR',
-        'Perwakilan Keluarga Korban',
-        'qrcode'
-    ],
-    'views/operasi/sitrep_print.php' => [
-        'LAPORAN PERKEMBANGAN (LAPBANG) OPERASI SAR',
-        'II. DATA KORBAN',
-        'III. HASIL PELAKSANAAN OPERASI HARI INI',
+    'views/operasi/renops_smeac_print.php' => [
+        'renops_smeac_doc.php',
         'qrcode'
     ]
 ];
@@ -98,8 +77,9 @@ foreach ($printViews as $filePath => $requiredStrings) {
 // --- 3. Routing di operasi.php ---
 $operasiPhp = file_get_contents(__DIR__ . '/../operasi.php');
 assertTest(strpos($operasiPhp, "print_renops") !== false, "Route 'print_renops' terdaftar di operasi.php");
-assertTest(strpos($operasiPhp, "print_penutupan") !== false, "Route 'print_penutupan' terdaftar di operasi.php");
-assertTest(strpos($operasiPhp, "print_sitrep") !== false, "Route 'print_sitrep' terdaftar di operasi.php");
+$ctlPhp = file_get_contents(__DIR__ . '/../controllers/OperasiController.php');
+assertTest(strpos($ctlPhp, "print_penutupan") === false && strpos($ctlPhp, "print_sitrep") === false && strpos($ctlPhp, "print_laporan_awal") === false,
+    "Route cetak Laporan Awal/LAPBANG/Penutupan sudah dihapus");
 
 // --- 4. Tombol & Trigger di views/operasi/detail.php & Partials ---
 $detailPhp = file_get_contents(__DIR__ . '/../views/operasi/detail.php');
@@ -107,10 +87,11 @@ foreach (glob(__DIR__ . '/../views/operasi/partials/*.php') as $partialFile) {
     $detailPhp .= "\n" . file_get_contents($partialFile);
 }
 assertTest(strpos($detailPhp, "operasi.php?action=print_renops") !== false, "detail.php memiliki link/aksi cetak RENOPS");
-assertTest(strpos($detailPhp, "operasi.php?action=print_sitrep") !== false, "detail.php memiliki link/aksi cetak SITREP");
-assertTest(strpos($detailPhp, "operasi.php?action=print_penutupan") !== false, "detail.php memiliki link/aksi cetak Berita Acara Penutupan");
-assertTest(strpos($detailPhp, "select-renops-cetak") !== false, "detail.php memiliki dropdown pemilih hari RENOPS di Tab Berkas");
-assertTest(strpos($detailPhp, "select-sitrep-cetak") !== false, "detail.php memiliki dropdown pemilih hari SITREP di Tab Berkas");
+// Tab Cetak & kartu hanya untuk Rencana Operasi SAR & BRA SAR: cetak LAPBANG/Penutupan dihapus dari halaman detail.
+assertTest(strpos($detailPhp, "operasi.php?action=print_sitrep") === false, "detail.php tidak lagi menampilkan cetak SITREP (tab Cetak: RENOPS & BRA saja)");
+assertTest(strpos($detailPhp, "operasi.php?action=print_penutupan") === false, "detail.php tidak lagi menampilkan cetak Berita Acara Penutupan");
+assertTest(strpos($detailPhp, "operasi.php?action=renops_dokumen&id_renops=") !== false, "detail.php memiliki tombol Edit Draf dokumen RENOPS per hari di Tab Berkas");
+assertTest(strpos($detailPhp, "select-sitrep-cetak") === false, "Tab Berkas tanpa dropdown pemilih hari SITREP");
 
 // --- 5. JS Presisi GIS & Reaktivitas Korban ---
 $renopsJs = file_get_contents(__DIR__ . '/../assets/js/pages/renops_form.js');
@@ -122,8 +103,7 @@ assertTest(strpos($sitrepJs, "update_korban") !== false, "sitrep_form.js mempros
 assertTest(strpos($sitrepJs, "victim-status-badges") !== false, "sitrep_form.js memutakhirkan widget #victim-status-badges");
 
 $detailJs = file_get_contents(__DIR__ . '/../assets/js/pages/operasi_detail.js');
-assertTest(strpos($detailJs, "print_renops") !== false, "operasi_detail.js mendukung cetak naskah dinas RENOPS");
-assertTest(strpos($detailJs, "print_penutupan") !== false, "operasi_detail.js mendukung cetak naskah dinas Berita Acara");
+assertTest(strpos($detailJs, "printBerkas") === false && strpos($detailJs, "print_penutupan") === false, "operasi_detail.js tanpa fungsi cetak mati (printBerkas)");
 
 echo "\n========================================================\n";
 echo "HASIL AKHIR: $passed / $total Test Berhasil\n";

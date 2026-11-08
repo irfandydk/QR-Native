@@ -13,25 +13,34 @@ class MasterModel {
         return $db->query("SELECT * FROM MasterAlut ORDER BY id_alut ASC")->fetchAll();
     }
 
-    public static function createAlut(string|array $nama, string $satuan = 'Unit'): int {
+    public static function createAlut(string|array $nama, string $satuan = 'Unit', string $kategori = 'PALSAR'): int {
         $db = getDB();
         if (is_array($nama)) {
             $satuan = (string)($nama['satuan'] ?? 'Unit');
+            $kategori = (string)($nama['kategori'] ?? 'PALSAR');
             $nama = (string)($nama['nama_alut'] ?? '');
         }
-        $stmt = $db->prepare("INSERT INTO MasterAlut (nama_alut, satuan) VALUES (:nama, :satuan)");
-        $stmt->execute([':nama' => trim($nama), ':satuan' => trim($satuan) ?: 'Unit']);
+        $stmt = $db->prepare("INSERT INTO MasterAlut (nama_alut, satuan, kategori) VALUES (:nama, :satuan, :kategori)");
+        $stmt->execute([':nama' => trim($nama), ':satuan' => trim($satuan) ?: 'Unit', ':kategori' => self::kategoriAlut($kategori)]);
+        AlutKategori::resetCache();
         return (int)$db->lastInsertId();
     }
 
-    public static function updateAlut(int $id, string|array $nama, string $satuan = 'Unit'): bool {
+    public static function updateAlut(int $id, string|array $nama, string $satuan = 'Unit', string $kategori = 'PALSAR'): bool {
         $db = getDB();
         if (is_array($nama)) {
             $satuan = (string)($nama['satuan'] ?? 'Unit');
+            $kategori = (string)($nama['kategori'] ?? 'PALSAR');
             $nama = (string)($nama['nama_alut'] ?? '');
         }
-        $stmt = $db->prepare("UPDATE MasterAlut SET nama_alut = :nama, satuan = :satuan WHERE id_alut = :id");
-        return $stmt->execute([':nama' => trim($nama), ':satuan' => trim($satuan) ?: 'Unit', ':id' => $id]);
+        $stmt = $db->prepare("UPDATE MasterAlut SET nama_alut = :nama, satuan = :satuan, kategori = :kategori WHERE id_alut = :id");
+        $ok = $stmt->execute([':nama' => trim($nama), ':satuan' => trim($satuan) ?: 'Unit', ':kategori' => self::kategoriAlut($kategori), ':id' => $id]);
+        AlutKategori::resetCache();
+        return $ok;
+    }
+
+    private static function kategoriAlut(string $kategori): string {
+        return AlutKategori::normalize($kategori) ?? throw new InvalidArgumentException('Kategori alut tidak valid.');
     }
 
     public static function deleteAlut(int $id): bool {

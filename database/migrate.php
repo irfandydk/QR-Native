@@ -73,6 +73,7 @@ try {
     sort($sqlFiles);
 
     $appliedCount = 0;
+    $appliedNow = [];
     foreach ($sqlFiles as $filePath) {
         $fileName = basename($filePath);
         if (isset($appliedSet[$fileName])) {
@@ -86,6 +87,7 @@ try {
         $stmtIns->execute([':mig' => $fileName, ':batch' => $nextBatch]);
         echo "[OK] Applied: {$fileName} (Batch {$nextBatch})\n";
         $appliedCount++;
+        $appliedNow[$fileName] = true;
     }
 
     if ($appliedCount === 0) {
@@ -266,6 +268,20 @@ try {
         }
 
         echo "[OK] DetailTimBerangkat validated.\n";
+    }
+
+    // Kategori Alut & Palsar: master di luar daftar baku ditebak sekali (hanya pada run yang menerapkan
+    // migrasinya, agar koreksi manual tidak ditimpa), lalu item laporan lama diisi sekali (idempoten).
+    if (class_exists('AlutKategori')) {
+        echo "[RUN] Backfill kategori Alut & Palsar...\n";
+        $bf = AlutKategori::pulihkan($db, isset($appliedNow['2026_11_07_add_kategori_alut.sql']));
+        echo "[OK] Master Alut diisi: {$bf['master']} item.\n";
+        echo "[OK] Backfill kategori: DetailAlut {$bf['detail_alut']}, RENOPS {$bf['renops']}, LAPBANG {$bf['laporan']}.\n";
+    }
+    if (class_exists('DokumenPetaSnapshotModel')) {
+        echo "[RUN] Perapian peta & token dokumen lama (Laporan Awal/LAPBANG/Penutupan)...\n";
+        $rp = DokumenPetaSnapshotModel::rapikanDataLama($db);
+        echo "[OK] Snapshot dihapus {$rp['snapshot']}, dijadikan Peta LKP operasi {$rp['lkp']}, token QR lama dihapus {$rp['token']}.\n";
     }
 
     echo "\n=== All database migrations completed successfully! ===\n";

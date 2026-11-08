@@ -6,7 +6,7 @@
  * 2. Model RenopsModel (create, update, getById dengan satuan_jarak)
  * 3. Sanitasi & Fallback Satuan Jarak di Controller OperasiController
  * 4. Komponen UI Switcher Satuan Jarak di views/operasi/renops_form.php
- * 5. Tampilan Satuan pada lembar cetak (renops_print.php) dan tab RENOPS (tab_renops.php)
+ * 5. Tampilan Satuan pada tab RENOPS (tab_renops.php)
  * 6. Format Pesan WhatsApp di WhatsAppTemplateService
  * 7. Integritas Skrip JavaScript renops_form.js dan formula matematika
  */
@@ -169,7 +169,7 @@ it("Controller memfilter dan menormalisasi satuan_jarak ke KM, M, atau NM", func
 });
 
 // -------------------------------------------------------------
-// 3. View UI Elements Check (renops_form.php, tab_renops.php, renops_print.php)
+// 3. View UI Elements Check (renops_form.php, tab_renops.php)
 // -------------------------------------------------------------
 echo "\n[3] Verifikasi UI Switcher & View Integrations\n";
 
@@ -200,13 +200,6 @@ it("File views/operasi/partials/tab_renops.php menampilkan badge satuan jarak", 
     $tabView = file_get_contents(__DIR__ . '/../views/operasi/partials/tab_renops.php');
     if (strpos($tabView, "Satuan: <?= e(\$ren['satuan_jarak']) ?>") === false) {
         throw new Exception("Badge Satuan Jarak tidak ditemukan di tab_renops.php.");
-    }
-});
-
-it("File views/operasi/renops_print.php menampilkan satuan jarak pada Bagian II", function() {
-    $printView = file_get_contents(__DIR__ . '/../views/operasi/renops_print.php');
-    if (strpos($printView, "Satuan: ' . e(\$renops['satuan_jarak'])") === false) {
-        throw new Exception("Satuan Jarak tidak ditampilkan pada lembar cetak RENOPS.");
     }
 });
 

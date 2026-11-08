@@ -246,6 +246,7 @@ function renderAlutList() {
     `;
   } else {
     currentAlutList.forEach((item, idx) => {
+      if (!AlutKategoriUI.normalize(item.kategori)) item.kategori = AlutKategoriUI.kategoriOf(item);
       const row = document.createElement('div');
       row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
       row.innerHTML = `
@@ -265,6 +266,7 @@ function renderAlutList() {
             <option value="Batang" ${item.satuan === 'Batang' ? 'selected' : ''}>Batang</option>
             <option value="Orang" ${item.satuan === 'Orang' ? 'selected' : ''}>Orang</option>
           </select>
+          <select onchange="updateAlutItem(${idx}, 'kategori', this.value)" class="control control-sm" title="Kategori">${AlutKategoriUI.options(AlutKategoriUI.kategoriOf(item))}</select>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
             <button type="button" onclick="moveAlutRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Atas (Prioritas Naik)">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
@@ -295,6 +297,8 @@ function pickMasterAlut(jsonStr) {
       if (item.satuan) {
         document.getElementById('alut-input-satuan').value = item.satuan;
       }
+      document.getElementById('alut-input-kategori').value = AlutKategoriUI.normalize(item.kategori) || AlutKategoriUI.tebak(item.nama_alut);
+      document.getElementById('alut-input-kategori').dataset.manual = '1';
       const idEl = document.getElementById('alut-input-id');
       if (idEl) idEl.value = item.id_alut || '';
       document.getElementById('alut-input-nama').focus();
@@ -334,13 +338,15 @@ function handleAddAlutClick() {
     id_alut: idAlut,
     nama_alut: nama,
     jumlah_alut: jml,
-    satuan: sat
+    satuan: sat,
+    kategori: AlutKategoriUI.normalize(document.getElementById('alut-input-kategori').value) || AlutKategoriUI.tebak(nama)
   });
 
   namaInput.value = '';
   jmlInput.value = '1';
   if (idInput) idInput.value = '';
   document.getElementById('select-master-alut').value = '';
+  AlutKategoriUI.resetInput('alut-input-kategori');
 
   renderAlutList();
 }
@@ -375,7 +381,7 @@ function syncAlutFields() {
     if (currentAlutList.length === 0) {
       textEl.value = '';
     } else {
-      textEl.value = currentAlutList.map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n');
+      textEl.value = AlutKategoriUI.sort(currentAlutList).map(a => `• ${a.jumlah_alut} ${a.satuan || 'Unit'} ${a.nama_alut}`).join('\n');
     }
   }
 
@@ -2032,6 +2038,7 @@ function saveLocalStorageDraft() {
     const data = {
       timestamp: Date.now(),
       nama_operasi: document.getElementById('nama_operasi')?.value || '',
+      jenis_kejadian: document.getElementById('jenis_kejadian')?.value || '',
       nama_pelapor: document.getElementById('nama_pelapor')?.value || '',
       hubungan_pelapor: document.getElementById('hubungan_pelapor')?.value || '',
       no_telp_pelapor: document.getElementById('no_telp_pelapor')?.value || '',
@@ -2081,6 +2088,7 @@ function restoreLocalStorageDraft() {
     if (!d) return;
 
     if (d.nama_operasi) document.getElementById('nama_operasi').value = d.nama_operasi;
+    if (d.jenis_kejadian && document.getElementById('jenis_kejadian')) document.getElementById('jenis_kejadian').value = d.jenis_kejadian;
     if (d.nama_pelapor) document.getElementById('nama_pelapor').value = d.nama_pelapor;
     if (d.hubungan_pelapor) document.getElementById('hubungan_pelapor').value = d.hubungan_pelapor;
     if (d.no_telp_pelapor) document.getElementById('no_telp_pelapor').value = d.no_telp_pelapor;
@@ -2271,3 +2279,6 @@ window.QRSAR.OperasiForm = {
   addKorbanRow,
   removeKorbanRow
 };
+
+// Kategori input alut: tebakan otomatis dari nama sampai pengguna memilih sendiri.
+document.addEventListener('DOMContentLoaded', () => AlutKategoriUI.bindInput('alut-input-nama', 'alut-input-kategori'));

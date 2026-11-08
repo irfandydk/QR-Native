@@ -210,6 +210,12 @@ class OperasiModel {
         ];
     }
 
+    /** Status korban yang sah (DP|S|MD|H) dalam huruf besar, null bila tidak dikenal */
+    public static function normalizeStatusKorban(mixed $status): ?string {
+        $status = is_string($status) ? strtoupper(trim($status)) : '';
+        return in_array($status, ['DP', 'S', 'MD', 'H'], true) ? $status : null;
+    }
+
     public static function create(array $data): int {
         $db = getDB();
         $db->beginTransaction();
@@ -232,13 +238,13 @@ class OperasiModel {
 
             // ID dari AUTO_INCREMENT: ID operasi yang dihapus tidak dipakai ulang (link, QR & nomor dokumen lama tetap unik)
             $stmt = $db->prepare("INSERT INTO Operasi (
-                nama_operasi, nama_pelapor, hubungan_pelapor, no_telp_pelapor,
+                nama_operasi, jenis_kejadian, nama_pelapor, hubungan_pelapor, no_telp_pelapor,
                 waktu_kejadian, waktu_lapor, waktu_berangkat, tim_berangkat, eta_tiba,
                 lokasi_kejadian, koordinat, jarak, radial, eta_lokasi, kronologi, jumlah_pob,
                 unsur_terlibat, alut_palsar, faktor_penghambat, cuaca, gelombang, angin,
                 status, full_text_wa, created_at
             ) VALUES (
-                :nama_operasi, :nama_pelapor, :hubungan_pelapor, :no_telp_pelapor,
+                :nama_operasi, :jenis_kejadian, :nama_pelapor, :hubungan_pelapor, :no_telp_pelapor,
                 :waktu_kejadian, :waktu_lapor, :waktu_berangkat, :tim_berangkat, :eta_tiba,
                 :lokasi_kejadian, :koordinat, :jarak, :radial, :eta_lokasi, :kronologi, :jumlah_pob,
                 :unsur_terlibat, :alut_palsar, :faktor_penghambat, :cuaca, :gelombang, :angin,
@@ -247,6 +253,7 @@ class OperasiModel {
 
             $stmt->execute([
                 ':nama_operasi' => $data['nama_operasi'],
+                ':jenis_kejadian' => self::normalizeJenisKejadian($data['jenis_kejadian'] ?? null),
                 ':nama_pelapor' => $data['nama_pelapor'] ?? '',
                 ':hubungan_pelapor' => $data['hubungan_pelapor'] ?? '',
                 ':no_telp_pelapor' => $data['no_telp_pelapor'] ?? '',
@@ -285,7 +292,7 @@ class OperasiModel {
                         ':umur' => $k['umur'] ?? '',
                         ':jk' => $k['jk'] ?? 'Laki-laki',
                         ':alamat' => $k['alamat'] ?? '',
-                        ':status' => $k['status_korban'] ?? 'DP'
+                        ':status' => self::normalizeStatusKorban($k['status_korban'] ?? null) ?? 'DP'
                     ]);
                 }
             }
@@ -305,7 +312,7 @@ class OperasiModel {
 
             // Insert Detail Alut
             if (!empty($alutData)) {
-                $stmtA = $db->prepare("INSERT INTO DetailAlut (id_operasi, id_alut, nama_alut, satuan, jumlah_alut) VALUES (:id_ops, :id_alut, :nama, :sat, :jml)");
+                $stmtA = $db->prepare("INSERT INTO DetailAlut (id_operasi, id_alut, nama_alut, satuan, kategori, jumlah_alut) VALUES (:id_ops, :id_alut, :nama, :sat, :kat, :jml)");
                 foreach ($alutData as $a) {
                     if (empty($a['nama_alut'])) continue;
                     $stmtA->execute([
@@ -313,6 +320,7 @@ class OperasiModel {
                         ':id_alut' => (int)($a['id_alut'] ?? 0),
                         ':nama' => $a['nama_alut'],
                         ':sat' => $a['satuan'] ?? 'Unit',
+                        ':kat' => AlutKategori::resolve($a),
                         ':jml' => (int)($a['jumlah_alut'] ?? 1)
                     ]);
                 }
@@ -397,6 +405,7 @@ class OperasiModel {
 
             $stmt = $db->prepare("UPDATE Operasi SET
                 nama_operasi = :nama_operasi,
+                jenis_kejadian = :jenis_kejadian,
                 nama_pelapor = :nama_pelapor,
                 hubungan_pelapor = :hubungan_pelapor,
                 no_telp_pelapor = :no_telp_pelapor,
@@ -424,6 +433,9 @@ class OperasiModel {
             $stmt->execute([
                 ':id' => $id,
                 ':nama_operasi' => $data['nama_operasi'] ?? $ops['nama_operasi'],
+                ':jenis_kejadian' => array_key_exists('jenis_kejadian', $data)
+                    ? self::normalizeJenisKejadian($data['jenis_kejadian'])
+                    : ($ops['jenis_kejadian'] ?? null),
                 ':nama_pelapor' => $data['nama_pelapor'] ?? $ops['nama_pelapor'],
                 ':hubungan_pelapor' => $data['hubungan_pelapor'] ?? $ops['hubungan_pelapor'],
                 ':no_telp_pelapor' => $data['no_telp_pelapor'] ?? $ops['no_telp_pelapor'],
@@ -473,7 +485,7 @@ class OperasiModel {
                             ':umur' => $k['umur'] ?? '',
                             ':jk' => $k['jk'] ?? 'Laki-laki',
                             ':alamat' => $k['alamat'] ?? '',
-                            ':status' => $k['status_korban'] ?? 'DP'
+                            ':status' => self::normalizeStatusKorban($k['status_korban'] ?? null) ?? 'DP'
                         ]);
                         $keptKIds[] = $kId;
                         $kPool = array_values(array_diff($kPool, [$kId]));
@@ -486,7 +498,7 @@ class OperasiModel {
                             ':umur' => $k['umur'] ?? '',
                             ':jk' => $k['jk'] ?? 'Laki-laki',
                             ':alamat' => $k['alamat'] ?? '',
-                            ':status' => $k['status_korban'] ?? 'DP'
+                            ':status' => self::normalizeStatusKorban($k['status_korban'] ?? null) ?? 'DP'
                         ]);
                         $keptKIds[] = $reusedKId;
                     } else {
@@ -496,7 +508,7 @@ class OperasiModel {
                             ':umur' => $k['umur'] ?? '',
                             ':jk' => $k['jk'] ?? 'Laki-laki',
                             ':alamat' => $k['alamat'] ?? '',
-                            ':status' => $k['status_korban'] ?? 'DP'
+                            ':status' => self::normalizeStatusKorban($k['status_korban'] ?? null) ?? 'DP'
                         ]);
                     }
                 }
@@ -567,6 +579,9 @@ class OperasiModel {
             $namaOps = $ops['nama_operasi'] ?? "ID #{$id}";
             $statusOps = $ops['status'] ?? 'OPEN';
 
+            // 0. Kumpulkan path berkas dokumen RENOPS (dihapus dari disk setelah commit)
+            $filePaths = class_exists('RenopsDokumenModel') ? RenopsDokumenModel::collectFilePathsForOperasi($id) : [];
+
             // 1. Delete SRU from Renops belonging to this operation
             $stmtRenopsIds = $db->prepare("SELECT id_renops FROM Renops WHERE id_operasi = :id");
             $stmtRenopsIds->execute([':id' => $id]);
@@ -621,6 +636,9 @@ class OperasiModel {
 
             if (!$inTx && $db->inTransaction()) {
                 $db->commit();
+                if ($result && $filePaths) {
+                    RenopsDokumenModel::deleteFiles($filePaths);
+                }
             }
 
             if ($result && class_exists('AuditHelper')) {
@@ -649,7 +667,7 @@ class OperasiModel {
 
     public static function formatAlutText(array $alutList, string $fallback = ''): string {
         $aLines = [];
-        foreach ($alutList as $a) {
+        foreach (AlutKategori::sort($alutList) as $a) {
             $namaA = trim((string)($a['nama_alut'] ?? ''));
             if ($namaA === '') continue;
             $jmlA = (int)($a['jumlah_alut'] ?? 1);
@@ -686,6 +704,14 @@ class OperasiModel {
         ]);
 
         return ['ops' => $merged, 'korban' => $korban, 'unsur' => $unsur, 'alut' => $alut];
+    }
+
+    /**
+     * Jenis kejadian (opsional, kolom VARCHAR(191)): trim, kosong → NULL, dipotong 191 karakter.
+     */
+    public static function normalizeJenisKejadian(mixed $raw): ?string {
+        $val = is_string($raw) ? trim($raw) : '';
+        return $val === '' ? null : mb_substr($val, 0, 191);
     }
 
     public static function normalizeDateTime(?string $raw, bool $allowNull = false): ?string {

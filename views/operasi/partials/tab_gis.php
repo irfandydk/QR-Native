@@ -48,7 +48,7 @@
                 </button>
 
 
-                <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base=1&capture_doc=LAPORAN_AWAL" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition shadow-xs no-underline" title="Buka Studio Capture Peta 16:9 untuk Dokumen Cetak Resmi">
+                <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= (int)$operasi['id_operasi'] ?>&include_base=1&capture_doc=RENOPS" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition shadow-xs no-underline" title="Buka Studio Capture Peta 16:9 untuk Dokumen Cetak Resmi">
                     <span>Capture Peta Dokumen (16:9)</span>
                 </a>
 

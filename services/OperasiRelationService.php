@@ -90,8 +90,8 @@ class OperasiRelationService {
         $existingRows = $stmtExisting->fetchAll();
         $existingIds = array_column($existingRows, 'id_detail_alut');
 
-        $stmtUpdate = $db->prepare("UPDATE DetailAlut SET id_alut = :id_alut, nama_alut = :nama, satuan = :sat, jumlah_alut = :jml WHERE id_detail_alut = :aid AND id_operasi = :id_ops");
-        $stmtInsert = $db->prepare("INSERT INTO DetailAlut (id_operasi, id_alut, nama_alut, satuan, jumlah_alut) VALUES (:id_ops, :id_alut, :nama, :sat, :jml)");
+        $stmtUpdate = $db->prepare("UPDATE DetailAlut SET id_alut = :id_alut, nama_alut = :nama, satuan = :sat, kategori = :kat, jumlah_alut = :jml WHERE id_detail_alut = :aid AND id_operasi = :id_ops");
+        $stmtInsert = $db->prepare("INSERT INTO DetailAlut (id_operasi, id_alut, nama_alut, satuan, kategori, jumlah_alut) VALUES (:id_ops, :id_alut, :nama, :sat, :kat, :jml)");
 
         $keptIds = [];
         $pool = $existingRows;
@@ -116,10 +116,11 @@ class OperasiRelationService {
             $nama = trim((string)$a['nama_alut']);
             $idAlut = (int)($a['id_alut'] ?? 0);
             $satuan = $a['satuan'] ?? 'Unit';
+            $kat = AlutKategori::resolve($a);
             $jml = (int)($a['jumlah_alut'] ?? 1);
 
             if ($aId && in_array($aId, $existingIds, true) && !in_array($aId, $keptIds, true)) {
-                $stmtUpdate->execute([':aid' => $aId, ':id_ops' => $idOperasi, ':id_alut' => $idAlut, ':nama' => $nama, ':sat' => $satuan, ':jml' => $jml]);
+                $stmtUpdate->execute([':aid' => $aId, ':id_ops' => $idOperasi, ':id_alut' => $idAlut, ':nama' => $nama, ':sat' => $satuan, ':kat' => $kat, ':jml' => $jml]);
                 $keptIds[] = $aId;
             } elseif (!empty($pool)) {
                 $matchKey = null;
@@ -135,10 +136,10 @@ class OperasiRelationService {
                 $reusedId = (int)$pool[$matchKey]['id_detail_alut'];
                 unset($pool[$matchKey]);
 
-                $stmtUpdate->execute([':aid' => $reusedId, ':id_ops' => $idOperasi, ':id_alut' => $idAlut, ':nama' => $nama, ':sat' => $satuan, ':jml' => $jml]);
+                $stmtUpdate->execute([':aid' => $reusedId, ':id_ops' => $idOperasi, ':id_alut' => $idAlut, ':nama' => $nama, ':sat' => $satuan, ':kat' => $kat, ':jml' => $jml]);
                 $keptIds[] = $reusedId;
             } else {
-                $stmtInsert->execute([':id_ops' => $idOperasi, ':id_alut' => $idAlut, ':nama' => $nama, ':sat' => $satuan, ':jml' => $jml]);
+                $stmtInsert->execute([':id_ops' => $idOperasi, ':id_alut' => $idAlut, ':nama' => $nama, ':sat' => $satuan, ':kat' => $kat, ':jml' => $jml]);
             }
         }
 

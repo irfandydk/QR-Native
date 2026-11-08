@@ -34,13 +34,10 @@ $filesToLint = [
     'models/DokumenPetaSnapshotModel.php',
     'api/controllers/GisApiController.php',
     'views/gis.php',
-    'views/operasi/partials/print_map_snapshot_block.php',
     'views/operasi/partials/tab_cetak.php',
     'views/operasi/partials/tab_gis.php',
-    'views/operasi/laporan_awal_print.php',
-    'views/operasi/renops_print.php',
-    'views/operasi/sitrep_print.php',
-    'views/operasi/penutupan_print.php'
+    'views/operasi/partials/renops_smeac_doc.php',
+    'views/operasi/renops_smeac_print.php',
 ];
 
 foreach ($filesToLint as $relPath) {
@@ -119,66 +116,43 @@ $sampleBounds = [
     'unit' => 'NM'
 ];
 
-// Uji Simpan snapshot umum RENOPS (id_referensi = null) untuk menguji fallback cerdas
-$savedRenopsGeneral = DokumenPetaSnapshotModel::saveSnapshot([
-    'id_operasi' => $testIdOperasi,
-    'jenis_dokumen' => 'RENOPS',
-    'id_referensi' => null,
-    'image_data' => $dummyPngBase64,
-    'komponen' => $sampleKomponen,
-    'bounds' => $sampleBounds,
-    'keterangan_tambahan' => 'Peta Umum RENOPS Operasi'
-]);
-
-// Uji Simpan & Fallback untuk RENOPS dengan idReferensi spesifik khusus test (999888)
-$savedRenopsSpecific = DokumenPetaSnapshotModel::saveSnapshot([
+// Peta Lokasi (LKP): 1x per operasi — id_referensi selalu NULL walau dikirim
+$savedLkp = DokumenPetaSnapshotModel::saveSnapshot([
     'id_operasi' => $testIdOperasi,
     'jenis_dokumen' => 'RENOPS',
     'id_referensi' => 999888,
     'image_data' => $dummyPngBase64,
     'komponen' => $sampleKomponen,
     'bounds' => $sampleBounds,
-    'keterangan_tambahan' => 'Peta Pembagian Area SRU H.1'
+    'keterangan_tambahan' => 'Peta Lokasi LKP'
 ]);
+assertTrue(!empty($savedLkp) && (int)($savedLkp['id_operasi'] ?? 0) === $testIdOperasi && ($savedLkp['jenis_dokumen'] ?? '') === 'RENOPS', "saveSnapshot menyimpan Peta LKP (RENOPS)");
+assertTrue($savedLkp['id_referensi'] === null, "Peta LKP disimpan 1x per operasi (id_referensi NULL)");
+assertTrue(is_array($savedLkp['komponen']['points'] ?? null) && count($savedLkp['komponen']['points']) === 2, "JSON komponen peta mendekode 2 titik taktis");
+assertTrue(($savedLkp['bounds']['unit'] ?? '') === 'NM', "JSON bounds peta menyimpan satuan aktif (NM)");
+assertTrue(!array_key_exists('image_data_uri', $savedLkp), "Snapshot tidak lagi membawa data URI base64 (tidak terpakai)");
 
-assertTrue(!empty($savedRenopsSpecific) && (int)($savedRenopsSpecific['id_operasi'] ?? 0) === $testIdOperasi, "DokumenPetaSnapshotModel::saveSnapshot berhasil menyimpan snapshot RENOPS");
-assertTrue(($savedRenopsSpecific['jenis_dokumen'] ?? '') === 'RENOPS', "Jenis dokumen tersimpan sebagai RENOPS");
-assertTrue((int)($savedRenopsSpecific['id_referensi'] ?? 0) === 999888, "Snapshot spesifik RENOPS id_referensi=999888 berhasil disimpan");
-assertTrue(is_array($savedRenopsSpecific['komponen']['points'] ?? null) && count($savedRenopsSpecific['komponen']['points']) === 2, "JSON komponen peta mendekode 2 titik taktis (LKP & Lokasi Penemuan Korban)");
-assertTrue(($savedRenopsSpecific['bounds']['unit'] ?? '') === 'NM', "JSON bounds peta menyimpan satuan aktif (NM)");
-
-$absFile = $rootDir . '/' . $savedRenopsSpecific['image_path'];
-assertTrue(is_file($absFile), "File fisik PNG snapshot berhasil ditulis ke disk: {$savedRenopsSpecific['image_path']}");
-
-// Ambil dengan id_referensi=999888
-$fetchedSpecific = DokumenPetaSnapshotModel::getSnapshot($testIdOperasi, 'RENOPS', 999888);
-assertTrue(!empty($fetchedSpecific) && (int)$fetchedSpecific['id_snapshot'] === (int)$savedRenopsSpecific['id_snapshot'], "getSnapshot mengembalikan snapshot spesifik untuk id_referensi=999888");
-
-// Ambil dengan id_referensi=999889 (belum ada spesifik 999889, harus fallback ke snapshot umum RENOPS milik operasi tersebut)
-$fetchedFallback = DokumenPetaSnapshotModel::getSnapshot($testIdOperasi, 'RENOPS', 999889);
-assertTrue(!empty($fetchedFallback) && (int)$fetchedFallback['id_operasi'] === $testIdOperasi, "getSnapshot memiliki fallback cerdas jika id_referensi spesifik belum memiliki snapshot tersendiri");
+// Peta Rencana Operasi: per hari RENOPS
+$savedRencana = DokumenPetaSnapshotModel::saveSnapshot([
+    'id_operasi' => $testIdOperasi,
+    'jenis_dokumen' => 'RENOPS_RENCANA',
+    'id_referensi' => 999888,
+    'image_data' => $dummyPngBase64,
+]);
+$absFile = $rootDir . '/' . $savedRencana['image_path'];
+assertTrue((int)($savedRencana['id_referensi'] ?? 0) === 999888 && is_file($absFile), "Peta Rencana Operasi tersimpan per hari (id_referensi=999888) + berkas PNG");
+assertTrue((int)(DokumenPetaSnapshotModel::getSnapshot($testIdOperasi, 'RENOPS_RENCANA', 999888)['id_snapshot'] ?? 0) === (int)$savedRencana['id_snapshot'], "getSnapshot Peta Rencana per hari");
+assertTrue(DokumenPetaSnapshotModel::getSnapshot($testIdOperasi, 'RENOPS_RENCANA', 999889) === null, "Peta Rencana hari lain tidak mewarisi");
+assertTrue((int)(DokumenPetaSnapshotModel::getSnapshot($testIdOperasi, 'RENOPS', 999889)['id_snapshot'] ?? 0) === (int)$savedLkp['id_snapshot'], "Peta LKP operasi berlaku untuk semua hari");
+assertTrue(DokumenPetaSnapshotModel::getSnapshot($testIdOperasi, 'LAPORAN_AWAL') === null, "Jenis lama (LAPORAN_AWAL) tidak dikenal");
 
 // Uji getAllByOperasi
 $allSnaps = DokumenPetaSnapshotModel::getAllByOperasi($testIdOperasi);
 assertTrue(count($allSnaps) >= 1, "getAllByOperasi mengembalikan daftar snapshot milik operasi");
 
-// Uji Rendering Partial print_map_snapshot_block.php
-$mapSnapshot = $savedRenopsSpecific;
-$mapSnapshotSectionTitle = 'VISUALISASI PETA TAKTIS LKP & AREA PENCARIAN AWAL (RASIO 16:9)';
-ob_start();
-include $rootDir . '/views/operasi/partials/print_map_snapshot_block.php';
-$renderedBlock = ob_get_clean();
-
-assertTrue(strpos($renderedBlock, 'VISUALISASI PETA TAKTIS LKP &amp; AREA PENCARIAN AWAL (RASIO 16:9)') !== false, "Partial print_map_snapshot_block.php menampilkan judul bagian dengan benar");
-assertTrue(strpos($renderedBlock, 'aspect-ratio: 16 / 9') !== false, "Partial print_map_snapshot_block.php menerapkan rasio 16:9 pada kontainer gambar peta");
-assertTrue(strpos($renderedBlock, 'KOORDINAT &amp; SPESIFIKASI AREA') !== false, "Partial print_map_snapshot_block.php merender header Tabel Keterangan Komponen");
-assertTrue(strpos($renderedBlock, 'LKP KM Harapan Jaya') !== false && strpos($renderedBlock, 'Penemuan Korban #1 (La Ode Ahmad)') !== false, "Partial print_map_snapshot_block.php menampilkan seluruh baris komponen di dalam tabel keterangan");
-
 // Uji Delete Snapshot & pembersihan file fisik
-$del = DokumenPetaSnapshotModel::deleteSnapshot((int)$savedRenopsSpecific['id_snapshot']);
-if (!empty($savedRenopsGeneral['id_snapshot'])) {
-    DokumenPetaSnapshotModel::deleteSnapshot((int)$savedRenopsGeneral['id_snapshot']);
-}
+$del = DokumenPetaSnapshotModel::deleteSnapshot((int)$savedRencana['id_snapshot']);
+DokumenPetaSnapshotModel::deleteSnapshot((int)$savedLkp['id_snapshot']);
 assertTrue($del, "deleteSnapshot berhasil menghapus record dari database");
 assertTrue(!is_file($absFile), "deleteSnapshot ikut membersihkan file PNG fisik dari disk");
 
@@ -195,27 +169,11 @@ assertTrue(strpos($gisJs, 'function detectComponentsInCaptureBox(') !== false, "
 assertTrue(strpos($gisJs, 'function renderCaptureCanvas16x9(') !== false, "assets/js/gis_master.js mendefinisikan fungsi kanvas 16:9 renderCaptureCanvas16x9()");
 assertTrue(strpos($gisJs, 'CANVAS_W = 1280') !== false && strpos($gisJs, 'CANVAS_H = 720') !== false, "renderCaptureCanvas16x9() menggunakan resolusi 16:9 presisi (1280x720)");
 
-// 4. Verifikasi Integrasi di Dokumen Cetak Resmi Sesuai SOP Basarnas
-$printFiles = [
-    'views/operasi/laporan_awal_print.php' => ['doc' => 'LAPORAN_AWAL', 'cap' => 'LAPORAN_AWAL'],
-    'views/operasi/renops_print.php'       => ['doc' => 'RENOPS',       'cap' => 'RENOPS'],
-    'views/operasi/sitrep_print.php'       => ['doc' => 'PENUTUPAN',    'cap' => 'PENUTUPAN'],
-    'views/operasi/penutupan_print.php'    => ['doc' => 'PENUTUPAN',    'cap' => 'PENUTUPAN']
-];
-
-foreach ($printFiles as $relFile => $cfg) {
-    $content = file_get_contents($rootDir . '/' . $relFile);
-    $docCode = $cfg['doc'];
-    $capCode = $cfg['cap'];
-    assertTrue(
-        strpos($content, 'print_map_snapshot_block.php') !== false && strpos($content, "'{$docCode}'") !== false,
-        "Dokumen cetak {$relFile} telah menyematkan print_map_snapshot_block.php untuk {$docCode} di dalam BAB relevan"
-    );
-    assertTrue(
-        strpos($content, "capture_doc={$capCode}") !== false,
-        "Dokumen cetak {$relFile} memiliki tombol pintas Capture Peta 16:9 di toolbar"
-    );
-}
+// 4. Integrasi peta di Dokumen RENOPS: Peta LKP (1x) & Peta Rencana Operasi (per hari)
+$docPartial = file_get_contents($rootDir . '/views/operasi/partials/renops_smeac_doc.php');
+assertTrue(strpos($docPartial, "capture_doc=RENOPS';") !== false && strpos($docPartial, 'capture_doc=RENOPS_RENCANA&capture_ref=') !== false,
+    "Dokumen RENOPS memiliki tombol capture Peta LKP (tanpa hari) & Peta Rencana Operasi (per hari)");
+assertTrue(!file_exists($rootDir . '/views/operasi/partials/print_map_snapshot_block.php'), "Partial blok peta dokumen lama sudah dihapus");
 
 echo "\n--------------------------------------------------\n";
 echo "Total Pengujian: " . ($passed + $failed) . " | Passed: {$passed} | Failed: {$failed}\n";

@@ -11,7 +11,7 @@ class SettingsApiController extends BaseApiController {
         // 1. Get Settings (Public / Admin filtered)
         if ($path === '/settings' && $method === 'GET') {
             $settings = SettingsModel::getSettings();
-            if (AuthHelper::isAdmin()) {
+            if (AuthHelper::isAdmin() && !AuthHelper::mustChangePassword()) {
                 // Strip password hashes even for admin API output
                 unset($settings['admin_password'], $settings['user_password']);
                 self::json(['success' => true, 'data' => $settings]);

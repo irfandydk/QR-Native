@@ -33,10 +33,7 @@ $targetFiles = [
     'views/bra/list.php',
     'views/master/index.php',
     'views/gis.php',
-    'views/operasi/laporan_awal_print.php',
-    'views/operasi/renops_print.php',
-    'views/operasi/sitrep_print.php',
-    'views/operasi/penutupan_print.php',
+    'views/operasi/renops_smeac_print.php',
     'views/admin/partials/tab_logs.php'
 ];
 
@@ -116,28 +113,19 @@ assertCondition(
 );
 
 // 3.4 Print documents contextual tab preservation
-$lapAwalPrint = file_get_contents(ROOT_DIR . '/views/operasi/laporan_awal_print.php');
+$renopsPrint = file_get_contents(ROOT_DIR . '/views/operasi/renops_smeac_print.php');
+$operasiCtrl = file_get_contents(ROOT_DIR . '/controllers/OperasiController.php');
 assertCondition(
-    "laporan_awal_print.php tombol kembali menuju &tab=cetak",
-    str_contains($lapAwalPrint, 'href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $id ?>&tab=cetak"')
+    "renops_smeac_print.php tombol kembali ($backUrl) menuju editor dokumen RENOPS",
+    str_contains($renopsPrint, 'href="<?= e($backUrl) ?>"')
+        && str_contains($operasiCtrl, "\$editorUrl = BASE_URL . '/operasi.php?action=renops_dokumen&id_renops=' . \$idRenops;")
+        && str_contains($operasiCtrl, '$this->renderRenopsVersi($versi, false, $editorUrl);')
 );
 
-$renopsPrint = file_get_contents(ROOT_DIR . '/views/operasi/renops_print.php');
 assertCondition(
-    "renops_print.php tombol kembali menuju &tab=renops",
-    str_contains($renopsPrint, 'href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $id ?>&tab=renops"')
-);
-
-$sitrepPrint = file_get_contents(ROOT_DIR . '/views/operasi/sitrep_print.php');
-assertCondition(
-    "sitrep_print.php tombol kembali menuju &tab=sitrep",
-    str_contains($sitrepPrint, 'href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $id ?>&tab=sitrep"')
-);
-
-$penutupanPrint = file_get_contents(ROOT_DIR . '/views/operasi/penutupan_print.php');
-assertCondition(
-    "penutupan_print.php tombol kembali menuju &tab=cetak",
-    str_contains($penutupanPrint, 'href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $id ?>&tab=cetak"')
+    "Lembar cetak Laporan Awal/LAPBANG/Penutupan sudah dihapus",
+    !file_exists(ROOT_DIR . '/views/operasi/laporan_awal_print.php') && !file_exists(ROOT_DIR . '/views/operasi/sitrep_print.php')
+        && !file_exists(ROOT_DIR . '/views/operasi/penutupan_print.php')
 );
 
 // -------------------------------------------------------------

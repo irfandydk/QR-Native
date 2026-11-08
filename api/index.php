@@ -18,11 +18,9 @@ header('Pragma: no-cache');
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $appHost = parse_url(BASE_URL, PHP_URL_HOST) ?: 'localhost';
 if ($origin) {
-    $originHost = parse_url($origin, PHP_URL_HOST);
     $isDev = (defined('APP_ENV') && APP_ENV === 'development') || in_array($appHost, ['localhost', '127.0.0.1'], true);
-    $allowLocal = $isDev && in_array($originHost, ['localhost', '127.0.0.1'], true);
 
-    if ($originHost === $appHost || $allowLocal) {
+    if (BaseApiController::isAllowedOrigin($origin, BASE_URL, $isDev)) {
         header("Access-Control-Allow-Origin: {$origin}");
         header('Access-Control-Allow-Credentials: true');
     }
@@ -90,6 +88,9 @@ try {
 
     // 4. Standalone RENOPS routes
     if (str_starts_with($path, '/renops/')) {
+        if (preg_match('#^/renops/\d+/(dokumen|foto)#', $path)) {
+            if (RenopsDokumenApiController::handle($path, $method, $input)) exit;
+        }
         if (RenopsApiController::handle($path, $method, $input)) exit;
     }
 

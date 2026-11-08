@@ -446,4 +446,77 @@ class HierarchyHelper {
             'is_max_day' => $isMaxDay
         ];
     }
+
+    /** Nomor hari absolut lintas reopen: "H.3" -> 3, "H7 + 1" -> 8. */
+    public static function absoluteDayNumber(string $hariKe): int {
+        if (preg_match('/^H\.?\s*(\d+)\s*\+\s*(\d+)$/i', trim($hariKe), $m)) {
+            return (int)$m[1] + (int)$m[2];
+        }
+        return self::extractDayNumber($hariKe);
+    }
+
+    /**
+     * Sumber data dasar RENOPS hari N: Laporan Awal (H1) atau pendahulu terdekat
+     * (LAPBANG N-1, LAPBANG < N terbesar, RENOPS < N terbesar, Laporan Awal).
+     * Nilai non-kosong milik RENOPS itu sendiri menimpa pendahulu.
+     * @return array{hari_num:int,hari_label:string,sumber:string,lapbang:?array,unsur:array,alut:array,cuaca:string}
+     */
+    public static function resolveRenopsSources(array $ops, array $renops): array {
+        $hari = TemplateHelper::hitungHariKe($ops, $renops['tanggal_laporan'] ?? null, $renops['hari_ke'] ?? null);
+        $n = self::absoluteDayNumber($hari);
+        $arr = fn($v) => is_array($v) ? $v : (is_string($v) && $v !== '' ? (json_decode($v, true) ?: []) : []);
+
+        $lapbang = null;
+        $lapDay = 0;
+        foreach ($ops['laporan_harian'] ?? [] as $l) {
+            $raw = $l['waktu_laporan'] ?? ($l['tanggal_laporan'] ?? null);
+            $d = $raw ? self::absoluteDayNumber(TemplateHelper::hitungHariKe($ops, (string)$raw, $l['hari_ke'] ?? null)) : 0;
+            // Seri hari sama: laporan paling akhir menang (>=).
+            if ($d < $n && $d >= 1 && $d >= $lapDay && ($lapbang === null || $d > $lapDay || strcmp((string)($l['waktu_laporan'] ?? ''), (string)($lapbang['waktu_laporan'] ?? '')) >= 0)) {
+                $lapDay = $d;
+                $lapbang = $l;
+            }
+        }
+
+        $sumber = 'LAPORAN_AWAL';
+        $pred = ['unsur' => $arr($ops['detail_unsur'] ?? []), 'alut' => $arr($ops['detail_alut'] ?? []), 'cuaca' => (string)($ops['cuaca'] ?? '')];
+        $src = null;
+        if ($n >= 2 && $lapbang) {
+            $sumber = 'LAPBANG';
+            $src = $lapbang;
+        } elseif ($n >= 2) {
+            $best = 0;
+            foreach ($ops['renops'] ?? [] as $r) {
+                if ((int)($r['id_renops'] ?? 0) === (int)($renops['id_renops'] ?? -1)) continue;
+                $d = self::absoluteDayNumber(TemplateHelper::hitungHariKe($ops, $r['tanggal_laporan'] ?? null, $r['hari_ke'] ?? null));
+                if ($d < $n && $d >= $best) {
+                    $best = $d;
+                    $src = $r;
+                }
+            }
+            if ($src) $sumber = 'RENOPS';
+        }
+        if ($src) {
+            foreach (['unsur' => 'detail_unsur', 'alut' => 'detail_alut'] as $k => $col) {
+                $v = $arr($src[$col] ?? []);
+                if ($v) $pred[$k] = $v;
+            }
+            if (!empty($src['cuaca'])) $pred['cuaca'] = (string)$src['cuaca'];
+        }
+        foreach (['unsur' => 'detail_unsur', 'alut' => 'detail_alut'] as $k => $col) {
+            $own = $arr($renops[$col] ?? []);
+            if ($own) $pred[$k] = $own;
+        }
+        if (!empty($renops['cuaca'])) $pred['cuaca'] = (string)$renops['cuaca'];
+
+        return [
+            'hari_num' => $n,
+            'hari_label' => preg_replace('/^H\.?\s*/i', '', trim($hari)),
+            'sumber' => $sumber,
+            'lapbang' => $sumber === 'LAPBANG' ? $lapbang : null,
+            'unsur' => $pred['unsur'],
+            'alut' => $pred['alut'],
+            'cuaca' => $pred['cuaca'],
+        ];
+    }
 }

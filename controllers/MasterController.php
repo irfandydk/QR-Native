@@ -38,12 +38,16 @@ class MasterController extends BaseController {
                 $namaAlut = trim($_POST['nama_alut'] ?? '');
                 $satuan = trim($_POST['satuan'] ?? 'Unit');
                 if ($namaAlut !== '') {
-                    MasterModel::createAlut([
-                        'nama_alut' => $namaAlut,
-                        'satuan' => $satuan,
-                        'kategori' => $_POST['kategori'] ?? 'Alut'
-                    ]);
-                    $this->setFlash('success', "Alut/Palsar \"{$namaAlut}\" berhasil ditambahkan.");
+                    try {
+                        MasterModel::createAlut([
+                            'nama_alut' => $namaAlut,
+                            'satuan' => $satuan,
+                            'kategori' => (string)($_POST['kategori'] ?? '')
+                        ]);
+                        $this->setFlash('success', "Alut/Palsar \"{$namaAlut}\" berhasil ditambahkan.");
+                    } catch (InvalidArgumentException $e) {
+                        $this->setFlash('error', $e->getMessage());
+                    }
                 } else {
                     $this->setFlash('error', 'Nama Alut/Palsar wajib diisi.');
                 }
@@ -55,11 +59,16 @@ class MasterController extends BaseController {
                 $namaAlut = trim($_POST['nama_alut'] ?? '');
                 $satuan = trim($_POST['satuan'] ?? 'Unit');
                 if ($id > 0 && $namaAlut !== '') {
-                    MasterModel::updateAlut($id, [
-                        'nama_alut' => $namaAlut,
-                        'satuan' => $satuan
-                    ]);
-                    $this->setFlash('success', "Data Alut berhasil diperbarui.");
+                    try {
+                        MasterModel::updateAlut($id, [
+                            'nama_alut' => $namaAlut,
+                            'satuan' => $satuan,
+                            'kategori' => (string)($_POST['kategori'] ?? '')
+                        ]);
+                        $this->setFlash('success', "Data Alut berhasil diperbarui.");
+                    } catch (InvalidArgumentException $e) {
+                        $this->setFlash('error', $e->getMessage());
+                    }
                 }
                 $this->redirect('/master.php?tab=alut');
             }

@@ -693,22 +693,3 @@ async function confirmAndRollbackOperasi(idOperasi) {
         }
     }
 }
-
-function printBerkas(type) {
-    const noOps = (typeof opsDetailCfg !== 'undefined' && opsDetailCfg.idOperasi) ? opsDetailCfg.idOperasi : '';
-    const baseUrl = window.BASE_URL || '';
-    if (type === 'laporan_awal') {
-        window.open(baseUrl + '/operasi.php?action=print_laporan_awal&id=' + encodeURIComponent(noOps), '_blank');
-        return;
-    } else if (type === 'renops') {
-        window.open(baseUrl + '/operasi.php?action=print_renops&id=' + encodeURIComponent(noOps), '_blank');
-        return;
-    } else if (type === 'penutupan' || type === 'berita_acara') {
-        window.open(baseUrl + '/operasi.php?action=print_penutupan&id=' + encodeURIComponent(noOps), '_blank');
-        return;
-    } else if (type === 'sitrep') {
-        window.open(baseUrl + '/operasi.php?action=print_sitrep&id=' + encodeURIComponent(noOps), '_blank');
-        return;
-    }
-    setTimeout(() => window.print(), 300);
-}

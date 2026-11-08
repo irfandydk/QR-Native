@@ -8,6 +8,8 @@
 declare(strict_types=1);
 
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH));
+require_once dirname(__DIR__) . '/helpers/Router.php';
+Router::rejectUnsafePath($uri);
 
 // Block sensitive directories, schemas, dumps, and environment files
 if (

@@ -164,33 +164,27 @@ class OperasiController extends BaseController {
             $this->redirect('/index.php');
         }
 
+        // Editor draf Dokumen RENOPS (format SMEAC)
+        if ($action === 'renops_dokumen') {
+            $this->renopsDokumen();
+            return;
+        }
+
+        // Dokumen RENOPS terbit, publik read-only (K12): hanya lewat token versi, tanpa login
+        if ($action === 'renops_publik') {
+            $this->renopsPublik();
+            return;
+        }
+
         // Lembar cetak memuat data pribadi korban & pelapor: wajib login (publik cukup lewat portal verifikasi)
         if (str_starts_with((string)$action, 'print_') || str_starts_with((string)$action, 'cetak_')) {
             $this->requireLogin();
         }
 
-        // Lembar Berkas Cetak Resmi Laporan Awal Operasi SAR
-        if ($action === 'print_laporan_awal' || $action === 'cetak_laporan_awal') {
-            require VIEWS_DIR . '/operasi/laporan_awal_print.php';
-            exit;
-        }
-
         // Lembar Berkas Cetak Resmi Rencana Operasi SAR (RENOPS)
         if ($action === 'print_renops' || $action === 'cetak_renops') {
-            require VIEWS_DIR . '/operasi/renops_print.php';
-            exit;
-        }
-
-        // Lembar Berkas Cetak Resmi Berita Acara Pengusulan Penutupan Operasi SAR
-        if ($action === 'print_penutupan' || $action === 'cetak_penutupan' || $action === 'print_berita_acara' || $action === 'cetak_berita_acara') {
-            require VIEWS_DIR . '/operasi/penutupan_print.php';
-            exit;
-        }
-
-        // Lembar Berkas Cetak Resmi Laporan Perkembangan (SITREP)
-        if ($action === 'print_sitrep' || $action === 'cetak_sitrep') {
-            require VIEWS_DIR . '/operasi/sitrep_print.php';
-            exit;
+            $this->printRenops();
+            return;
         }
 
         // Portal Verifikasi Keabsahan Dokumen Operasi SAR (Akses Publik / Scanner Barcode)
@@ -200,6 +194,7 @@ class OperasiController extends BaseController {
         }
 
         // Default: show list
+        $this->requireLogin();
         $this->render('dashboard', [], [
             'title' => 'Daftar Operasi SAR',
             'route' => 'operasi',
@@ -208,68 +203,184 @@ class OperasiController extends BaseController {
     }
 
     /**
+     * Editor draf Dokumen RENOPS (edit langsung di kertas). Draf, foto, terbit tetap boleh pada operasi CLOSED (K16).
+     */
+    protected function renopsDokumen(): void {
+        $this->requireLogin();
+        $idRenops = (int)($_GET['id_renops'] ?? 0);
+        $renops = $idRenops > 0 ? RenopsModel::getById($idRenops) : null;
+        $doc = $renops ? RenopsDokumenService::resolve($idRenops) : null;
+        if (!$renops || !$doc) {
+            $this->setFlash('error', 'Data Rencana Operasi (RENOPS) tidak ditemukan.');
+            $this->redirect('/index.php');
+        }
+        $draft = RenopsDokumenModel::getDraft($idRenops);
+        $this->render('operasi/renops_dokumen', [
+            'idRenops' => $idRenops,
+            'idOperasi' => (int)$renops['id_operasi'],
+            'doc' => $doc,
+            'rev' => (int)($draft['rev'] ?? 0),
+            'terbit' => RenopsDokumenModel::getLatestTerbit($idRenops),
+            'belumTerbit' => RenopsDokumenPublisher::hasUnpublishedChanges($idRenops),
+        ], [
+            'title' => 'Editor Dokumen RENOPS',
+            'route' => 'operasi_detail',
+            'navbarTitle' => 'EDITOR DOKUMEN RENOPS',
+        ]);
+    }
+
+    /**
+     * Cetak internal Dokumen RENOPS: versi TERBIT terakhir (tanpa id_renops: RENOPS terakhir operasi).
+     * Belum terbit, atau ?draf=1: pratinjau draf (watermark DRAF, tanpa QR) agar tetap bisa dicetak/diunduh.
+     */
+    protected function printRenops(): void {
+        $idRenops = (int)($_GET['id_renops'] ?? 0);
+        if ($idRenops <= 0) {
+            $list = RenopsModel::getByOperasiId((int)($_GET['id'] ?? 0));
+            $idRenops = $list ? (int)end($list)['id_renops'] : 0;
+        }
+        $editorUrl = BASE_URL . '/operasi.php?action=renops_dokumen&id_renops=' . $idRenops;
+        $versi = RenopsDokumenModel::getLatestTerbit($idRenops);
+        if (!$versi || !empty($_GET['draf'])) {
+            $this->renderRenopsDraf($idRenops, $editorUrl);
+            return;
+        }
+        $this->renderRenopsVersi($versi, false, $editorUrl);
+    }
+
+    /** Pratinjau cetak draf (belum/tanpa QR): isi terkini hasil resolve(), hanya untuk pengguna login. */
+    private function renderRenopsDraf(int $idRenops, string $editorUrl): void {
+        $this->requireLogin();
+        $doc = $idRenops > 0 ? RenopsDokumenService::resolve($idRenops) : null;
+        if (!$doc) {
+            $this->setFlash('error', 'Data Rencana Operasi (RENOPS) tidak ditemukan.');
+            $this->redirect('/index.php');
+        }
+        $mode = 'pratinjau';
+        $qrUrl = null;
+        $versiLabel = 'DRAF';
+        $isPublic = false;
+        $backUrl = $editorUrl;
+        $digantikanOleh = null;
+        require VIEWS_DIR . '/operasi/renops_smeac_print.php';
+    }
+
+    /**
+     * Dokumen RENOPS publik read-only (K12): versi TERBIT/DIGANTIKAN pemilik token. Tidak pernah draf.
+     */
+    protected function renopsPublik(): void {
+        // Memuat data pribadi korban & pelapor: jangan diindeks, jangan disimpan cache
+        header('X-Robots-Tag: noindex, nofollow');
+        header('Cache-Control: no-store');
+        $token = trim((string)($_GET['token'] ?? ''));
+        $versi = preg_match('/^[0-9A-F]{16}$/', $token) ? RenopsDokumenModel::findByToken($token) : null;
+        if (!$versi || !in_array($versi['status'], ['TERBIT', 'DIGANTIKAN'], true)) {
+            $this->renderVerifyInvalid('RENOPS [publik]', $token);
+            return;
+        }
+        $terbaru = $versi['status'] === 'DIGANTIKAN' ? RenopsDokumenModel::getLatestTerbit((int)$versi['id_renops']) : null;
+        $this->renderRenopsVersi($versi, true, null, $terbaru);
+    }
+
+    /** Halaman cetak SMEAC (konten beku) untuk satu versi terbit. */
+    private function renderRenopsVersi(array $versi, bool $isPublic, ?string $backUrl, ?array $terbaru = null): void {
+        $doc = $versi['konten'];
+        $qrUrl = RenopsDokumenPublisher::verifyUrl($versi);
+        $versiLabel = 'v' . (int)$versi['versi'];
+        $digantikanOleh = $terbaru
+            ? ['versi' => (int)$terbaru['versi'], 'url' => RenopsDokumenPublisher::publicUrl((string)$terbaru['token'])]
+            : null;
+        require VIEWS_DIR . '/operasi/renops_smeac_print.php';
+    }
+
+    /**
+     * Hasil verifikasi token Dokumen RENOPS format baru, hanya bila token milik RENOPS $refId pada operasi $idOps.
+     * null = token tidak dikenal (lanjut ke jalur QR lama / tidak valid).
+     * @return array{status:'SAH'|'DIUBAH', versi:int, latest_versi:int, open_url:string, issued_at:string}|null
+     */
+    public static function resolveRenopsVerification(string $token, int $idOps, int $refId): ?array {
+        $token = strtoupper(trim($token));
+        $versi = preg_match('/^[0-9A-F]{16}$/', $token) ? RenopsDokumenModel::findByToken($token) : null;
+        if (!$versi || (int)$versi['id_renops'] !== $refId || (int)$versi['id_operasi'] !== $idOps) {
+            return null;
+        }
+        $terbaru = match ($versi['status']) {
+            'TERBIT' => $versi,
+            'DIGANTIKAN' => RenopsDokumenModel::getLatestTerbit($refId),
+            default => null,
+        };
+        if (!$terbaru) {
+            return null;
+        }
+        // Penandatangan beku dari versi yang dipindai (DIUBAH: versi lama itu), bukan SMC default saat ini.
+        $p = $versi['konten']['pengesahan'] ?? [];
+        $pengesahan = [];
+        foreach (['kota', 'tanggal', 'smc_nama', 'smc_pangkat', 'smc_nip'] as $k) {
+            $pengesahan[$k] = (string)($p[$k] ?? '');
+        }
+        return [
+            'status' => $versi['status'] === 'TERBIT' ? 'SAH' : 'DIUBAH',
+            'versi' => (int)$versi['versi'],
+            'latest_versi' => (int)$terbaru['versi'],
+            'open_url' => RenopsDokumenPublisher::publicUrl((string)$terbaru['token']),
+            'issued_at' => (string)$versi['issued_at'],
+            'pengesahan' => $pengesahan,
+        ];
+    }
+
+    private function renderVerifyInvalid(string $invalidRef, string $token): void {
+        http_response_code(404);
+        $this->render('bra/verify_invalid', [
+            'invalidTitle' => 'Naskah Dokumen Operasi SAR Tidak Terverifikasi',
+            'invalidRef' => $invalidRef,
+            'invalidToken' => htmlspecialchars($token, ENT_QUOTES, 'UTF-8'),
+            'verificationStatus' => 'INVALID_TOKEN',
+            'verificationMessage' => 'Tanda tangan digital atau token verifikasi tidak valid. Dokumen operasi SAR ini diduga mengalami manipulasi URL atau tidak terdaftar dalam pangkalan data resmi Basarnas KPP Kendari.'
+        ], [
+            'layout' => 'public',
+            'title' => 'Verifikasi Dokumen Tidak Sah'
+        ]);
+    }
+
+    /**
      * Portal Verifikasi Publik Resmi Keabsahan Dokumen Operasi SAR
      */
     protected function verifyDocument(): void {
-        $type = DocVerifyHelper::normalizeType($_GET['type'] ?? 'laporan_awal');
+        // Hanya dokumen RENOPS yang ber-QR; tipe lain (Laporan Awal/LAPBANG/Penutupan) tidak diterbitkan lagi → tidak valid.
+        $type = DocVerifyHelper::normalizeType($_GET['type'] ?? '');
         $idOps = (int)($_GET['id'] ?? 0);
         $refId = (int)($_GET['ref'] ?? 0);
         $token = trim((string)($_GET['token'] ?? ''));
 
-        $operasi = $idOps > 0 ? OperasiModel::getById($idOps) : null;
+        $operasi = ($type !== null && $idOps > 0) ? OperasiModel::getById($idOps) : null;
         $docData = null;
-
         if ($operasi) {
-            if ($type === DocVerifyHelper::TYPE_RENOPS) {
-                if ($refId > 0) {
-                    $docData = RenopsModel::getById($refId);
-                } else {
-                    $list = RenopsModel::getByOperasiId($idOps);
-                    $docData = !empty($list) ? end($list) : null;
-                }
-            } elseif ($type === DocVerifyHelper::TYPE_SITREP) {
-                if ($refId > 0) {
-                    $docData = LaporanModel::getById($refId);
-                } else {
-                    $list = LaporanModel::getByOperasiId($idOps);
-                    $docData = !empty($list) ? end($list) : null;
-                }
-            } elseif ($type === DocVerifyHelper::TYPE_PENUTUPAN) {
-                if ($refId > 0) {
-                    $docData = LaporanModel::getById($refId);
-                } else {
-                    $list = LaporanModel::getByOperasiId($idOps);
-                    foreach ($list as $l) {
-                        if (strtoupper((string)($l['jenis_laporan'] ?? '')) === 'PENUTUPAN') {
-                            $docData = $l;
-                            break;
-                        }
-                    }
-                    if (!$docData && !empty($list)) {
-                        $docData = end($list);
-                    }
-                }
+            if ($refId > 0) {
+                $docData = RenopsModel::getById($refId);
+            } else {
+                $list = RenopsModel::getByOperasiId($idOps);
+                $docData = !empty($list) ? end($list) : null;
             }
         }
 
         $isValid = false;
-        if ($operasi && !empty($token)) {
-            $isValid = DocVerifyHelper::verifyToken($type, $operasi, $docData, $token);
+        $renopsVerify = null;
+        if ($operasi && $token !== '') {
+            $renopsVerify = self::resolveRenopsVerification($token, $idOps, $refId);
+            $isValid = $renopsVerify !== null || DocVerifyHelper::verifyToken($operasi, $docData, $token);
+            // QR RENOPS portrait lama yang sah, tetapi RENOPS itu sudah punya versi TERBIT format baru
+            $terbaru = $isValid && $renopsVerify === null
+                ? RenopsDokumenModel::getLatestTerbit((int)($docData['id_renops'] ?? 0)) : null;
+            if ($terbaru) {
+                $renopsVerify = [
+                    'status' => 'DIUBAH', 'versi' => 0, 'latest_versi' => (int)$terbaru['versi'],
+                    'open_url' => RenopsDokumenPublisher::publicUrl((string)$terbaru['token']), 'issued_at' => '',
+                ];
+            }
         }
 
         if (!$isValid) {
-            http_response_code(404);
-            $invalidRef = "OPS-{$idOps}" . ($refId > 0 ? "/REF-{$refId}" : "") . " [{$type}]";
-            $this->render('bra/verify_invalid', [
-                'invalidTitle' => 'Naskah Dokumen Operasi SAR Tidak Terverifikasi',
-                'invalidRef' => $invalidRef,
-                'invalidToken' => htmlspecialchars($token, ENT_QUOTES, 'UTF-8'),
-                'verificationStatus' => 'INVALID_TOKEN',
-                'verificationMessage' => 'Tanda tangan digital atau token verifikasi tidak valid. Dokumen operasi SAR ini diduga mengalami manipulasi URL atau tidak terdaftar dalam pangkalan data resmi Basarnas KPP Kendari.'
-            ], [
-                'layout' => 'public',
-                'title' => 'Verifikasi Dokumen Tidak Sah'
-            ]);
+            $this->renderVerifyInvalid("OPS-{$idOps}" . ($refId > 0 ? "/REF-{$refId}" : "") . ' [' . ($type ?? 'tidak dikenal') . ']', $token);
             return;
         }
 
@@ -292,11 +403,13 @@ class OperasiController extends BaseController {
             $defaultSmc = null;
         }
 
-        $docTitle = DocVerifyHelper::getDocTitle($type, $operasi, $docData);
-        $docNumber = DocVerifyHelper::getDocNumber($type, $operasi, $docData, $satkerKode);
-        $docTimestamp = DocVerifyHelper::getDocTimestamp($type, $operasi, $docData);
-        $smcName = DocVerifyHelper::getSmcName($defaultSmc, $docData, $operasi);
-        $printUrl = DocVerifyHelper::getPrintUrl($type, $idOps, (int)($docData['id_renops'] ?? ($docData['id_laporan'] ?? 0)));
+        $docTitle = DocVerifyHelper::getDocTitle($docData);
+        $docNumber = DocVerifyHelper::getDocNumber($operasi, $docData, $satkerKode);
+        $docTimestamp = ($renopsVerify['issued_at'] ?? '') !== '' ? $renopsVerify['issued_at'] : DocVerifyHelper::getDocTimestamp($docData);
+        $smcName = isset($renopsVerify['pengesahan'])
+            ? (mb_strtoupper(trim($renopsVerify['pengesahan']['smc_nama']), 'UTF-8') ?: '-')
+            : DocVerifyHelper::getSmcName($defaultSmc, $docData);
+        $printUrl = DocVerifyHelper::getPrintUrl($idOps, (int)($docData['id_renops'] ?? 0));
 
         $this->render('operasi/verify_public', [
             'type' => $type,
@@ -311,7 +424,8 @@ class OperasiController extends BaseController {
             'smcName' => $smcName,
             'defaultSmc' => $defaultSmc,
             'satkerKode' => $satkerKode,
-            'printUrl' => $printUrl
+            'printUrl' => $printUrl,
+            'renopsVerify' => $renopsVerify
         ], [
             'layout' => 'public',
             'title' => "Verifikasi Keabsahan {$docTitle}"
@@ -404,7 +518,8 @@ class OperasiController extends BaseController {
         $editMode = ($idRenops > 0);
         $renops = $editMode ? RenopsModel::getById($idRenops) : null;
 
-        if ($editMode && !$renops) {
+        // RENOPS wajib milik operasi pada URL, agar tidak bisa diedit lewat operasi lain
+        if ($editMode && (!$renops || (int)($renops['id_operasi'] ?? 0) !== $idOperasi)) {
             $this->setFlash('error', 'Data Rencana Operasi (RENOPS) tidak ditemukan.');
             $this->redirect("/operasi_detail.php?id={$idOperasi}&tab=renops");
         }
@@ -645,7 +760,8 @@ class OperasiController extends BaseController {
         $editMode = ($idLaporan > 0);
         $laporan = $editMode ? LaporanModel::getById($idLaporan) : null;
 
-        if ($editMode && !$laporan) {
+        // Laporan wajib milik operasi pada URL, agar tidak bisa diedit lewat operasi lain
+        if ($editMode && (!$laporan || (int)($laporan['id_operasi'] ?? 0) !== $idOperasi)) {
             $this->setFlash('error', 'Data Laporan Perkembangan tidak ditemukan.');
             $this->redirect("/operasi_detail.php?id={$idOperasi}&tab=sitrep");
         }

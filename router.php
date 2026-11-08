@@ -7,6 +7,8 @@
 declare(strict_types=1);
 
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH));
+require_once __DIR__ . '/helpers/Router.php';
+Router::rejectUnsafePath($uri);
 
 // Block sensitive directories, schemas, dumps, and environment files
 if (
@@ -21,7 +23,9 @@ if (
 // Serve existing static assets (css, js, images, icons, uploads)
 $filePath = __DIR__ . $uri;
 // /uploads/ lewat Router::serveStaticFile agar header CSP anti-XSS SVG ikut terkirim
-if ($uri !== '/' && !str_starts_with($uri, '/uploads/') && file_exists($filePath) && !is_dir($filePath) && !str_ends_with($filePath, '.php')) {
+// Hanya assets/ dan favicon yang disajikan langsung; berkas lain di root tidak pernah disajikan
+$isPublicStatic = str_starts_with($uri, '/assets/') || in_array($uri, ['/favicon.ico', '/favicon.png'], true);
+if ($isPublicStatic && file_exists($filePath) && !is_dir($filePath) && !str_ends_with($filePath, '.php')) {
     return false; // Built-in server serves static asset directly
 }
 

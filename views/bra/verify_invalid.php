@@ -97,10 +97,10 @@ $timestamp = date('d F Y, H:i:s') . ' WITA';
 function copyAuditReport() {
     const reportText = "LAPORAN AUDIT VERIFIKASI QR BRA SAR BASARNAS\n" +
         "Status: GAGAL TERVERIFIKASI / TIDAK SAH\n" +
-        "ID Dokumen: <?= addslashes((string)$refId) ?>\n" +
-        "Token: <?= addslashes((string)($tokenParam ?? '-')) ?>\n" +
-        "Waktu: <?= addslashes($timestamp) ?>\n" +
-        "Keterangan: <?= addslashes($reason) ?>\n" +
+        "ID Dokumen: " + <?= jsonSafe(html_entity_decode((string)$refId, ENT_QUOTES, 'UTF-8')) ?> + "\n" +
+        "Token: " + <?= jsonSafe(html_entity_decode((string)($tokenParam ?? '-'), ENT_QUOTES, 'UTF-8')) ?> + "\n" +
+        "Waktu: " + <?= jsonSafe((string)($timestamp)) ?> + "\n" +
+        "Keterangan: " + <?= jsonSafe((string)($reason)) ?> + "\n" +
         "Layanan: Kantor Pencarian dan Pertolongan Kelas A Kendari (KPP Kendari)";
 
     navigator.clipboard.writeText(reportText).then(() => {
