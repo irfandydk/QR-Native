@@ -1943,7 +1943,7 @@ async function quickDraftAiKronologi(btn) {
   const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || window.CSRF_TOKEN || '';
 
   try {
-    const res = await fetch((window.BASE_URL || '') + '/api/ai/draft-kronologi', {
+    const res = await fetch((window.BASE_URL || '') + '/api/index.php?path=/ai/draft-kronologi', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -2001,7 +2001,7 @@ async function generateAiKronologi() {
   const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || window.CSRF_TOKEN || '';
 
   try {
-    const res = await fetch((window.BASE_URL || '') + '/api/ai/refine-kronologi', {
+    const res = await fetch((window.BASE_URL || '') + '/api/index.php?path=/ai/refine-kronologi', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -2289,7 +2289,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Keepalive Heartbeat: Ping server every 5 minutes to keep PHP session active
   setInterval(function() {
-    fetch((window.BASE_URL || '') + '/api/auth/ping', { method: 'GET' }).catch(() => {});
+    fetch((window.BASE_URL || '') + '/api/index.php?path=/auth/ping', { method: 'GET' }).catch(() => {});
   }, 300000);
 });
 
