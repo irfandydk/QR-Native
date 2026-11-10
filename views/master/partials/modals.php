@@ -212,6 +212,13 @@ function filterTable(inputId, tableId) {
 
 // Open Edit Alut Modal
 function openEditAlutModal(id, nama, satuan, kategori) {
+  if (id instanceof HTMLElement) {
+    const b = id;
+    id = b.dataset.id;
+    nama = b.dataset.nama;
+    satuan = b.dataset.satuan;
+    kategori = b.dataset.kategori;
+  }
   document.getElementById('edit_id_alut').value = id;
   document.getElementById('edit_nama_alut').value = nama;
   document.getElementById('edit_satuan_alut').value = satuan || 'Unit';
@@ -221,6 +228,11 @@ function openEditAlutModal(id, nama, satuan, kategori) {
 
 // Open Edit Tim Modal
 function openEditTimModal(id, nama) {
+  if (id instanceof HTMLElement) {
+    const b = id;
+    id = b.dataset.id;
+    nama = b.dataset.nama;
+  }
   document.getElementById('edit_id_tim').value = id;
   document.getElementById('edit_nama_tim').value = nama;
   openModal('modal-edit-tim');
@@ -228,6 +240,15 @@ function openEditTimModal(id, nama) {
 
 // Open Edit Pejabat Modal
 function openEditPejabatModal(id, nama, jabatan, pangkat, nip, isDefaultSmc) {
+  if (id instanceof HTMLElement) {
+    const b = id;
+    id = b.dataset.id;
+    nama = b.dataset.nama;
+    jabatan = b.dataset.jabatan;
+    pangkat = b.dataset.pangkat;
+    nip = b.dataset.nip;
+    isDefaultSmc = b.dataset.isDefaultSmc === '1';
+  }
   document.getElementById('edit_id_pejabat').value = id;
   document.getElementById('edit_nama_pejabat').value = nama;
   document.getElementById('edit_jabatan_pejabat').value = jabatan;

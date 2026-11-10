@@ -24,6 +24,9 @@ class AdminController extends BaseController {
 
         // 1. Handle Export Actions (Direct SQL Download Only)
         if ($action === 'export_sql') {
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+            }
             $sqlDump = BackupService::generateSQLDump();
             $filename = 'DUMP_DATABASE_SAR_KENDARI_' . date('Y-m-d_His') . '.sql';
             header('Content-Type: application/sql; charset=utf-8');
@@ -36,6 +39,9 @@ class AdminController extends BaseController {
 
         // Direct CSV Export for Audit Trail (Accessible to Admin)
         if ($action === 'export_audit_csv' || (isset($_GET['action']) && $_GET['action'] === 'export_audit_csv')) {
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+            }
             AuditHelper::exportCsv($_GET['log_action'] ?? null, $_GET['log_search'] ?? null);
             exit;
         }
@@ -159,10 +165,15 @@ class AdminController extends BaseController {
                         'email' => trim($_POST['email'] ?? ''),
                         'call_sign' => trim($_POST['call_sign'] ?? ''),
                         'frekuensi_default' => trim($_POST['frekuensi_default'] ?? ''),
-                        'gemini_api_key' => trim($_POST['gemini_api_key'] ?? ''),
                         'default_theme' => trim($_POST['default_theme'] ?? 'dark'),
                         'ui_theme' => in_array($_POST['ui_theme'] ?? '', ['klasik', 'minimal'], true) ? $_POST['ui_theme'] : 'klasik'
                     ];
+                    $newGeminiKey = trim($_POST['gemini_api_key'] ?? '');
+                    if (!empty($_POST['clear_gemini_api_key'])) {
+                        $data['gemini_api_key'] = '';
+                    } elseif ($newGeminiKey !== '') {
+                        $data['gemini_api_key'] = $newGeminiKey;
+                    }
 
                     $this->prosesLogoSatker('logo_file', 'logo_url', $data);
                     $this->prosesLogoSatker('logo_file_2', 'logo_url_2', $data);

@@ -137,7 +137,16 @@ $isAdmin = AuthHelper::isAdmin();
               <?php if ($isAdmin): ?>
               <td class="py-2.5 px-3 text-right">
                 <div class="inline-flex items-center gap-1 justify-end">
-                  <button type="button" onclick="openEditPejabatModal('<?= e(addslashes((string)$p['id'])) ?>', '<?= e(addslashes($p['nama'])) ?>', '<?= e(addslashes($p['jabatan'])) ?>', '<?= e(addslashes($p['pangkat'] ?? '')) ?>', '<?= e(addslashes($p['nip'] ?? '')) ?>', <?= !empty($p['is_default_smc']) ? 'true' : 'false' ?>)" class="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Edit Pejabat">
+                  <button type="button"
+                          data-id="<?= e((string)$p['id']) ?>"
+                          data-nama="<?= e($p['nama']) ?>"
+                          data-jabatan="<?= e($p['jabatan']) ?>"
+                          data-pangkat="<?= e($p['pangkat'] ?? '') ?>"
+                          data-nip="<?= e($p['nip'] ?? '') ?>"
+                          data-is-default-smc="<?= !empty($p['is_default_smc']) ? '1' : '0' ?>"
+                          onclick="openEditPejabatModal(this)"
+                          class="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition inline-flex items-center cursor-pointer"
+                          title="Edit Pejabat">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
                   <form method="POST" action="<?= BASE_URL ?>/master.php?action=delete_pejabat" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus pejabat &quot;<?= e($p['nama']) ?>&quot;?" data-confirm-title="Hapus Pejabat" data-confirm-btn="Ya, Hapus" data-confirm-danger="true">

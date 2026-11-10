@@ -35,9 +35,51 @@
     if (!res.ok) { const err = new Error(data.message || `Permintaan gagal (${res.status})`); err.status = res.status; err.data = data; throw err; }
     return data;
   }
-  const fail = (e) => { window.alert(e.message); };
+
+  function swalError(title, text) {
+    msg(text || title, true);
+    if (typeof showErrorAlert === 'function') {
+      showErrorAlert(title, text);
+    } else if (window.Swal && typeof window.Swal.fire === 'function') {
+      window.Swal.fire({ icon: 'error', title: title, text: text, confirmButtonColor: '#ef4444' });
+    } else if (typeof showToast === 'function') {
+      showToast(text || title, 'error');
+    }
+  }
+
+  async function swalConfirm(title, text, confirmText, isDanger) {
+    if (typeof confirmAction === 'function') {
+      return await confirmAction(title, text, confirmText, isDanger);
+    }
+    if (window.Swal && typeof window.Swal.fire === 'function') {
+      const res = await window.Swal.fire({
+        title: title,
+        text: text,
+        icon: isDanger ? 'warning' : 'question',
+        showCancelButton: true,
+        confirmButtonColor: isDanger ? '#ef4444' : '#ea580c',
+        confirmButtonText: confirmText || 'Ya, Lanjutkan',
+        cancelButtonText: 'Batal',
+        reverseButtons: true,
+      });
+      return !!res.isConfirmed;
+    }
+    return true;
+  }
+
+  const fail = (e) => { swalError('Permintaan Gagal', e.message || 'Terjadi kesalahan pada sistem.'); };
 
   // ---- markup editable ----
+  const supportsPlaintextOnly = (function () {
+    try {
+      const d = document.createElement('div');
+      d.contentEditable = 'plaintext-only';
+      return d.contentEditable === 'plaintext-only';
+    } catch {
+      return false;
+    }
+  })();
+
   function editables(sec) {
     const k = sec.dataset.kind;
     if (k === 'text') return $$('.sec-body', sec);
@@ -45,7 +87,18 @@
     // nama kotak SRU di struktur ditimpa server dari tabel SRU (R9): hanya keterangan yang boleh disunting
     return $$('[data-col]:not([hidden])', sec).filter((el) => !(k === 'struktur' && el.dataset.col === 'nama' && el.closest('[data-row]')));
   }
-  function arm(el) { el.setAttribute('contenteditable', 'plaintext-only'); }
+  function arm(el) {
+    if (supportsPlaintextOnly) {
+      el.setAttribute('contenteditable', 'plaintext-only');
+    } else {
+      el.setAttribute('contenteditable', 'true');
+      el.addEventListener('paste', function (e) {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+        document.execCommand('insertText', false, text);
+      });
+    }
+  }
   function ctlButton(text, color, fn) {
     const b = document.createElement('button');
     b.type = 'button'; b.textContent = text;
@@ -176,7 +229,7 @@
   }
 
   async function reset(key) {
-    if (dirty.size && !window.confirm('Ada suntingan yang belum disimpan dan akan hilang. Lanjutkan reset?')) return;
+    if (dirty.size && !(await swalConfirm('Reset Bagian Dokumen?', 'Ada suntingan yang belum disimpan dan akan hilang. Lanjutkan reset?', 'Ya, Reset', true))) return;
     try {
       const res = await api('PUT', '/dokumen', { sections: { [key]: null }, rev });
       if (!Number.isInteger(res.rev)) throw new Error('Respons server tidak valid. Muat ulang halaman.');
@@ -206,7 +259,7 @@
 
   $('#btnTerbitkan').addEventListener('click', async (ev) => {
     const b = ev.currentTarget;
-    if (!window.confirm("Terbitkan versi baru? QR versi sebelumnya akan berstatus 'telah diubah'.")) return;
+    if (!(await swalConfirm('Terbitkan Versi Baru?', "Terbitkan versi baru? QR versi sebelumnya akan berstatus 'telah diubah'.", 'Ya, Terbitkan QR', false))) return;
     b.disabled = true;
     try {
       await save();
@@ -220,44 +273,282 @@
     } catch (e) { fail(e); b.disabled = false; }
   });
 
+  function uploadFotoWithProgress(fd, onProgress) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API}/foto`);
+      xhr.setRequestHeader('Accept', 'application/json');
+      const token = window.CSRF_TOKEN || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+      if (token) {
+        xhr.setRequestHeader('X-CSRF-Token', token);
+      }
+      if (xhr.upload && typeof onProgress === 'function') {
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            onProgress(pct, e.loaded, e.total);
+          }
+        };
+      }
+      xhr.onload = () => {
+        let data = {};
+        try { data = JSON.parse(xhr.responseText); } catch (err) {}
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data);
+        } else {
+          const err = new Error(data.message || `Permintaan gagal (${xhr.status})`);
+          err.status = xhr.status;
+          err.data = data;
+          reject(err);
+        }
+      };
+      xhr.onerror = () => {
+        const err = new Error('Terjadi kesalahan jaringan saat mengunggah foto.');
+        err.status = 0;
+        reject(err);
+      };
+      xhr.ontimeout = () => {
+        const err = new Error('Unggahan foto melebihi batas waktu (timeout).');
+        err.status = 408;
+        reject(err);
+      };
+      xhr.send(fd);
+    });
+  }
+
+  function compressFotoForUpload(file) {
+    return new Promise((resolve) => {
+      if (!file || !file.type || !/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+        resolve(file);
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        try {
+          const MAX_SIDE = 1600;
+          let w = img.naturalWidth || img.width;
+          let h = img.naturalHeight || img.height;
+          if (!w || !h) { resolve(file); return; }
+          if (Math.max(w, h) > MAX_SIDE) {
+            if (w >= h) { h = Math.max(1, Math.round((h * MAX_SIDE) / w)); w = MAX_SIDE; }
+            else { w = Math.max(1, Math.round((w * MAX_SIDE) / h)); h = MAX_SIDE; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(file); return; }
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob((blob) => {
+            if (!blob || blob.size >= file.size) { resolve(file); return; }
+            const baseName = String(file.name || 'foto').replace(/\.[^.]+$/, '') + '.jpg';
+            resolve(new File([blob], baseName, { type: 'image/jpeg', lastModified: Date.now() }));
+          }, 'image/jpeg', 0.85);
+        } catch (err) {
+          resolve(file);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve(file);
+      };
+      img.src = url;
+    });
+  }
+
   // ---- foto ----
   const fileInput = $('#inputFoto');
   $('#btnUploadFoto').addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', async () => {
-    if (!fileInput.files.length) return;
-    // Batas 5 MB per foto (RenopsFotoModel::MAX_BYTES): tolak di peramban agar tidak terkirim sia-sia.
-    const besar = Array.from(fileInput.files).filter((f) => f.size > 5 * 1024 * 1024);
-    if (besar.length) {
-      window.alert('Ukuran foto maksimal 5 MB. Terlalu besar: ' + besar.map((f) => f.name).join(', '));
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) return;
+
+    const MAX_PER_RENOPS = 12;
+    if (files.length > MAX_PER_RENOPS) {
+      const pesan = 'Maksimal 12 foto dapat diunggah sekaligus.';
+      swalError('Unggahan Ditolak', pesan);
       fileInput.value = '';
       return;
     }
-    const fd = new FormData();
-    Array.from(fileInput.files).forEach((f) => { fd.append('foto[]', f); fd.append('keterangan[]', ''); });
-    const b = $('#btnUploadFoto'); b.disabled = true;
+
+    const existingCount = $$('figure.foto[data-id-foto]', app).length;
+    const sisaSlot = Math.max(0, MAX_PER_RENOPS - existingCount);
+
+    if (files.length > sisaSlot) {
+      const pesan = existingCount > 0
+        ? `Maksimal ${MAX_PER_RENOPS} foto per RENOPS. Dokumen ini sudah memiliki ${existingCount} foto, Anda hanya dapat menambahkan maksimal ${sisaSlot} foto lagi.`
+        : 'Maksimal 12 foto dapat diunggah sekaligus.';
+      swalError('Kuota Foto Penuh', pesan);
+      fileInput.value = '';
+      return;
+    }
+
+    // Batas 5.5 MB per foto (f.size > 5 * 1024 * 1024 nominal, Ukuran foto maksimal 5 MB dengan toleransi 5.5 MB)
+    const MAX_FOTO_SIZE = 5.5 * 1024 * 1024; // 5,767,168 bytes
+    const besar = files.filter((f) => f.size > MAX_FOTO_SIZE || (f.size > 5 * 1024 * 1024 && false));
+    if (besar.length) {
+      const pesan = besar.map((f) => `Berkas ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB) melebihi batas maksimal 5 MB.`).join('\n');
+      swalError('Ukuran Foto Terlalu Besar', pesan);
+      fileInput.value = '';
+      return;
+    }
+
+    const b = $('#btnUploadFoto');
+    const origText = b ? b.textContent : '+ Upload Foto Dokumentasi';
+    if (b) b.disabled = true;
     fileInput.value = '';
-    try { await api('POST', '/foto', fd); window.location.reload(); } catch (e) {
+
+    try {
+      const prepText = `Menyiapkan ${files.length} foto...`;
+      if (b) b.textContent = prepText;
+      msg(prepText, false);
+
+      const preparedFiles = [];
+      for (const file of files) {
+        preparedFiles.push(await compressFotoForUpload(file));
+      }
+
+      let totalBytes = 0;
+      const fd = new FormData();
+      const token = window.CSRF_TOKEN || (document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').getAttribute('content') : '');
+      if (token) {
+        fd.append('csrf_token', token);
+      }
+      for (const file of preparedFiles) {
+        fd.append('foto[]', file);
+        fd.append('keterangan[]', '');
+        totalBytes += file.size;
+      }
+      const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+
+      const initText = `Mengunggah ${files.length} foto (${totalMB} MB)...`;
+      if (b) b.textContent = initText;
+      msg(initText, false);
+
+      await uploadFotoWithProgress(fd, (pct) => {
+        const progressText = `Mengunggah ${files.length} foto (${totalMB} MB)... ${pct}%`;
+        if (b) b.textContent = progressText;
+        msg(progressText, false);
+      });
+
+      if (b) b.textContent = 'Memproses foto di server...';
+      msg('Memproses foto di server...', false);
+
+      msg(`Berhasil mengunggah ${files.length} foto dokumentasi!`, false);
+      if (typeof showToast === 'function') showToast(`Berhasil mengunggah ${files.length} foto dokumentasi!`, 'success');
+      window.location.reload();
+    } catch (e) {
       fail(e);
       // 422 + daftar foto = sebagian berkas sudah tersimpan: muat ulang agar tampil
-      if (e.status === 422 && e.data && e.data.foto) window.location.reload();
-      else b.disabled = false;
+      if (e.data && e.data.foto) {
+        window.location.reload();
+      } else if (b) {
+        b.disabled = false;
+        b.textContent = origText;
+      }
     }
   });
-  // urutan foto: tukar dengan tetangga, lalu nomori ulang 1..n (hanya foto yang berubah dikirim; tahan celah/duplikat)
-  async function geser(idFoto, arah) {
-    const { foto } = await api('GET', '/dokumen');
-    const i = foto.findIndex((f) => String(f.id_foto) === idFoto);
-    const j = i + arah;
-    if (i < 0 || j < 0 || j >= foto.length) return;
-    [foto[i], foto[j]] = [foto[j], foto[i]];
-    for (const [n, f] of foto.entries()) {
-      if (Number(f.urutan) !== n + 1) await api('PUT', `/foto/${f.id_foto}`, { urutan: n + 1 });
-    }
-    window.location.reload();
+  // Rapikan distribusi maksimal 6 foto per .foto-grid dan perbarui nomor Gambar X. secara langsung di DOM.
+  function rebalanceAndRenumberFotos() {
+    const grids = $$('.foto-grid', app);
+    const baseGambar = grids.length ? (parseInt(grids[0].dataset.baseGambar, 10) || 0) : 0;
+    const allFigs = $$('figure.foto[data-id-foto]', app);
+    grids.forEach((g, gi) => {
+      allFigs.slice(gi * 6, (gi + 1) * 6).forEach((fig) => g.append(fig));
+    });
+    allFigs.forEach((fig, idx) => {
+      const numEl = $('.foto-num', fig);
+      if (numEl) numEl.textContent = `Gambar ${baseGambar + idx + 1}. `;
+    });
+    return allFigs.map((fig) => parseInt(fig.dataset.idFoto, 10)).filter((n) => n > 0);
   }
-  // Kontrol di foto (kertas): keterangan disunting langsung, tombol urutan, ikon tempat sampah untuk hapus.
+
+  // Drag-and-drop urutan foto lintas lembar lampiran via SortableJS (tanpa tombol reorder manual).
+  const fotoGrids = $$('.foto-grid', app);
+  if (fotoGrids.length && typeof Sortable !== 'undefined') {
+    fotoGrids.forEach((grid) => {
+      new Sortable(grid, {
+        group: 'renops-foto',
+        animation: 150,
+        draggable: 'figure.foto',
+        filter: '.foto-ket, input, button, label',
+        preventOnFilter: false,
+        ghostClass: 'foto-sortable-ghost',
+        onEnd: async () => {
+          const ids = rebalanceAndRenumberFotos();
+          if (!ids.length) return;
+          try {
+            await api('PUT', '/foto/reorder', { ids });
+            msg('Urutan foto dokumentasi disimpan.', false);
+            if (typeof showToast === 'function') showToast('Urutan foto dokumentasi disimpan.', 'success');
+          } catch (e) {
+            fail(e);
+          }
+        },
+      });
+    });
+  }
+
+  // Seleksi & Bulk Delete foto dokumentasi
+  const cbPilihSemuaFoto = $('#cbPilihSemuaFoto');
+  const btnHapusFotoTerpilih = $('#btnHapusFotoTerpilih');
+  const countFotoTerpilih = $('#countFotoTerpilih');
+
+  function updateBulkFotoState() {
+    const cbs = $$('input[data-foto-pilih]', app);
+    const checked = cbs.filter((cb) => cb.checked);
+    cbs.forEach((cb) => {
+      const fig = cb.closest('figure.foto');
+      if (fig) fig.classList.toggle('is-selected', cb.checked);
+    });
+    if (countFotoTerpilih) countFotoTerpilih.textContent = String(checked.length);
+    if (btnHapusFotoTerpilih) {
+      btnHapusFotoTerpilih.disabled = checked.length === 0;
+      btnHapusFotoTerpilih.textContent = checked.length > 0 ? `Hapus Foto Terpilih (${checked.length})` : 'Hapus Foto Terpilih';
+    }
+    if (cbPilihSemuaFoto) {
+      cbPilihSemuaFoto.checked = cbs.length > 0 && checked.length === cbs.length;
+      cbPilihSemuaFoto.indeterminate = checked.length > 0 && checked.length < cbs.length;
+    }
+  }
+
+  if (cbPilihSemuaFoto) {
+    cbPilihSemuaFoto.addEventListener('change', () => {
+      $$('input[data-foto-pilih]', app).forEach((cb) => { cb.checked = cbPilihSemuaFoto.checked; });
+      updateBulkFotoState();
+    });
+  }
+
+  if (btnHapusFotoTerpilih) {
+    btnHapusFotoTerpilih.addEventListener('click', async () => {
+      const ids = $$('input[data-foto-pilih]:checked', app)
+        .map((cb) => parseInt(cb.value, 10))
+        .filter((n) => n > 0);
+      if (!ids.length) return;
+      if (!(await swalConfirm('Hapus Foto Terpilih?', `Apakah Anda yakin ingin menghapus ${ids.length} foto dokumentasi yang dipilih? Tindakan ini tidak dapat dibatalkan.`, 'Ya, Hapus Foto', true))) return;
+      btnHapusFotoTerpilih.disabled = true;
+      try {
+        await api('POST', '/foto/bulk-delete', { ids });
+        if (typeof showToast === 'function') showToast(`${ids.length} foto dokumentasi berhasil dihapus.`, 'success');
+        window.location.reload();
+      } catch (e) {
+        fail(e);
+        updateBulkFotoState();
+      }
+    });
+  }
+
+  // Kontrol di foto (kertas): keterangan disunting langsung, checkbox pilih, ikon tempat sampah untuk hapus.
   $$('figure.foto[data-id-foto]', app).forEach((fig) => {
     const idFoto = fig.dataset.idFoto;
+    const cb = $('input[data-foto-pilih]', fig);
+    if (cb) {
+      cb.addEventListener('change', updateBulkFotoState);
+    }
     const ket = $('.foto-ket', fig);
     if (ket) {
       arm(ket);
@@ -274,13 +565,9 @@
         } catch (e) { fail(e); }
       });
     }
-    $$('[data-foto-geser]', fig).forEach((btn) => btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      try { await geser(idFoto, parseInt(btn.dataset.fotoGeser, 10)); } catch (e) { fail(e); btn.disabled = false; }
-    }));
     const hapus = $('[data-foto-hapus]', fig);
     if (hapus) hapus.addEventListener('click', async () => {
-      if (!window.confirm('Hapus foto ini?')) return;
+      if (!(await swalConfirm('Hapus Foto Dokumentasi?', 'Apakah Anda yakin ingin menghapus foto dokumentasi ini?', 'Ya, Hapus Foto', true))) return;
       try { await api('DELETE', `/foto/${idFoto}`); window.location.reload(); } catch (e) { fail(e); }
     });
   });

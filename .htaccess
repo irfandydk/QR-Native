@@ -13,8 +13,8 @@ Options -Indexes
     </IfModule>
 </FilesMatch>
 
-# 2. Block direct HTTP access to core application folders
-RedirectMatch 403 ^/(database|config|models|controllers|services|helpers|views|storage|tests|cli|scratch)/.*$
+# 2. Block direct HTTP access to core application folders (root & subfolder deployments)
+RedirectMatch 403 (?i)(?:^|/)(database|config|models|controllers|services|helpers|views|storage|tests|cli|scratch)(?:/|$)
 
 # 3. Clean URLs & Front Controller Routing (Supports /operasi, /admin, /gis, /api, etc.)
 <IfModule mod_rewrite.c>
@@ -41,8 +41,16 @@ RedirectMatch 403 ^/(database|config|models|controllers|services|helpers|views|s
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# Batas unggahan (mod_php): foto dokumen RENOPS maks 5 MB per berkas
+# Batas unggahan (mod_php): foto dokumen RENOPS maks 5 MB per berkas, hingga 12 foto
 <IfModule mod_php.c>
-    php_value upload_max_filesize 6M
-    php_value post_max_size 64M
+    php_value upload_max_filesize 20M
+    php_value post_max_size 128M
+    php_value memory_limit 512M
+    php_value max_file_uploads 30
+</IfModule>
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 20M
+    php_value post_max_size 128M
+    php_value memory_limit 512M
+    php_value max_file_uploads 30
 </IfModule>

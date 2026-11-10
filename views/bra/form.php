@@ -650,7 +650,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
       padding: 0 !important;
       margin: 0 !important;
     }
-    #formBraSar {
+    #braMasterForm, #formBraSar {
       display: none !important;
     }
     .bra-official-paper {

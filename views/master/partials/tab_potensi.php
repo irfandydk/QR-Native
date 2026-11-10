@@ -86,7 +86,12 @@ $isAdmin = AuthHelper::isAdmin();
               <?php if ($isAdmin): ?>
               <td class="py-2.5 px-3 text-right">
                 <div class="inline-flex items-center gap-1 justify-end">
-                  <button type="button" onclick="openEditTimModal(<?= (int)$t['id_tim'] ?>, '<?= e(addslashes($t['nama_tim'])) ?>')" class="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition inline-flex items-center cursor-pointer" title="Edit Tim / Potensi SAR">
+                  <button type="button"
+                          data-id="<?= (int)$t['id_tim'] ?>"
+                          data-nama="<?= e($t['nama_tim']) ?>"
+                          onclick="openEditTimModal(this)"
+                          class="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition inline-flex items-center cursor-pointer"
+                          title="Edit Tim / Potensi SAR">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                   </button>
                   <form method="POST" action="<?= BASE_URL ?>/master.php?action=delete_tim" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus &quot;<?= e($t['nama_tim']) ?>&quot; dari master data?" data-confirm-title="Hapus Master Tim" data-confirm-btn="Ya, Hapus" data-confirm-danger="true">

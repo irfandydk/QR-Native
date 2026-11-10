@@ -669,6 +669,10 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             <span class="text-[11px] text-slate-500">Klik untuk Fokus</span>
           </div>
 
+          <select id="filterGisPointCategory" class="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-2.5 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-orange-500">
+            <option value="">Semua Kategori</option>
+          </select>
+
           <div id="savedPointsListContainer" class="space-y-2">
             <!-- Populated by JS -->
           </div>
@@ -716,7 +720,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
           <div>
             <div class="field">
               <label class="field-label">Nama Sektor Search Area:</label>
-              <input type="text" id="polyEditorName" value="" placeholder="SEARCH AREA SRU 1" class="field-input w-full">
+              <input type="text" id="polyEditorName" value="" placeholder="SRU 1" class="field-input w-full">
             </div>
           </div>
 
@@ -821,10 +825,30 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
               <input type="range" id="polyStrokeWeightSlider" min="1" max="8" step="0.5" value="2.5" class="w-full accent-orange-500">
             </div>
 
+            <!-- Stroke Opacity Slider -->
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-0.5">
+                <span class="text-slate-600 dark:text-slate-400">3. Transparansi Garis:</span>
+                <span id="labelStrokeOpacity" class="font-mono text-slate-900 dark:text-white font-bold">100%</span>
+              </div>
+              <input type="range" id="polyStrokeOpacitySlider" min="0.1" max="1" step="0.05" value="1" class="w-full accent-orange-500">
+            </div>
+
+            <!-- Fill Color Swatches -->
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-1">
+                <span class="text-slate-600 dark:text-slate-400">4. Warna Isi (Arsiran):</span>
+                <span id="labelFillColor" class="font-mono text-orange-600 dark:text-orange-400 font-bold">#EA580C</span>
+              </div>
+              <div class="flex items-center gap-1.5 flex-wrap" id="polyFillColorSwatches">
+                <!-- Color dots -->
+              </div>
+            </div>
+
             <!-- Fill Opacity Slider -->
             <div>
               <div class="flex items-center justify-between text-[11px] mb-0.5">
-                <span class="text-slate-600 dark:text-slate-400">3. Transparansi Arsiran:</span>
+                <span class="text-slate-600 dark:text-slate-400">5. Transparansi Isi:</span>
                 <span id="labelFillOpacity" class="font-mono text-slate-900 dark:text-white font-bold">20%</span>
               </div>
               <input type="range" id="polyFillOpacitySlider" min="0.05" max="0.8" step="0.05" value="0.2" class="w-full accent-orange-500">
@@ -882,7 +906,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
           <div>
             <div class="field">
               <label class="field-label">Nama Pola Lintasan:</label>
-              <input type="text" id="patternFormName" value="" placeholder="CREAPING LANE 1/ESAR 1/" class="field-input w-full">
+              <input type="text" id="patternFormName" value="" placeholder="Pola Pencarian Area SRU 1 (PS)" class="field-input w-full">
             </div>
           </div>
 
@@ -912,6 +936,15 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
                 <div class="text-xs font-bold">Pola Pencarian E-SAR</div>
                 <div class="text-[11px] font-normal text-slate-500 dark:text-slate-400">Sapuan sejajar personil (Darat/Hutan)</div>
               </button>
+            </div>
+          </div>
+
+          <!-- Flip Parallel Track / Creeping Line: pilih titik awal -->
+          <div id="patternFlipWrapper" class="space-y-1.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800">
+            <span class="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">Titik Awal Pola (Flip):</span>
+            <div class="grid grid-cols-2 gap-1.5 text-xs font-bold">
+              <button type="button" id="btnPatternFlipH" aria-pressed="false" class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 transition cursor-pointer" title="Cerminkan timur-barat">⇆ Flip Timur-Barat</button>
+              <button type="button" id="btnPatternFlipV" aria-pressed="false" class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-700 dark:text-slate-300 transition cursor-pointer" title="Cerminkan utara-selatan">⇅ Flip Utara-Selatan</button>
             </div>
           </div>
 
@@ -1139,9 +1172,13 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
               type="text" 
               id="measureRouteNameInput" 
               value=""
-              placeholder="RUTE 1" 
+              placeholder="Rute 1" 
               class="control control-sm w-full font-medium"
             >
+            <label for="measureRouteTargetArea" class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mt-2 mb-1">Area Tujuan (opsional — untuk nama otomatis &amp; impor RENOPS):</label>
+            <select id="measureRouteTargetArea" class="control control-sm w-full">
+              <option value="">— Tanpa Area Tujuan —</option>
+            </select>
           </div>
 
           <!-- Pilihan Mode Pengukuran / Rute: Jarak Lurus & Jalur Manual -->
@@ -1166,6 +1203,9 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             <div class="font-bold flex items-center justify-between">
               <span class="flex items-center gap-1.5 font-bold"><span></span> Plotting Titik Pada Peta</span>
               <div class="flex items-center gap-1.5">
+                <button type="button" id="btnResetMeasureLine" onclick="window.SAR_GIS && window.SAR_GIS.resetMeasureLine()" class="px-2 py-0.5 text-[11px] font-bold rounded-lg bg-slate-500/15 hover:bg-slate-500/25 text-slate-700 dark:text-slate-300 border border-slate-500/30 transition cursor-pointer" title="Kosongkan titik garis untuk membuat ulang">
+                  <span>Reset Garis</span>
+                </button>
                 <button type="button" id="btnUndoMeasureRouteWaypoint" onclick="window.SAR_GIS && window.SAR_GIS.undoRoutePoint()" class="px-2 py-0.5 text-[11px] font-bold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition cursor-pointer flex items-center gap-1" title="Batalkan / hapus titik waypoint terakhir">
                   <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7v6h6M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
                   <span>Undo Titik</span>
@@ -1472,14 +1512,6 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             </div>
           </div>
 
-          <!-- 4. Deskripsi / Keterangan Peta (Opsional) -->
-          <div>
-            <div class="field">
-              <label for="captureInputKeterangan" class="field-label">Judul / Keterangan Peta pada Cetakan (Opsional)</label>
-              <input type="text" id="captureInputKeterangan" placeholder="Misal: Peta LKP, Search Area & Lokasi Penemuan Korban" class="field-input w-full">
-            </div>
-          </div>
-
           <!-- Status Snapshot Tersimpan -->
           <div id="captureSavedStatusBanner" class="hidden p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-700 dark:text-emerald-300 space-y-1">
             <!-- Diisi via JS -->
@@ -1540,8 +1572,10 @@ window.SAR_INITIAL_GIS_DATA = {
 <script src="<?= assetUrl('assets/js/gis/geodesy.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/markers.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/patterns.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/gis/naming.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/export.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/layers.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/gis/tile_fallback.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/ui_search.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/ui_points.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/ui_polygons.js') ?>"></script>

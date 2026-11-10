@@ -5,10 +5,15 @@ window.sarUnits = opsFormCfg.sarUnits || [];
 window.satkerKode = opsFormCfg.satkerKode || '';
 
 // Helper Presets
-function setPresetOps(prefix) {
+function setPresetOps(prefix, jenisKejadian = '') {
   const el = document.getElementById('nama_operasi');
-  el.value = prefix;
-  el.focus();
+  if (el) {
+    el.value = prefix;
+    el.focus();
+  }
+  if (jenisKejadian && typeof setJenisKejadian === 'function') {
+    setJenisKejadian(jenisKejadian);
+  }
 }
 
 function setEtaPreset(text) {
@@ -21,10 +26,17 @@ function insertKronologiPreset(text) {
 
 // ── Interactive Unsur SAR Terlibat Editor (Reorderable + Master Data Reference) ──
 let currentUnsurList = opsFormCfg.initialUnsurData || [];
+let unsurSortable = null;
+
+// Drag-reorder (SortableJS, mouse & sentuh): urutan baru dibaca dari atribut indeks di DOM.
+function reorderFromDom(container, attr, list) {
+  return Array.from(container.querySelectorAll(`[${attr}]`)).map((el) => list[parseInt(el.getAttribute(attr), 10)]).filter(Boolean);
+}
 
 function renderUnsurList() {
   const container = document.getElementById('unsur-items-container');
   if (!container) return;
+  if (unsurSortable) { unsurSortable.destroy(); unsurSortable = null; }
   container.innerHTML = '';
 
   if (currentUnsurList.length === 0) {
@@ -37,8 +49,10 @@ function renderUnsurList() {
     currentUnsurList.forEach((item, idx) => {
       const row = document.createElement('div');
       row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
+      row.setAttribute('data-unsur-idx', String(idx));
       row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
           <span class="w-5 h-5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
@@ -48,12 +62,6 @@ function renderUnsurList() {
           <input type="number" min="1" max="999" value="${item.jumlah_personil || 1}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-orange-600 dark:text-orange-400" />
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Org</span>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
-            <button type="button" onclick="moveUnsurRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Atas (Prioritas Naik)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
-            </button>
-            <button type="button" onclick="moveUnsurRow(${idx}, 1)" ${idx === currentUnsurList.length - 1 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Bawah (Prioritas Turun)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
             <button type="button" onclick="removeUnsurRow(${idx})" class="p-1 rounded text-slate-400 hover:text-red-500 cursor-pointer" title="Hapus Unsur">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
@@ -62,6 +70,16 @@ function renderUnsurList() {
       `;
       container.appendChild(row);
     });
+    if (typeof Sortable !== 'undefined') {
+      unsurSortable = new Sortable(container, {
+        handle: '.drag-handle',
+        animation: 150,
+        onEnd: () => {
+          currentUnsurList = reorderFromDom(container, 'data-unsur-idx', currentUnsurList);
+          renderUnsurList();
+        },
+      });
+    }
   }
 
   syncUnsurFields();
@@ -133,15 +151,6 @@ function handleAddUnsurClick() {
   const sel = document.getElementById('select-master-tim');
   if (sel) sel.value = '';
 
-  renderUnsurList();
-}
-
-function moveUnsurRow(idx, direction) {
-  const target = idx + direction;
-  if (target < 0 || target >= currentUnsurList.length) return;
-  const temp = currentUnsurList[idx];
-  currentUnsurList[idx] = currentUnsurList[target];
-  currentUnsurList[target] = temp;
   renderUnsurList();
 }
 
@@ -232,10 +241,13 @@ function bindDmsInputEvents() {
 
 // ── Interactive Alut & Palsar Editor (Reorderable + Master Data Reference) ──
 let currentAlutList = opsFormCfg.initialAlutData || [];
+let alutSortables = [];
 
 function renderAlutList() {
   const container = document.getElementById('alut-items-container');
   if (!container) return;
+  alutSortables.forEach((sb) => sb.destroy());
+  alutSortables = [];
   container.innerHTML = '';
 
   if (currentAlutList.length === 0) {
@@ -245,12 +257,26 @@ function renderAlutList() {
       </div>
     `;
   } else {
-    currentAlutList.forEach((item, idx) => {
+    // Urutan simpan = urutan tampil: per kategori (Darat → Laut → Udara → PALSAR), sama dengan naskah WA.
+    currentAlutList.forEach((item) => {
       if (!AlutKategoriUI.normalize(item.kategori)) item.kategori = AlutKategoriUI.kategoriOf(item);
-      const row = document.createElement('div');
-      row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
-      row.innerHTML = `
+    });
+    currentAlutList = AlutKategoriUI.sort(currentAlutList);
+    AlutKategoriUI.groups(currentAlutList).forEach((grp) => {
+      const head = document.createElement('div');
+      head.className = 'text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-1';
+      head.textContent = grp.label;
+      container.appendChild(head);
+      const box = document.createElement('div');
+      box.className = 'space-y-2';
+      box.setAttribute('data-alut-group', grp.kode);
+      grp.items.forEach(({ item, idx }) => {
+        const row = document.createElement('div');
+        row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
+        row.setAttribute('data-alut-idx', String(idx));
+        row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
           <span class="w-5 h-5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
@@ -268,19 +294,26 @@ function renderAlutList() {
           </select>
           <select onchange="updateAlutItem(${idx}, 'kategori', this.value)" class="control control-sm" title="Kategori">${AlutKategoriUI.options(AlutKategoriUI.kategoriOf(item))}</select>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
-            <button type="button" onclick="moveAlutRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Atas (Prioritas Naik)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
-            </button>
-            <button type="button" onclick="moveAlutRow(${idx}, 1)" ${idx === currentAlutList.length - 1 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Bawah (Prioritas Turun)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
             <button type="button" onclick="removeAlutRow(${idx})" class="p-1 rounded text-slate-400 hover:text-red-500 cursor-pointer" title="Hapus Alut">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
         </div>
       `;
-      container.appendChild(row);
+        box.appendChild(row);
+      });
+      container.appendChild(box);
+      if (typeof Sortable !== 'undefined') {
+        // Satu instance per kelompok tanpa opsi group: drag hanya di dalam kategorinya.
+        alutSortables.push(new Sortable(box, {
+          handle: '.drag-handle',
+          animation: 150,
+          onEnd: () => {
+            currentAlutList = reorderFromDom(container, 'data-alut-idx', currentAlutList);
+            renderAlutList();
+          },
+        }));
+      }
     });
   }
 
@@ -351,15 +384,6 @@ function handleAddAlutClick() {
   renderAlutList();
 }
 
-function moveAlutRow(idx, direction) {
-  const target = idx + direction;
-  if (target < 0 || target >= currentAlutList.length) return;
-  const temp = currentAlutList[idx];
-  currentAlutList[idx] = currentAlutList[target];
-  currentAlutList[target] = temp;
-  renderAlutList();
-}
-
 function removeAlutRow(idx) {
   currentAlutList.splice(idx, 1);
   renderAlutList();
@@ -368,6 +392,11 @@ function removeAlutRow(idx) {
 function updateAlutItem(idx, key, val) {
   if (currentAlutList[idx]) {
     currentAlutList[idx][key] = val;
+    if (key === 'kategori') {
+      // Pindah ke akhir kelompok kategori barunya (sort stabil), lalu render ulang.
+      renderAlutList();
+      return;
+    }
     syncAlutFields();
   }
 }
@@ -527,7 +556,7 @@ function createLkpDivIcon() {
     className: 'sar-marker-lkp-container',
     html: `
       <div style="position: relative; width: 44px; height: 52px; cursor: grab;">
-        <div style="position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; background: rgba(220, 38, 38, 0.95); color: #fff; font-size: 10px; font-weight: 800; padding: 1.5px 7px; border-radius: 6px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.8);">🚨 LKP</div>
+        <div style="position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; background: rgba(220, 38, 38, 0.95); color: #fff; font-size: 10px; font-weight: 800; padding: 1.5px 7px; border-radius: 6px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.8);">LKP</div>
         <svg width="44" height="52" viewBox="0 0 44 52">
           <circle cx="22" cy="18" r="17" fill="none" stroke="#dc2626" stroke-width="2" opacity="0.8">
             <animate attributeName="r" values="13;22;13" dur="2s" repeatCount="indefinite" />
@@ -551,13 +580,12 @@ function normalizeOriginIconUrl(url) {
   if (!url) return '';
   const u = String(url).trim();
   if (!u) return '';
+  const origin = (window.BASE_URL || window.location.origin || '').replace(/\/+$/, '');
   const idx = u.indexOf('/uploads/icons/');
   if (idx !== -1) {
-    const origin = window.location.origin || '';
     return origin + u.substring(idx);
   }
   if (u.startsWith('/uploads/')) {
-    const origin = window.location.origin || '';
     return origin + u;
   }
   return u;
@@ -1600,6 +1628,30 @@ function calculateDistanceAndRadial(autoApply = true) {
   recalculateTacticalMetrics(autoApply);
 }
 
+// Jenis Kejadian: dropdown baku + "Lainnya…" (teks bebas). Yang terkirim tetap input name="jenis_kejadian".
+function syncJenisKejadian(fromSelect = true) {
+  const sel = document.getElementById('jenis_kejadian_select');
+  const input = document.getElementById('jenis_kejadian');
+  if (!sel || !input) return;
+  const lainnya = sel.value === '__LAINNYA__';
+  document.getElementById('jenis_kejadian_lainnya_wrap')?.classList.toggle('hidden', !lainnya);
+  if (fromSelect) {
+    input.value = lainnya ? '' : sel.value;
+    if (lainnya) input.focus();
+  }
+  if (typeof updateWaPreview === 'function') updateWaPreview();
+}
+
+function setJenisKejadian(val) {
+  const sel = document.getElementById('jenis_kejadian_select');
+  const input = document.getElementById('jenis_kejadian');
+  if (!sel || !input) return;
+  const v = String(val || '').trim();
+  sel.value = v === '' ? '' : (Array.from(sel.options).some((o) => o.value === v && v !== '__LAINNYA__') ? v : '__LAINNYA__');
+  input.value = v;
+  syncJenisKejadian(false);
+}
+
 function handleOriginBaseChange() {
   calculateDistanceAndRadial(true);
 }
@@ -2088,7 +2140,7 @@ function restoreLocalStorageDraft() {
     if (!d) return;
 
     if (d.nama_operasi) document.getElementById('nama_operasi').value = d.nama_operasi;
-    if (d.jenis_kejadian && document.getElementById('jenis_kejadian')) document.getElementById('jenis_kejadian').value = d.jenis_kejadian;
+    if (d.jenis_kejadian) setJenisKejadian(d.jenis_kejadian);
     if (d.nama_pelapor) document.getElementById('nama_pelapor').value = d.nama_pelapor;
     if (d.hubungan_pelapor) document.getElementById('hubungan_pelapor').value = d.hubungan_pelapor;
     if (d.no_telp_pelapor) document.getElementById('no_telp_pelapor').value = d.no_telp_pelapor;
@@ -2264,7 +2316,6 @@ window.QRSAR.OperasiForm = {
   renderUnsurList,
   handleSelectTimBerangkat,
   pickMasterTim,
-  moveUnsurRow,
   removeUnsurRow,
   updateUnsurItem,
   syncUnsurFields,
@@ -2272,7 +2323,6 @@ window.QRSAR.OperasiForm = {
   pickMasterAlut,
   quickAddAlutPreset,
   handleAddAlutClick,
-  moveAlutRow,
   removeAlutRow,
   updateAlutItem,
   syncAlutFields,

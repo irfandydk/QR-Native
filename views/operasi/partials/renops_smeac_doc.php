@@ -29,6 +29,7 @@ $hariNum = (int)($meta['hari_num'] ?? 0);
 $satker = (string)($meta['satker_nama'] ?? '');
 $jenisKejadian = trim((string)($meta['jenis_kejadian'] ?? ''));
 $namaOps = trim((string)($meta['nama_operasi'] ?? ''));
+$noRenops = trim((string)($meta['nomor'] ?? $meta['no_renops'] ?? ''));
 // R7: jenis_kejadian sering kosong; tanpa spasi/titik dua menggantung.
 $kopBaris3 = 'Operasi SAR' . ($jenisKejadian !== '' ? " {$jenisKejadian}" : '') . ($namaOps !== '' ? ": {$namaOps}" : '');
 $headerBerjalan = "Rencana Operasi SAR Hari ke-{$hariLabel} | {$satker}";
@@ -228,15 +229,57 @@ $peng = $doc['pengesahan'] ?? [];
     /* Jaring komunikasi: halaman sendiri; diagram dibatasi tinggi agar utuh dalam satu halaman A4 portrait. */
     .page-sheet.renops-smeac.hal-jaring { break-before: page; page-break-before: always; }
     .renops-smeac figure.jaring .jaring-svg { width: auto !important; height: 205mm !important; max-width: 100% !important; }
-    .renops-smeac .foto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm 6mm; margin-top: 4pt; }
-    .renops-smeac .foto-grid img { width: 100%; height: 56mm; object-fit: contain; }
-    .renops-smeac figure.foto { position: relative; }
+    /* Halaman lampiran foto dokumentasi (portrait) setelah tanda tangan SMC */
+    .hal-lampiran-foto {
+        break-before: page !important;
+        page-break-before: always !important;
+    }
+    .page-sheet.renops-smeac.hal-lampiran-foto {
+        break-before: page !important;
+        page-break-before: always !important;
+    }
+    .page-sheet.renops-smeac.hal-lampiran-foto .doc-header {
+        border-bottom: 0.75pt solid #000000;
+        padding-bottom: 3pt;
+        margin-bottom: 4pt;
+    }
+    .page-sheet.renops-smeac.hal-lampiran-foto .doc-header .h1 {
+        border-bottom: none !important;
+        padding: 0 !important;
+        margin-bottom: 2pt !important;
+        text-align: center !important;
+    }
+    .page-sheet.renops-smeac.hal-lampiran-foto .doc-header p {
+        text-align: center !important;
+        margin: 0;
+    }
+    .renops-smeac .foto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm 5mm; margin-top: 3pt; }
+    .renops-smeac .foto-grid img { width: 100%; height: 48mm; object-fit: contain; display: block; }
+    .page-sheet.renops-smeac.hal-lampiran-foto .cap-gambar { margin: 2pt 0 0 !important; font-size: 9.5pt !important; line-height: 1.25 !important; }
+    .renops-smeac figure.foto {
+        position: relative;
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        border-radius: 6px;
+        transition: box-shadow 0.15s ease, outline 0.15s ease;
+    }
+    .page-sheet.renops-smeac.is-draft figure.foto { cursor: grab; }
+    .page-sheet.renops-smeac.is-draft figure.foto:active { cursor: grabbing; }
+    .page-sheet.renops-smeac.is-draft figure.foto.is-selected { outline: 2px solid #ea580c; outline-offset: 2px; background: rgba(254, 215, 170, 0.18); }
+    .renops-smeac .foto-sortable-ghost { opacity: 0.4; outline: 2px dashed #ea580c !important; }
     .renops-smeac .foto-ket[contenteditable] { outline: 1px dashed #94a3b8; outline-offset: 1px; cursor: text; }
-    .renops-smeac .foto-ctl { position: absolute; top: 2mm; right: 2mm; display: flex; gap: 3px; }
+    .renops-smeac .foto-select-wrap { position: absolute; top: 2mm; left: 2mm; z-index: 3; display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 7px; border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.94); color: #334155; font-size: 8pt !important; font-weight: bold; cursor: pointer; user-select: none; }
+    .renops-smeac .foto-select-wrap input { width: 13px; height: 13px; accent-color: #ea580c; cursor: pointer; margin: 0; }
+    .renops-smeac .foto-ctl { position: absolute; top: 2mm; right: 2mm; z-index: 3; display: flex; gap: 3px; align-items: center; }
+    .renops-smeac .foto-drag-handle { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.92); color: #475569; font-size: 12px; font-weight: bold; line-height: 1; cursor: grab; user-select: none; }
     .renops-smeac .foto-ctl button { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
         border-radius: 6px; border: 1px solid #cbd5e1; background: rgba(255,255,255,0.92); color: #334155; font-size: 11px; line-height: 1; cursor: pointer; }
     .renops-smeac .foto-ctl button:disabled { opacity: 0.35; cursor: default; }
     .renops-smeac .foto-ctl button[data-foto-hapus] { color: #dc2626; border-color: #fecaca; }
+    .renops-smeac .foto-bulk-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; padding: 6px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; }
+    .renops-smeac .ttd-box { break-inside: avoid; page-break-inside: avoid; }
     .renops-smeac .pengesahan { display: flex; justify-content: flex-end; margin-top: 2mm; break-inside: avoid; page-break-inside: avoid; }
     .renops-smeac .ttd { width: 92mm; text-align: center; }
     .page-sheet.renops-smeac .ttd p { text-align: center !important; font-size: 10pt !important; margin: 0; }
@@ -263,6 +306,7 @@ $peng = $doc['pengesahan'] ?? [];
         .page-sheet.renops-smeac { zoom: 1 !important; width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
         .renops-smeac .sec-badge, .renops-smeac .foto-ctl { display: none; }
         .page-sheet.renops-smeac.lanskap { width: auto; min-height: 0; }
+        .page-sheet.renops-smeac.hal-lampiran-foto { width: auto; min-height: 0; }
     }
 </style>
 <article id="renopsSmeacDoc" class="page-sheet renops-smeac<?= $draft ? ' is-draft' : '' ?>" data-pdf-orientation="portrait" data-pdf-header="<?= e($headerBerjalan) ?>">
@@ -401,31 +445,6 @@ $peng = $doc['pengesahan'] ?? [];
     <div class="ind">
         <p class="hari">Hari <?= e($hariOrdinal) ?> (<?= e($tglHari) ?>)</p>
         <?= $text('operation_stage', 'dash-paras') ?>
-        <?php if ($fotoList): ?>
-            <div class="foto-grid">
-                <?php foreach (array_values($fotoList) as $iFoto => $f): $ket = trim((string)($f['keterangan'] ?? '')) ?: 'Dokumentasi Operasi SAR'; ?>
-                    <figure class="foto"<?= $draft ? ' data-id-foto="' . (int)($f['id_foto'] ?? 0) . '"' : '' ?>>
-                        <img src="<?= $img((string)($f['path'] ?? '')) ?>" alt="<?= e($ket) ?>">
-                        <?php if ($draft): ?>
-                            <div class="foto-ctl no-print">
-                                <button type="button" data-foto-geser="-1" title="Naikkan urutan" aria-label="Naikkan urutan foto"<?= $iFoto === 0 ? ' disabled' : '' ?>>&#9650;</button>
-                                <button type="button" data-foto-geser="1" title="Turunkan urutan" aria-label="Turunkan urutan foto"<?= $iFoto === count($fotoList) - 1 ? ' disabled' : '' ?>>&#9660;</button>
-                                <button type="button" data-foto-hapus title="Hapus foto" aria-label="Hapus foto"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
-                            </div>
-                            <figcaption class="cap-gambar">Gambar <?= ++$nGambar ?>. <span class="foto-ket" data-foto-ket="<?= e(trim((string)($f['keterangan'] ?? ''))) ?>"><?= e($ket) ?></span></figcaption>
-                        <?php else: ?>
-                            <?= $gambar($ket) ?>
-                        <?php endif; ?>
-                    </figure>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-        <?php if ($draft): ?>
-            <div class="doc-aksi no-print">
-                <button type="button" class="aksi-foto" id="btnUploadFoto">+ Upload Foto Dokumentasi</button>
-                <small>JPG/PNG/WebP, maksimal 5 MB per foto, maksimal 12 foto. Keterangan diedit langsung di bawah foto.</small>
-            </div>
-        <?php endif; ?>
     </div>
 
     <h2 class="h1"><span class="no">E.</span>ADMINISTRATION AND LOGISTICS (ADMINISTRASI DAN LOGISTIK)</h2>
@@ -460,24 +479,83 @@ $peng = $doc['pengesahan'] ?? [];
         </div>
     </div>
 
-    <div class="pengesahan signature-block">
-        <div class="ttd">
-            <p><?= e((string)($peng['kota'] ?? '')) ?>, <?= e(TemplateHelper::formatTanggalSimple((string)($peng['tanggal'] ?? ''))) ?></p>
-            <p>Koordinator Misi Pencarian dan Pertolongan (SMC)</p>
-            <?php if ($draft || $pratinjau): ?>
-                <div class="qr-frame qr-kosong">DRAF &bull; QR terbit setelah diterbitkan</div>
-                <p class="qr-ket">BELUM TERVERIFIKASI</p>
-            <?php else: ?>
-                <div class="qr-frame">
-                    <canvas id="qrCanvas" data-qr-url="<?= e($qrUrl ?? '') ?>"></canvas>
-                    <img id="qrImg" class="qr-off" alt="QR verifikasi dokumen">
-                </div>
-                <p class="qr-ket">SCAN UNTUK VERIFIKASI &bull; <?= e($versiLabel) ?></p>
-            <?php endif; ?>
-            <p class="ttd-nama"><?= e((string)($peng['smc_nama'] ?? '')) ?></p>
-            <p><?= e((string)($peng['smc_pangkat'] ?? '')) ?></p>
+    <section class="ttd-box">
+        <div class="pengesahan signature-block">
+            <div class="ttd">
+                <p><?= e((string)($peng['kota'] ?? '')) ?>, <?= e(TemplateHelper::formatTanggalSimple((string)($peng['tanggal'] ?? ''))) ?></p>
+                <p>Koordinator Misi Pencarian dan Pertolongan (SMC)</p>
+                <?php if ($draft || $pratinjau): ?>
+                    <div class="qr-frame qr-kosong">DRAF &bull; QR terbit setelah diterbitkan</div>
+                    <p class="qr-ket">BELUM TERVERIFIKASI</p>
+                <?php else: ?>
+                    <div class="qr-frame">
+                        <canvas id="qrCanvas" data-qr-url="<?= e($qrUrl ?? '') ?>"></canvas>
+                        <img id="qrImg" class="qr-off" alt="QR verifikasi dokumen">
+                    </div>
+                    <p class="qr-ket">SCAN UNTUK VERIFIKASI &bull; <?= e($versiLabel) ?></p>
+                <?php endif; ?>
+                <p class="ttd-nama"><?= e((string)($peng['smc_nama'] ?? '')) ?></p>
+                <p><?= e((string)($peng['smc_pangkat'] ?? '')) ?></p>
+            </div>
         </div>
+    </section>
+</article>
+<?php if ($draft || !empty($fotoList)): ?>
+<!-- HALAMAN LAMPIRAN DOKUMENTASI FOTO (SETELAH TTD SMC, MAKS 6 FOTO PER HALAMAN) -->
+<?php
+$fotoValues = array_values($fotoList);
+$totalFotos = count($fotoValues);
+$fotoPages = $totalFotos > 0 ? array_chunk($fotoValues, 6, true) : [[]];
+$totalFotoPages = count($fotoPages);
+foreach ($fotoPages as $pageIdx => $fotoChunk):
+    $isLastFotoPage = ($pageIdx === $totalFotoPages - 1);
+?>
+<article class="page-sheet renops-smeac hal-lampiran-foto<?= $draft ? ' is-draft' : '' ?>" data-pdf-orientation="portrait" data-pdf-header="<?= e($headerBerjalan) ?>">
+    <div class="sheet-inner">
+        <header class="doc-header border-b pb-2 mb-3">
+            <h2 class="h1 text-center font-bold">LAMPIRAN: DOKUMENTASI OPERASI SAR</h2>
+            <p class="text-xs text-center text-slate-500">Rencana Operasi SAR — <?= htmlspecialchars($namaOps !== '' ? $namaOps : 'Operasi SAR') ?></p>
+        </header>
+        <div class="foto-grid" data-base-gambar="<?= (int)$nGambar ?>">
+            <?php foreach ($fotoChunk as $iFoto => $f): $ket = trim((string)($f['keterangan'] ?? '')) ?: 'Dokumentasi Operasi SAR'; ?>
+                <figure class="foto"<?= $draft ? ' data-id-foto="' . (int)($f['id_foto'] ?? 0) . '"' : '' ?>>
+                    <img src="<?= $img((string)($f['path'] ?? '')) ?>" alt="<?= e($ket) ?>">
+                    <?php if ($draft): ?>
+                        <label class="foto-select-wrap no-print" title="Pilih foto untuk hapus massal">
+                            <input type="checkbox" class="foto-select-cb" data-foto-pilih value="<?= (int)($f['id_foto'] ?? 0) ?>" aria-label="Pilih foto">
+                            <span>Pilih</span>
+                        </label>
+                        <div class="foto-ctl no-print">
+                            <span class="foto-drag-handle" data-foto-drag title="Tarik untuk mengubah urutan foto" aria-label="Tarik untuk mengubah urutan foto">&#8942;&#8942;</span>
+                            <button type="button" data-foto-hapus title="Hapus foto" aria-label="Hapus foto"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+                        </div>
+                        <figcaption class="cap-gambar"><span class="foto-num">Gambar <?= ++$nGambar ?>. </span><span class="foto-ket" data-foto-ket="<?= e(trim((string)($f['keterangan'] ?? ''))) ?>"><?= e($ket) ?></span></figcaption>
+                    <?php else: ?>
+                        <?= $gambar($ket) ?>
+                    <?php endif; ?>
+                </figure>
+            <?php endforeach; ?>
+        </div>
+        <?php if ($draft && $isLastFotoPage): ?>
+            <div class="mt-3 text-center no-print">
+                <div class="foto-bulk-bar" id="fotoBulkBar"<?= $totalFotos === 0 ? ' hidden' : '' ?>>
+                    <label class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+                        <input type="checkbox" id="cbPilihSemuaFoto" class="w-3.5 h-3.5 accent-orange-600 cursor-pointer">
+                        <span>Pilih Semua Foto (<span id="countFotoTerpilih">0</span> terpilih)</span>
+                    </label>
+                    <button type="button" id="btnHapusFotoTerpilih" disabled class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white rounded-lg font-bold text-xs cursor-pointer transition">
+                        Hapus Foto Terpilih
+                    </button>
+                </div>
+                <button type="button" id="btnUploadFoto" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-lg font-bold text-xs cursor-pointer">
+                    + Upload Foto Dokumentasi
+                </button>
+                <small class="block text-slate-500 text-xs mt-1">JPG/PNG/WebP, maksimal 5 MB per foto, maksimal 12 foto. Tarik foto untuk mengatur urutan; keterangan diedit langsung di bawah foto.</small>
+            </div>
+        <?php endif; ?>
     </div>
 </article>
+<?php endforeach; ?>
+<?php endif; ?>
 <?php
 })($doc, $mode ?? 'final', $qrUrl ?? null, $versiLabel ?? '');

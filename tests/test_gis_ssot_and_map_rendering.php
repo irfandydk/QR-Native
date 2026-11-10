@@ -13,9 +13,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/bootstrap.php';
 
+if (!defined('BASE_PATH')) {
+    define('BASE_PATH', dirname(__DIR__));
+}
+
 if (!defined('APP_NAME')) {
     define('APP_NAME', 'QR-SAR Test');
-    define('BASE_PATH', dirname(__DIR__));
     define('APP_VERSION', '3.8.0');
 }
 
@@ -118,8 +121,22 @@ assertCondition(
     "GisModel memiliki fungsi syncOperasiLkpPoint untuk otomatisasi pin LKP"
 );
 assertCondition(
+    strpos($gisModelContent, "'label' => 'LKP'") !== false && strpos($gisModelContent, "🚨 LKP") === false,
+    "GisModel::syncOperasiLkpPoint menggunakan label default 'LKP' murni tanpa simbol emoji"
+);
+assertCondition(
     strpos($gisModelContent, "function syncOperasiRoute") !== false,
     "GisModel memiliki fungsi syncOperasiRoute untuk persistensi jalur laut ke GisRoute"
+);
+
+$opsMapContent = file_get_contents(BASE_PATH . '/assets/js/pages/operasi_form_map.js');
+assertCondition(
+    strpos($opsFormContent, ">LKP</div>") !== false && strpos($opsFormContent, ">🚨 LKP</div>") === false,
+    "operasi_form.js merender badge pin LKP bersih 'LKP' tanpa emoji"
+);
+assertCondition(
+    strpos($opsMapContent, ">LKP</div>") !== false && strpos($opsMapContent, ">🚨 LKP</div>") === false,
+    "operasi_form_map.js merender badge pin LKP bersih 'LKP' tanpa emoji"
 );
 
 // ---------------------------------------------------------

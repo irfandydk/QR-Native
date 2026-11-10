@@ -53,6 +53,13 @@ test('parseSruArea', () => {
   assert.equal(r.coords.length, 2);
   assert.equal(r.entry, "03° 58' S - 122° 35' E");
   assert.equal(r.exit, "03° 59' S - 122° 36' E");
+
+  // Format titik bertanda titik (A. / B.) dan variasi tag Entry/Exit Point
+  const rDot = T.parseSruArea("Batas Koordinat:\nA. 04° 47' 30\" S - 122° 24' 00\" E\nB. 04° 47' 30\" S - 122° 27' 00\" E\n\n[Titik Entry Point: EP]\nKoordinat: 04° 47' 30\" S - 122° 24' 00\" E\n\n[Exit Poin: XP]\nKoordinat: 04° 49' 30\" S - 122° 27' 00\" E");
+  assert.equal(rDot.coords[0], "04° 47' 30\" S - 122° 24' 00\" E");
+  assert.equal(rDot.coords[1], "04° 47' 30\" S - 122° 27' 00\" E");
+  assert.equal(rDot.entry, "04° 47' 30\" S - 122° 24' 00\" E");
+  assert.equal(rDot.exit, "04° 49' 30\" S - 122° 27' 00\" E");
 });
 test('formatSectionText keeps list lines', () => assert.equal(
   T.formatSectionText('Unsur SAR Terlibat TTK DUA\n1. Rescuer : 6 orang\nTim bergerak, cepat.'),
@@ -113,8 +120,36 @@ test('renops BBB SRU block', () => {
   const d = T.buildRenops(op, op.renops[0]);
   assert.match(d.sections[1].isi, /^PEMBAGIAN SRU TTK DUA\n1\. SEARCH AREA SRU 1 TTK DUA\nA\. /);
   assert.match(d.sections[1].isi, /POLA PARALLEL TRACK TS 0\.5 NM LUAS 4 NM²/);
-  assert.match(d.sections[1].isi, /ENTRY DAN EXIT POINT /);
+  assert.match(d.sections[1].isi, /ENTRY KOORDINAT : /);
+  assert.match(d.sections[1].isi, /EXIT KOORDINAT : /);
   assert.match(d.perihal, /HARI KE 2/);
+});
+test('renops SRU entry exit coordinates separation and partial presence', () => {
+  const dBoth = T.buildRenops(op, op.renops[0]);
+  assert.match(dBoth.sections[1].isi, /ENTRY KOORDINAT : 03° 58' S - 122° 35' E/);
+  assert.match(dBoth.sections[1].isi, /EXIT KOORDINAT : 03° 59' S - 122° 36' E/);
+  assert.doesNotMatch(dBoth.sections[1].isi, /ENTRY DAN EXIT POINT/);
+
+  // Entry only
+  const areaEntryOnly = "Batas Koordinat:\nP1 03° 58' S - 122° 35' E\n[Titik Entry Poin: EP1]\nKoordinat: 03° 58' S - 122° 35' E";
+  const opEntryOnly = { ...op, renops: [{ ...op.renops[0], srus: [{ ...op.renops[0].srus[0], koordinat_area: areaEntryOnly }] }] };
+  const dEntry = T.buildRenops(opEntryOnly, opEntryOnly.renops[0]);
+  assert.match(dEntry.sections[1].isi, /ENTRY KOORDINAT : 03° 58' S - 122° 35' E/);
+  assert.doesNotMatch(dEntry.sections[1].isi, /EXIT KOORDINAT/);
+
+  // Exit only
+  const areaExitOnly = "Batas Koordinat:\nP1 03° 58' S - 122° 35' E\n[Titik Exit Poin: XP1]\nKoordinat: 03° 59' S - 122° 36' E";
+  const opExitOnly = { ...op, renops: [{ ...op.renops[0], srus: [{ ...op.renops[0].srus[0], koordinat_area: areaExitOnly }] }] };
+  const dExit = T.buildRenops(opExitOnly, opExitOnly.renops[0]);
+  assert.match(dExit.sections[1].isi, /EXIT KOORDINAT : 03° 59' S - 122° 36' E/);
+  assert.doesNotMatch(dExit.sections[1].isi, /ENTRY KOORDINAT/);
+
+  // Neither
+  const areaNeither = "Batas Koordinat:\nP1 03° 58' S - 122° 35' E";
+  const opNeither = { ...op, renops: [{ ...op.renops[0], srus: [{ ...op.renops[0].srus[0], koordinat_area: areaNeither }] }] };
+  const dNeither = T.buildRenops(opNeither, opNeither.renops[0]);
+  assert.doesNotMatch(dNeither.sections[1].isi, /ENTRY KOORDINAT/);
+  assert.doesNotMatch(dNeither.sections[1].isi, /EXIT KOORDINAT/);
 });
 test('lapbang has no victim data, penutupan has', () => {
   assert.doesNotMatch(T.buildLapbang(op, op.laporan_harian[0]).sections.map(s => s.isi).join('\n'), /DATA KORBAN/);

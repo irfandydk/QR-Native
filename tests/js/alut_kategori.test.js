@@ -37,5 +37,20 @@ test('tanpa konfigurasi master tetap jalan', () => {
   assert.equal(window.AlutKategoriUI.tebak('Rescue Car'), 'ALUT_DARAT');
 });
 
+test('groups: kelompok per kategori (URUTAN), hanya yang berisi, idx asli & urutan dipertahankan', () => {
+  const G = window.AlutKategoriUI.groups;
+  const list = [
+    { nama_alut: 'Senter', kategori: 'PALSAR' }, { nama_alut: 'RIB', kategori: 'ALUT_LAUT' },
+    { nama_alut: 'Rescue Car', kategori: 'ALUT_DARAT' }, { nama_alut: 'Speedboat', kategori: 'ALUT_LAUT' },
+  ];
+  const g = G(list);
+  assert.deepEqual(g.map((x) => x.kode), ['ALUT_DARAT', 'ALUT_LAUT', 'PALSAR']);
+  assert.deepEqual(g[1].items.map((x) => x.idx), [1, 3]);
+  assert.equal(g[1].label, 'ALUT Laut');
+  // Review Focus 3: urutan rata kelompok = urutan sort() (= urutan naskah WA)
+  assert.deepEqual(g.flatMap((x) => x.items.map((i) => i.item.nama_alut)), window.AlutKategoriUI.sort(list).map((i) => i.nama_alut));
+  assert.deepEqual(G([]), []);
+});
+
 console.log(failed ? `${failed} FAIL` : 'ALL PASS');
 process.exit(failed ? 1 : 0);

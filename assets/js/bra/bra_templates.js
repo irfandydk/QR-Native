@@ -137,12 +137,12 @@
       for (let i = start + 1; i < lines.length; i++) {
         const l = lines[i].trim();
         if (!l || l.startsWith('[')) break;
-        // Label titik bawaan ('A: ', 'P1: ') dibuang karena daftar BRA memberi huruf sendiri
-        if (!fromSektor || l.includes('°') || /^Radius\b/i.test(l)) coords.push(l.replace(/^[A-Z0-9]{1,3}(?:\s*\([A-Z]{1,3}\))?\s*:\s*/i, ''));
+        // Label titik bawaan ('A: ', 'A. ', 'P1: ', 'P1 ') dibuang karena daftar BRA memberi huruf sendiri
+        if (!fromSektor || l.includes('°') || /^Radius\b/i.test(l)) coords.push(l.replace(/^[A-Z0-9]{1,3}(?:\s*\([A-Z0-9]{1,3}\))?\s*[\.:\-]?\s+/i, ''));
       }
     }
     const pointCoord = (kind) => {
-      const i = lines.findIndex((l) => new RegExp(`^\\s*\\[Titik ${kind} Poin\\s*:`, 'i').test(l));
+      const i = lines.findIndex((l) => new RegExp(`^\\s*\\[(?:Titik\\s+)?${kind}(?:\\s+Poin|\\s+Point)?\\s*:`, 'i').test(l));
       if (i === -1) return '';
       const m = (lines[i + 1] || '').match(/^\s*Koordinat\s*:\s*(.+)$/i);
       return m ? m[1].trim() : '';
@@ -212,7 +212,8 @@
     const area = parseSruArea(sru.koordinat_area);
     const lines = [`${n}. SEARCH AREA SRU ${n} TTK DUA`].concat(area.coords.map((c, j) => `${String.fromCharCode(65 + j)}. ${upper(c)}`));
     lines.push(toSentence(`POLA ${upper(sru.pola_pencarian).replace(/^POLA\s+(?:PENCARIAN\s+)?/, '')}` + (upper(sru.track_spacing) ? ` TS ${upper(sru.track_spacing)}` : '') + (upper(sru.luas_area) ? ` LUAS ${upper(sru.luas_area)}` : '')));
-    if (area.entry || area.exit) lines.push(`ENTRY DAN EXIT POINT ${upper(area.entry)} ${upper(area.exit)}`.trim());
+    if (area.entry) lines.push('ENTRY KOORDINAT : ' + upper(area.entry));
+    if (area.exit) lines.push('EXIT KOORDINAT : ' + upper(area.exit));
     return lines.join('\n');
   }
 

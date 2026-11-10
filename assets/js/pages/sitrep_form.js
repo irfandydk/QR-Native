@@ -249,10 +249,18 @@ function applyAiSitrep() {
   if (typeof showToast === 'function') showToast('Narasi resmi berhasil diterapkan ke form!', 'success');
 }
 
-// ── Unsur SAR Terlibat Editor ──
+// ── Unsur SAR Terlibat Editor (Reorderable + Master Data Reference) ──
+let unsurSortable = null;
+
+// Drag-reorder (SortableJS, mouse & sentuh): urutan baru dibaca dari atribut indeks di DOM.
+function reorderFromDom(container, attr, list) {
+  return Array.from(container.querySelectorAll(`[${attr}]`)).map((el) => list[parseInt(el.getAttribute(attr), 10)]).filter(Boolean);
+}
+
 function renderUnsurList() {
   const container = document.getElementById('unsur-items-container');
   if (!container) return;
+  if (unsurSortable) { unsurSortable.destroy(); unsurSortable = null; }
   container.innerHTML = '';
 
   let totalPersonil = 0;
@@ -270,8 +278,10 @@ function renderUnsurList() {
 
       const row = document.createElement('div');
       row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-blue-500/40 transition-colors';
+      row.setAttribute('data-unsur-idx', String(idx));
       row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none cursor-grab active:cursor-grabbing" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
           <span class="w-5 h-5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 font-bold text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
@@ -283,12 +293,6 @@ function renderUnsurList() {
             <span class="text-xs font-medium text-slate-400">Org</span>
           </div>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
-            <button type="button" onclick="moveUnsurRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Atas (Prioritas Naik)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
-            </button>
-            <button type="button" onclick="moveUnsurRow(${idx}, 1)" ${idx === currentUnsurList.length - 1 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Bawah (Prioritas Turun)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
             <button type="button" onclick="removeUnsurRow(${idx})" class="p-1 rounded text-slate-400 hover:text-red-500 cursor-pointer" title="Hapus Unsur">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
@@ -297,6 +301,17 @@ function renderUnsurList() {
       `;
       container.appendChild(row);
     });
+
+    if (typeof Sortable !== 'undefined') {
+      unsurSortable = new Sortable(container, {
+        handle: '.drag-handle',
+        animation: 150,
+        onEnd: () => {
+          currentUnsurList = reorderFromDom(container, 'data-unsur-idx', currentUnsurList);
+          renderUnsurList();
+        },
+      });
+    }
   }
 
   const badgeEl = document.getElementById('sitrep-total-personil');
@@ -369,10 +384,14 @@ function syncUnsurFields() {
   }
 }
 
-// ── Alut & Palsar Terlibat Editor ──
+// ── Alut & Palsar Terlibat Editor (Reorderable + Master Data Reference) ──
+let alutSortables = [];
+
 function renderAlutList() {
   const container = document.getElementById('alut-items-container');
   if (!container) return;
+  alutSortables.forEach((sb) => sb.destroy());
+  alutSortables = [];
   container.innerHTML = '';
 
   let totalAlut = 0;
@@ -384,15 +403,28 @@ function renderAlutList() {
       </div>
     `;
   } else {
-    currentAlutList.forEach((item, idx) => {
+    // Urutan simpan = urutan tampil: per kategori (Darat → Laut → Udara → PALSAR), sama dengan naskah WA.
+    currentAlutList.forEach((item) => {
       if (!AlutKategoriUI.normalize(item.kategori)) item.kategori = AlutKategoriUI.kategoriOf(item);
-      const jml = parseInt(item.jumlah_alut, 10) || 1;
-      totalAlut += jml;
-
-      const row = document.createElement('div');
-      row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-blue-500/40 transition-colors';
-      row.innerHTML = `
+      totalAlut += (parseInt(item.jumlah_alut, 10) || 1);
+    });
+    currentAlutList = AlutKategoriUI.sort(currentAlutList);
+    AlutKategoriUI.groups(currentAlutList).forEach((grp) => {
+      const head = document.createElement('div');
+      head.className = 'text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-1';
+      head.textContent = grp.label;
+      container.appendChild(head);
+      const box = document.createElement('div');
+      box.className = 'space-y-2';
+      box.setAttribute('data-alut-group', grp.kode);
+      grp.items.forEach(({ item, idx }) => {
+        const jml = parseInt(item.jumlah_alut, 10) || 1;
+        const row = document.createElement('div');
+        row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-blue-500/40 transition-colors';
+        row.setAttribute('data-alut-idx', String(idx));
+        row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none cursor-grab active:cursor-grabbing" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
           <span class="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
@@ -410,19 +442,26 @@ function renderAlutList() {
           </select>
           <select onchange="updateAlutItem(${idx}, 'kategori', this.value)" class="control control-sm" title="Kategori">${AlutKategoriUI.options(AlutKategoriUI.kategoriOf(item))}</select>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
-            <button type="button" onclick="moveAlutRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Atas (Prioritas Naik)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
-            </button>
-            <button type="button" onclick="moveAlutRow(${idx}, 1)" ${idx === currentAlutList.length - 1 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Bawah (Prioritas Turun)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
             <button type="button" onclick="removeAlutRow(${idx})" class="p-1 rounded text-slate-400 hover:text-red-500 cursor-pointer" title="Hapus Alut">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
         </div>
       `;
-      container.appendChild(row);
+        box.appendChild(row);
+      });
+      container.appendChild(box);
+      if (typeof Sortable !== 'undefined') {
+        // Satu instance per kelompok tanpa opsi group: drag hanya di dalam kategorinya.
+        alutSortables.push(new Sortable(box, {
+          handle: '.drag-handle',
+          animation: 150,
+          onEnd: () => {
+            currentAlutList = reorderFromDom(container, 'data-alut-idx', currentAlutList);
+            renderAlutList();
+          },
+        }));
+      }
     });
   }
 
@@ -494,6 +533,10 @@ function removeAlutRow(idx) {
 function updateAlutItem(idx, key, val) {
   if (currentAlutList[idx]) {
     currentAlutList[idx][key] = val;
+    if (key === 'kategori') {
+      renderAlutList();
+      return;
+    }
     syncAlutFields();
   }
 }

@@ -129,33 +129,6 @@ $satkerNama = $appSettings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN K
   <script src="<?= assetUrl('assets/js/app.js') ?>"></script>
 
   <script>
-    // Live Clock WITA
-    function updateLiveClock() {
-      try {
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('id-ID', {
-          timeZone: 'Asia/Makassar',
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        });
-        const clockEl = document.getElementById('liveClockWita');
-        if (clockEl) {
-          clockEl.textContent = timeStr + ' WITA';
-        }
-      } catch (e) {
-        // Fallback standard clock
-        const now = new Date();
-        const clockEl = document.getElementById('liveClockWita');
-        if (clockEl) {
-          clockEl.textContent = now.toTimeString().substring(0, 8) + ' WITA';
-        }
-      }
-    }
-    setInterval(updateLiveClock, 1000);
-    updateLiveClock();
-
     // Password Visibility Peek Toggle
     function togglePassVisibility() {
       const input = document.getElementById('passwordInput');

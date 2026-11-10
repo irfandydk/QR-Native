@@ -93,13 +93,8 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
     <link rel="shortcut icon" href="<?= assetUrl('favicon.ico') ?>">
     <link rel="apple-touch-icon" href="<?= e($logoUrl) ?>">
     
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-    
     <!-- Conditional Leaflet CSS (Only on GIS / Map-enabled views) -->
-    <?php if (!empty($useGis) || in_array($currentRoute ?? '', ['gis', 'operasi', 'operasi_detail', 'operasi_form'], true)): ?>
+    <?php if (!empty($useGis) || in_array($currentRoute ?? '', ['gis', 'operasi_detail', 'operasi_form'], true)): ?>
     <link rel="stylesheet" href="<?= assetUrl('assets/vendor/leaflet/leaflet.min.css') ?>">
     <?php endif; ?>
     

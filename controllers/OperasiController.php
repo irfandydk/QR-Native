@@ -124,8 +124,9 @@ class OperasiController extends BaseController {
                 }
 
                 $waktuReopen = $_POST['waktu_reopen'] ?? date('Y-m-d H:i:s');
+                $catatanReopen = trim((string)($_POST['catatan_reopen'] ?? ($_POST['alasan'] ?? '')));
                 try {
-                    $ok = OperasiModel::rollbackPenutupan($id, $waktuReopen);
+                    $ok = OperasiModel::rollbackPenutupan($id, $waktuReopen, $catatanReopen !== '' ? $catatanReopen : null);
                     if ($ok) {
                         $this->setFlash('success', 'Operasi SAR berhasil dibuka kembali (Status: OPEN). Perhitungan hari operasional lanjutan (misal: H7 + 1, dst.) dihitung sejak tanggal pembukaan kembali.');
                     } else {
@@ -256,13 +257,7 @@ class OperasiController extends BaseController {
             $this->setFlash('error', 'Data Rencana Operasi (RENOPS) tidak ditemukan.');
             $this->redirect('/index.php');
         }
-        $mode = 'pratinjau';
-        $qrUrl = null;
-        $versiLabel = 'DRAF';
-        $isPublic = false;
-        $backUrl = $editorUrl;
-        $digantikanOleh = null;
-        require VIEWS_DIR . '/operasi/renops_smeac_print.php';
+        $this->outputRenopsPrintOrPdf($doc, 'pratinjau', null, 'DRAF', false, $editorUrl, null);
     }
 
     /**
@@ -290,6 +285,55 @@ class OperasiController extends BaseController {
         $digantikanOleh = $terbaru
             ? ['versi' => (int)$terbaru['versi'], 'url' => RenopsDokumenPublisher::publicUrl((string)$terbaru['token'])]
             : null;
+        $this->outputRenopsPrintOrPdf($doc, 'final', $qrUrl, $versiLabel, $isPublic, $backUrl, $digantikanOleh);
+    }
+
+    /**
+     * Render tampilan cetak HTML atau hasilkan berkas PDF vektor langsung (?format=pdf) via RenopsPdfService.
+     */
+    private function outputRenopsPrintOrPdf(
+        array $doc,
+        string $mode,
+        ?string $qrUrl,
+        string $versiLabel,
+        bool $isPublic,
+        ?string $backUrl,
+        ?array $digantikanOleh
+    ): void {
+        if (($_GET['format'] ?? '') === 'pdf') {
+            ob_start();
+            require VIEWS_DIR . '/operasi/renops_smeac_print.php';
+            $html = (string)ob_get_clean();
+
+            $pdfBytes = RenopsPdfService::renderHtmlToPdf($html);
+            if ($pdfBytes !== null) {
+                $pMeta = $doc['meta'] ?? [];
+                $pHari = (string)($pMeta['hari_label'] ?? '');
+                $pNama = (string)($pMeta['nama_operasi'] ?? '');
+                $rawName = 'RENOPS_H' . $pHari . '_' . $versiLabel . '_OPS_' . (int)($pMeta['id_operasi'] ?? 0) . '_' . $pNama;
+                $safeName = preg_replace('/[^a-zA-Z0-9_\-.]+/', '_', $rawName);
+                $safeName = trim((string)preg_replace('/_+/', '_', (string)$safeName), '_') ?: 'RENOPS_DOKUMEN';
+                if (!headers_sent()) {
+                    header('Content-Type: application/pdf');
+                    header('Content-Disposition: attachment; filename="' . $safeName . '.pdf"');
+                    header('Content-Length: ' . strlen($pdfBytes));
+                    header('Cache-Control: no-store, no-cache, must-revalidate');
+                }
+                echo $pdfBytes;
+                exit;
+            }
+
+            http_response_code(503);
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+            }
+            echo json_encode([
+                'success' => false,
+                'message' => 'Engine PDF vektor tidak tersedia, membuka dialog cetak browser.'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
         require VIEWS_DIR . '/operasi/renops_smeac_print.php';
     }
 

@@ -22,7 +22,7 @@ class RenopsDokumenApiController extends BaseApiController {
         'staf_intelijen', 'staf_humas', 'staf_komunikasi'];
 
     public static function handle(string $path, string $method, array $input): bool {
-        if (!preg_match('#^/renops/(\d+)/(dokumen|foto)(?:/(terbit|\d+))?\z#', $path, $m)) {
+        if (!preg_match('#^/renops/(\d+)/(dokumen|foto)(?:/(terbit|reorder|bulk-delete|\d+))?\z#', $path, $m)) {
             return false;
         }
         self::requireAuth();
@@ -46,6 +46,20 @@ class RenopsDokumenApiController extends BaseApiController {
 
         if ($sub === null && $method === 'POST') {
             self::upload($id);
+        } elseif ($sub === 'reorder' && $method === 'PUT') {
+            $ids = $input['ids'] ?? null;
+            if (!is_array($ids)) {
+                self::error('Daftar ID foto untuk pengurutan tidak valid.', 422);
+            }
+            RenopsFotoModel::reorder($id, $ids);
+            self::json(['success' => true, 'foto' => RenopsFotoModel::listByRenops($id)]);
+        } elseif ($sub === 'bulk-delete' && ($method === 'POST' || $method === 'DELETE')) {
+            $ids = $input['ids'] ?? null;
+            if (!is_array($ids) || empty($ids)) {
+                self::error('Pilih minimal satu foto untuk dihapus.', 422);
+            }
+            $deleted = RenopsFotoModel::deleteMany($id, $ids);
+            self::json(['success' => true, 'deleted' => $deleted, 'foto' => RenopsFotoModel::listByRenops($id)]);
         } elseif ($sub !== null && ctype_digit($sub) && $method === 'PUT') {
             $cur = null;
             foreach (RenopsFotoModel::listByRenops($id) as $row) {
@@ -134,15 +148,41 @@ class RenopsDokumenApiController extends BaseApiController {
         ]);
     }
 
+    public static function uploadFoto(int $id): void {
+        self::upload($id);
+    }
+
+    public static function jsonError(string $message, int $statusCode = 400): void {
+        self::error($message, $statusCode);
+    }
+
     private static function upload(int $id): void {
-        $f = $_FILES['foto'] ?? null;
-        if (!$f || !is_array($f['name'] ?? null)) {
-            // Melebihi post_max_size: PHP mengosongkan $_FILES & $_POST tanpa galat.
-            $tooBig = (int)($_SERVER['CONTENT_LENGTH'] ?? 0) > (int)ini_parse_quantity((string)ini_get('post_max_size'));
-            self::error($tooBig
-                ? 'Total ukuran foto terlalu besar untuk satu unggahan. Unggah lebih sedikit foto sekaligus (maksimal 5 MB per foto).'
-                : 'Tidak ada berkas foto yang diunggah.', 422);
+        @set_time_limit(300);
+        $memLimit = (string)ini_get('memory_limit');
+        if ($memLimit !== '-1' && ini_parse_quantity($memLimit) < 512 * 1024 * 1024) {
+            @ini_set('memory_limit', '512M');
         }
+
+        $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+        $postMaxSize = (int)ini_parse_quantity((string)ini_get('post_max_size'));
+        if (($contentLength > 0 && empty($_POST) && empty($_FILES)) || ($postMaxSize > 0 && $contentLength > $postMaxSize)) {
+            self::error('Ukuran berkas unggahan melebihi batas muatan server (post_max_size). Kurangi jumlah atau ukuran foto.', 413);
+        }
+
+        $f = $_FILES['foto'] ?? $_FILES['photos'] ?? null;
+        if (!$f || !isset($f['name'])) {
+            self::error('Tidak ada berkas foto yang diunggah.', 422);
+        }
+        if (!is_array($f['name'])) {
+            $f = [
+                'name' => [$f['name']],
+                'type' => [$f['type'] ?? ''],
+                'tmp_name' => [$f['tmp_name']],
+                'error' => [$f['error']],
+                'size' => [$f['size']],
+            ];
+        }
+
         // multipart: php://input kosong, jadi $input kosong; keterangan[] ada di $_POST
         $fail = self::storeUploads($id, $f, (array)($_POST['keterangan'] ?? []), self::userId());
         $foto = RenopsFotoModel::listByRenops($id);
@@ -154,21 +194,33 @@ class RenopsDokumenApiController extends BaseApiController {
      * $requireUploaded=false hanya untuk test (tanpa HTTP).
      */
     public static function storeUploads(int $id, array $f, array $ket, ?string $userId, bool $requireUploaded = true): ?string {
+        @set_time_limit(300);
         $names = (array)$f['name'];
         if (count($names) > RenopsFotoModel::MAX_PER_RENOPS) {
             return 'Maksimal ' . RenopsFotoModel::MAX_PER_RENOPS . ' foto per unggahan.';
         }
-        foreach ($names as $i => $_) {
+        foreach ($names as $i => $rawName) {
+            @set_time_limit(60);
+            $origName = trim((string)$rawName);
             $tmp = (string)($f['tmp_name'][$i] ?? '');
             $err = $f['error'][$i] ?? UPLOAD_ERR_NO_FILE;
-            if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE) {
-                return 'Ukuran foto maksimal 5 MB.';
+            $size = (int)($f['size'][$i] ?? 0);
+
+            if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE || $size > RenopsFotoModel::MAX_BYTES) {
+                return $origName !== ''
+                    ? "Ukuran berkas '{$origName}' melebihi batas maksimal 5 MB."
+                    : 'Ukuran foto maksimal 5 MB.';
+            }
+            if ($err === UPLOAD_ERR_PARTIAL) {
+                return $origName !== ''
+                    ? "Unggahan berkas '{$origName}' terputus atau tidak lengkap."
+                    : 'Unggahan berkas terputus atau tidak lengkap.';
             }
             if ($err !== UPLOAD_ERR_OK || $tmp === '' || ($requireUploaded && !is_uploaded_file($tmp))) {
                 return 'Unggahan foto tidak valid atau gagal.';
             }
             try {
-                RenopsFotoModel::store($id, $tmp, (int)$f['size'][$i], $userId, mb_substr((string)($ket[$i] ?? ''), 0, 255));
+                RenopsFotoModel::store($id, $tmp, $size, $userId, mb_substr((string)($ket[$i] ?? ''), 0, 255));
             } catch (InvalidArgumentException $e) {
                 return $e->getMessage();
             } catch (RuntimeException $e) {

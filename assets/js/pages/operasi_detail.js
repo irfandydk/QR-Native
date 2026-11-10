@@ -687,7 +687,10 @@ async function confirmAndRollbackOperasi(idOperasi) {
             }
         }
     } else {
-        if (confirm('Buka kembali operasi SAR ini menjadi status OPEN? Perhitungan hari operasional akan dimulai lagi.')) {
+        const confirmed = typeof confirmAction === 'function'
+            ? await confirmAction('Buka Kembali Operasi SAR?', 'Buka kembali operasi SAR ini menjadi status OPEN? Perhitungan hari operasional akan dimulai lagi.', 'Ya, Buka Kembali', false)
+            : true;
+        if (confirmed) {
             const form = document.getElementById('form-fallback-rollback');
             if (form) form.submit();
         }

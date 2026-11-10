@@ -1,0 +1,14 @@
+{
+  "name": "qr-sar",
+  "version": "2.5.0",
+  "description": "Sistem Pelaporan Operasi SAR & Berita Radio SAR - KPP Basarnas Kendari",
+  "private": true,
+  "scripts": {
+    "build:css": "npx tailwindcss -c tailwind.config.js -i assets/css/tailwind.src.css -o assets/css/tailwind.css --minify",
+    "watch:css": "npx tailwindcss -c tailwind.config.js -i assets/css/tailwind.src.css -o assets/css/tailwind.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}
+

@@ -58,7 +58,7 @@ $initialAlutData = $initialAlutData ?? [];
       </div>
       <div class="flex flex-wrap items-center gap-2.5">
         <h1 class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-          <?= $editMode ? "Edit Laporan Perkembangan ({$hariKe})" : "Penerbitan Laporan Perkembangan ({$hariKe})" ?>
+          <?= $editMode ? ("Edit Laporan Perkembangan (" . e($hariKe) . ")") : ("Penerbitan Laporan Perkembangan (" . e($hariKe) . ")") ?>
         </h1>
         <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full <?= $editMode ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' : 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30' ?> uppercase tracking-wider shrink-0 font-mono">
           <?= $editMode ? 'MODE PERBAIKAN' : 'DOKUMEN LAPBANG' ?>
@@ -567,5 +567,6 @@ window.__SITREP_FORM_CONFIG__ = <?= jsonSafe([
     'operasiBaseHariReopen' => (int)TemplateHelper::getBaseHariSebelumReopen($operasi),
 ]) ?>;
 </script>
+<script src="<?= assetUrl('assets/vendor/sortablejs/Sortable.min.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/alut_kategori.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/pages/sitrep_form.js') ?>"></script>

@@ -173,15 +173,18 @@ class BraHelper {
     public static function getNextNomorBra(string $kategori = 'MAPEL', string $satkerKode = 'SAR-304', ?PDO $db = null, bool $forUpdate = false): array {
         $db = $db ?: getDB();
         $suffix = self::getBulanTahunSuffix();
+        $yearSuffix = substr($suffix, 2);
         $cleanSatker = $satkerKode ?: 'SAR-304';
 
         if ($forUpdate) {
-            // Penguncian baris eksklusif (exclusive index row lock) pada nomor_urut tertinggi
-            $stmt = $db->query("SELECT nomor_urut FROM BraSar ORDER BY nomor_urut DESC LIMIT 1 FOR UPDATE");
+            // Penguncian baris eksklusif pada nomor_urut tertinggi tahun berjalan
+            $stmt = $db->prepare("SELECT nomor_urut FROM BraSar WHERE bulan_tahun LIKE :yr ORDER BY nomor_urut DESC LIMIT 1 FOR UPDATE");
+            $stmt->execute([':yr' => '%' . $yearSuffix]);
             $row = $stmt ? $stmt->fetch() : null;
             $maxUrut = ($row && isset($row['nomor_urut'])) ? (int)$row['nomor_urut'] : 0;
         } else {
-            $stmt = $db->query("SELECT COALESCE(MAX(nomor_urut), 0) as max_urut FROM BraSar");
+            $stmt = $db->prepare("SELECT COALESCE(MAX(nomor_urut), 0) as max_urut FROM BraSar WHERE bulan_tahun LIKE :yr");
+            $stmt->execute([':yr' => '%' . $yearSuffix]);
             $row = $stmt ? $stmt->fetch() : null;
             $maxUrut = ($row && isset($row['max_urut'])) ? (int)$row['max_urut'] : 0;
         }
@@ -416,7 +419,7 @@ class BraHelper {
 
         $pob = !empty($customParams['pob']) 
             ? (int)$customParams['pob'] 
-            : (!empty($ops['jumlah_korban']) ? (int)$ops['jumlah_korban'] : (!empty($ops['korban']) && is_array($ops['korban']) ? count($ops['korban']) : 1));
+            : (!empty($ops['jumlah_pob']) ? (int)$ops['jumlah_pob'] : (!empty($ops['jumlah_korban']) ? (int)$ops['jumlah_korban'] : (!empty($ops['korban']) && is_array($ops['korban']) ? count($ops['korban']) : 1)));
         $pobText = $pob > 0 ? " DENGAN POB {$pob} ORANG" : "";
 
         $ciriKapal = !empty($customParams['ciri_kapal']) 
@@ -683,16 +686,17 @@ class BraHelper {
         }
 
         $perihal = "LAPORAN PERKEMBANGAN {$hariKe} {$namaOps} TTK";
-        $stats = TemplateHelper::hitungStatistikKorban($korban);
+        $totalPob = !empty($ops['jumlah_pob']) ? (int)$ops['jumlah_pob'] : null;
+        $stats = TemplateHelper::hitungStatistikKorban($korban, $totalPob);
         $isiLaporan = strtoupper($sitrep['isi_laporan'] ?: "PENCARIAN {$hariKe} TELAH DILAKSANAKAN SESUAI RENCANA OPERASI DENGAN HASIL KORBAN BELUM DITEMUKAN (NIHIL)");
         $laporTW = self::formatMilitaryTW($sitrep['waktu_laporan'] ?? null);
         $twu = self::formatMilitaryTW();
 
-        $alutText = strtoupper($sitrep['alut_text'] ?: ($ops['alut_palsar'] ?: "• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT"));
-        $unsurText = strtoupper($sitrep['unsur_text'] ?: ($ops['unsur_terlibat'] ?: "* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG"));
+        $alutText = strtoupper((!empty($sitrep['alut_text']) ? $sitrep['alut_text'] : (!empty($ops['alut_palsar']) ? $ops['alut_palsar'] : "• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT")));
+        $unsurText = strtoupper((!empty($sitrep['unsur_text']) ? $sitrep['unsur_text'] : (!empty($ops['unsur_terlibat']) ? $ops['unsur_terlibat'] : "* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG")));
 
-        $cuaca = strtoupper($sitrep['cuaca'] ?: ($ops['cuaca'] ?: 'CERAH BERAWAN'));
-        $gelombang = strtoupper($ops['gelombang'] ?: '0.5 - 1.25 METER');
+        $cuaca = strtoupper((!empty($sitrep['cuaca']) ? $sitrep['cuaca'] : (!empty($ops['cuaca']) ? $ops['cuaca'] : 'CERAH BERAWAN')));
+        $gelombang = strtoupper(!empty($ops['gelombang']) ? $ops['gelombang'] : '0.5 - 1.25 METER');
 
         // Dynamic basarnas military telegram structure: AAA Info Awal, BBB Alut & Palsar, CCC Unsur, DDD Rekap Korban, EEE Cuaca & Lanjutan, FFF Penutup
         $sections = [
@@ -735,12 +739,13 @@ class BraHelper {
         $namaOps = strtoupper($ops['nama_operasi'] ?: 'OPERASI SAR');
         $perihal = "LAPORAN PERKEMBANGAN DAN PENUTUPAN OPERASI SAR {$namaOps} TTK";
 
-        $stats = TemplateHelper::hitungStatistikKorban($korban);
+        $totalPob = !empty($ops['jumlah_pob']) ? (int)$ops['jumlah_pob'] : null;
+        $stats = TemplateHelper::hitungStatistikKorban($korban, $totalPob);
         $isiLaporan = strtoupper($sitrep['isi_laporan'] ?: "SELURUH KORBAN TELAH BERHASIL DIEVAKUASI DAN OPERASI SAR DINYATAKAN SELESAI");
         $twDebrief = !empty($sitrep['waktu_debrief']) ? self::formatMilitaryTW($sitrep['waktu_debrief']) : self::formatMilitaryTW();
 
-        $alutText = strtoupper($sitrep['alut_text'] ?: ($ops['alut_palsar'] ?: "• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT"));
-        $unsurText = strtoupper($sitrep['unsur_text'] ?: ($ops['unsur_terlibat'] ?: "* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG"));
+        $alutText = strtoupper((!empty($sitrep['alut_text']) ? $sitrep['alut_text'] : (!empty($ops['alut_palsar']) ? $ops['alut_palsar'] : "• 1 UNIT RESCUE CAR\n• 1 UNIT RUBBER BOAT")));
+        $unsurText = strtoupper((!empty($sitrep['unsur_text']) ? $sitrep['unsur_text'] : (!empty($ops['unsur_terlibat']) ? $ops['unsur_terlibat'] : "* TIM RESCUE KANSAR KENDARI : 6 ORANG\n* POLAIRUD : 3 ORANG")));
 
         $sections = [
             [

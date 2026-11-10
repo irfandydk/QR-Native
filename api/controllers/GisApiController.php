@@ -11,6 +11,9 @@ class GisApiController extends BaseApiController {
         // 1. Geocode endpoint (Global & Indonesian Geocoding)
         if ($path === '/geocode') {
             self::requireAuth();
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+            }
             self::handleGeocode();
             return true;
         }
@@ -286,6 +289,9 @@ class GisApiController extends BaseApiController {
     private static function handleRoutingDirectionsRoute(string $path, string $method, array $input): bool {
         if ($path === '/gis/directions' && $method === 'POST') {
             self::requireAuth();
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+            }
             self::handleDirections($input);
             return true;
         }
@@ -736,7 +742,10 @@ class GisApiController extends BaseApiController {
             $idOperasi = isset($input['id_operasi']) && $input['id_operasi'] !== '' ? (int)$input['id_operasi'] : 0;
             if ($idOperasi > 0) {
                 $ops = OperasiModel::getById($idOperasi);
-                if ($ops && ($ops['status'] ?? '') === 'CLOSED') {
+                if (!$ops) {
+                    self::error('Data Operasi SAR tidak ditemukan.', 404);
+                }
+                if (($ops['status'] ?? '') === 'CLOSED') {
                     self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Cuplikan peta resmi terkunci.', 403);
                 }
             }
@@ -757,11 +766,21 @@ class GisApiController extends BaseApiController {
 
         if (preg_match('#^/gis/snapshot(?:s)?/(\d+)$#', $path, $m) && $method === 'DELETE') {
             self::requireAuth();
+            if (!AuthHelper::canDelete('gis')) {
+                self::error('Akses ditolak: Anda tidak memiliki izin menghapus cuplikan peta.', 403);
+            }
             $idSnap = (int)$m[1];
             $existing = DokumenPetaSnapshotModel::getById($idSnap);
-            if ($existing && !empty($existing['id_operasi'])) {
+            if (!$existing) {
+                self::error('Cuplikan peta tidak ditemukan.', 404);
+            }
+            if (empty($existing['id_operasi'])) {
+                if (!AuthHelper::isAdmin()) {
+                    self::error('Akses ditolak: Hanya Administrator yang berwenang menghapus cuplikan peta global.', 403);
+                }
+            } else {
                 $ops = OperasiModel::getById((int)$existing['id_operasi']);
-                if ($ops && $ops['status'] === 'CLOSED') {
+                if ($ops && ($ops['status'] ?? '') === 'CLOSED') {
                     self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Cuplikan peta resmi terkunci.', 403);
                 }
             }
@@ -772,6 +791,9 @@ class GisApiController extends BaseApiController {
 
         if ($path === '/gis/tile-proxy' && $method === 'GET') {
             self::requireAuth();
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+            }
             $tileUrl = trim((string)($_GET['url'] ?? ''));
             $parsed = parse_url($tileUrl);
             $host = strtolower((string)($parsed['host'] ?? ''));
@@ -852,7 +874,22 @@ class GisApiController extends BaseApiController {
             $existingRow = $stmt->fetch();
         }
 
-        // Tentukan id_operasi: prioritas dari input jika diberikan, atau fallback ke data yang sudah ada di DB
+        // 1. Jika rekaman sudah ada di DB, periksa kepemilikan & status operasi asalnya lebih dulu
+        // agar rekaman global atau milik operasi CLOSED tidak bisa dibajak lewat spoofing id_operasi
+        if ($existingRow) {
+            if ($existingRow['id_operasi'] === null) {
+                if (!AuthHelper::isAdmin()) {
+                    self::error('Akses ditolak: Hanya Administrator yang berwenang menambah, mengubah, atau menghapus data master spasial global.', 403);
+                }
+            } else {
+                $existingOps = OperasiModel::getById((int)$existingRow['id_operasi']);
+                if ($existingOps && ($existingOps['status'] ?? '') === 'CLOSED') {
+                    self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Data spasial terkait operasi ini terkunci.', 403);
+                }
+            }
+        }
+
+        // 2. Tentukan id_operasi sasaran
         $idOperasi = null;
         if (array_key_exists('id_operasi', $input)) {
             $idOperasi = ($input['id_operasi'] !== '' && $input['id_operasi'] !== null) ? (int)$input['id_operasi'] : null;
@@ -860,17 +897,19 @@ class GisApiController extends BaseApiController {
             $idOperasi = (int)$existingRow['id_operasi'];
         }
 
-        // 1. Data master spasial global (id_operasi === null)
-        if (($existingRow && $existingRow['id_operasi'] === null) || $idOperasi === null) {
+        if ($idOperasi === null) {
             if (!AuthHelper::isAdmin()) {
                 self::error('Akses ditolak: Hanya Administrator yang berwenang menambah, mengubah, atau menghapus data master spasial global.', 403);
             }
             return;
         }
 
-        // 2. Data spasial yang terikat dengan operasi SAR
+        // 3. Validasi operasi SAR sasaran harus nyata dan belum CLOSED
         $ops = OperasiModel::getById($idOperasi);
-        if ($ops && ($ops['status'] ?? '') === 'CLOSED') {
+        if (!$ops) {
+            self::error('Data Operasi SAR tidak ditemukan.', 404);
+        }
+        if (($ops['status'] ?? '') === 'CLOSED') {
             self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Data spasial terkait operasi ini terkunci.', 403);
         }
     }

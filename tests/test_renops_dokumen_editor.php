@@ -29,7 +29,7 @@ assertCondition(!str_contains($view, 'id="btnUploadFoto"') && !str_contains($vie
 assertCondition(substr_count($docPartial, 'id="btnCapturePeta"') === 2 && str_contains($docPartial, "capture_doc=RENOPS';")
     && strpos($docPartial, 'id="btnCapturePeta"') > strpos($docPartial, 'class="peta"') - 400, 'Capture Peta LKP di bagian peta (kosong & perbarui)');
 assertCondition(str_contains($docPartial, 'id="btnUploadFoto"') && strpos($docPartial, 'id="btnUploadFoto"') > strpos($docPartial, 'class="foto-grid"')
-    && strpos($docPartial, 'id="btnUploadFoto"') < strpos($docPartial, 'ADMINISTRATION AND LOGISTICS'), 'Upload foto tepat di bawah tempat foto dokumentasi');
+    && strpos($docPartial, 'id="btnUploadFoto"') > strpos($docPartial, 'class="ttd-box"'), 'Upload foto berada di halaman lampiran setelah tanda tangan SMC');
 assertCondition(str_contains($js, 'f.size > 5 * 1024 * 1024') && str_contains($js, 'Ukuran foto maksimal 5 MB'), 'JS: foto > 5 MB ditolak sebelum diunggah');
 assertCondition(str_contains($view, 'belumTerbit') && str_contains($view, 'Ada perubahan belum diterbitkan'), 'lencana perubahan belum terbit');
 assertCondition(str_contains($view, 'image/jpeg,image/png,image/webp'), 'input file accept');
@@ -43,17 +43,23 @@ assertCondition(str_contains($ctl, "'renops_dokumen'") && !str_contains((string)
 assertCondition(str_contains($js, 'Number.isInteger(res.rev)'), 'JS: guard rev respons');
 assertCondition((bool)preg_match("/renops_dokumen'[^}]*requireLogin|function renopsDokumen\(\)[^}]*requireLogin/s", $ctl), 'controller: login');
 
-// Fix wave akhir: urutan foto, muat pas lebar (layar saja), filter kolom grup, unggah parsial
+// Fix wave akhir: drag-reorder foto (SortableJS), bulk delete foto, SweetAlert2 (tanpa window.confirm/alert), muat pas lebar (layar saja), filter kolom grup, unggah parsial
 $partial = (string)file_get_contents(ROOT_DIR . '/views/operasi/partials/renops_smeac_doc.php');
 $print = (string)file_get_contents(ROOT_DIR . '/views/operasi/renops_smeac_print.php');
 $exp = (string)file_get_contents(ROOT_DIR . '/assets/js/pdf_document_exporter.js');
-assertCondition(str_contains($partial, 'data-foto-geser="-1"') && str_contains($partial, 'aria-label="Naikkan urutan foto"')
-    && str_contains($partial, 'aria-label="Turunkan urutan foto"') && str_contains($partial, 'aria-label="Hapus foto"')
-    && !str_contains($view, 'renopsFotoPanel'), 'Foto: tombol ▲/▼ & ikon hapus di foto (kertas), panel kiri dihapus');
+$opsDetailJs = (string)file_get_contents(ROOT_DIR . '/assets/js/pages/operasi_detail.js');
+assertCondition(str_contains($view, "assetUrl('assets/vendor/sortablejs/Sortable.min.js')"), 'view memuat SortableJS untuk drag-reorder foto');
+assertCondition(!str_contains($partial, 'data-foto-geser') && str_contains($partial, 'data-foto-drag')
+    && str_contains($partial, 'data-foto-pilih') && str_contains($partial, 'aria-label="Hapus foto"')
+    && str_contains($partial, 'id="cbPilihSemuaFoto"') && str_contains($partial, 'id="btnHapusFotoTerpilih"')
+    && !str_contains($view, 'renopsFotoPanel'), 'Foto: drag handle, checkbox pilih, bulk delete bar, & ikon hapus di kertas (tanpa tombol geser manual)');
 assertCondition(str_contains($partial, 'class="foto-ket" data-foto-ket=') && str_contains($js, "$('.foto-ket', fig)")
     && str_contains($js, 'keterangan: v })'), 'Foto: keterangan disunting langsung di bawah gambar');
 assertCondition(str_contains($js, 'if (s && ev.target.isContentEditable) lastFocus[s.dataset.sec] = ev.target;'), 'Hapus baris/butir terpilih: fokus tombol tidak menimpa pilihan');
-assertCondition(str_contains($js, 'data-foto-geser') && str_contains($js, "api('GET', '/dokumen')") && str_contains($js, '{ urutan: '), 'JS: geser foto via PUT urutan');
+assertCondition(str_contains($js, 'new Sortable(') && str_contains($js, "'/foto/reorder'") && str_contains($js, "'/foto/bulk-delete'"), 'JS: drag-reorder SortableJS via /foto/reorder & bulk delete via /foto/bulk-delete');
+assertCondition(!str_contains($js, 'window.confirm') && !str_contains($js, 'window.alert')
+    && (str_contains($js, 'Swal.fire') || str_contains($js, 'confirmAction'))
+    && !preg_match('/\bconfirm\s*\(/', $opsDetailJs), 'JS: konfirmasi & peringatan menggunakan SweetAlert2 tanpa window.confirm/window.alert');
 assertCondition(str_contains($js, "sh.style.zoom = String(Math.min(1, (paper.clientWidth - 72) / widths[i]))") && str_contains($js, "addEventListener('resize', fit)"), 'JS: zoom muat pas lebar tiap lembar + resize');
 assertCondition(str_contains($print, "sh.style.zoom = String(Math.min(1, (box.clientWidth - 16) / widths[i]))") && str_contains($print, "addEventListener('resize', fit)"), 'halaman cetak/publik: zoom muat pas lebar tiap lembar');
 assertCondition((bool)preg_match('/@media print \{\s*\.page-sheet\.renops-smeac \{[^}]*zoom: 1 !important;/', $partial), 'CSS cetak: zoom direset ke 1');

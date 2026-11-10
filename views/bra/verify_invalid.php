@@ -7,6 +7,11 @@
 
 declare(strict_types=1);
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 $refId = $invalidRef ?? htmlspecialchars((string)($_GET['view'] ?? '-'), ENT_QUOTES, 'UTF-8');
 $tokenParam = $invalidToken ?? (isset($_GET['token']) ? htmlspecialchars((string)$_GET['token'], ENT_QUOTES, 'UTF-8') : null);
 $reason = $verificationMessage ?? 'Parameter dokumen tidak valid atau naskah tidak terdaftar dalam pangkalan data resmi Basarnas.';

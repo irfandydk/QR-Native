@@ -31,6 +31,14 @@
     return (list || []).map((it, i) => [kodes.indexOf(kategoriOf(it)), i, it])
       .sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]);
   }
+  // Kelompok per kategori (urutan URUTAN), hanya yang berisi; idx = indeks di list asli, urutan dalam kelompok dipertahankan.
+  function groups(list) {
+    return cfg.urutan.map((k) => ({
+      kode: k.kode,
+      label: k.label,
+      items: (list || []).map((item, idx) => ({ item, idx })).filter((x) => kategoriOf(x.item) === k.kode),
+    })).filter((g) => g.items.length > 0);
+  }
   function options(selected) {
     const sel = normalize(selected) || PALSAR;
     return cfg.urutan.map((k) => `<option value="${esc(k.kode)}"${k.kode === sel ? ' selected' : ''}>${esc(k.label)}</option>`).join('');
@@ -48,5 +56,5 @@
     if (kat) { kat.value = PALSAR; delete kat.dataset.manual; }
   }
 
-  window.AlutKategoriUI = { normalize, tebak, kategoriOf, sort, options, bindInput, resetInput };
+  window.AlutKategoriUI = { normalize, tebak, kategoriOf, sort, groups, options, bindInput, resetInput };
 })();

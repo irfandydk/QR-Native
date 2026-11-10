@@ -58,6 +58,11 @@ if (!function_exists('qr_sar_exception_handler')) {
             // Ignore audit log failure if database connection itself is broken
         }
 
+        if (php_sapi_name() === 'cli') {
+            fwrite(STDERR, "[QR-SAR CLI ERROR] " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine() . "\n");
+            exit(1);
+        }
+
         if (!headers_sent()) {
             http_response_code(500);
         }

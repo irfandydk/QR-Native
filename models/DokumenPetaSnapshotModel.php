@@ -98,23 +98,38 @@ class DokumenPetaSnapshotModel {
             }
         }
 
-        // Proses data gambar base64
+        // Proses data gambar base64 (maks 5 MB setelah decode)
         $rawImage = trim((string)($data['image_data'] ?? $data['image_base64'] ?? ''));
         if ($rawImage === '') {
             throw new InvalidArgumentException('Data gambar cuplikan peta (image_data) tidak boleh kosong.');
         }
 
-        $ext = 'png';
-        if (preg_match('#^data:image/(png|jpeg|jpg|webp);base64,#i', $rawImage, $m)) {
-            $fmt = strtolower($m[1]);
-            $ext = ($fmt === 'jpeg' || $fmt === 'jpg') ? 'jpg' : ($fmt === 'webp' ? 'webp' : 'png');
+        if (preg_match('#^data:image/(png|jpeg|jpg|webp);base64,#i', $rawImage)) {
             $rawImage = substr($rawImage, strpos($rawImage, ',') + 1);
+        } elseif (str_starts_with(strtolower($rawImage), 'data:')) {
+            throw new InvalidArgumentException('Format gambar tidak didukung (gunakan PNG, JPEG, atau WebP).');
+        }
+
+        $maxBytes = 5 * 1024 * 1024;
+        if (strlen($rawImage) > (int)ceil($maxBytes * 1.4)) {
+            throw new InvalidArgumentException('Ukuran gambar cuplikan peta melebihi batas maksimal 5 MB.');
         }
 
         $binaryImage = base64_decode(str_replace(' ', '+', $rawImage), true);
         if ($binaryImage === false || strlen($binaryImage) < 64) {
             throw new InvalidArgumentException('Format base64 gambar cuplikan peta tidak valid atau rusak.');
         }
+        if (strlen($binaryImage) > $maxBytes) {
+            throw new InvalidArgumentException('Ukuran gambar cuplikan peta melebihi batas maksimal 5 MB.');
+        }
+
+        $imgInfo = @getimagesizefromstring($binaryImage);
+        $mime = is_array($imgInfo) ? strtolower((string)($imgInfo['mime'] ?? '')) : '';
+        $mimeExtMap = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'];
+        if (!is_array($imgInfo) || ($imgInfo[0] ?? 0) <= 0 || ($imgInfo[1] ?? 0) <= 0 || !isset($mimeExtMap[$mime])) {
+            throw new InvalidArgumentException('Berkas cuplikan peta bukan citra PNG/JPEG/WebP yang valid.');
+        }
+        $ext = $mimeExtMap[$mime];
 
         $uploadDir = self::ensureUploadDir();
         $refSuffix = $idReferensi !== null ? "_ref{$idReferensi}" : '';
@@ -257,22 +272,35 @@ class DokumenPetaSnapshotModel {
     }
 
     /**
-     * Menghapus seluruh snapshot peta beserta file fisik gambar milik operasi tertentu.
+     * Menghapus seluruh snapshot peta milik operasi tertentu dari basis data,
+     * dan mengembalikan daftar file gambar yang siap dihapus dari disk setelah transaksi selesai.
+     *
+     * @param int $idOperasi
+     * @param bool $deleteFilesImmediately
+     * @return array<string>
      */
-    public static function deleteByOperasi(int $idOperasi): void {
+    public static function deleteByOperasi(int $idOperasi, bool $deleteFilesImmediately = true): array {
         self::ensureSchemaUpdated();
+        $filePaths = [];
         try {
             $db = getDB();
             $stmt = $db->prepare("SELECT image_path FROM DokumenPetaSnapshot WHERE id_operasi = :op");
             $stmt->execute([':op' => $idOperasi]);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             foreach ($rows as $r) {
-                self::removeImageFile((string)($r['image_path'] ?? ''));
+                $p = trim((string)($r['image_path'] ?? ''));
+                if ($p !== '') {
+                    $filePaths[] = $p;
+                    if ($deleteFilesImmediately) {
+                        self::removeImageFile($p);
+                    }
+                }
             }
             $db->prepare("DELETE FROM DokumenPetaSnapshot WHERE id_operasi = :op")->execute([':op' => $idOperasi]);
         } catch (Throwable $e) {
             error_log("[DokumenPetaSnapshotModel deleteByOperasi] " . $e->getMessage());
         }
+        return $filePaths;
     }
 
     /**
@@ -365,7 +393,7 @@ class DokumenPetaSnapshotModel {
     /**
      * Menghapus file fisik gambar dari direktori uploads.
      */
-    private static function removeImageFile(string $relativePath): void {
+    public static function removeImageFile(string $relativePath): void {
         if ($relativePath === '') {
             return;
         }

@@ -7,6 +7,11 @@
 
 declare(strict_types=1);
 
+if (!defined('APP_NAME')) {
+    http_response_code(403);
+    exit('Akses langsung ditolak.');
+}
+
 if (!isset($bra) || empty($bra)) {
     $id = (int)($_GET['view'] ?? $_GET['id'] ?? 0);
     $bra = $id > 0 ? BraModel::getById($id) : null;
@@ -18,7 +23,7 @@ if (!$bra) {
         header("Location: " . BASE_URL . "/bra.php");
         exit;
     }
-    require_once VIEWS_DIR . '/bra_verify_invalid.php';
+    require_once VIEWS_DIR . '/bra/verify_invalid.php';
     exit;
 }
 
@@ -111,7 +116,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
   </div>
 
   <!-- Official Digital Verification Certificate Banner (Public & Authenticated) -->
-  <div class="print:hidden rounded-2xl border border-emerald-500/40 bg-emerald-6000/50 dark:from-emerald-950/40 dark:to-slate-900/60 p-4 sm:p-5 shadow-sm space-y-3">
+  <div class="print:hidden rounded-2xl border border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/30 p-4 sm:p-5 shadow-sm space-y-3">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-200 dark:border-emerald-800/60">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -616,9 +621,24 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
       txt += "JABATAN  : " + <?= jsonSafe((string)($bra['jabatan_smc'] ?? '')) ?> + "\n";
       txt += "LINK VERIFIKASI DIGITAL : " + verifyUrl + "\n";
 
-      navigator.clipboard.writeText(txt).then(() => {
+      if (typeof copyToClipboard === 'function') {
+        copyToClipboard(txt, 'Naskah Telegram Berhasil Disalin!');
+      } else if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(txt).then(() => {
+          if (typeof showToast === 'function') showToast('Naskah Telegram Berhasil Disalin!', 'success');
+        });
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
         if (typeof showToast === 'function') showToast('Naskah Telegram Berhasil Disalin!', 'success');
-      });
+      }
     });
   }
 
@@ -736,6 +756,20 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
   const btnDlHtml = document.getElementById('btnDownloadHtml');
   if (btnDlHtml && doc) {
     btnDlHtml.addEventListener('click', function() {
+      const clone = doc.cloneNode(true);
+      const canvas = document.getElementById('braQrCanvas');
+      if (canvas) {
+        const qrImg = clone.querySelector('#braQrImage');
+        const qrCanvas = clone.querySelector('#braQrCanvas');
+        if (qrImg) {
+          qrImg.src = canvas.toDataURL('image/png');
+          qrImg.classList.remove('hidden');
+          qrImg.style.display = 'block';
+        }
+        if (qrCanvas) {
+          qrCanvas.remove();
+        }
+      }
       const htmlContent = `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -744,7 +778,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
 <title>BRA SAR - ${noBra}</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f1f5f9; padding: 2rem; display: flex; justify-content: center; margin: 0; color: #000; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #f1f5f9; padding: 2rem; display: flex; justify-content: center; margin: 0; color: #000; }
   #braDocument { background: #fff; max-width: 850px; width: 100%; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 4px; padding: 1.5cm; }
   .font-bold { font-weight: 700 !important; }
   .uppercase { text-transform: uppercase !important; }
@@ -760,6 +794,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
   .border { border: 1px solid #000 !important; }
   table { border-collapse: collapse; width: 100%; }
   th, td { border: 1px solid #000; padding: 4px 6px; }
+  img { max-width: 100%; height: auto; }
   @media print {
     body { padding: 0; background: #fff; }
     #braDocument { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 1cm !important; }
@@ -767,7 +802,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
 </style>
 </head>
 <body>
-${doc.outerHTML}
+${clone.outerHTML}
 </body>
 </html>`;
       const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });

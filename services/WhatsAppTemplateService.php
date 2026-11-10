@@ -85,6 +85,26 @@ FOOTER;
     /**
      * Generate WhatsApp message for Laporan Awal Operasi SAR.
      */
+    /**
+     * Baris "jarak tempuh" Laporan Awal: "12 NM (Radial 277° dari Kantor SAR Kendari)".
+     * Tanpa radial → "(dari …)"; tanpa asal → "(Radial …)"; tanpa jarak → "-".
+     */
+    public static function formatJarakTempuh(array $ops): string {
+        $jarak = trim((string)($ops['jarak'] ?? ''));
+        if ($jarak === '') {
+            return '-';
+        }
+        $radial = trim((string)($ops['radial'] ?? ''));
+        $asal = trim((string)($ops['asal_berangkat'] ?? ''));
+        $ket = trim(($radial !== '' ? "Radial {$radial}" : '') . ($asal !== '' ? " dari {$asal}" : ''));
+        return $ket === '' ? $jarak : "{$jarak} ({$ket})";
+    }
+
+    /** Jumlah korban di naskah WA: 0 → "-", selain itu "N satuan". */
+    public static function jumlahOrang(int $n, string $satuan): string {
+        return $n === 0 ? '-' : "{$n} {$satuan}";
+    }
+
     /** Daftar "ALUT DAN PALSAR" naskah WA: satu judul gabungan, isi diurutkan Darat → Laut → Udara → PALSAR. */
     private static function formatAlutLines(array $alut): string {
         if (empty($alut)) {
@@ -163,10 +183,7 @@ FOOTER;
         $hp = ($ops['no_telp_pelapor'] ?? '') ?: '-';
         $tim = ($ops['tim_berangkat'] ?? '') ?: 'Tim SAR';
 
-        $jarakStr = ($ops['jarak'] ?? '') ?: '-';
-        if (!empty($ops['radial'])) {
-            $jarakStr .= " (Radial {$ops['radial']})";
-        }
+        $jarakStr = self::formatJarakTempuh($ops);
 
         $lokasiKejadian = $ops['lokasi_kejadian'] ?? '-';
         $koordinatOps = $ops['koordinat'] ?? '-';
@@ -177,7 +194,8 @@ FOOTER;
         $gelombangOps = ($ops['gelombang'] ?? '') ?: '-';
         $anginOps = ($ops['angin'] ?? '') ?: '-';
 
-        $dataKorbanHeader = "5. Data Korban: {$stats['total']} orang";
+        $dataKorbanHeader = '5. Data Korban: ' . self::jumlahOrang((int)$stats['total'], 'orang');
+        $jml = array_map(fn($n) => self::jumlahOrang((int)$n, 'orang'), ['s' => $stats['s'], 'md' => $stats['md'], 'dp' => $stats['dp'], 'h' => $stats['h']]);
         if ($stats['unrecorded_dp'] > 0) {
             $dataKorbanHeader .= " (POB: {$stats['total']} Org, Teridentifikasi: {$stats['identified']} Org, Belum Terdata: {$stats['unrecorded_dp']} Org)";
         }
@@ -200,10 +218,10 @@ Pada Tanggal {$tglBerangkat} pukul {$jamBerangkat} Wita, {$tim} berangkat ke LKP
 {$kronologi}
 
 {$dataKorbanHeader}
-• S : {$stats['s']} orang
-• MD : {$stats['md']} orang
-• DP : {$stats['dp']} orang
-• H : {$stats['h']} orang
+• S : {$jml['s']}
+• MD : {$jml['md']}
+• DP : {$jml['dp']}
+• H : {$jml['h']}
 
 Identitas Korban :
 {$identitasText}
@@ -382,7 +400,8 @@ BODY;
 
         $isi = !empty($laporan['isi_laporan']) ? $laporan['isi_laporan'] : '-';
 
-        $dataKorbanHeader = "1. Data Korban: {$stats['total']} Orang";
+        $dataKorbanHeader = '1. Data Korban: ' . self::jumlahOrang((int)$stats['total'], 'Orang');
+        $jml = array_map(fn($n) => self::jumlahOrang((int)$n, 'ORANG'), ['s' => $stats['s'], 'md' => $stats['md'], 'dp' => $stats['dp'], 'h' => $stats['h']]);
         if ($stats['unrecorded_dp'] > 0) {
             $dataKorbanHeader .= " (POB: {$stats['total']} Org, Teridentifikasi: {$stats['identified']} Org, Belum Terdata: {$stats['unrecorded_dp']} Org)";
         }
@@ -393,10 +412,10 @@ Hasil Ops SAR {$hariKe}:
 {$isi}{$klausulPenutupan}
 
 {$dataKorbanHeader}
-• S : {$stats['s']} ORANG
-• MD : {$stats['md']} ORANG
-• DP : {$stats['dp']} ORANG
-• H : {$stats['h']} ORANG
+• S : {$jml['s']}
+• MD : {$jml['md']}
+• DP : {$jml['dp']}
+• H : {$jml['h']}
 
 2. Identitas Korban
 {$identitasText}

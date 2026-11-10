@@ -31,8 +31,8 @@ server {
     }
 
     # PHP-FPM FastCGI Configuration
-    # Unggahan foto dokumen RENOPS: maks 5 MB per foto, beberapa foto sekaligus.
-    client_max_body_size 64m;
+    # Unggahan foto dokumen RENOPS: maks 5 MB per foto, hingga 12 foto sekaligus.
+    client_max_body_size 128m;
 
     location ~ \.php$ {
         fastcgi_pass unix:/var/run/php/php8.2-fpm.sock;

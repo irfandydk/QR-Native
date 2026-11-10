@@ -106,14 +106,26 @@ try {
     assertCondition(!str_contains($html, 'Total Endurance'), 'Tanpa kolom Total Endurance');
     assertCondition(str_contains($html, 'Tabel 1. Data Kejadian') && str_contains($html, 'Gambar 1. Peta Lokasi'), 'Penomoran tabel/gambar');
     assertCondition(str_contains($html, 'Tabel 2. Alokasi Aset Darat') && str_contains($html, 'Tabel 3. Penugasan Search and Rescue Unit (SRU)'), 'Tabel aset & SRU bernomor berurutan');
-    assertCondition(str_contains($html, 'Gambar 2. Dokumentasi Persiapan dan Pemberangkatan Tim Rescue') && str_contains($html, 'Gambar 3. ')
-        && str_contains($html, 'Gambar 4. Jaring Komunikasi dan Koordinasi Operasi SAR') && str_contains($html, 'Gambar 5. Struktur Organisasi Operasi SAR'), 'Gambar foto/jaring/struktur bernomor berurutan');
-    assertCondition(str_contains($html, 'ditunjukkan pada Gambar 4.'), 'Paragraf jaring merujuk nomor gambar yang benar');
+    assertCondition(str_contains($html, 'Gambar 4. Dokumentasi Persiapan dan Pemberangkatan Tim Rescue') && str_contains($html, 'Gambar 5. ')
+        && str_contains($html, 'Gambar 2. Jaring Komunikasi dan Koordinasi Operasi SAR') && str_contains($html, 'Gambar 3. Struktur Organisasi Operasi SAR'), 'Gambar foto/jaring/struktur bernomor berurutan');
+    assertCondition(str_contains($html, 'ditunjukkan pada Gambar 2.'), 'Paragraf jaring merujuk nomor gambar yang benar');
     assertCondition(str_contains($html, 'class="page-sheet renops-smeac" data-pdf-orientation="portrait"'), 'Lembar utama portrait untuk exporter');
     $posLanskap = strpos($html, 'class="page-sheet renops-smeac lanskap" data-pdf-orientation="landscape"');
     assertCondition($posLanskap !== false && strpos($html, 'Struktur Organisasi Operasi SAR</h3>') > $posLanskap
         && strpos($html, 'class="pengesahan signature-block"') > $posLanskap && strpos($html, 'Jaring Komunikasi</h3>') < $posLanskap,
         'Lembar terakhir landscape: struktur organisasi + pengesahan');
+    $posLampiranFoto = strpos($html, 'class="page-sheet renops-smeac hal-lampiran-foto');
+    assertCondition($posLampiranFoto !== false && $posLampiranFoto > $posLanskap && str_contains($html, 'LAMPIRAN: DOKUMENTASI OPERASI SAR'),
+        'Halaman lampiran dokumentasi foto (portrait) setelah tanda tangan SMC');
+    $doc12 = $doc;
+    $doc12['foto'] = [];
+    for ($fi = 1; $fi <= 12; $fi++) {
+        $doc12['foto'][] = ['id_foto' => $fi, 'path' => "uploads/renops_foto/f{$fi}.jpg", 'keterangan' => "Foto {$fi}"];
+    }
+    $html12 = $render($doc12, 'draft', null, 'v1');
+    assertCondition(substr_count($html12, 'class="page-sheet renops-smeac hal-lampiran-foto') === 2
+        && substr_count($html12, 'id="btnUploadFoto"') === 1,
+        'Lampiran foto maksimal 6 gambar per halaman (12 foto = 2 lembar lampiran)');
     $posJaring = strpos($html, 'class="page-sheet renops-smeac hal-jaring" data-pdf-orientation="portrait"');
     assertCondition($posJaring !== false && $posJaring < $posLanskap && strpos($html, 'KOORDINASI, PENGENDALIAN, DAN KOMUNIKASI') > $posJaring
         && strpos($html, 'Jaring Komunikasi</h3>') > $posJaring && strpos($html, 'ADMINISTRATION AND LOGISTICS') < $posJaring
@@ -235,6 +247,21 @@ try {
     assertCondition(str_contains($js, "cSheet.querySelectorAll('svg')") && str_contains($js, "svg.setAttribute('width', String(Math.round(r.width)))"), 'Exporter: SVG jaring diberi ukuran tampil (tidak terpotong di PDF)');
     assertCondition(str_contains($js, 'var pageWidthMm = landscape ? 297 : 210;') && str_contains($js, 'var pageHeightMm = landscape ? 210 : 297;')
         && str_contains($js, 'margin: [20, 18, 18, 14],'), 'Exporter: ukuran per orientasi, margin seragam SMEAC');
+
+    // Uji Engine PDF Vektor (RenopsPdfService + data-pdf-url + SweetAlert2 di halaman cetak)
+    assertCondition(class_exists('RenopsPdfService'), 'Class RenopsPdfService tersedia');
+    assertCondition(str_contains($pub, 'sweetalert2.all.min.js') && str_contains($pub, 'data-pdf-url='),
+        'Halaman cetak memuat SweetAlert2 dan atribut data-pdf-url untuk unduh PDF vektor');
+    if (class_exists('RenopsPdfService')) {
+        $prepHtml = RenopsPdfService::prepareHtmlForLocalRender($pub);
+        assertCondition(str_contains($prepHtml, 'file://' . ROOT_DIR . '/assets/') && str_contains($prepHtml, 'file://' . ROOT_DIR . '/uploads/'),
+            'RenopsPdfService::prepareHtmlForLocalRender mengubah path assets dan uploads menjadi file:// lokal');
+        if (RenopsPdfService::findChromeBinary() !== null) {
+            $pdfBytes = RenopsPdfService::renderHtmlToPdf($pub);
+            assertCondition(is_string($pdfBytes) && str_starts_with($pdfBytes, '%PDF-') && strlen($pdfBytes) > 5000,
+                'RenopsPdfService::renderHtmlToPdf menghasilkan berkas PDF vektor valid via Chrome Headless');
+        }
+    }
 } catch (Throwable $e) {
     assertCondition(false, 'Render tanpa exception/warning: ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
 }

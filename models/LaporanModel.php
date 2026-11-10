@@ -271,6 +271,18 @@ class LaporanModel {
 
             if ($isPenutupan) {
                 OperasiModel::closeOperation((int)$lap['id_operasi'], $waktuDebrief ?? date('Y-m-d H:i:s'));
+            } elseif (($lap['jenis_laporan'] ?? '') === 'PENUTUPAN') {
+                // Jika jenis laporan penutupan dikoreksi kembali menjadi perkembangan,
+                // periksa apakah masih ada laporan penutupan lain untuk operasi ini
+                $idOp = (int)$lap['id_operasi'];
+                $stmtCheckOtherPenutupan = $db->prepare("SELECT COUNT(*) FROM LaporanHarian WHERE id_operasi = :op AND jenis_laporan = 'PENUTUPAN' AND id_laporan <> :id");
+                $stmtCheckOtherPenutupan->execute([':op' => $idOp, ':id' => $id]);
+                if ((int)$stmtCheckOtherPenutupan->fetchColumn() === 0) {
+                    $db->prepare("UPDATE Operasi SET status = 'OPEN', waktu_selesai = NULL WHERE id_operasi = :op")->execute([':op' => $idOp]);
+                    if (class_exists('AuditHelper')) {
+                        AuditHelper::log('REOPEN_OPERASI', "Operasi SAR otomatis berstatus OPEN karena laporan penutupan dikoreksi menjadi laporan perkembangan", 'OPERASI', "OPS-{$idOp}");
+                    }
+                }
             }
 
             $db->commit();
@@ -283,7 +295,41 @@ class LaporanModel {
 
     public static function delete(int $id): bool {
         $db = getDB();
-        $stmt = $db->prepare("DELETE FROM LaporanHarian WHERE id_laporan = :id");
-        return $stmt->execute([':id' => $id]);
+        $lap = self::getById($id);
+        if (!$lap) {
+            return false;
+        }
+
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
+
+        try {
+            $stmt = $db->prepare("DELETE FROM LaporanHarian WHERE id_laporan = :id");
+            $res = $stmt->execute([':id' => $id]);
+
+            if ($res && ($lap['jenis_laporan'] ?? '') === 'PENUTUPAN') {
+                $idOp = (int)$lap['id_operasi'];
+                $stmtCheckOtherPenutupan = $db->prepare("SELECT COUNT(*) FROM LaporanHarian WHERE id_operasi = :op AND jenis_laporan = 'PENUTUPAN'");
+                $stmtCheckOtherPenutupan->execute([':op' => $idOp]);
+                if ((int)$stmtCheckOtherPenutupan->fetchColumn() === 0) {
+                    $db->prepare("UPDATE Operasi SET status = 'OPEN', waktu_selesai = NULL WHERE id_operasi = :op")->execute([':op' => $idOp]);
+                    if (class_exists('AuditHelper')) {
+                        AuditHelper::log('REOPEN_OPERASI', "Operasi SAR otomatis berstatus OPEN karena satu-satunya laporan penutupan dihapus", 'OPERASI', "OPS-{$idOp}");
+                    }
+                }
+            }
+
+            if ($ownTx) {
+                $db->commit();
+            }
+            return $res;
+        } catch (Throwable $e) {
+            if ($ownTx && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
     }
 }

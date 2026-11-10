@@ -241,9 +241,9 @@ try {
         'pt-1792041945789', 'pt-1792046759003', 'pt-1792046854270',
         'pt-1792046969319', 'pt-1792047663139', 'pt-1792149545168'
     )");
-    $db->exec("DELETE FROM GisRoutePoint WHERE routeId IN ('route-op-8', 'route-op-88888') OR routeId NOT IN (SELECT id FROM GisRoute)");
-    $db->exec("DELETE FROM GisRoute WHERE id_operasi IN (8, 88888) OR (id_operasi IS NOT NULL AND id_operasi NOT IN (SELECT id_operasi FROM Operasi))");
-    $db->exec("DELETE FROM GisPoint WHERE id IN ('pt-lkp-op-8', 'pt-lkp-op-88888') OR (id_operasi IS NOT NULL AND id_operasi NOT IN (SELECT id_operasi FROM Operasi))");
+    $db->exec("DELETE FROM GisRoutePoint WHERE routeId = 'route-op-88888' OR routeId NOT IN (SELECT id FROM GisRoute)");
+    $db->exec("DELETE FROM GisRoute WHERE id_operasi = 88888 OR (id_operasi IS NOT NULL AND id_operasi NOT IN (SELECT id_operasi FROM Operasi))");
+    $db->exec("DELETE FROM GisPoint WHERE id = 'pt-lkp-op-88888' OR (id_operasi IS NOT NULL AND id_operasi NOT IN (SELECT id_operasi FROM Operasi))");
     echo "[OK] Obsolete duplicates and orphaned test points cleaned up.\n";
 
     // 3. Ensure DetailTimBerangkat is populated for any existing operations

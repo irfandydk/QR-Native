@@ -61,7 +61,7 @@ try {
 
     $form = (string)file_get_contents(dirname(__DIR__) . '/views/operasi/form.php');
     assertCondition((bool)preg_match('/name="jenis_kejadian"[^>]*maxlength="191"/', $form) && str_contains($form, "e(\$operasi['jenis_kejadian'] ?? '')"), 'Form Laporan Awal punya isian jenis_kejadian (maxlength 191, nilai di-escape)');
-    assertCondition(str_contains($form, '<datalist id="jenis_kejadian_opsi">'), 'Form menyediakan pilihan jenis kejadian umum');
+    assertCondition(str_contains($form, '<select id="jenis_kejadian_select"') && str_contains($form, 'OperasiModel::JENIS_KEJADIAN_OPSI'), 'Form menyediakan pilihan jenis kejadian umum (dropdown)');
     $js = (string)file_get_contents(dirname(__DIR__) . '/assets/js/pages/operasi_form.js');
     assertCondition(substr_count($js, "jenis_kejadian") >= 2, 'Draf otomatis (localStorage) menyimpan & memulihkan jenis kejadian');
 } finally {

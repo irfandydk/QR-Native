@@ -7,11 +7,21 @@
 declare(strict_types=1);
 
 class SettingsModel {
+    private static ?array $cache = null;
+
+    public static function clearCache(): void {
+        self::$cache = null;
+    }
+
     public static function get(): array {
         return self::getSettings();
     }
 
     public static function getSettings(): array {
+        if (PHP_SAPI !== 'cli' && self::$cache !== null) {
+            return self::$cache;
+        }
+
         $db = getDB();
         $stmt = $db->query("SELECT * FROM AppSettings WHERE id = 1 LIMIT 1");
         $settings = $stmt->fetch();
@@ -33,6 +43,9 @@ class SettingsModel {
         }
 
         $settings['pejabat_list'] = MasterModel::getPejabat();
+        if (PHP_SAPI !== 'cli') {
+            self::$cache = $settings;
+        }
         return $settings;
     }
 
@@ -88,6 +101,7 @@ class SettingsModel {
         $sql = "UPDATE AppSettings SET " . implode(', ', $sets) . " WHERE id = :id";
         $stmt = $db->prepare($sql);
         $res = $stmt->execute($params);
+        self::clearCache();
         if ($res) {
             AuditHelper::log('SETTINGS_UPDATE', "Memperbarui konfigurasi sistem & profil satker", 'AppSettings', '1');
         }
@@ -147,6 +161,7 @@ class SettingsModel {
             }
 
             if (!$inTx) $db->commit();
+            self::clearCache();
             return $res;
         } catch (Throwable $e) {
             if (!$inTx && $db->inTransaction()) $db->rollBack();
@@ -222,6 +237,7 @@ class SettingsModel {
             }
 
             if (!$inTx) $db->commit();
+            self::clearCache();
             return $res;
         } catch (Throwable $e) {
             if (!$inTx && $db->inTransaction()) $db->rollBack();
@@ -270,6 +286,7 @@ class SettingsModel {
             }
 
             if (!$inTx) $db->commit();
+            self::clearCache();
             return $res;
         } catch (Throwable $e) {
             if (!$inTx && $db->inTransaction()) $db->rollBack();
@@ -336,6 +353,7 @@ class SettingsModel {
             AuditHelper::log('PASSWORD_CHANGE', "Mengubah kata sandi untuk akun {$targetId} ({$roleUpper})", 'Users', $targetId);
 
             if (!$inTx) $db->commit();
+            self::clearCache();
             return ['success' => true, 'message' => 'Kata sandi berhasil diperbarui dengan aman.'];
         } catch (Throwable $e) {
             if (!$inTx && $db->inTransaction()) $db->rollBack();
@@ -367,6 +385,7 @@ class SettingsModel {
             }
 
             if (!$inTx) $db->commit();
+            self::clearCache();
             return $res;
         } catch (Throwable $e) {
             if (!$inTx && $db->inTransaction()) $db->rollBack();

@@ -19,7 +19,7 @@ class BackupService {
     public const MANAGED_TABLES = [
         'AppSettings', 'Pejabat', 'MasterAlut', 'MasterTim', 'SarUnit',
         'Operasi', 'Korban', 'DetailUnsur', 'DetailAlut', 'DetailTimBerangkat',
-        'Renops', 'RenopsSRU', 'LaporanHarian', 'BraSar', 'BraSection',
+        'Renops', 'RenopsSRU', 'RenopsDokumen', 'RenopsFoto', 'LaporanHarian', 'BraSar', 'BraSection',
         'GisPoint', 'GisPolygon', 'GisPolygonPoint', 'GisRoute', 'GisRoutePoint',
         'GisSearchPattern', 'GisSearchPatternWaypoint', 'GisCustomIcon',
         'DokumenPetaSnapshot', 'DokumenToken',
@@ -41,6 +41,8 @@ class BackupService {
         'detail_tim_berangkat' => 'DetailTimBerangkat',
         'renops' => 'Renops',
         'renops_sru' => 'RenopsSRU',
+        'renops_dokumen' => 'RenopsDokumen',
+        'renops_foto' => 'RenopsFoto',
         'laporan_harian' => 'LaporanHarian',
         'bra_sar' => 'BraSar',
         'bra_sections' => 'BraSection',
@@ -107,7 +109,12 @@ class BackupService {
 
         $safeQuery = function(string $table, string $orderCol) use ($db): array {
             try {
-                return $db->query("SELECT * FROM `{$table}` ORDER BY `{$orderCol}` ASC")->fetchAll();
+                $cols = self::getInsertableColumns($db, $table);
+                if (empty($cols)) {
+                    return [];
+                }
+                $colSelect = '`' . implode('`, `', $cols) . '`';
+                return $db->query("SELECT {$colSelect} FROM `{$table}` ORDER BY `{$orderCol}` ASC")->fetchAll();
             } catch (Throwable) {
                 return [];
             }
@@ -118,7 +125,7 @@ class BackupService {
             'appName' => 'SISTEM QR SAR - KPP KENDARI (PHP NATIVE)',
             'exported_at' => date('Y-m-d H:i:s'),
             'app_settings' => $cleanSettings,
-            'pejabat' => $safeQuery('Pejabat', 'id_pejabat'),
+            'pejabat' => $safeQuery('Pejabat', 'id'),
             'master_alut' => $safeQuery('MasterAlut', 'id_alut'),
             'master_tim' => $safeQuery('MasterTim', 'id_tim'),
             'sar_units' => $safeQuery('SarUnit', 'id_unit'),
@@ -129,6 +136,8 @@ class BackupService {
             'detail_tim_berangkat' => $safeQuery('DetailTimBerangkat', 'id_detail_tim'),
             'renops' => $safeQuery('Renops', 'id_renops'),
             'renops_sru' => $safeQuery('RenopsSRU', 'id_sru'),
+            'renops_dokumen' => $safeQuery('RenopsDokumen', 'id_dokumen'),
+            'renops_foto' => $safeQuery('RenopsFoto', 'id_foto'),
             'laporan_harian' => $safeQuery('LaporanHarian', 'id_laporan'),
             // Query raw BraSar directly to prevent virtual 'sections' & 'total_sections' array pollution
             'bra_sar' => $safeQuery('BraSar', 'id_bra'),
@@ -143,15 +152,9 @@ class BackupService {
             'gis_search_pattern_waypoints' => $safeQuery('GisSearchPatternWaypoint', 'id'),
             'gis_custom_icons' => $safeQuery('GisCustomIcon', 'id'),
             'dokumen_peta_snapshots' => $safeQuery('DokumenPetaSnapshot', 'id_snapshot'),
-            'dokumen_tokens' => $safeQuery('DokumenToken', 'id'),
+            'dokumen_tokens' => $safeQuery('DokumenToken', 'issued_at'),
             // Export users WITH password_hash so credentials survive restore
-            'users' => (function() use ($db) {
-                try {
-                    return $db->query("SELECT id, username, password_hash, nama_lengkap, role, created_at, updated_at FROM `Users` ORDER BY id ASC")->fetchAll();
-                } catch (Throwable) {
-                    return [];
-                }
-            })(),
+            'users' => $safeQuery('Users', 'id'),
             'audit_log' => class_exists('AuditHelper') ? AuditHelper::getLogs(200) : []
         ];
 
@@ -182,6 +185,9 @@ class BackupService {
             if (!empty($dbData['app_settings']) && is_array($dbData['app_settings']) && class_exists('SettingsModel')) {
                 $cleanSettings = $dbData['app_settings'];
                 unset($cleanSettings['admin_password'], $cleanSettings['user_password']);
+                if (($cleanSettings['gemini_api_key'] ?? '') === '********') {
+                    unset($cleanSettings['gemini_api_key']);
+                }
                 SettingsModel::updateSettings($cleanSettings);
             }
 
@@ -199,13 +205,12 @@ class BackupService {
             $importTable = function(string $table, array $rows) use ($db, $existingUsers) {
                 if (empty($rows) || !in_array($table, self::MANAGED_TABLES, true)) return;
 
-                // Discover existing physical columns to silently filter out virtual fields (e.g. 'points', 'sections')
-                try {
-                    $realCols = $db->query("SHOW COLUMNS FROM `{$table}`")->fetchAll(PDO::FETCH_COLUMN);
-                    $allowedColsMap = array_flip($realCols);
-                } catch (Throwable $e) {
+                // Discover existing physical non-generated columns to filter out virtual & STORED GENERATED fields
+                $realCols = self::getInsertableColumns($db, $table);
+                if (empty($realCols)) {
                     return; // Table might not exist yet
                 }
+                $allowedColsMap = array_flip($realCols);
 
                 $db->exec("DELETE FROM `{$table}`");
                 foreach ($rows as $row) {
@@ -254,8 +259,14 @@ class BackupService {
 
             $db->exec("SET FOREIGN_KEY_CHECKS = 1");
             $db->commit();
-            // Cadangan sebelum fitur kategori alut: isi ulang master & item laporan (DDL di luar transaksi).
+            // Cadangan lama mungkin tanpa kolom terbaru: pulihkan skema (DDL di luar transaksi).
+            GisModel::ensureSchemaUpdated(true);
+            OperasiModel::ensureSchemaUpdated(true);
+            // Cadangan sebelum fitur kategori alut: isi ulang master & item laporan.
             AlutKategori::pulihkan($db, AlutKategori::cadanganTanpaKategori($data));
+            if (class_exists('SettingsModel')) {
+                SettingsModel::clearCache();
+            }
             if (class_exists('AuditHelper')) {
                 AuditHelper::log('DATABASE_RESTORE', "Memulihkan basis data dari berkas cadangan JSON", 'Database', 'SYSTEM');
             }
@@ -314,17 +325,16 @@ class BackupService {
                     fwrite($resource, "DROP TABLE IF EXISTS `{$table}`;\n");
                     fwrite($resource, $createRow['Create Table'] . ";\n\n");
 
-                    $stmt = $db->query("SELECT * FROM `{$table}`");
+                    $insertCols = self::getInsertableColumns($db, $table);
+                    if (empty($insertCols)) {
+                        continue;
+                    }
+                    $colList = implode('`, `', $insertCols);
+                    $stmt = $db->query("SELECT `{$colList}` FROM `{$table}`");
                     $batchSize = 100;
                     $batch = [];
-                    $cols = null;
 
                     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                        if ($cols === null) {
-                            $cols = array_keys($row);
-                            $colList = implode('`, `', $cols);
-                        }
-
                         $valList = [];
                         foreach ($row as $v) {
                             if ($v === null) {
@@ -341,7 +351,7 @@ class BackupService {
                         }
                     }
 
-                    if (!empty($batch) && $cols !== null) {
+                    if (!empty($batch)) {
                         fwrite($resource, "INSERT INTO `{$table}` (`{$colList}`) VALUES\n" . implode(",\n", $batch) . ";\n\n");
                     }
                 }
@@ -472,6 +482,116 @@ class BackupService {
     }
 
     /**
+     * Ambil daftar kolom fisik tabel yang dapat di-INSERT (mengecualikan STORED/VIRTUAL GENERATED columns).
+     *
+     * @return array<string>
+     */
+    private static function getInsertableColumns(PDO $db, string $table): array {
+        try {
+            $cols = [];
+            $rows = $db->query("SHOW COLUMNS FROM `{$table}`")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $r) {
+                $field = (string)($r['Field'] ?? '');
+                $extra = (string)($r['Extra'] ?? '');
+                if ($field !== '' && stripos($extra, 'GENERATED') === false) {
+                    $cols[] = $field;
+                }
+            }
+            return $cols;
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * Validasi pernyataan SQL pemulihan terhadap daftar tabel terkelola (MANAGED_TABLES)
+     * sekaligus menormalkan penulisan besar/kecil nama tabel (mis. dump Windows lowercase -> Linux PascalCase).
+     * Mengembalikan null bila pernyataan aman dilewati, atau melempar InvalidArgumentException bila dilarang.
+     */
+    private static function normalizeAndValidateSqlStatement(string $stmt): ?string {
+        $trimmed = trim($stmt);
+        if ($trimmed === '' || $trimmed === ';') {
+            return null;
+        }
+        if (stripos($trimmed, 'SET @@GLOBAL.GTID_PURGED') !== false) {
+            return null;
+        }
+        if (preg_match('/^(LOCK\s+TABLES\b|UNLOCK\s+TABLES\b|START\s+TRANSACTION\b|BEGIN\b|COMMIT\b)/i', $trimmed)) {
+            return null;
+        }
+
+        // Tolak konstruksi berbahaya secara eksplisit (termasuk di dalam sub-ekspresi)
+        if (preg_match('/\b(INTO\s+(?:OUTFILE|DUMPFILE)|LOAD\s+DATA|LOAD_FILE\s*\(|GRANT\b|REVOKE\b|CREATE\s+USER\b|ALTER\s+USER\b|DROP\s+DATABASE\b|CREATE\s+DATABASE\b|CREATE\s+TRIGGER\b|CREATE\s+PROCEDURE\b|CREATE\s+FUNCTION\b|SET\s+(?:GLOBAL|PERSIST)\b)/i', $trimmed)) {
+            throw new InvalidArgumentException('Pernyataan SQL berbahaya atau tidak diizinkan terdeteksi dalam berkas cadangan.');
+        }
+
+        static $tableMap = null;
+        if ($tableMap === null) {
+            $tableMap = [];
+            foreach (self::MANAGED_TABLES as $t) {
+                $tableMap[strtolower($t)] = $t;
+            }
+        }
+
+        // Tangani komentar kondisional MySQL: /*!40101 SET ... */ atau /*!40000 ALTER TABLE `x` DISABLE KEYS */
+        if (preg_match('#^/\*!(\d*)\s*(.*?)\s*\*/$#s', $trimmed, $cm)) {
+            $ver = $cm[1];
+            $inner = trim($cm[2]);
+            if ($inner === '') {
+                return null;
+            }
+            $validatedInner = self::normalizeAndValidateSqlStatement($inner);
+            if ($validatedInner === null) {
+                return null;
+            }
+            return "/*!{$ver} {$validatedInner} */";
+        }
+
+        // Izinkan pengaturan sesi standar dump MySQL
+        if (preg_match('/^SET\s+(?:SESSION\s+)?(?:FOREIGN_KEY_CHECKS|NAMES|SQL_MODE|TIME_ZONE|UNIQUE_CHECKS|AUTOCOMMIT|CHARACTER_SET_CLIENT|CHARACTER_SET_RESULTS|COLLATION_CONNECTION|@[A-Za-z0-9_]+)\b/i', $trimmed)) {
+            return $trimmed;
+        }
+
+        // Izinkan DDL/DML hanya pada tabel dalam MANAGED_TABLES dan normalkan nama tabel ke PascalCase kanonik
+        $patterns = [
+            '/^(DROP\s+(?:TEMPORARY\s+)?TABLE\s+(?:IF\s+EXISTS\s+)?)`?([A-Za-z0-9_]+)`?(.*)$/is',
+            '/^(CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?)`?([A-Za-z0-9_]+)`?(.*)$/is',
+            '/^(INSERT\s+(?:IGNORE\s+)?INTO\s+)`?([A-Za-z0-9_]+)`?(.*)$/is',
+            '/^(REPLACE\s+INTO\s+)`?([A-Za-z0-9_]+)`?(.*)$/is',
+            '/^(DELETE\s+FROM\s+)`?([A-Za-z0-9_]+)`?(.*)$/is',
+            '/^(TRUNCATE\s+(?:TABLE\s+)?)`?([A-Za-z0-9_]+)`?(.*)$/is',
+            '/^(ALTER\s+TABLE\s+)`?([A-Za-z0-9_]+)`?(.*)$/is',
+        ];
+
+        foreach ($patterns as $pat) {
+            if (preg_match($pat, $trimmed, $m)) {
+                $prefix = $m[1];
+                $rawTable = $m[2];
+                $rest = $m[3];
+                $lower = strtolower($rawTable);
+                if (!isset($tableMap[$lower])) {
+                    throw new InvalidArgumentException("Pemulihan ditolak: tabel '{$rawTable}' bukan bagian dari skema terkelola QR-SAR.");
+                }
+                $canonical = $tableMap[$lower];
+                if (stripos($prefix, 'CREATE') === 0 || stripos($prefix, 'ALTER') === 0) {
+                    $rest = (string)preg_replace_callback(
+                        '/\b(REFERENCES\s+)`?([A-Za-z0-9_]+)`?/i',
+                        static function (array $rm) use ($tableMap): string {
+                            $refLower = strtolower($rm[2]);
+                            $refName = $tableMap[$refLower] ?? $rm[2];
+                            return $rm[1] . '`' . $refName . '`';
+                        },
+                        $rest
+                    );
+                }
+                return $prefix . '`' . $canonical . '`' . $rest;
+            }
+        }
+
+        throw new InvalidArgumentException('Pemulihan ditolak: ditemukan pernyataan SQL di luar format cadangan resmi QR-SAR.');
+    }
+
+    /**
      * Restore database state by executing SQL dump statements.
      *
      * @param string $sql
@@ -479,35 +599,63 @@ class BackupService {
      * @throws Throwable
      */
     public static function restoreFromSQL(string $sql): bool {
-        self::snapshotBeforeRestore();
+        $rawStatements = self::splitSqlStatements($sql);
+        $validatedStatements = [];
+        foreach ($rawStatements as $stmtText) {
+            $norm = self::normalizeAndValidateSqlStatement($stmtText);
+            if ($norm !== null) {
+                $validatedStatements[] = $norm;
+            }
+        }
+        if (empty($validatedStatements)) {
+            throw new InvalidArgumentException('Berkas SQL tidak memuat pernyataan pemulihan tabel yang valid.');
+        }
+
+        $snapshotPath = self::snapshotBeforeRestore();
         $db = getDB();
+        $ddlStarted = false;
 
         try {
             $db->exec("SET FOREIGN_KEY_CHECKS = 0");
-            $statements = self::splitSqlStatements($sql);
 
-            foreach ($statements as $stmtText) {
-                if ($stmtText === '' || $stmtText === ';') {
-                    continue;
-                }
-                // Skip GTID / SET @@GLOBAL lines that require SUPER privilege in managed MySQL
-                if (stripos($stmtText, 'SET @@GLOBAL.GTID_PURGED') !== false) {
-                    continue;
-                }
+            foreach ($validatedStatements as $stmtText) {
+                $ddlStarted = true;
                 $db->exec($stmtText);
             }
 
             $db->exec("SET FOREIGN_KEY_CHECKS = 1");
-            // Dump sebelum fitur kategori alut menghapus kolomnya; migrations tetap mencatatnya sudah jalan.
+            // Dump lama menghapus kolom terbaru (DROP/CREATE TABLE); migrations tetap mencatatnya sudah jalan.
+            GisModel::ensureSchemaUpdated(true);
+            OperasiModel::ensureSchemaUpdated(true);
             AlutKategori::pulihkan($db);
+            if (class_exists('SettingsModel')) {
+                SettingsModel::clearCache();
+            }
             if (class_exists('AuditHelper')) {
                 AuditHelper::log('DATABASE_RESTORE', "Memulihkan basis data dari berkas cadangan SQL Dump", 'Database', 'SYSTEM');
             }
             return true;
         } catch (Throwable $e) {
+            if ($ddlStarted && is_file($snapshotPath)) {
+                try {
+                    $db->exec("SET FOREIGN_KEY_CHECKS = 0");
+                    $rollbackSql = (string)@file_get_contents($snapshotPath);
+                    foreach (self::splitSqlStatements($rollbackSql) as $rbStmt) {
+                        $rbNorm = self::normalizeAndValidateSqlStatement($rbStmt);
+                        if ($rbNorm !== null) {
+                            $db->exec($rbNorm);
+                        }
+                    }
+                } catch (Throwable $rbErr) {
+                    error_log("[QR-SAR Restore Rollback Error] " . $rbErr->getMessage());
+                }
+            }
             try {
                 $db->exec("SET FOREIGN_KEY_CHECKS = 1");
             } catch (Throwable) {}
+            if (class_exists('SettingsModel')) {
+                SettingsModel::clearCache();
+            }
             error_log("[QR-SAR Restore Error] " . $e->getMessage());
             throw $e;
         }

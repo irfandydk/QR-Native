@@ -7,11 +7,11 @@
 declare(strict_types=1);
 
 class RenopsFotoModel {
-    public const MAX_BYTES = 5242880; // 5 MB per foto
+    public const MAX_BYTES = 5767168; // 5.5 MB per foto (5.5 * 1024 * 1024)
     public const MAX_PER_RENOPS = 12;
     public const MAX_SIDE = 1600;
     public const MAX_PIXELS = 40000000;
-    private const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
+    private const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     private const REL_DIR = 'uploads/renops_foto';
 
     /** Folder dibuat saat runtime (uploads/* di-gitignore), lengkap dengan index.php 403. */
@@ -37,7 +37,7 @@ class RenopsFotoModel {
         }
         $mime = (new finfo(FILEINFO_MIME_TYPE))->buffer($data);
         if (!in_array($mime, self::ALLOWED_MIME, true)) {
-            throw new InvalidArgumentException('Format foto harus JPEG, PNG, atau WebP.');
+            throw new InvalidArgumentException('Format foto harus JPEG, PNG, WebP, atau GIF.');
         }
         if ($mime === 'image/webp' && !(imagetypes() & IMG_WEBP)) {
             throw new InvalidArgumentException('Format WebP tidak didukung server ini.');
@@ -50,6 +50,7 @@ class RenopsFotoModel {
         if ($info[0] * $info[1] > self::MAX_PIXELS) {
             throw new InvalidArgumentException('Dimensi foto terlalu besar (maksimal 40 megapiksel).');
         }
+        @set_time_limit(60);
         // 40 MP truecolor ~160 MB di GD: naikkan batas memori untuk request ini bila lebih rendah.
         $limit = (string)ini_get('memory_limit');
         if ($limit !== '-1' && ini_parse_quantity($limit) < 512 * 1024 * 1024) {
@@ -82,7 +83,9 @@ class RenopsFotoModel {
         $dir = self::ensureUploadDir();
         $rel = self::REL_DIR . '/' . bin2hex(random_bytes(16)) . '.jpg';
         $abs = ROOT_DIR . '/' . $rel;
-        if (!is_dir($dir) || !@imagejpeg($flat, $abs, 82)) {
+        $savedOk = is_dir($dir) && @imagejpeg($flat, $abs, 82);
+        unset($flat, $img);
+        if (!$savedOk) {
             @unlink($abs);
             throw new RuntimeException('Gagal menyimpan foto ke server.');
         }
@@ -156,5 +159,113 @@ class RenopsFotoModel {
         // Hanya setelah DB berhasil; versi TERBIT memakai salinan beku, bukan berkas ini.
         RenopsDokumenModel::deleteFiles([$path]);
         return true;
+    }
+
+    /**
+     * Urutkan ulang foto-foto milik $idRenops secara atomik menjadi 1..N.
+     * ID foto yang tidak termasuk milik $idRenops diabaikan; foto milik $idRenops yang tidak ada di $orderedIds ditaruh di belakang.
+     *
+     * @param array<int|string> $orderedIds
+     */
+    public static function reorder(int $idRenops, array $orderedIds): void {
+        $db = getDB();
+        $db->beginTransaction();
+        try {
+            $st = $db->prepare("SELECT id_foto FROM RenopsFoto WHERE id_renops = :r ORDER BY urutan, id_foto FOR UPDATE");
+            $st->execute([':r' => $idRenops]);
+            $existing = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
+            if (!$existing) {
+                $db->commit();
+                return;
+            }
+            $existingMap = array_flip($existing);
+            $finalOrder = [];
+            $seen = [];
+            foreach ($orderedIds as $rawId) {
+                if (!is_int($rawId) && !(is_string($rawId) && ctype_digit($rawId))) {
+                    continue;
+                }
+                $fid = (int)$rawId;
+                if (isset($existingMap[$fid]) && !isset($seen[$fid])) {
+                    $finalOrder[] = $fid;
+                    $seen[$fid] = true;
+                }
+            }
+            foreach ($existing as $fid) {
+                if (!isset($seen[$fid])) {
+                    $finalOrder[] = $fid;
+                }
+            }
+            $upd = $db->prepare("UPDATE RenopsFoto SET urutan = :u WHERE id_foto = :i AND id_renops = :r");
+            foreach ($finalOrder as $idx => $fid) {
+                $upd->execute([':u' => $idx + 1, ':i' => $fid, ':r' => $idRenops]);
+            }
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Hapus banyak foto sekaligus milik $idRenops beserta berkas fisiknya secara atomik.
+     *
+     * @param array<int|string> $ids
+     */
+    public static function deleteMany(int $idRenops, array $ids): int {
+        $validIds = [];
+        foreach ($ids as $rawId) {
+            if (is_int($rawId) || (is_string($rawId) && ctype_digit($rawId))) {
+                $fid = (int)$rawId;
+                if ($fid > 0) {
+                    $validIds[$fid] = $fid;
+                }
+            }
+        }
+        $validIds = array_values($validIds);
+        if (!$validIds) {
+            return 0;
+        }
+
+        $db = getDB();
+        $paths = [];
+        $deletedCount = 0;
+        $db->beginTransaction();
+        try {
+            $placeholders = implode(',', array_fill(0, count($validIds), '?'));
+            $params = array_merge([$idRenops], $validIds);
+            $st = $db->prepare("SELECT id_foto, path FROM RenopsFoto WHERE id_renops = ? AND id_foto IN ({$placeholders}) FOR UPDATE");
+            $st->execute($params);
+            $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+            if (!$rows) {
+                $db->commit();
+                return 0;
+            }
+            $matchedIds = [];
+            foreach ($rows as $r) {
+                $matchedIds[] = (int)$r['id_foto'];
+                if (!empty($r['path'])) {
+                    $paths[] = (string)$r['path'];
+                }
+            }
+            $delPlaceholders = implode(',', array_fill(0, count($matchedIds), '?'));
+            $delParams = array_merge([$idRenops], $matchedIds);
+            $del = $db->prepare("DELETE FROM RenopsFoto WHERE id_renops = ? AND id_foto IN ({$delPlaceholders})");
+            $del->execute($delParams);
+            $deletedCount = $del->rowCount();
+            $db->commit();
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+
+        if ($deletedCount > 0 && $paths) {
+            RenopsDokumenModel::deleteFiles($paths);
+        }
+        return $deletedCount;
     }
 }

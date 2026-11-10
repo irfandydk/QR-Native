@@ -240,13 +240,13 @@ class OperasiModel {
             $stmt = $db->prepare("INSERT INTO Operasi (
                 nama_operasi, jenis_kejadian, nama_pelapor, hubungan_pelapor, no_telp_pelapor,
                 waktu_kejadian, waktu_lapor, waktu_berangkat, tim_berangkat, eta_tiba,
-                lokasi_kejadian, koordinat, jarak, radial, eta_lokasi, kronologi, jumlah_pob,
+                lokasi_kejadian, koordinat, jarak, radial, asal_berangkat, eta_lokasi, kronologi, jumlah_pob,
                 unsur_terlibat, alut_palsar, faktor_penghambat, cuaca, gelombang, angin,
                 status, full_text_wa, created_at
             ) VALUES (
                 :nama_operasi, :jenis_kejadian, :nama_pelapor, :hubungan_pelapor, :no_telp_pelapor,
                 :waktu_kejadian, :waktu_lapor, :waktu_berangkat, :tim_berangkat, :eta_tiba,
-                :lokasi_kejadian, :koordinat, :jarak, :radial, :eta_lokasi, :kronologi, :jumlah_pob,
+                :lokasi_kejadian, :koordinat, :jarak, :radial, :asal_berangkat, :eta_lokasi, :kronologi, :jumlah_pob,
                 :unsur_terlibat, :alut_palsar, :faktor_penghambat, :cuaca, :gelombang, :angin,
                 'OPEN', :full_text_wa, :created_at
             )");
@@ -254,6 +254,7 @@ class OperasiModel {
             $stmt->execute([
                 ':nama_operasi' => $data['nama_operasi'],
                 ':jenis_kejadian' => self::normalizeJenisKejadian($data['jenis_kejadian'] ?? null),
+                ':asal_berangkat' => $opsDataForWa['asal_berangkat'],
                 ':nama_pelapor' => $data['nama_pelapor'] ?? '',
                 ':hubungan_pelapor' => $data['hubungan_pelapor'] ?? '',
                 ':no_telp_pelapor' => $data['no_telp_pelapor'] ?? '',
@@ -418,6 +419,7 @@ class OperasiModel {
                 koordinat = :koordinat,
                 jarak = :jarak,
                 radial = :radial,
+                asal_berangkat = :asal_berangkat,
                 eta_lokasi = :eta_lokasi,
                 kronologi = :kronologi,
                 jumlah_pob = :jumlah_pob,
@@ -436,6 +438,7 @@ class OperasiModel {
                 ':jenis_kejadian' => array_key_exists('jenis_kejadian', $data)
                     ? self::normalizeJenisKejadian($data['jenis_kejadian'])
                     : ($ops['jenis_kejadian'] ?? null),
+                ':asal_berangkat' => $mergedOps['asal_berangkat'],
                 ':nama_pelapor' => $data['nama_pelapor'] ?? $ops['nama_pelapor'],
                 ':hubungan_pelapor' => $data['hubungan_pelapor'] ?? $ops['hubungan_pelapor'],
                 ':no_telp_pelapor' => $data['no_telp_pelapor'] ?? $ops['no_telp_pelapor'],
@@ -471,7 +474,15 @@ class OperasiModel {
                 $stmtInsertK = $db->prepare("INSERT INTO Korban (id_operasi, nama_korban, umur, jk, alamat, status_korban) VALUES (:id_ops, :nama, :umur, :jk, :alamat, :status)");
 
                 $keptKIds = [];
-                $kPool = $existingKIds;
+                // Pre-claim explicit IDs so newly added unnumbered items cannot steal an ID belonging to a later existing item
+                $explicitClaimedK = [];
+                foreach ($data['korban'] as $k) {
+                    $kId = !empty($k['id_korban']) ? (int)$k['id_korban'] : null;
+                    if ($kId && in_array($kId, $existingKIds, true)) {
+                        $explicitClaimedK[$kId] = true;
+                    }
+                }
+                $kPool = array_values(array_filter($existingKIds, fn($id) => !isset($explicitClaimedK[$id])));
 
                 foreach ($data['korban'] as $k) {
                     if (empty($k['nama_korban'])) continue;
@@ -488,7 +499,6 @@ class OperasiModel {
                             ':status' => self::normalizeStatusKorban($k['status_korban'] ?? null) ?? 'DP'
                         ]);
                         $keptKIds[] = $kId;
-                        $kPool = array_values(array_diff($kPool, [$kId]));
                     } elseif (!empty($kPool)) {
                         $reusedKId = array_shift($kPool);
                         $stmtUpdateK->execute([
@@ -625,9 +635,10 @@ class OperasiModel {
             $db->prepare("DELETE FROM GisRoute WHERE id_operasi = :id OR id = :rt_id")->execute([':id' => $id, ':rt_id' => "route-op-{$id}"]);
             $db->prepare("DELETE FROM GisSearchPattern WHERE id_operasi = :id")->execute([':id' => $id]);
 
-            // 7b. Delete map snapshots and unlink physical image files
+            // 7b. Delete map snapshots and collect physical image files to unlink AFTER commit
+            $mapSnapFiles = [];
             if (class_exists('DokumenPetaSnapshotModel')) {
-                DokumenPetaSnapshotModel::deleteByOperasi($id);
+                $mapSnapFiles = DokumenPetaSnapshotModel::deleteByOperasi($id, false);
             }
 
             // 8. Finally delete the Operasi record
@@ -636,8 +647,15 @@ class OperasiModel {
 
             if (!$inTx && $db->inTransaction()) {
                 $db->commit();
-                if ($result && $filePaths) {
-                    RenopsDokumenModel::deleteFiles($filePaths);
+                if ($result) {
+                    if ($filePaths && class_exists('RenopsDokumenModel')) {
+                        RenopsDokumenModel::deleteFiles($filePaths);
+                    }
+                    if ($mapSnapFiles && class_exists('DokumenPetaSnapshotModel')) {
+                        foreach ($mapSnapFiles as $mf) {
+                            DokumenPetaSnapshotModel::removeImageFile($mf);
+                        }
+                    }
                 }
             }
 
@@ -700,10 +718,41 @@ class OperasiModel {
             'eta_tiba' => self::normalizeDateTime($data['eta_tiba'] ?? ($ops ? $ops['eta_tiba'] : $now)),
             'unsur_terlibat' => self::formatUnsurText($unsur, $data['unsur_terlibat'] ?? ($base['unsur_terlibat'] ?? '')),
             'alut_palsar' => self::formatAlutText($alut, $data['alut_palsar'] ?? ($base['alut_palsar'] ?? '')),
-            'jumlah_pob' => max($pob, count($korban))
+            'jumlah_pob' => max($pob, count($korban)),
+            'asal_berangkat' => self::resolveAsalBerangkat($data, $base),
         ]);
 
         return ['ops' => $merged, 'korban' => $korban, 'unsur' => $unsur, 'alut' => $alut];
+    }
+
+    /** Pilihan baku Jenis Kejadian (dropdown form Laporan Awal); selain ini lewat "Lainnya…". */
+    public const JENIS_KEJADIAN_OPSI = [
+        'Kecelakaan Kapal', 'Kecelakaan Pesawat Udara', 'Kondisi Membahayakan Manusia', 'Bencana', 'Kecelakaan dengan Penanganan Khusus',
+    ];
+
+    /**
+     * Status awal dropdown Jenis Kejadian dari nilai tersimpan. Nilai di luar daftar → "Lainnya…" + teks utuh,
+     * agar data lama tidak hilang saat form disimpan ulang.
+     *
+     * @return array{pilihan: string, lainnya: string}
+     */
+    public static function jenisKejadianPilihan(?string $nilai): array {
+        $v = trim((string)$nilai);
+        if ($v === '') {
+            return ['pilihan' => '', 'lainnya' => ''];
+        }
+        return in_array($v, self::JENIS_KEJADIAN_OPSI, true) ? ['pilihan' => $v, 'lainnya' => ''] : ['pilihan' => '__LAINNYA__', 'lainnya' => $v];
+    }
+
+    /**
+     * Asal pemberangkatan (Kantor/POS/USS) untuk naskah "Radial … dari …": kunci asal_berangkat, atau origin_name
+     * dari pilihan Pangkalan di form; tanpa keduanya nilai tersimpan tetap. Trim, kosong → NULL, maks 191.
+     */
+    private static function resolveAsalBerangkat(array $data, array $base): ?string {
+        $raw = array_key_exists('asal_berangkat', $data) ? $data['asal_berangkat']
+            : (array_key_exists('origin_name', $data) ? $data['origin_name'] : ($base['asal_berangkat'] ?? null));
+        $val = is_string($raw) ? trim($raw) : '';
+        return $val === '' ? null : mb_substr($val, 0, 191);
     }
 
     /**
@@ -775,6 +824,7 @@ class OperasiModel {
             $opsCols = [
                 'jenis_kejadian' => "ALTER TABLE Operasi ADD COLUMN jenis_kejadian VARCHAR(191) NULL DEFAULT NULL AFTER nama_operasi",
                 'radial' => "ALTER TABLE Operasi ADD COLUMN radial VARCHAR(191) NULL DEFAULT NULL AFTER jarak",
+                'asal_berangkat' => "ALTER TABLE Operasi ADD COLUMN asal_berangkat VARCHAR(191) NULL DEFAULT NULL AFTER radial",
                 'waktu_reopen' => "ALTER TABLE Operasi ADD COLUMN waktu_reopen DATETIME NULL DEFAULT NULL AFTER waktu_selesai",
                 'catatan_reopen' => "ALTER TABLE Operasi ADD COLUMN catatan_reopen TEXT NULL DEFAULT NULL AFTER waktu_reopen",
                 'hari_sebelum_reopen' => "ALTER TABLE Operasi ADD COLUMN hari_sebelum_reopen INT NULL DEFAULT NULL AFTER catatan_reopen"
@@ -807,7 +857,7 @@ class OperasiModel {
         }
     }
 
-    public static function rollbackPenutupan(int $id, ?string $waktuReopen = null): bool {
+    public static function rollbackPenutupan(int $id, ?string $waktuReopen = null, ?string $catatan = null): bool {
         $db = getDB();
         $ops = self::getById($id);
         if (!$ops) {
@@ -832,7 +882,8 @@ class OperasiModel {
         }
         if ($res && class_exists('AuditHelper')) {
             $namaOps = $ops['nama_operasi'] ?? "ID #{$id}";
-            AuditHelper::log('REOPEN_OPERASI', "Operasi SAR dibuka kembali (RE-OPEN): {$namaOps} (ID #{$id}) pada {$waktu} (melanjutkan dari H.{$hariTutup} -> H{$hariTutup} + 1)", 'OPERASI', "OPS-{$id}");
+            $alasan = !empty($catatan) ? " (Alasan: " . trim((string)$catatan) . ")" : "";
+            AuditHelper::log('REOPEN_OPERASI', "Operasi SAR dibuka kembali (RE-OPEN): {$namaOps} (ID #{$id}) pada {$waktu} (melanjutkan dari H.{$hariTutup} -> H{$hariTutup} + 1){$alasan}", 'OPERASI', "OPS-{$id}");
         }
         return $res;
     }

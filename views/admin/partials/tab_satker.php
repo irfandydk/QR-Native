@@ -134,7 +134,14 @@ $logoUrl = $logoUrl ?? getAppLogoUrl();
               GEMINI 2.5 FLASH
             </span>
           </div>
-          <input type="password" name="gemini_api_key" value="<?= e($settings['gemini_api_key'] ?? '') ?>" placeholder="AIzaSy... (Opsional, untuk asisten narasi pintar)" class="control control-sm w-full font-mono" />
+          <?php $hasGeminiKey = !empty($settings['gemini_api_key']); ?>
+          <input type="password" name="gemini_api_key" value="" autocomplete="new-password" placeholder="<?= $hasGeminiKey ? '•••••••• (Kunci tersimpan — kosongkan jika tidak diubah)' : 'AIzaSy... (Opsional, untuk asisten narasi pintar)' ?>" class="control control-sm w-full font-mono" />
+          <?php if ($hasGeminiKey): ?>
+          <label class="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer">
+            <input type="checkbox" name="clear_gemini_api_key" value="1" class="rounded border-slate-300 text-red-500 focus:ring-red-500">
+            Hapus API Key yang tersimpan
+          </label>
+          <?php endif; ?>
         </div>
 
         <!-- Gaya Tampilan Aplikasi (Klasik / Minimal Glass) -->

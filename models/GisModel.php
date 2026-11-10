@@ -45,12 +45,23 @@ class GisModel {
                 'radiusNm' => "ALTER TABLE GisPolygon ADD COLUMN radiusNm DOUBLE NULL DEFAULT NULL",
                 'boxWidthNm' => "ALTER TABLE GisPolygon ADD COLUMN boxWidthNm DOUBLE NULL DEFAULT NULL",
                 'boxHeightNm' => "ALTER TABLE GisPolygon ADD COLUMN boxHeightNm DOUBLE NULL DEFAULT NULL",
-                'areaNm2' => "ALTER TABLE GisPolygon ADD COLUMN areaNm2 DOUBLE NULL DEFAULT NULL"
+                'areaNm2' => "ALTER TABLE GisPolygon ADD COLUMN areaNm2 DOUBLE NULL DEFAULT NULL",
+                'strokeOpacity' => "ALTER TABLE GisPolygon ADD COLUMN strokeOpacity DOUBLE NOT NULL DEFAULT 1"
             ];
             foreach ($gisPolyCols as $colName => $alterSql) {
                 $check = $db->query("SHOW COLUMNS FROM GisPolygon LIKE '{$colName}'")->fetchAll();
                 if (empty($check)) {
                     $db->exec($alterSql);
+                }
+            }
+            // Flip pola PS/CS (titik awal) & keterkaitan rute → search area (penamaan & impor per SRU)
+            foreach ([
+                ['GisSearchPattern', 'flipH', 'TINYINT(1) NOT NULL DEFAULT 0'],
+                ['GisSearchPattern', 'flipV', 'TINYINT(1) NOT NULL DEFAULT 0'],
+                ['GisRoute', 'polygonId', 'VARCHAR(191) NULL DEFAULT NULL'],
+            ] as [$tbl, $colName, $def]) {
+                if (empty($db->query("SHOW COLUMNS FROM {$tbl} LIKE '{$colName}'")->fetchAll())) {
+                    $db->exec("ALTER TABLE {$tbl} ADD COLUMN {$colName} {$def}");
                 }
             }
         } catch (Throwable $e) {
@@ -297,6 +308,7 @@ class GisModel {
                 isset($p['boxHeightNm']) ? (float)$p['boxHeightNm'] : null
             );
             $p['areaNm2'] = (!empty($p['areaNm2']) && (float)$p['areaNm2'] > 0) ? (float)$p['areaNm2'] : $calcArea;
+            $p['strokeOpacity'] = isset($p['strokeOpacity']) ? (float)$p['strokeOpacity'] : 1.0;
         }
         return $polys;
     }
@@ -323,10 +335,10 @@ class GisModel {
             $areaNm2 = isset($data['areaNm2']) && (float)$data['areaNm2'] > 0 ? (float)$data['areaNm2'] : $calcArea;
 
             $stmt = $db->prepare("REPLACE INTO GisPolygon (
-                id, id_operasi, name, strokeColor, strokeWeight, fillColor, fillOpacity,
+                id, id_operasi, name, strokeColor, strokeWeight, strokeOpacity, fillColor, fillOpacity,
                 shapeType, centerLat, centerLng, radiusNm, boxWidthNm, boxHeightNm, areaNm2
             ) VALUES (
-                :id, :id_ops, :name, :sc, :sw, :fc, :fo,
+                :id, :id_ops, :name, :sc, :sw, :so, :fc, :fo,
                 :st, :clat, :clng, :r, :bw, :bh, :area
             )");
             $stmt->execute([
@@ -335,6 +347,7 @@ class GisModel {
                 ':name' => $data['name'] ?? 'Area Pencarian',
                 ':sc' => self::safeColor($data['strokeColor'] ?? null, '#ea580c'),
                 ':sw' => (float)($data['strokeWeight'] ?? 2.5),
+                ':so' => max(0.0, min(1.0, (float)($data['strokeOpacity'] ?? 1))),
                 ':fc' => self::safeColor($data['fillColor'] ?? null, '#ea580c'),
                 ':fo' => (float)($data['fillOpacity'] ?? 0.2),
                 ':st' => $data['shapeType'] ?? 'polygon',
@@ -451,6 +464,7 @@ class GisModel {
             $r['vesselSpeedKnots'] = (float)($r['vesselSpeedKnots'] ?? 25);
             $r['strokeWeight'] = (float)($r['strokeWeight'] ?? 3.5);
             $r['strokeOpacity'] = (float)($r['strokeOpacity'] ?? 0.9);
+            $r['polygonId'] = ($r['polygonId'] ?? '') !== '' ? (string)$r['polygonId'] : null;
             $r['points'] = $pointsByRoute[$r['id']] ?? [];
         }
         return $routes;
@@ -469,12 +483,13 @@ class GisModel {
             }
 
             $stmt = $db->prepare("INSERT INTO GisRoute (
-                id, id_operasi, name, vesselSpeedKnots, strokeColor, strokeWeight, strokeOpacity, createdAt
+                id, id_operasi, name, polygonId, vesselSpeedKnots, strokeColor, strokeWeight, strokeOpacity, createdAt
             ) VALUES (
-                :id, :id_ops, :name, :speed, :color, :weight, :opacity, :created
+                :id, :id_ops, :name, :polyId, :speed, :color, :weight, :opacity, :created
             ) ON DUPLICATE KEY UPDATE 
                 id_operasi = VALUES(id_operasi),
                 name = VALUES(name),
+                polygonId = VALUES(polygonId),
                 vesselSpeedKnots = VALUES(vesselSpeedKnots),
                 strokeColor = VALUES(strokeColor),
                 strokeWeight = VALUES(strokeWeight),
@@ -484,6 +499,7 @@ class GisModel {
                 ':id' => $id,
                 ':id_ops' => $idOperasi,
                 ':name' => $data['name'] ?? 'Rute Operasi',
+                ':polyId' => self::refId($data['polygonId'] ?? '') ?: null,
                 ':speed' => (float)($data['vesselSpeedKnots'] ?? 25),
                 ':color' => self::safeColor($data['strokeColor'] ?? null, '#059669'),
                 ':weight' => (float)($data['strokeWeight'] ?? 3.5),
@@ -595,6 +611,8 @@ class GisModel {
 
         foreach ($patterns as &$p) {
             $p['waypoints'] = $wpByPattern[$p['id']] ?? [];
+            $p['flipH'] = !empty($p['flipH']);
+            $p['flipV'] = !empty($p['flipV']);
         }
         return $patterns;
     }
@@ -613,10 +631,10 @@ class GisModel {
 
             $stmt = $db->prepare("REPLACE INTO GisSearchPattern (
                 id, id_operasi, name, polygonId, polygonName, patternType, trackSpacingNm,
-                legsCount, poskoId, poskoName, color, opacity, strokeWeight, totalDistanceNm, createdAt
+                legsCount, poskoId, poskoName, color, opacity, strokeWeight, totalDistanceNm, createdAt, flipH, flipV
             ) VALUES (
                 :id, :id_ops, :name, :polyId, :polyName, :pt, :spacing,
-                :legs, :poskoId, :poskoName, :color, :opacity, :weight, :dist, :created
+                :legs, :poskoId, :poskoName, :color, :opacity, :weight, :dist, :created, :flipH, :flipV
             )");
 
             $stmt->execute([
@@ -634,7 +652,9 @@ class GisModel {
                 ':opacity' => isset($data['opacity']) ? (float)$data['opacity'] : 0.9,
                 ':weight' => isset($data['strokeWeight']) ? (float)$data['strokeWeight'] : (isset($data['weight']) ? (float)$data['weight'] : 3.0),
                 ':dist' => (float)($data['totalDistanceNm'] ?? 0),
-                ':created' => $data['createdAt'] ?? (date('Y-m-d H:i') . ' WITA')
+                ':created' => $data['createdAt'] ?? (date('Y-m-d H:i') . ' WITA'),
+                ':flipH' => filter_var($data['flipH'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+                ':flipV' => filter_var($data['flipV'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
             ]);
 
             $stmtExisting = $db->prepare("SELECT id FROM GisSearchPatternWaypoint WHERE searchPatternId = :id ORDER BY id ASC");
@@ -768,12 +788,12 @@ class GisModel {
             'id_operasi' => $idOperasi,
             'lat' => $lat,
             'lng' => $lng,
-            'label' => "🚨 LKP - " . (mb_strlen($namaOperasi) > 30 ? mb_substr($namaOperasi, 0, 27) . '...' : $namaOperasi),
+            'label' => 'LKP',
             'pointType' => 'lkp',
             'customIconUrl' => null,
             'description' => trim($desc),
             'category' => 'LKP',
-            'alphabetChar' => '🚨'
+            'alphabetChar' => 'LKP'
         ]);
     }
 

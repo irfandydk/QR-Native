@@ -32,16 +32,6 @@ class Database {
                 self::$instance = new PDO($dsn, $username, $password, $options);
                 self::$instance->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
             } catch (PDOException $e) {
-                // Attempt fallback to 'db_sar_qr' if 'qrsar' fails
-                if ($dbname === 'qrsar') {
-                    try {
-                        $dsnFallback = "mysql:host={$host};port={$port};dbname=db_sar_qr;charset=utf8mb4";
-                        self::$instance = new PDO($dsnFallback, $username, $password, $options);
-                        return self::$instance;
-                    } catch (PDOException $e2) {
-                        // Throw original error
-                    }
-                }
                 error_log("[QR-SAR DB Error] " . $e->getMessage());
                 if (class_exists('LogService')) {
                     try {

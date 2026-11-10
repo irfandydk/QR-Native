@@ -10,20 +10,33 @@ class AuthHelper {
     /** Umur mutlak sesi sejak login (detik), terlepas dari aktivitas */
     private const SESSION_MAX_AGE = 43200;
 
+    /** Cache verifikasi sesi per HTTP request agar tidak query Users berulang kali */
+    private static ?string $verifiedSessionKey = null;
+
+    public static function clearCache(): void {
+        self::$verifiedSessionKey = null;
+    }
+
     /**
      * Sesi sah hanya bila akun masih aktif, sandinya belum berubah sejak login (sidik kredensial cocok)
      * dan belum melewati umur mutlak. Sesi yang tidak sah dibersihkan.
      */
     public static function isLoggedIn(): bool {
         if (empty($_SESSION['user_id'])) {
+            self::$verifiedSessionKey = null;
             return false;
         }
         if (!class_exists('UserModel')) {
             return true;
         }
+        $sessKey = (string)$_SESSION['user_id'] . '|' . (string)($_SESSION['cred_fp'] ?? '') . '|' . (string)($_SESSION['auth_at'] ?? 0);
+        if (PHP_SAPI !== 'cli' && !empty($_SESSION['cred_fp']) && self::$verifiedSessionKey === $sessKey) {
+            return true;
+        }
         try {
             $row = UserModel::getById((string)$_SESSION['user_id']);
         } catch (Throwable $e) {
+            self::$verifiedSessionKey = null;
             return false;
         }
         $fp = $row ? hash('sha256', (string)($row['password_hash'] ?? '')) : '';
@@ -36,6 +49,7 @@ class AuthHelper {
             && hash_equals($fp, (string)($_SESSION['cred_fp'] ?? ''))
             && (time() - (int)($_SESSION['auth_at'] ?? 0)) < self::SESSION_MAX_AGE;
         if (!$ok) {
+            self::$verifiedSessionKey = null;
             $_SESSION = [];
             return false;
         }
@@ -44,6 +58,9 @@ class AuthHelper {
             $_SESSION['must_change_password'] = defined('DEFAULT_RESET_PASSWORD')
                 && password_verify(DEFAULT_RESET_PASSWORD, (string)($row['password_hash'] ?? ''));
             $_SESSION['pw_check_fp'] = $fp;
+        }
+        if (PHP_SAPI !== 'cli') {
+            self::$verifiedSessionKey = (string)$_SESSION['user_id'] . '|' . (string)($_SESSION['cred_fp'] ?? '') . '|' . (string)($_SESSION['auth_at'] ?? 0);
         }
         return true;
     }
@@ -84,6 +101,7 @@ class AuthHelper {
 
     /** Sandi akun sesi ini baru saja diganti oleh pemiliknya: perbarui sidik agar sesi ini tetap sah */
     public static function refreshCredentialFingerprint(string $userId, string $newHash): void {
+        self::$verifiedSessionKey = null;
         if (($_SESSION['user_id'] ?? null) === $userId) {
             $_SESSION['cred_fp'] = hash('sha256', $newHash);
         }
@@ -192,50 +210,66 @@ class AuthHelper {
         return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '127.0.0.1';
     }
 
-    public static function checkLoginThrottle(): ?string {
+    public static function checkLoginThrottle(string $username = ''): ?string {
         if (session_status() !== PHP_SESSION_ACTIVE) {
             @session_start();
         }
         $now = time();
         $ip = self::getClientIp();
+        $cleanUser = trim($username);
 
-        // 1. Persistent IP-based Database Throttling
+        // 1. Persistent IP + Username Database Throttling (tanpa DDL runtime; tabel dibuat oleh migrasi)
         try {
             $db = getDB();
-            $db->exec("CREATE TABLE IF NOT EXISTS LoginThrottle (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                ip_address VARCHAR(45) NOT NULL,
-                attempt_time INT NOT NULL,
-                username VARCHAR(100) DEFAULT '',
-                KEY idx_ip_time (ip_address, attempt_time)
-            ) ENGINE=InnoDB");
 
             // Clean expired throttle entries (> 15 minutes)
             $cutoff = $now - 900;
             $db->prepare("DELETE FROM LoginThrottle WHERE attempt_time < :cutoff")->execute([':cutoff' => $cutoff]);
 
-            // Count attempts within last 5 minutes (300s)
             $fiveMin = $now - 300;
-            $stmt = $db->prepare("SELECT COUNT(*) FROM LoginThrottle WHERE ip_address = :ip AND attempt_time >= :time");
-            $stmt->execute([':ip' => $ip, ':time' => $fiveMin]);
-            $failedCount = (int)$stmt->fetchColumn();
+            if ($cleanUser !== '') {
+                // Kunci per kombinasi (IP, username) pada 5 gagal, atau banjir global per IP pada 15 gagal
+                $stmtUser = $db->prepare("SELECT COUNT(*), MAX(attempt_time) FROM LoginThrottle WHERE ip_address = :ip AND LOWER(username) = LOWER(:u) AND attempt_time >= :time");
+                $stmtUser->execute([':ip' => $ip, ':u' => $cleanUser, ':time' => $fiveMin]);
+                [$userFailed, $userLast] = array_map('intval', $stmtUser->fetch(PDO::FETCH_NUM) ?: [0, 0]);
+                if ($userFailed >= 5) {
+                    $rem = max(1, 300 - ($now - $userLast));
+                    return "Terlalu banyak percobaan login gagal untuk akun tersebut. Demi keamanan sistem, silakan tunggu {$rem} detik sebelum mencoba kembali.";
+                }
 
-            if ($failedCount >= 5) {
-                $stmtLast = $db->prepare("SELECT MAX(attempt_time) FROM LoginThrottle WHERE ip_address = :ip");
-                $stmtLast->execute([':ip' => $ip]);
-                $lastTime = (int)$stmtLast->fetchColumn();
-                $rem = max(1, 300 - ($now - $lastTime));
-                return "Terlalu banyak percobaan login gagal dari IP Anda. Demi keamanan sistem, silakan tunggu {$rem} detik sebelum mencoba kembali.";
+                $stmtIp = $db->prepare("SELECT COUNT(*), MAX(attempt_time) FROM LoginThrottle WHERE ip_address = :ip AND attempt_time >= :time");
+                $stmtIp->execute([':ip' => $ip, ':time' => $fiveMin]);
+                [$ipFailed, $ipLast] = array_map('intval', $stmtIp->fetch(PDO::FETCH_NUM) ?: [0, 0]);
+                if ($ipFailed >= 15) {
+                    $rem = max(1, 300 - ($now - $ipLast));
+                    return "Terlalu banyak percobaan login gagal dari IP Anda. Demi keamanan sistem, silakan tunggu {$rem} detik sebelum mencoba kembali.";
+                }
+            } else {
+                $stmt = $db->prepare("SELECT COUNT(*), MAX(attempt_time) FROM LoginThrottle WHERE ip_address = :ip AND attempt_time >= :time");
+                $stmt->execute([':ip' => $ip, ':time' => $fiveMin]);
+                [$failedCount, $lastTime] = array_map('intval', $stmt->fetch(PDO::FETCH_NUM) ?: [0, 0]);
+                if ($failedCount >= 5) {
+                    $rem = max(1, 300 - ($now - $lastTime));
+                    return "Terlalu banyak percobaan login gagal dari IP Anda. Demi keamanan sistem, silakan tunggu {$rem} detik sebelum mencoba kembali.";
+                }
             }
         } catch (Throwable $e) {
             // Graceful fallback to session-based throttle if database table unavailable
+            $lockUntil = (int)($_SESSION['login_lock_until'] ?? 0);
+            if ($lockUntil > $now) {
+                $rem = $lockUntil - $now;
+                return "Terlalu banyak percobaan login gagal. Demi keamanan, silakan tunggu {$rem} detik sebelum mencoba kembali.";
+            }
+            return null;
         }
 
-        // 2. Fallback Session-based Throttling
-        $lockUntil = (int)($_SESSION['login_lock_until'] ?? 0);
-        if ($lockUntil > $now) {
-            $rem = $lockUntil - $now;
-            return "Terlalu banyak percobaan login gagal. Demi keamanan, silakan tunggu {$rem} detik sebelum mencoba kembali.";
+        // 2. Fallback Session-based Throttling (hanya bila panggilan tanpa filter username spesifik)
+        if ($cleanUser === '') {
+            $lockUntil = (int)($_SESSION['login_lock_until'] ?? 0);
+            if ($lockUntil > $now) {
+                $rem = $lockUntil - $now;
+                return "Terlalu banyak percobaan login gagal. Demi keamanan, silakan tunggu {$rem} detik sebelum mencoba kembali.";
+            }
         }
         return null;
     }
@@ -251,7 +285,7 @@ class AuthHelper {
         try {
             $db = getDB();
             $stmt = $db->prepare("INSERT INTO LoginThrottle (ip_address, attempt_time, username) VALUES (:ip, :t, :u)");
-            $stmt->execute([':ip' => $ip, ':t' => $now, ':u' => substr($username, 0, 100)]);
+            $stmt->execute([':ip' => $ip, ':t' => $now, ':u' => substr(trim($username), 0, 100)]);
         } catch (Throwable $e) {}
 
         // Record to session fallback
@@ -266,23 +300,31 @@ class AuthHelper {
         }
     }
 
-    public static function resetLoginThrottle(): void {
+    public static function resetLoginThrottle(?string $username = null): void {
         if (session_status() !== PHP_SESSION_ACTIVE) {
             @session_start();
         }
         $ip = self::getClientIp();
         try {
             $db = getDB();
-            $stmt = $db->prepare("DELETE FROM LoginThrottle WHERE ip_address = :ip");
-            $stmt->execute([':ip' => $ip]);
+            if ($username !== null && trim($username) !== '') {
+                $stmt = $db->prepare("DELETE FROM LoginThrottle WHERE ip_address = :ip AND LOWER(username) = LOWER(:u)");
+                $stmt->execute([':ip' => $ip, ':u' => trim($username)]);
+            } else {
+                $stmt = $db->prepare("DELETE FROM LoginThrottle WHERE ip_address = :ip");
+                $stmt->execute([':ip' => $ip]);
+            }
         } catch (Throwable $e) {}
 
         unset($_SESSION['login_failed_attempts'], $_SESSION['login_lock_until']);
     }
 
     public static function login(string $username, string $password): array {
-        // Brute-force throttle check
-        $throttleErr = self::checkLoginThrottle();
+        $cleanUser = trim($username);
+        $cleanPass = trim($password);
+
+        // Brute-force throttle check (terikat pada IP + username sasaran)
+        $throttleErr = self::checkLoginThrottle($cleanUser);
         if ($throttleErr !== null) {
             return [
                 'success' => false,
@@ -291,14 +333,11 @@ class AuthHelper {
             ];
         }
 
-        $cleanUser = trim($username);
-        $cleanPass = trim($password);
-
         // Tabel Users adalah satu-satunya sumber kredensial (AppSettings disinkronkan oleh migrate.php)
         if (class_exists('UserModel')) {
             $dbUser = UserModel::getByUsername($cleanUser);
             if ($dbUser && !empty($dbUser['is_active']) && self::verifyPassword($cleanPass, (string)$dbUser['password_hash'])) {
-                self::resetLoginThrottle();
+                self::resetLoginThrottle($cleanUser);
                 UserModel::updateLastLogin((string)$dbUser['id']);
                 $roleUpper = strtoupper((string)($dbUser['role'] ?? 'USER'));
                 $user = [
@@ -346,6 +385,9 @@ class AuthHelper {
             return $default;
         }
         $url = trim($url);
+        if (preg_match('/[\r\n\0]/', $url)) {
+            return $default;
+        }
         // Tolak URL berbasis protocol-relative (//evil.com atau /\evil.com)
         if (str_starts_with($url, '//') || str_starts_with($url, '/\\')) {
             return $default;
@@ -354,9 +396,27 @@ class AuthHelper {
         if (preg_match('#^(javascript|data|vbscript):#i', $url)) {
             return $default;
         }
-        // Jika URL absolut HTTP/HTTPS, wajib diawali dengan BASE_URL
+        // Jika URL absolut HTTP/HTTPS, wajib sama host/port dan berbatas tepat pada BASE_URL
         if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
-            if (!str_starts_with($url, BASE_URL)) {
+            $base = rtrim((string)BASE_URL, '/');
+            if ($base === '') {
+                return $default;
+            }
+            $validPrefix = ($url === $base)
+                || str_starts_with($url, $base . '/')
+                || str_starts_with($url, $base . '?')
+                || str_starts_with($url, $base . '#');
+            if (!$validPrefix) {
+                return $default;
+            }
+            $uParts = parse_url($url);
+            $bParts = parse_url($base);
+            if (
+                !is_array($uParts) || !is_array($bParts)
+                || isset($uParts['user']) || isset($uParts['pass'])
+                || strtolower((string)($uParts['host'] ?? '')) !== strtolower((string)($bParts['host'] ?? ''))
+                || (int)($uParts['port'] ?? 0) !== (int)($bParts['port'] ?? 0)
+            ) {
                 return $default;
             }
             return $url;
@@ -369,6 +429,7 @@ class AuthHelper {
     }
 
     public static function setSession(array $user): void {
+        self::$verifiedSessionKey = null;
         if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
             @session_regenerate_id(true);
         }
@@ -390,6 +451,7 @@ class AuthHelper {
     }
 
     public static function logout(): void {
+        self::$verifiedSessionKey = null;
         if (class_exists('AuditHelper') && !empty($_SESSION['username'])) {
             AuditHelper::log('AUTH_LOGOUT', "Pengguna {$_SESSION['username']} keluar dari sesi sistem.", 'AUTH', $_SESSION['user_id'] ?? null);
         }

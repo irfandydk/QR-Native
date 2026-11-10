@@ -115,6 +115,8 @@ assertTest(count($pts) >= 1, "GisModel::getPoints retrieves saved LKP point for 
 $foundLkp = $pts[0] ?? [];
 assertTest(($foundLkp['pointType'] ?? '') === 'lkp', "LKP point is stored with pointType = 'lkp'");
 assertTest(($foundLkp['category'] ?? '') === 'LKP', "LKP point is stored with category = 'LKP'");
+assertTest(($foundLkp['label'] ?? '') === 'LKP', "LKP point is stored with clean label = 'LKP' (no siren symbol)");
+assertTest(($foundLkp['alphabetChar'] ?? '') === 'LKP', "LKP point is stored with alphabetChar = 'LKP'");
 assertTest(abs((float)($foundLkp['lat'] ?? 0) - (-4.8524)) < 0.001, "LKP point latitude matches input (-4.8524)");
 assertTest(abs((float)($foundLkp['lng'] ?? 0) - (122.4182)) < 0.001, "LKP point longitude matches input (122.4182)");
 
@@ -175,6 +177,8 @@ assertTest($createdId > 0, "OperasiModel::create successfully created operation 
 $createdGisPoints = GisModel::getPoints($createdId, false);
 assertTest(count($createdGisPoints) === 1, "OperasiModel::create automatically created exactly 1 GIS LKP point");
 assertTest(($createdGisPoints[0]['pointType'] ?? '') === 'lkp', "Created GIS point has pointType 'lkp'");
+assertTest(($createdGisPoints[0]['label'] ?? '') === 'LKP', "Created GIS LKP point label is normalized to 'LKP'");
+assertTest(($createdGisPoints[0]['alphabetChar'] ?? '') === 'LKP', "Created GIS LKP point alphabetChar is 'LKP'");
 assertTest(abs((float)($createdGisPoints[0]['lat'] ?? 0) - (-3.9700)) < 0.001, "Created GIS point matches lkp_lat (-3.9700)");
 
 // Verify automatic GIS route creation
@@ -256,8 +260,9 @@ assertTest(strpos($jsContentUpdated, "opt.getAttribute('data-unit')") !== false,
 assertTest(strpos($jsContentUpdated, "unitSelect.value = unit") !== false, "operasi_form.js handleSpeedPresetChange dynamically switches speed unit select to preset unit");
 
 // Default Unsur & Alut
-assertTest(strpos($formContentUpdated, "['nama_unsur' => 'SMC', 'jumlah_personil' => 1]") !== false, "form.php defaults initialUnsurData with SMC (1 Org)");
-assertTest(strpos($formContentUpdated, "['nama_unsur' => 'Staf', 'jumlah_personil' => 1]") !== false, "form.php defaults initialUnsurData with Staf (1 Org)");
+// Unsur bawaan satu baris "SMC dan Staf" (2 personil), bukan dua baris SMC & Staf
+assertTest(strpos($formContentUpdated, "['nama_unsur' => 'SMC dan Staf', 'jumlah_personil' => 2]") !== false, "form.php defaults initialUnsurData with 'SMC dan Staf' (2 Org)");
+assertTest(strpos($formContentUpdated, "['nama_unsur' => 'Staf', 'jumlah_personil' => 1]") === false, "form.php no longer defaults a separate Staf row");
 assertTest(strpos($formContentUpdated, "'Tim Rescue KPP Kendari', 'jumlah_personil' => 7") === false, "form.php eliminates bulky legacy 7-person default unsur");
 assertTest(strpos($formContentUpdated, "['nama_alut' => 'Palsar Medis', 'jumlah_alut' => 1, 'satuan' => 'Set']") !== false, "form.php defaults initialAlutData with Palsar Medis (1 Set)");
 assertTest(strpos($formContentUpdated, "['nama_alut' => 'Palsar Komunikasi', 'jumlah_alut' => 1, 'satuan' => 'Set']") !== false, "form.php defaults initialAlutData with Palsar Komunikasi (1 Set)");

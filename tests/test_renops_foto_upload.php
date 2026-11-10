@@ -9,6 +9,8 @@ require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../models/OperasiModel.php';
 require_once __DIR__ . '/../models/RenopsModel.php';
 require_once __DIR__ . '/../models/RenopsFotoModel.php';
+require_once __DIR__ . '/../api/controllers/BaseApiController.php';
+require_once __DIR__ . '/../api/controllers/RenopsDokumenApiController.php';
 
 $testPassed = 0;
 $testTotal = 0;
@@ -72,6 +74,7 @@ try {
     assertCondition(ini_parse_quantity((string)ini_get('memory_limit')) >= 512 * 1024 * 1024, 'memory_limit dinaikkan ke 512M sebelum decode');
     ini_set('memory_limit', $memAwal);
     assertCondition(str_contains((string)file_get_contents(ROOT_DIR . '/models/RenopsFotoModel.php'), 'declare(strict_types=1);'), 'RenopsFotoModel memakai strict_types');
+    assertCondition(!str_contains((string)file_get_contents(ROOT_DIR . '/models/RenopsFotoModel.php'), 'imagedestroy'), 'RenopsFotoModel bebas dari imagedestroy yang deprecated di PHP 8.5');
     $created[] = ROOT_DIR . '/' . $row['path'];
     [$w, $h, $t] = getimagesize(ROOT_DIR . '/' . $row['path']);
     assertCondition($t === IMAGETYPE_JPEG && max($w, $h) === 1600, 'Di-encode ulang ke JPEG sisi terpanjang 1600');
@@ -103,6 +106,100 @@ try {
 
     assertCondition(RenopsFotoModel::delete((int)$row['id_foto'], $idR + 999999) === false && is_file(ROOT_DIR . '/' . $row['path']), 'delete ditolak untuk RENOPS lain');
     assertCondition(RenopsFotoModel::delete((int)$row['id_foto'], $idR) && !is_file(ROOT_DIR . '/' . $row['path']), 'Hapus foto meng-unlink berkas');
+
+    // --- Uji Format GIF ---
+    $gif = "{$tmp}/sample.gif";
+    $imGif = imagecreate(100, 80);
+    imagecolorallocate($imGif, 0, 150, 255);
+    imagegif($imGif, $gif);
+    unset($imGif);
+    $rowGif = RenopsFotoModel::store($idR, $gif, filesize($gif), null, 'Foto format GIF');
+    $created[] = ROOT_DIR . '/' . $rowGif['path'];
+    assertCondition(is_file(ROOT_DIR . '/' . $rowGif['path']), 'Format GIF berhasil disimpan');
+    [$gw, $gh, $gt] = getimagesize(ROOT_DIR . '/' . $rowGif['path']);
+    assertCondition($gt === IMAGETYPE_JPEG, 'GIF di-convert ke JPEG');
+
+    // --- Uji Batch Upload 12 Foto Sekaligus via RenopsDokumenApiController ---
+    $idR2 = RenopsModel::create(['id_operasi' => $idOps, 'hari_ke' => 'H.2', 'tanggal_laporan' => '2026-10-22', 'srus' => []]);
+    $batchNames = [];
+    $batchTmps = [];
+    $batchSizes = [];
+    $batchErrors = [];
+    $batchKets = [];
+    for ($i = 1; $i <= 12; $i++) {
+        $fPath = "{$tmp}/batch_{$i}.png";
+        $imB = imagecreatetruecolor(100, 100);
+        imagepng($imB, $fPath);
+        unset($imB);
+        $batchNames[] = "dokumentasi_{$i}.png";
+        $batchTmps[] = $fPath;
+        $batchSizes[] = filesize($fPath);
+        $batchErrors[] = UPLOAD_ERR_OK;
+        $batchKets[] = "Dokumentasi ke-{$i}";
+    }
+    $fBatch = [
+        'name' => $batchNames,
+        'tmp_name' => $batchTmps,
+        'size' => $batchSizes,
+        'error' => $batchErrors,
+    ];
+    $failBatch = RenopsDokumenApiController::storeUploads($idR2, $fBatch, $batchKets, null, false);
+    assertCondition($failBatch === null, 'Batch upload 12 foto sekaligus berhasil tanpa error');
+    $uploadedList = RenopsFotoModel::listByRenops($idR2);
+    assertCondition(count($uploadedList) === 12, 'Tepat 12 foto tersimpan di database RenopsFoto');
+    foreach ($uploadedList as $u) {
+        $created[] = ROOT_DIR . '/' . $u['path'];
+    }
+
+    // --- Uji Batch Reorder & Bulk Delete ---
+    $origIds = array_map(fn($x) => (int)$x['id_foto'], $uploadedList);
+    $revIds = array_reverse($origIds);
+    // Sertakan ID asing (milik $idR) untuk memastikan ID milik RENOPS lain diabaikan
+    $foreignFotoId = (int)($rowGif['id_foto'] ?? 999999);
+    RenopsFotoModel::reorder($idR2, array_merge([$foreignFotoId], $revIds));
+    $reorderedList = RenopsFotoModel::listByRenops($idR2);
+    $newIds = array_map(fn($x) => (int)$x['id_foto'], $reorderedList);
+    assertCondition($newIds === $revIds && (int)$reorderedList[0]['urutan'] === 1 && (int)$reorderedList[11]['urutan'] === 12,
+        'RenopsFotoModel::reorder membalik urutan 12 foto menjadi 1..12 dan mengabaikan ID foto milik RENOPS lain');
+
+    $delIds = [$newIds[0], $newIds[1]];
+    $delPaths = [ROOT_DIR . '/' . $reorderedList[0]['path'], ROOT_DIR . '/' . $reorderedList[1]['path']];
+    $deletedCount = RenopsFotoModel::deleteMany($idR2, [$delIds[0], $delIds[1], $foreignFotoId]);
+    assertCondition($deletedCount === 2 && count(RenopsFotoModel::listByRenops($idR2)) === 10
+        && !is_file($delPaths[0]) && !is_file($delPaths[1]) && is_file(ROOT_DIR . '/' . $rowGif['path']),
+        'RenopsFotoModel::deleteMany menghapus 2 foto beserta berkas fisiknya dan melindungi foto RENOPS lain');
+
+    // Uji penolakan jika batch melebihi 12 file
+    $batch13 = $fBatch;
+    $batch13['name'][] = 'extra.png';
+    $batch13['tmp_name'][] = $batchTmps[0];
+    $batch13['size'][] = $batchSizes[0];
+    $batch13['error'][] = UPLOAD_ERR_OK;
+    $fail13 = RenopsDokumenApiController::storeUploads($idR2, $batch13, [], null, false);
+    assertCondition($fail13 === 'Maksimal 12 foto per unggahan.', 'Batch > 12 foto ditolak dengan pesan formal');
+
+    // Uji penolakan per-file > 5.5 MB (5,767,168 bytes) dengan nama file di pesan
+    $fJumbo = [
+        'name' => ['foto_jumbo.jpg'],
+        'tmp_name' => [$batchTmps[0]],
+        'size' => [RenopsFotoModel::MAX_BYTES + 1],
+        'error' => [UPLOAD_ERR_OK],
+    ];
+    $failJumbo = RenopsDokumenApiController::storeUploads($idR2, $fJumbo, [], null, false);
+    assertCondition(str_contains((string)$failJumbo, "'foto_jumbo.jpg'") && str_contains((string)$failJumbo, '5 MB'), 'File > 5.5 MB ditolak dengan menyertakan nama file');
+
+    // Uji overflow post_max_size (CONTENT_LENGTH > 0 tapi $_POST dan $_FILES kosong)
+    $userId = (string)getDB()->query("SELECT id FROM `Users` WHERE is_active = 1 LIMIT 1")->fetchColumn();
+    $scriptOverflow = 'require ' . var_export(dirname(__DIR__) . '/config/app.php', true) . ';'
+        . ' $_SESSION["user_id"] = ' . var_export($userId, true) . ';'
+        . ' $_SESSION["auth_at"] = ' . time() . ';'
+        . ' $_SERVER["REQUEST_METHOD"] = "POST";'
+        . ' $_SERVER["CONTENT_LENGTH"] = "70000000";'
+        . ' $_POST = []; $_FILES = [];'
+        . ' register_shutdown_function(function () { echo "\nSTATUS:" . (http_response_code() ?: 200); });'
+        . ' RenopsDokumenApiController::handle("/renops/' . $idR2 . '/foto", "POST", []);';
+    $outOverflow = (string)shell_exec(escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($scriptOverflow) . ' 2>&1');
+    assertCondition(str_contains($outOverflow, 'STATUS:413') && str_contains($outOverflow, 'post_max_size'), 'Overflow post_max_size mengembalikan HTTP 413 dengan pesan ramah');
 } finally {
     if ($idOps) {
         OperasiModel::delete($idOps); // cascade + unlink foto

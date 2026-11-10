@@ -5,7 +5,7 @@
  */
 
 $flash = getFlash();
-$requiresGis = !empty($useGis) || in_array($currentRoute ?? '', ['gis', 'operasi', 'operasi_detail', 'operasi_form'], true);
+$requiresGis = !empty($useGis) || in_array($currentRoute ?? '', ['gis', 'operasi_detail', 'operasi_form'], true);
 $requiresQr  = !empty($useQr) || in_array($currentRoute ?? '', ['bra', 'bra_view', 'bra_list', 'bra_form'], true);
 $requiresBra = !empty($useBra) || in_array($currentRoute ?? '', ['bra', 'bra_view', 'bra_list', 'bra_form'], true);
 ?>
@@ -42,7 +42,7 @@ $requiresBra = !empty($useBra) || in_array($currentRoute ?? '', ['bra', 'bra_vie
 <script src="<?= assetUrl('assets/js/bra.js') ?>"></script>
 <?php endif; ?>
 
-<?php if ($requiresGis): ?>
+<?php if ($requiresGis && ($currentRoute ?? '') !== 'gis'): ?>
 <script src="<?= assetUrl('assets/js/gis/geodesy.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/markers.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/patterns.js') ?>"></script>

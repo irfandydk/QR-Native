@@ -82,8 +82,7 @@ if (!empty($operasi['detail_unsur']) && is_array($operasi['detail_unsur'])) {
     }
 } else {
     $initialUnsurData = [
-        ['nama_unsur' => 'SMC', 'jumlah_personil' => 1],
-        ['nama_unsur' => 'Staf', 'jumlah_personil' => 1]
+        ['nama_unsur' => 'SMC dan Staf', 'jumlah_personil' => 2]
     ];
 }
 
@@ -248,20 +247,23 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             value="<?= e($operasi['nama_operasi'] ?? '') ?>"  />
           </div>
           
-          <!-- Preset Nama Operasi Pills -->
+          <!-- Preset Nama Operasi Pills (1 Preset per Kategori Kejadian) -->
           <div class="flex flex-wrap items-center gap-1.5 mt-2">
             <span class="text-[11px] font-semibold text-slate-400 mr-1">Preset Cepat:</span>
-            <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan Kapal Longboat Mati Mesin di Perairan ')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-              Kapal Mati Mesin
+            <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan Kapal KM/Longboat Mati Mesin di Perairan ', 'Kecelakaan Kapal')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+              Kecelakaan Kapal
             </button>
-            <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan Kapal Terbalik di Perairan ')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-              Kapal Terbalik
+            <button type="button" onclick="setPresetOps('Operasi SAR Kondisi Membahayakan Manusia (KMM) 1 Orang Tenggelam di ', 'Kondisi Membahayakan Manusia')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+              Kondisi Membahayakan Manusia
             </button>
-            <button type="button" onclick="setPresetOps('Operasi SAR Kondisi Membahayakan Manusia (KMM) 1 Orang Hilang di Hutan ')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-              KMM Hutan
+            <button type="button" onclick="setPresetOps('Operasi SAR Bencana Banjir/Tanah Longsor di ', 'Bencana')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+              Bencana
             </button>
-            <button type="button" onclick="setPresetOps('Operasi SAR Kondisi Membahayakan Manusia (KMM) 1 Orang Tenggelam di Sungai ')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
-              KMM Sungai
+            <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan Pesawat Udara di ', 'Kecelakaan Pesawat Udara')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+              Kecelakaan Pesawat
+            </button>
+            <button type="button" onclick="setPresetOps('Operasi SAR Kecelakaan dengan Penanganan Khusus di ', 'Kecelakaan dengan Penanganan Khusus')" class="btn-tactile px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer">
+              Penanganan Khusus
             </button>
           </div>
         </div>
@@ -270,16 +272,19 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
         <div>
           <div class="field">
             <label class="field-label">Jenis Kejadian / Musibah</label>
-            <input class="field-input w-full" type="text" name="jenis_kejadian" id="jenis_kejadian" list="jenis_kejadian_opsi" maxlength="191"
-            placeholder="Pilih atau ketik, contoh: Kondisi Membahayakan Manusia"
-            value="<?= e($operasi['jenis_kejadian'] ?? '') ?>"  />
-            <datalist id="jenis_kejadian_opsi">
-              <option value="Kecelakaan Kapal"></option>
-              <option value="Kecelakaan Pesawat Udara"></option>
-              <option value="Kondisi Membahayakan Manusia"></option>
-              <option value="Bencana"></option>
-              <option value="Kecelakaan dengan Penanganan Khusus"></option>
-            </datalist>
+            <?php $jkPilih = OperasiModel::jenisKejadianPilihan($operasi['jenis_kejadian'] ?? null); ?>
+            <select id="jenis_kejadian_select" class="field-input w-full" onchange="syncJenisKejadian()">
+              <option value="">-- Pilih Jenis Kejadian --</option>
+              <?php foreach (OperasiModel::JENIS_KEJADIAN_OPSI as $jkOpsi): ?>
+                <option value="<?= e($jkOpsi) ?>"<?= $jkPilih['pilihan'] === $jkOpsi ? ' selected' : '' ?>><?= e($jkOpsi) ?></option>
+              <?php endforeach; ?>
+              <option value="__LAINNYA__"<?= $jkPilih['pilihan'] === '__LAINNYA__' ? ' selected' : '' ?>>Lainnya…</option>
+            </select>
+            <!-- Field yang terkirim; teks bebas hanya tampil untuk "Lainnya…" -->
+            <div id="jenis_kejadian_lainnya_wrap" class="mt-2<?= $jkPilih['pilihan'] === '__LAINNYA__' ? '' : ' hidden' ?>">
+              <input class="field-input w-full" type="text" name="jenis_kejadian" id="jenis_kejadian" maxlength="191"
+                placeholder="Ketik jenis kejadian lainnya..." value="<?= e($operasi['jenis_kejadian'] ?? '') ?>" oninput="updateWaPreview()" />
+            </div>
           </div>
         </div>
 
@@ -537,6 +542,12 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
             </button>
           </div>
           
+          <?php
+            // Pangkalan tersimpan (asal_berangkat) diutamakan; tanpa kecocokan → pangkalan default.
+            $asalTersimpan = mb_strtolower(trim((string)($operasi['asal_berangkat'] ?? '')));
+            $namaUnitAsal = fn($u) => mb_strtolower(trim((string)($u['nama_unit'] ?? $u['label'] ?? '')));
+            $asalCocok = $asalTersimpan !== '' && in_array($asalTersimpan, array_map($namaUnitAsal, $sarUnits), true);
+          ?>
           <select id="origin_base_select" onchange="handleOriginBaseChange()" class="control control-sm w-full font-semibold">
             <?php foreach ($sarUnits as $unit): 
                 $cat = $unit['category'] ?? $unit['jenis_unit'] ?? 'POS SAR';
@@ -550,7 +561,7 @@ $existingRoute = !empty($existingGisRoutes) ? $existingGisRoutes[0] : null;
                       data-icon="<?= e($unit['customIconUrl'] ?? '') ?>"
                       data-point-type="<?= e($unit['pointType'] ?? 'custom_upload') ?>"
                       data-category="<?= e($cat) ?>"
-                      <?= (!empty($unit['is_default']) ? 'selected' : '') ?>>
+                      <?= ($asalCocok ? $namaUnitAsal($unit) === $asalTersimpan : !empty($unit['is_default'])) ? 'selected' : '' ?>>
                 <?= $iconEmoji ?> [<?= e($cat) ?>] <?= e($name) ?> — [<?= e($unit['koordinat_dms'] ?? '') ?>]
               </option>
             <?php endforeach; ?>
@@ -1317,5 +1328,6 @@ window.__OPS_FORM_CONFIG__ = <?= jsonSafe([
 ]) ?>;
 </script>
 <script src="<?= assetUrl('assets/js/pages/operasi_form_map.js') ?>"></script>
+<script src="<?= assetUrl('assets/vendor/sortablejs/Sortable.min.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/alut_kategori.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/pages/operasi_form.js') ?>"></script>

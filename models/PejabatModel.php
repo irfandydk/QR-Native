@@ -66,6 +66,9 @@ class PejabatModel {
             ':jabatan' => $data['jabatan'] ?? '',
             ':def' => $isDef
         ]);
+        if (class_exists('SettingsModel')) {
+            SettingsModel::clearCache();
+        }
 
         return $id;
     }
@@ -80,7 +83,7 @@ class PejabatModel {
             $db->query("UPDATE Pejabat SET is_default_smc = 0");
         }
         $stmt = $db->prepare("UPDATE Pejabat SET nama = :nama, nip = :nip, pangkat = :pangkat, jabatan = :jabatan, is_default_smc = :def WHERE id = :id");
-        return $stmt->execute([
+        $ok = $stmt->execute([
             ':nama' => $data['nama'],
             ':nip' => $data['nip'] ?? '',
             ':pangkat' => $data['pangkat'] ?? '',
@@ -88,6 +91,10 @@ class PejabatModel {
             ':def' => $isDef,
             ':id' => $id
         ]);
+        if (class_exists('SettingsModel')) {
+            SettingsModel::clearCache();
+        }
+        return $ok;
     }
 
     /**
@@ -96,7 +103,11 @@ class PejabatModel {
     public static function delete(string $id): bool {
         $db = getDB();
         $stmt = $db->prepare("DELETE FROM Pejabat WHERE id = :id");
-        return $stmt->execute([':id' => $id]);
+        $ok = $stmt->execute([':id' => $id]);
+        if (class_exists('SettingsModel')) {
+            SettingsModel::clearCache();
+        }
+        return $ok;
     }
 
     /**
@@ -106,6 +117,10 @@ class PejabatModel {
         $db = getDB();
         $db->query("UPDATE Pejabat SET is_default_smc = 0");
         $stmt = $db->prepare("UPDATE Pejabat SET is_default_smc = 1 WHERE id = :id");
-        return $stmt->execute([':id' => $id]);
+        $ok = $stmt->execute([':id' => $id]);
+        if (class_exists('SettingsModel')) {
+            SettingsModel::clearCache();
+        }
+        return $ok;
     }
 }

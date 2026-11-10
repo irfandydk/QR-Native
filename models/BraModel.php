@@ -117,7 +117,9 @@ class BraModel {
         try {
             $kategori = BraHelper::normalizeCategory($data['kategori'] ?? 'MAPEL');
             $satkerKode = $data['satker_kode'] ?? DEFAULT_SATKER_KODE;
-            $isAuto = !isset($data['is_auto_no_bra']) || $data['is_auto_no_bra'] === '1' || $data['is_auto_no_bra'] === 1 || $data['is_auto_no_bra'] === true;
+            $isAuto = isset($data['is_auto_no_bra'])
+                ? ($data['is_auto_no_bra'] === '1' || $data['is_auto_no_bra'] === 1 || $data['is_auto_no_bra'] === true)
+                : empty($data['no_bra']);
 
             // Generate sequence and no_bra with atomic row-level lock
             if ($isAuto || empty($data['no_bra'])) {
@@ -321,6 +323,13 @@ class BraModel {
             $satkerKode = $parsed['satker_kode'];
             $bulanTahun = $parsed['bulan_tahun'];
             $noBra = $parsed['no_bra'];
+
+            // Verifikasi keunikan nomor BRA saat diedit (tidak boleh kembar dengan dokumen lain)
+            $stmtCheck = $db->prepare("SELECT id_bra FROM BraSar WHERE no_bra = :no_bra AND id_bra != :id LIMIT 1 FOR UPDATE");
+            $stmtCheck->execute([':no_bra' => $noBra, ':id' => $id]);
+            if ($stmtCheck->fetch()) {
+                throw new InvalidArgumentException("Nomor naskah BRA '{$noBra}' sudah digunakan oleh dokumen lain.");
+            }
 
             $dari = mb_strtoupper(trim((string)($data['dari'] ?? 'KANSAR KENDARI')), 'UTF-8');
             $aksi = mb_strtoupper(trim((string)($data['aksi'] ?? ($kategori === 'MAPEL' ? 'KA KSOP KENDARI KMA KA SROP KENDARI' : 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN'))), 'UTF-8');

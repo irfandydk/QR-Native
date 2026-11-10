@@ -16,6 +16,20 @@
             .replace(/^_|_$/g, '');
     }
 
+    function showPdfAlert(title, text, icon) {
+        if (typeof window.Swal !== 'undefined' && typeof window.Swal.fire === 'function') {
+            window.Swal.fire({
+                icon: icon || 'error',
+                title: title || 'Informasi PDF',
+                text: text || '',
+                confirmButtonText: 'Tutup',
+                confirmButtonColor: '#ea580c',
+                background: '#0f172a',
+                color: '#f8fafc'
+            });
+        }
+    }
+
     /**
      * Memindai baris piksel kanvas di dekat batas bawah halaman untuk mencari
      * celah spasi putih antar-baris teks agar huruf tidak terbelah dua saat ganti halaman.
@@ -262,30 +276,74 @@
     window.downloadOfficialPdf = function (customFilename, buttonEl) {
         const sheet = document.querySelector('.page-sheet');
         if (!sheet) {
-            alert('Elemen lembar dokumen (.page-sheet) tidak ditemukan.');
+            showPdfAlert('Dokumen Tidak Ditemukan', 'Elemen lembar dokumen (.page-sheet) tidak ditemukan.', 'error');
+            return;
+        }
+
+        const btn = buttonEl || document.getElementById('btnDownloadPdf');
+        const originalBtnHtml = btn ? btn.innerHTML : '';
+        const rawName = customFilename
+            || (btn && btn.getAttribute('data-pdf-filename'))
+            || document.title
+            || 'DOKUMEN_RESMI_BASARNAS';
+        const finalFilename = sanitizeFilename(rawName.replace(/\.pdf$/i, '')) + '.pdf';
+
+        // Prioritaskan Engine PDF Vektor Sisi Server (Chrome Headless --print-to-pdf) agar teks dapat dicari (find)
+        // dan tampilan 100% identik dengan Cetak PDF (window.print).
+        const vectorPdfUrl = btn ? btn.getAttribute('data-pdf-url') : '';
+        if (vectorPdfUrl) {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="inline-flex items-center gap-1.5">⏳ <span>Menyiapkan PDF...</span></span>';
+            }
+            fetch(vectorPdfUrl, { credentials: 'same-origin' })
+                .then(function (res) {
+                    const ct = (res.headers.get('content-type') || '').toLowerCase();
+                    if (res.ok && ct.indexOf('application/pdf') !== -1) {
+                        return res.blob();
+                    }
+                    throw new Error('VECTOR_PDF_UNAVAILABLE');
+                })
+                .then(function (blob) {
+                    const blobUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = finalFilename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 5000);
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtnHtml;
+                    }
+                })
+                .catch(function () {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = originalBtnHtml;
+                    }
+                    // Fallback ke engine cetak vektor bawaan browser agar teks tetap dapat dicari (find)
+                    const prevTitle = document.title;
+                    document.title = finalFilename.replace(/\.pdf$/i, '');
+                    window.print();
+                    setTimeout(function () { document.title = prevTitle; }, 1000);
+                });
             return;
         }
 
         if (typeof html2pdf === 'undefined') {
-            alert('Pustaka PDF generator sedang dimuat atau tidak tersedia. Membuka dialog cetak browser...');
+            showPdfAlert('Membuka Dialog Cetak', 'Pustaka PDF generator sedang dimuat atau tidak tersedia. Membuka dialog cetak browser...', 'info');
             window.print();
             return;
         }
 
         patchHtml2PdfWorker();
 
-        const btn = buttonEl || document.getElementById('btnDownloadPdf');
-        const originalBtnHtml = btn ? btn.innerHTML : '';
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = '<span class="inline-flex items-center gap-1.5">⏳ <span>Memproses PDF...</span></span>';
         }
-
-        const rawName = customFilename
-            || (btn && btn.getAttribute('data-pdf-filename'))
-            || document.title
-            || 'DOKUMEN_RESMI_BASARNAS';
-        const finalFilename = sanitizeFilename(rawName.replace(/\.pdf$/i, '')) + '.pdf';
 
         // Deteksi koordinat vertikal elemen blok tanda tangan agar dilarang dipotong di tengah
         const sigSelector = '.signature-block';
@@ -555,7 +613,7 @@
             .catch(function (err) {
                 console.error('Gagal mengekspor PDF:', err);
                 restoreStylesAndState();
-                alert('Gagal membuat PDF otomatis: ' + (err && err.message ? err.message : err));
+                showPdfAlert('Gagal Membuat PDF', 'Gagal membuat PDF otomatis: ' + (err && err.message ? err.message : err), 'error');
             });
     };
 

@@ -38,7 +38,7 @@ $badge = $terbit ? 'TERBIT v' . (int)$terbit['versi'] : 'DRAF';
     <?php endif; ?>
     <span class="flex-1"></span>
     <button type="button" id="btnSimpanDraf" class="px-3 py-1.5 rounded-lg bg-slate-600 hover:bg-slate-500 text-white font-bold">Simpan Draf</button>
-    <input type="file" id="inputFoto" class="hidden" multiple accept="image/jpeg,image/png,image/webp">
+    <input type="file" id="inputFoto" class="hidden" multiple accept="image/*,image/jpeg,image/png,image/webp,image/gif">
     <button type="button" id="btnTerbitkan" class="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white font-bold disabled:opacity-60">Terbitkan QR</button>
     <a href="<?= BASE_URL ?>/operasi.php?action=print_renops&amp;draf=1&amp;id_renops=<?= (int)$idRenops ?>" target="_blank" rel="noopener" id="btnCetakDraf" title="Cetak / unduh PDF draf (watermark DRAF, tanpa QR)" class="px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-white text-slate-900 font-bold no-underline">Cetak Draf / PDF</a>
     <?php if ($terbit): ?>
@@ -68,4 +68,5 @@ $badge = $terbit ? 'TERBIT v' . (int)$terbit['versi'] : 'DRAF';
     </div>
   </div>
 </div>
+<script src="<?= assetUrl('assets/vendor/sortablejs/Sortable.min.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/pages/renops_dokumen.js') ?>"></script>

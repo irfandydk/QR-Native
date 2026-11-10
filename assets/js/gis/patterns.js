@@ -236,9 +236,29 @@
   }
 
   /**
-   * Generate search pattern fitted strictly inside polygon boundary
+   * Generate search pattern fitted strictly inside polygon boundary.
+   * Parallel Track & Creeping Line: options.flipH (cermin timur-barat) / options.flipV (cermin utara-selatan)
+   * memindahkan titik awal; poligon dicerminkan terhadap pusat bbox, pola dibuat, lalu hasilnya dicerminkan kembali
+   * sehingga tetap di dalam poligon untuk bentuk apa pun.
    */
   function generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount, options = {}) {
+    const flipH = !!(options && options.flipH);
+    const flipV = !!(options && options.flipV);
+    if ((type !== 'parallel_track' && type !== 'creeping_line') || (!flipH && !flipV)) {
+      return generateFittedPatternCore(type, polygonPoints, spacingNm, legsCount, options);
+    }
+    const pts = (polygonPoints || []).map((p) => ({ ...p, lat: parseFloat(p.lat), lng: parseFloat(p.lng) }))
+      .filter((p) => !isNaN(p.lat) && !isNaN(p.lng));
+    if (pts.length < 3) return [];
+    const lats = pts.map((p) => p.lat);
+    const lngs = pts.map((p) => p.lng);
+    const cLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+    const cLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+    const mirror = (p) => ({ ...p, lat: flipV ? 2 * cLat - p.lat : p.lat, lng: flipH ? 2 * cLng - p.lng : p.lng });
+    return generateFittedPatternCore(type, pts.map(mirror), spacingNm, legsCount, options).map(mirror);
+  }
+
+  function generateFittedPatternCore(type, polygonPoints, spacingNm, legsCount, options = {}) {
     const cleanPoints = (polygonPoints || []).map((p) => ({
       lat: parseFloat(p.lat),
       lng: parseFloat(p.lng),

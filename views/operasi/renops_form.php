@@ -62,7 +62,7 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
       </div>
       <div class="flex flex-wrap items-center gap-2.5">
         <h1 class="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-          <?= $editMode ? "Edit Rencana Operasi SAR ({$hariKe})" : "Penerbitan Rencana Operasi SAR ({$hariKe})" ?>
+          <?= $editMode ? ("Edit Rencana Operasi SAR (" . e($hariKe) . ")") : ("Penerbitan Rencana Operasi SAR (" . e($hariKe) . ")") ?>
         </h1>
         <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full <?= $editMode ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' : 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30' ?> uppercase tracking-wider shrink-0 font-mono">
           <?= $editMode ? 'MODE PERBAIKAN' : 'DOKUMEN RENOPS' ?>
@@ -459,12 +459,13 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
     <!-- Quick Action Banner -->
     <div class="px-5 py-3 bg-orange-500/5 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
       <div class="text-xs text-slate-700 dark:text-slate-300">
-        <span class="font-bold text-amber-600 dark:text-amber-400">Aksi Cepat Otomatis:</span>
-        <span class="text-slate-500 dark:text-slate-400">Generate seluruh sektor Search Area menjadi unit-unit SRU harian sekaligus.</span>
+        <span class="font-bold text-amber-600 dark:text-amber-400">Impor per SRU:</span>
+        <span class="text-slate-500 dark:text-slate-400">Satu Search Area = satu SRU, lengkap dengan pola & rute yang terkait. SRU yang sudah ada diperbarui, SRU manual tetap.</span>
+        <div id="gis-import-checklist" class="mt-2 space-y-1 max-w-md"></div>
       </div>
       <button type="button" onclick="importAllPolygonsToSrus()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white shadow-xs transition cursor-pointer shrink-0">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        <span>Generate Semua Area ke SRU</span>
+        <span>Impor per SRU</span>
       </button>
     </div>
 
@@ -530,5 +531,7 @@ window.__RENOPS_PAGE_CONFIG__ = <?= jsonSafe([
     'satuanJarak' => $satuanJarak,
 ]) ?>;
 </script>
+<script src="<?= assetUrl('assets/vendor/sortablejs/Sortable.min.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/alut_kategori.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/renops_import.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/pages/renops_form.js') ?>"></script>

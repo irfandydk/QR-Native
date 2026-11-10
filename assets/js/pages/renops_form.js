@@ -297,6 +297,7 @@ function renderSruList() {
         if (matchedPattern.patternType === 'creeping_line') s.pola_pencarian = 'Creeping Line Search';
         else if (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search') s.pola_pencarian = 'Pola Pencarian E-SAR';
         else if (matchedPattern.patternType === 'track_line') s.pola_pencarian = 'Track Line Search';
+        else s.pola_pencarian = 'Parallel Track Search';
       }
     }
 
@@ -304,7 +305,7 @@ function renderSruList() {
     card.className = 'p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 space-y-3';
 
     const luasVal = (s.luas_area && s.luas_area.trim() !== '' && s.luas_area !== '10 Nm²' && s.luas_area !== '10 NM²') ? s.luas_area : (s.luas_area || '');
-    const polaVal = s.pola_pencarian || 'Parallel Track Search';
+    const polaVal = s.pola_pencarian || '';
     const sapuanVal = s.total_sapuan || '';
 
     const polygonsList = SAR_GIS_BUNDLE.polygons || [];
@@ -367,8 +368,8 @@ function renderSruList() {
           </div>
           <div class="min-w-0">
             <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Pola Pencarian</span>
-            <span class="font-bold text-xs text-orange-600 dark:text-orange-400 truncate block">
-              ✓ ${escapeHtml(polaVal)}
+            <span class="font-bold text-xs ${polaVal ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400 italic'} truncate block">
+              ${polaVal ? `✓ ${escapeHtml(polaVal)}` : '- (Belum ditentukan / Pilih dari Peta Plotting)'}
             </span>
           </div>
         </div>
@@ -389,7 +390,7 @@ function renderSruList() {
       <!-- Hidden inputs for automated values -->
       <input type="hidden" name="srus[${idx}][id_sru]" value="${s.id_sru || ''}">
       <input type="hidden" name="srus[${idx}][luas_area]" value="${escapeHtml(s.luas_area || '')}">
-      <input type="hidden" name="srus[${idx}][pola_pencarian]" value="${escapeHtml(s.pola_pencarian || 'Parallel Track Search')}">
+      <input type="hidden" name="srus[${idx}][pola_pencarian]" value="${escapeHtml(s.pola_pencarian || '')}">
       <input type="hidden" name="srus[${idx}][total_sapuan]" value="${escapeHtml(s.total_sapuan || '')}">
       <input type="hidden" name="srus[${idx}][track_spacing]" value="${escapeHtml(s.track_spacing || '')}">
 
@@ -440,6 +441,11 @@ function applySektorToPlotting(targetIdx, polyId) {
     if (matchedPattern.patternType === 'creeping_line') currentSrus[targetIdx].pola_pencarian = 'Creeping Line Search';
     else if (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search') currentSrus[targetIdx].pola_pencarian = 'Pola Pencarian E-SAR';
     else if (matchedPattern.patternType === 'track_line') currentSrus[targetIdx].pola_pencarian = 'Track Line Search';
+    else currentSrus[targetIdx].pola_pencarian = 'Parallel Track Search';
+  } else {
+    currentSrus[targetIdx].total_sapuan = '';
+    currentSrus[targetIdx].track_spacing = '';
+    currentSrus[targetIdx].pola_pencarian = '';
   }
 
   renderSruList();
@@ -448,62 +454,12 @@ function applySektorToPlotting(targetIdx, polyId) {
   }
 }
 
+// Tombol "Sinkronkan Sektor Plotting ke SRU": alur yang sama dengan "Impor per SRU" (menggabung, SRU manual tetap).
 async function syncAllPlottingSectorsToSru() {
-  let polys = SAR_GIS_BUNDLE.polygons || [];
-  if (polys.length === 0) {
+  if ((SAR_GIS_BUNDLE.polygons || []).length === 0) {
     await refreshGisBundle(false);
-    polys = SAR_GIS_BUNDLE.polygons || [];
   }
-
-  if (polys.length === 0) {
-    if (typeof showToast === 'function') {
-      showToast('Tidak ada Search Area / Sektor yang ditemukan di plotting GIS.', 'warning');
-    }
-    return;
-  }
-
-  currentSrus = polys.map((poly, idx) => {
-    const areaNum = calculatePolygonAreaNm2(poly);
-    const coordsText = getPolygonCoordsText(poly);
-    const areaFormatted = formatRenopsAreaShort(areaNum);
-
-    let pola = 'Parallel Track Search';
-    let totalSapuan = '';
-    let trackSpacing = '';
-
-    const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find(pat =>
-      (pat.polygonId && String(pat.polygonId) === String(poly.id)) ||
-      (pat.polygonName && poly.name && pat.polygonName.toLowerCase() === poly.name.toLowerCase())
-    );
-
-    if (matchedPattern) {
-      const isEsar = (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search');
-      const legs = matchedPattern.legsCount || (matchedPattern.waypoints ? Math.max(1, Math.floor(matchedPattern.waypoints.length / 2)) : 6);
-      const spacing = formatRenopsSpacingShort(matchedPattern.trackSpacingNm || 1.0);
-      const dist = matchedPattern.totalDistanceNm ? formatRenopsDistanceShort(matchedPattern.totalDistanceNm) : '-';
-      trackSpacing = spacing;
-      totalSapuan = isEsar
-        ? `${legs} Personel E-SAR (Spasi: ${spacing}, Total: ${dist})`
-        : `${legs} Sapuan (Spasi: ${spacing}, Total: ${dist})`;
-      if (matchedPattern.patternType === 'creeping_line') pola = 'Creeping Line Search';
-      else if (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search') pola = 'Pola Pencarian E-SAR';
-      else if (matchedPattern.patternType === 'track_line') pola = 'Track Line Search';
-    }
-
-    return {
-      nama_sru: `SRU ${idx + 1} - ${poly.name}`,
-      luas_area: areaFormatted,
-      koordinat_area: `Sektor: ${poly.name} (${areaFormatted})\n${coordsText}`,
-      pola_pencarian: pola,
-      total_sapuan: totalSapuan,
-      track_spacing: trackSpacing
-    };
-  });
-
-  renderSruList();
-  if (typeof showToast === 'function') {
-    showToast(`Berhasil menyinkronkan ${polys.length} Sektor Plotting GIS ke daftar SRU!`, 'success');
-  }
+  importAllPolygonsToSrus();
 }
 window.syncAllPlottingSectorsToSru = syncAllPlottingSectorsToSru;
 window.applySektorToPlotting = applySektorToPlotting;
@@ -514,7 +470,7 @@ function addSruRow() {
     nama_sru: `SRU ${num}`,
     koordinat_area: '',
     luas_area: '',
-    pola_pencarian: 'Parallel Track Search',
+    pola_pencarian: '',
     total_sapuan: ''
   });
   renderSruList();
@@ -525,10 +481,18 @@ function removeSruRow(idx) {
   renderSruList();
 }
 
-// ── Unsur SAR Terlibat Editor ──
+// ── Unsur SAR Terlibat Editor (Reorderable + Master Data Reference) ──
+let unsurSortable = null;
+
+// Drag-reorder (SortableJS, mouse & sentuh): urutan baru dibaca dari atribut indeks di DOM.
+function reorderFromDom(container, attr, list) {
+  return Array.from(container.querySelectorAll(`[${attr}]`)).map((el) => list[parseInt(el.getAttribute(attr), 10)]).filter(Boolean);
+}
+
 function renderUnsurList() {
   const container = document.getElementById('unsur-items-container');
   if (!container) return;
+  if (unsurSortable) { unsurSortable.destroy(); unsurSortable = null; }
   container.innerHTML = '';
 
   let totalPersonil = 0;
@@ -546,8 +510,10 @@ function renderUnsurList() {
 
       const row = document.createElement('div');
       row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
+      row.setAttribute('data-unsur-idx', String(idx));
       row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none cursor-grab active:cursor-grabbing" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
           <span class="w-5 h-5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 font-bold text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
@@ -559,12 +525,6 @@ function renderUnsurList() {
             <span class="text-xs font-medium text-slate-400">Org</span>
           </div>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
-            <button type="button" onclick="moveUnsurRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Atas (Prioritas Naik)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
-            </button>
-            <button type="button" onclick="moveUnsurRow(${idx}, 1)" ${idx === currentUnsurList.length - 1 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Bawah (Prioritas Turun)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
             <button type="button" onclick="removeUnsurRow(${idx})" class="p-1 rounded text-slate-400 hover:text-red-500 cursor-pointer" title="Hapus Unsur">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
@@ -573,6 +533,17 @@ function renderUnsurList() {
       `;
       container.appendChild(row);
     });
+
+    if (typeof Sortable !== 'undefined') {
+      unsurSortable = new Sortable(container, {
+        handle: '.drag-handle',
+        animation: 150,
+        onEnd: () => {
+          currentUnsurList = reorderFromDom(container, 'data-unsur-idx', currentUnsurList);
+          renderUnsurList();
+        },
+      });
+    }
   }
 
   const badgeEl = document.getElementById('renops-total-personil');
@@ -645,10 +616,14 @@ function syncUnsurFields() {
   }
 }
 
-// ── Alut & Palsar Terlibat Editor ──
+// ── Alut & Palsar Terlibat Editor (Reorderable + Master Data Reference) ──
+let alutSortables = [];
+
 function renderAlutList() {
   const container = document.getElementById('alut-items-container');
   if (!container) return;
+  alutSortables.forEach((sb) => sb.destroy());
+  alutSortables = [];
   container.innerHTML = '';
 
   let totalAlut = 0;
@@ -660,15 +635,28 @@ function renderAlutList() {
       </div>
     `;
   } else {
-    currentAlutList.forEach((item, idx) => {
+    // Urutan simpan = urutan tampil: per kategori (Darat → Laut → Udara → PALSAR), sama dengan naskah WA.
+    currentAlutList.forEach((item) => {
       if (!AlutKategoriUI.normalize(item.kategori)) item.kategori = AlutKategoriUI.kategoriOf(item);
-      const jml = parseInt(item.jumlah_alut, 10) || 1;
-      totalAlut += jml;
-
-      const row = document.createElement('div');
-      row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
-      row.innerHTML = `
+      totalAlut += (parseInt(item.jumlah_alut, 10) || 1);
+    });
+    currentAlutList = AlutKategoriUI.sort(currentAlutList);
+    AlutKategoriUI.groups(currentAlutList).forEach((grp) => {
+      const head = document.createElement('div');
+      head.className = 'text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-1';
+      head.textContent = grp.label;
+      container.appendChild(head);
+      const box = document.createElement('div');
+      box.className = 'space-y-2';
+      box.setAttribute('data-alut-group', grp.kode);
+      grp.items.forEach(({ item, idx }) => {
+        const jml = parseInt(item.jumlah_alut, 10) || 1;
+        const row = document.createElement('div');
+        row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
+        row.setAttribute('data-alut-idx', String(idx));
+        row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none cursor-grab active:cursor-grabbing" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
           <span class="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
@@ -686,19 +674,26 @@ function renderAlutList() {
           </select>
           <select onchange="updateAlutItem(${idx}, 'kategori', this.value)" class="control control-sm" title="Kategori">${AlutKategoriUI.options(AlutKategoriUI.kategoriOf(item))}</select>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
-            <button type="button" onclick="moveAlutRow(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Atas (Prioritas Naik)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
-            </button>
-            <button type="button" onclick="moveAlutRow(${idx}, 1)" ${idx === currentAlutList.length - 1 ? 'disabled' : ''} class="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-white disabled:opacity-30 cursor-pointer" title="Geser ke Bawah (Prioritas Turun)">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
             <button type="button" onclick="removeAlutRow(${idx})" class="p-1 rounded text-slate-400 hover:text-red-500 cursor-pointer" title="Hapus Alut">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
         </div>
       `;
-      container.appendChild(row);
+        box.appendChild(row);
+      });
+      container.appendChild(box);
+      if (typeof Sortable !== 'undefined') {
+        // Satu instance per kelompok tanpa opsi group: drag hanya di dalam kategorinya.
+        alutSortables.push(new Sortable(box, {
+          handle: '.drag-handle',
+          animation: 150,
+          onEnd: () => {
+            currentAlutList = reorderFromDom(container, 'data-alut-idx', currentAlutList);
+            renderAlutList();
+          },
+        }));
+      }
     });
   }
 
@@ -770,6 +765,10 @@ function removeAlutRow(idx) {
 function updateAlutItem(idx, key, val) {
   if (currentAlutList[idx]) {
     currentAlutList[idx][key] = val;
+    if (key === 'kategori') {
+      renderAlutList();
+      return;
+    }
     syncAlutFields();
   }
 }
@@ -864,6 +863,7 @@ function closeModal(id) {
 // SAR_GIS_BUNDLE initialized from renopsCfg.gisBundle
 let targetedSruIdxForImport = null;
 let activeGisImportTab = 'polygons';
+let activeRenopsPointCatFilter = '';
 let isRefreshingGis = false;
 
 async function refreshGisBundle(showToastAlert = false) {
@@ -935,6 +935,7 @@ async function refreshGisBundle(showToastAlert = false) {
 
       // Re-render modal content and update SRU sector pickers
       renderGisImportModalContent();
+      renderGisImportChecklist();
       renderSruList();
 
       if (showToastAlert && typeof showToast === 'function') {
@@ -1079,7 +1080,9 @@ function copyGisDmsText(encodedText, label) {
 
 function openGisImportModal(targetSruIdx = null) {
   targetedSruIdxForImport = (typeof targetSruIdx === 'number' && targetSruIdx >= 0) ? targetSruIdx : null;
+  activeRenopsPointCatFilter = '';
   renderGisImportModalContent();
+  renderGisImportChecklist();
   openModal('modal-import-gis-renops');
   refreshGisBundle(false);
 }
@@ -1305,44 +1308,89 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
         </div>`;
       return;
     }
-    container.innerHTML = points.map(pt => {
-      const isBaseMap = !pt.id_operasi;
-      const dms = formatDmsPair(Number(pt.lat), Number(pt.lng));
-      const selId = `sel-pt-target-${pt.id}`;
-      return `
-        <div class="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-3">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <div class="flex items-center gap-2">
-              <span class="text-base">📍</span>
-              <span class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">${escapeHtml(pt.label || 'Titik Taktis')}</span>
-              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                ${escapeHtml(pt.category || 'Taktis')}
-              </span>
-              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
-                ${isBaseMap ? 'Base Map' : 'Operasi Ini'}
-              </span>
+
+    const uniqueCategories = Array.from(new Set(points.map(pt => (pt.category || '').trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'id'));
+
+    if (activeRenopsPointCatFilter && !uniqueCategories.includes(activeRenopsPointCatFilter)) {
+      activeRenopsPointCatFilter = '';
+    }
+
+    const catOptionsHtml = uniqueCategories.map(cat => {
+      const isSel = cat === activeRenopsPointCatFilter ? 'selected' : '';
+      return `<option value="${escapeHtml(cat)}" ${isSel}>${escapeHtml(cat)}</option>`;
+    }).join('');
+
+    const filterHeaderHtml = `
+      <div class="flex items-center gap-2 mb-3">
+        <label class="text-xs font-semibold text-slate-500 whitespace-nowrap">Filter Kategori:</label>
+        <select id="filter-renops-point-cat" class="text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-orange-500 flex-1 sm:max-w-xs">
+          <option value="">Semua Kategori</option>
+          ${catOptionsHtml}
+        </select>
+      </div>
+    `;
+
+    const filteredPoints = activeRenopsPointCatFilter
+      ? points.filter(pt => (pt.category || '').trim() === activeRenopsPointCatFilter)
+      : points;
+
+    let cardsHtml = '';
+    if (filteredPoints.length === 0) {
+      cardsHtml = `
+        <div class="p-6 text-center text-slate-400 text-xs rounded-xl border border-dashed border-slate-300 dark:border-slate-800">
+          Tidak ada titik dalam kategori "${escapeHtml(activeRenopsPointCatFilter)}".
+        </div>`;
+    } else {
+      cardsHtml = filteredPoints.map(pt => {
+        const isBaseMap = !pt.id_operasi;
+        const dms = formatDmsPair(Number(pt.lat), Number(pt.lng));
+        const selId = `sel-pt-target-${pt.id}`;
+        const catName = pt.category || 'Taktis';
+        const descTip = pt.description ? escapeHtml(pt.description) : '';
+        return `
+          <div class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 hover:border-slate-300 dark:hover:border-slate-700 transition"${descTip ? ` title="${descTip}"` : ''}>
+            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+              <span class="text-base shrink-0 select-none">📍</span>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-bold text-xs text-slate-900 dark:text-white truncate">${escapeHtml(pt.label || 'Titik Taktis')}</span>
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'} shrink-0">
+                    ${escapeHtml(catName)}
+                  </span>
+                  ${isBaseMap ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">Base Map</span>` : ''}
+                </div>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <span class="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate">${dms}</span>
+                  ${pt.description ? `<span class="text-[11px] text-slate-400 truncate hidden md:inline" title="${descTip}">• ${descTip}</span>` : ''}
+                </div>
+              </div>
             </div>
-            <div class="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
-              ${dms}
-            </div>
-          </div>
-          ${pt.description ? `<p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">${escapeHtml(pt.description)}</p>` : ''}
-          <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
-            <button type="button" onclick="copyGisDmsText(${jsArg(encodeURIComponent(dms))}, ${jsArg(pt.label)})" class="px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 transition cursor-pointer">
-              📋 Salin DMS
-            </button>
-            <div class="flex items-center gap-2">
-              <select id="${selId}" class="control control-sm">
+            <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+              <button type="button" onclick="copyGisDmsText(${jsArg(encodeURIComponent(dms))}, ${jsArg(pt.label)})" class="px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 transition cursor-pointer" title="Salin DMS">
+                📋 Salin
+              </button>
+              <select id="${selId}" class="control control-xs py-1 text-xs max-w-[140px] sm:max-w-[170px]">
                 ${getSruOptionsHtml()}
               </select>
-              <button type="button" onclick="handleImportPointClick(${jsArg(pt.id)}, ${jsArg(selId)})" class="px-3.5 py-1 text-xs font-bold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-xs transition cursor-pointer">
+              <button type="button" onclick="handleImportPointClick(${jsArg(pt.id)}, ${jsArg(selId)})" class="px-3 py-1 text-xs font-semibold rounded-lg bg-purple-600 hover:bg-purple-500 text-white shadow-xs transition cursor-pointer shrink-0">
                 Sisipkan ke SRU
               </button>
             </div>
           </div>
-        </div>
-      `;
-    }).join('');
+        `;
+      }).join('');
+    }
+
+    container.innerHTML = filterHeaderHtml + `<div class="space-y-2" id="renops-points-cards-list">${cardsHtml}</div>`;
+
+    const catSelectEl = document.getElementById('filter-renops-point-cat');
+    if (catSelectEl) {
+      catSelectEl.addEventListener('change', (e) => {
+        activeRenopsPointCatFilter = e.target.value;
+        renderGisImportModalContent();
+      });
+    }
   }
 }
 
@@ -1379,10 +1427,10 @@ function handleImportPointClick(ptId, selectId) {
 }
 
 function getPatternDetails(matchedPattern) {
-  if (!matchedPattern) return { pola: 'Parallel Track Search', totalSapuan: '', spacing: '', detailText: '' };
+  if (!matchedPattern) return { pola: '', totalSapuan: '', spacing: '', detailText: '' };
   
-  let pola = 'Parallel Track Search';
-  const pt = matchedPattern.patternType;
+  let pola = '';
+  const pt = matchedPattern.patternType || matchedPattern.type;
   if (pt === 'creeping_line') pola = 'Creeping Line Search';
   else if (pt === 'e_sar' || pt === 'sector_search') pola = 'Pola Pencarian E-SAR';
   else if (pt === 'track_line') pola = 'Track Line Search';
@@ -1402,100 +1450,94 @@ function getPatternDetails(matchedPattern) {
   return { pola, totalSapuan, spacing, detailText };
 }
 
-async function importAllPolygonsToSrus() {
-  const polys = SAR_GIS_BUNDLE.polygons || [];
-  if (polys.length === 0) {
+// ── Impor per SRU: satu search area = satu SRU; pola & rute dipasangkan lewat polygonId (RenopsImport) ──
+function gisImportItems() {
+  return RenopsImport.checklist(SAR_GIS_BUNDLE.polygons || [], SAR_GIS_BUNDLE.searchPatterns || [], SAR_GIS_BUNDLE.routes || []);
+}
+
+// Nilai bawaan baris SRU baru hasil impor (baris yang sudah ada tidak diberi bawaan: isian manual tetap).
+const SRU_DEFAULTS = { pola_pencarian: '', total_sapuan: '', track_spacing: '' };
+
+/** Field SRU dari satu area: nama = nama area, tugas (Sektor, Rute, Batas Koordinat), luas; pola hanya bila area punya pola. */
+function describeAreaForSru(item) {
+  const poly = (SAR_GIS_BUNDLE.polygons || []).find((p) => String(p.id) === String(item.id));
+  const name = item.name || 'Sektor Pencarian';
+  const areaNum = poly ? calculatePolygonAreaNm2(poly) : 0;
+  const area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : (poly && poly.areaNm2 ? formatRenopsAreaShort(Number(poly.areaNm2)) : '');
+  const coordsText = poly ? getPolygonCoordsText(poly) : '';
+  let tugas = `Sektor: ${name}${area ? ` (${area})` : ''}`;
+  if (item.route) {
+    const r = item.route;
+    const nm = r.totalDistanceNm || RenopsImport.routeLengthNm(r.points || []);
+    const dist = nm > 0 ? formatRenopsDistanceShort(nm) : '-';
+    const speed = r.vesselSpeedKnots ? formatRenopsSpeed(r.vesselSpeedKnots) : '-';
+    // Sebelum "Batas Koordinat": baris sesudahnya dibaca BRA sebagai koordinat.
+    tugas += `\nRute: ${r.name} (Panjang: ${dist}, Kecepatan: ${speed})`;
+  }
+  if (coordsText) tugas += `\nBatas Koordinat:\n${coordsText}`;
+  const fields = { nama_sru: name, koordinat_area: tugas, luas_area: area };
+  if (item.pattern) {
+    const patInfo = getPatternDetails(item.pattern);
+    fields.pola_pencarian = patInfo.pola;
+    fields.total_sapuan = patInfo.totalSapuan;
+    fields.track_spacing = patInfo.spacing;
+  }
+  return fields;
+}
+
+/** Daftar periksa di modal: tiap area ✓/✗ pola & rute, sebelum impor. */
+function renderGisImportChecklist() {
+  const box = document.getElementById('gis-import-checklist');
+  if (!box) return;
+  const items = gisImportItems();
+  if (items.length === 0) {
+    box.innerHTML = '<span class="text-[11px] text-slate-500">Belum ada Search Area di peta plotting.</span>';
+    return;
+  }
+  const tanda = (ok, label) => `<span class="${ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'} font-bold">${ok ? '✓' : '✗'} ${label}</span>`;
+  box.innerHTML = items.map((it) => `
+    <div class="flex items-center justify-between gap-2 text-[11px]">
+      <span class="font-bold text-slate-700 dark:text-slate-200 truncate">${escapeHtml(it.name || '(Tanpa Nama)')}</span>
+      <span class="flex items-center gap-2 shrink-0">${tanda(!!it.pattern, 'Pola')}${tanda(!!it.route, 'Rute')}</span>
+    </div>`).join('');
+}
+
+function importAllPolygonsToSrus() {
+  const items = gisImportItems();
+  if (items.length === 0) {
     if (typeof showToast === 'function') showToast('Tidak ada Search Area (Poligon) yang tersimpan di peta plotting.', 'info');
     return;
   }
-  
-  if (currentSrus.length > 0 && !(await confirmAction('Konversi Search Area', `Ditemukan ${polys.length} Search Area di peta plotting. Apakah Anda ingin mengonversi seluruh Search Area ini menjadi unit SRU RENOPS?`, 'Ya, Konversi'))) {
-    return;
-  }
-  
-  currentSrus = polys.map((poly, idx) => {
-    const sruNum = idx + 1;
-    const name = poly.name || `Sektor ${String.fromCharCode(65 + idx)}`;
-    const areaNum = calculatePolygonAreaNm2(poly);
-    const area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : (poly.areaNm2 ? formatRenopsAreaShort(Number(poly.areaNm2)) : '');
-    const coordsText = getPolygonCoordsText(poly);
-    
-    const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find(p => p.polygonId === poly.id || (p.polygonName && poly.name && p.polygonName === poly.name));
-    const patInfo = getPatternDetails(matchedPattern);
-
-    const taskText = `Sektor: ${name}${area ? ` (${area})` : ''}` + (coordsText ? `\nBatas Koordinat:\n${coordsText}` : '');
-
-    return {
-      nama_sru: `SRU ${sruNum} - ${name}`,
-      koordinat_area: taskText,
-      luas_area: area,
-      pola_pencarian: patInfo.pola,
-      total_sapuan: patInfo.totalSapuan,
-      track_spacing: patInfo.spacing
-    };
-  });
-  
+  // Menggabung, bukan mengganti: SRU bernama sama diperbarui, area baru ditambah, SRU manual tetap.
+  const sebelum = currentSrus.length;
+  currentSrus = RenopsImport.mergeAreasIntoSrus(currentSrus, items, describeAreaForSru, SRU_DEFAULTS);
   renderSruList();
   closeModal('modal-import-gis-renops');
   if (typeof showToast === 'function') {
-    showToast(`Berhasil men-generate ${currentSrus.length} unit SRU dari Search Area plotting!`, 'success');
+    const baru = currentSrus.length - sebelum;
+    showToast(`${items.length} Search Area diimpor per SRU: ${baru} SRU baru, ${items.length - baru} diperbarui.`, 'success');
   }
 }
 
 function importPolygonToSru(polyId, targetIdx) {
-  const poly = (SAR_GIS_BUNDLE.polygons || []).find(p => String(p.id) === String(polyId));
-  if (!poly) return;
-  if (!currentSrus[targetIdx]) {
-    currentSrus[targetIdx] = { nama_sru: `SRU ${targetIdx + 1}`, koordinat_area: '', luas_area: '', pola_pencarian: 'Parallel Track Search', total_sapuan: '' };
-  }
-  
-  const name = poly.name || 'Sektor Pencarian';
-  const areaNum = calculatePolygonAreaNm2(poly);
-  const area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : (poly.areaNm2 ? formatRenopsAreaShort(Number(poly.areaNm2)) : '');
-  const coordsText = getPolygonCoordsText(poly);
-  
-  const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find(p => p.polygonId === poly.id || (p.polygonName && poly.name && p.polygonName === poly.name));
-  const patInfo = getPatternDetails(matchedPattern);
-
-  currentSrus[targetIdx].nama_sru = `SRU ${targetIdx + 1} - ${name}`;
-  currentSrus[targetIdx].luas_area = area;
-  currentSrus[targetIdx].pola_pencarian = patInfo.pola;
-  currentSrus[targetIdx].total_sapuan = patInfo.totalSapuan;
-  currentSrus[targetIdx].track_spacing = patInfo.spacing;
-  currentSrus[targetIdx].koordinat_area = `Sektor: ${name}${area ? ` (${area})` : ''}` + (coordsText ? `\nBatas Koordinat:\n${coordsText}` : '');
-  
+  const item = gisImportItems().find((it) => String(it.id) === String(polyId));
+  if (!item) return;
+  currentSrus[targetIdx] = Object.assign(currentSrus[targetIdx] || { ...SRU_DEFAULTS }, describeAreaForSru(item));
   renderSruList();
   closeModal('modal-import-gis-renops');
   if (typeof showToast === 'function') {
-    showToast(`Data sektor "${name}" berhasil diterapkan ke SRU ${targetIdx + 1}!`, 'success');
+    showToast(`Data sektor "${item.name}" berhasil diterapkan ke SRU ${targetIdx + 1}!`, 'success');
   }
 }
 
 function importPolygonToNewSru(polyId) {
-  const poly = (SAR_GIS_BUNDLE.polygons || []).find(p => String(p.id) === String(polyId));
-  if (!poly) return;
-  const num = currentSrus.length + 1;
-  const name = poly.name || `Sektor ${String.fromCharCode(64 + num)}`;
-  const areaNum = calculatePolygonAreaNm2(poly);
-  const area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : (poly.areaNm2 ? formatRenopsAreaShort(Number(poly.areaNm2)) : '');
-  const coordsText = getPolygonCoordsText(poly);
-  
-  const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find(p => p.polygonId === poly.id || (p.polygonName && poly.name && p.polygonName === poly.name));
-  const patInfo = getPatternDetails(matchedPattern);
-
-  currentSrus.push({
-    nama_sru: `SRU ${num} - ${name}`,
-    koordinat_area: `Sektor: ${name}${area ? ` (${area})` : ''}` + (coordsText ? `\nBatas Koordinat:\n${coordsText}` : ''),
-    luas_area: area,
-    pola_pencarian: patInfo.pola,
-    total_sapuan: patInfo.totalSapuan,
-    track_spacing: patInfo.spacing
-  });
-  
+  const item = gisImportItems().find((it) => String(it.id) === String(polyId));
+  if (!item) return;
+  currentSrus.push({ ...SRU_DEFAULTS, ...describeAreaForSru(item) });
   renderSruList();
   closeModal('modal-import-gis-renops');
   if (typeof showToast === 'function') {
-    showToast(`SRU baru "${name}" berhasil ditambahkan!`, 'success');
+    showToast(`SRU baru "${item.name}" berhasil ditambahkan!`, 'success');
   }
 }
 
@@ -1503,7 +1545,7 @@ function importPatternToSru(patId, targetIdx) {
   const pat = (SAR_GIS_BUNDLE.searchPatterns || []).find(p => String(p.id) === String(patId));
   if (!pat) return;
   if (!currentSrus[targetIdx]) {
-    currentSrus[targetIdx] = { nama_sru: `SRU ${targetIdx + 1}`, koordinat_area: '', luas_area: '', pola_pencarian: 'Parallel Track Search', total_sapuan: '' };
+    currentSrus[targetIdx] = { nama_sru: `SRU ${targetIdx + 1}`, koordinat_area: '', luas_area: '', pola_pencarian: '', total_sapuan: '' };
   }
   
   const patInfo = getPatternDetails(pat);
@@ -1613,7 +1655,16 @@ function importPointToSru(ptId, targetIdx) {
   const pt = (SAR_GIS_BUNDLE.points || []).find(item => String(item.id) === String(ptId));
   if (!pt) return;
   const dms = formatDmsPair(Number(pt.lat), Number(pt.lng));
-  const ptDesc = `[Titik ${pt.category || 'Taktis'}: ${pt.label}]\nKoordinat: ${dms}${pt.description ? '\nKeterangan: ' + pt.description : ''}`;
+  const catLower = (pt.category || '').toLowerCase();
+  const labelLower = (pt.label || '').toLowerCase();
+  let ptDesc = '';
+  if (catLower.includes('entry') || labelLower.includes('entry')) {
+    ptDesc = `[Titik Entry Poin: ${pt.label}]\nKoordinat: ${dms}${pt.description ? '\nKeterangan: ' + pt.description : ''}`;
+  } else if (catLower.includes('exit') || labelLower.includes('exit')) {
+    ptDesc = `[Titik Exit Poin: ${pt.label}]\nKoordinat: ${dms}${pt.description ? '\nKeterangan: ' + pt.description : ''}`;
+  } else {
+    ptDesc = `[Titik ${pt.category || 'Taktis'}: ${pt.label}]\nKoordinat: ${dms}${pt.description ? '\nKeterangan: ' + pt.description : ''}`;
+  }
   
   if (targetIdx === -1 || !currentSrus[targetIdx]) {
     const num = currentSrus.length + 1;
@@ -1621,7 +1672,7 @@ function importPointToSru(ptId, targetIdx) {
       nama_sru: `SRU ${num} - ${pt.label}`,
       koordinat_area: ptDesc.trim(),
       luas_area: '',
-      pola_pencarian: 'Parallel Track Search',
+      pola_pencarian: '',
       total_sapuan: ''
     });
     targetIdx = currentSrus.length - 1;

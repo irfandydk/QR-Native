@@ -13,39 +13,19 @@
 
   const Points = {
     /**
-     * Standard category badge HTML
-     */
-    getCategoryBadgeHtml: function (cat) {
-      if (!cat) return '';
-      const c = String(cat).toLowerCase();
-      let colorClass = 'bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/30';
-
-      if (c.includes('lkp') || c.includes('darurat')) {
-        colorClass = 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30';
-      } else if (c.includes('pos') || c.includes('base') || c.includes('kantor')) {
-        colorClass = 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30';
-      } else if (c.includes('dermaga') || c.includes('kapal') || c.includes('pelabuhan')) {
-        colorClass = 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30';
-      } else if (c.includes('medis') || c.includes('rumah sakit')) {
-        colorClass = 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30';
-      }
-
-      return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-bold border ${colorClass}">${cat}</span>`;
-    },
-
-    /**
      * Normalizes custom icon URL for local and remote assets
      */
     normalizeIconUrl: function (url) {
       if (!url) return '';
       const u = String(url).trim();
       if (!u) return '';
+      const base = (window.BASE_URL || window.location.origin || '').replace(/\/+$/, '');
       const idx = u.indexOf('/uploads/icons/');
       if (idx !== -1) {
-        return (window.location.origin || '') + u.substring(idx);
+        return base + u.substring(idx);
       }
       if (u.startsWith('/uploads/')) {
-        return (window.location.origin || '') + u;
+        return base + u;
       }
       return u;
     },

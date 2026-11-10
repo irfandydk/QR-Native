@@ -140,6 +140,20 @@ try {
     [$c] = runApi($fp, 'PUT', ['urutan' => 7], $sess);
     $row = RenopsFotoModel::listByRenops($rY)[0] ?? [];
     assertCondition($c === 200 && (int)$row['urutan'] === 7 && $row['keterangan'] === 'Awal', "PUT foto urutan saja: tersimpan, keterangan tetap (dapat {$c})");
+
+    // Uji endpoint reorder & bulk-delete
+    $t2 = tempnam(sys_get_temp_dir(), 'rdy2');
+    ob_start();
+    imagepng(imagecreatetruecolor(8, 8));
+    file_put_contents($t2, ob_get_clean());
+    $fy2 = RenopsFotoModel::store($rY, $t2, (int)filesize($t2), null, 'Kedua');
+    @unlink($t2);
+    [$c, $j] = runApi("/renops/{$rY}/foto/reorder", 'PUT', ['ids' => [(int)$fy2['id_foto'], (int)$fy['id_foto']]], $sess);
+    assertCondition($c === 200 && ($j['success'] ?? false) === true && (int)($j['foto'][0]['id_foto'] ?? 0) === (int)$fy2['id_foto'],
+        "PUT /foto/reorder mengubah urutan secara atomik (dapat {$c})");
+    [$c, $j] = runApi("/renops/{$rY}/foto/bulk-delete", 'POST', ['ids' => [(int)$fy2['id_foto'], (int)$fy['id_foto']]], $sess);
+    assertCondition($c === 200 && ($j['deleted'] ?? 0) === 2 && count(RenopsFotoModel::listByRenops($rY)) === 0,
+        "POST /foto/bulk-delete menghapus banyak foto sekaligus (dapat {$c})");
 } catch (Throwable $e) {
     assertCondition(false, 'Handler API: ' . $e->getMessage());
 } finally {

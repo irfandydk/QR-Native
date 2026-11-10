@@ -588,7 +588,9 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           <!-- Lihat Format WA Button -->
           <button
             type="button"
-            onclick="openOpsWaModal(<?= $op['id_operasi'] ?>, '<?= e(addslashes($op['nama_operasi'])) ?>')"
+            data-id="<?= (int)$op['id_operasi'] ?>"
+            data-nama="<?= e($op['nama_operasi']) ?>"
+            onclick="openOpsWaModal(this.dataset.id, this.dataset.nama)"
             title="Lihat Format WA Resmi"
             class="btn-tactile p-1.5 sm:p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white border-slate-200 dark:border-slate-700 cursor-pointer"
           >
@@ -608,7 +610,9 @@ uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
           <?php if ($isAdmin): ?>
             <button
               type="button"
-              onclick="deleteOpsHandler(event, <?= $op['id_operasi'] ?>, '<?= e(addslashes($op['nama_operasi'])) ?>')"
+              data-id="<?= (int)$op['id_operasi'] ?>"
+              data-nama="<?= e($op['nama_operasi']) ?>"
+              onclick="deleteOpsHandler(event, this.dataset.id, this.dataset.nama)"
               title="Hapus Operasi"
               class="btn-tactile p-1.5 sm:p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 border-slate-200 dark:border-slate-700 cursor-pointer"
             >

@@ -131,6 +131,13 @@ try {
     assertCondition($c === 200 && str_contains($b, 'Misi revisi uji verifikasi') && str_contains($b, 'id="btnDownloadPdf"')
         && str_contains($b, 'href="' . e(BASE_URL . '/operasi.php?action=renops_dokumen&id_renops=' . $idR) . '"') && !str_contains($b, 'noindex'),
         "Cetak internal: versi TERBIT terakhir + tombol PDF + kembali ke editor (dapat {$c})");
+    if (class_exists('RenopsPdfService') && RenopsPdfService::findChromeBinary() !== null) {
+        [$cPdf, $bPdf] = runAction(['action' => 'print_renops', 'id' => $idOps, 'id_renops' => $idR, 'format' => 'pdf'], $login);
+        assertCondition($cPdf === 200 && str_starts_with($bPdf, '%PDF-') && strlen($bPdf) > 5000,
+            "Unduh PDF Vektor internal (?format=pdf): menghasilkan biner %PDF- valid (dapat {$cPdf})");
+    } else {
+        assertCondition(class_exists('RenopsPdfService'), 'Class RenopsPdfService harus tersedia untuk ?format=pdf');
+    }
     RenopsDokumenPublisher::publish($idRLama, null, 0);
     [$c, $b] = runAction(['action' => 'print_renops', 'id' => $idOps], $login);
     assertCondition($c === 200 && str_contains($b, 'Hari ke-2'), "Cetak tanpa id_renops: RENOPS terakhir operasi (dapat {$c})");

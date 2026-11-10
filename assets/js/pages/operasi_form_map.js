@@ -149,7 +149,7 @@
       className: 'sar-marker-lkp-container',
       html: `
         <div style="position: relative; width: 44px; height: 52px; cursor: grab;">
-          <div style="position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; background: rgba(220, 38, 38, 0.95); color: #fff; font-size: 10px; font-weight: 800; padding: 1.5px 7px; border-radius: 6px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.8);">🚨 LKP</div>
+          <div style="position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 3px; background: rgba(220, 38, 38, 0.95); color: #fff; font-size: 10px; font-weight: 800; padding: 1.5px 7px; border-radius: 6px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.8);">LKP</div>
           <svg width="44" height="52" viewBox="0 0 44 52">
             <circle cx="22" cy="18" r="17" fill="none" stroke="#dc2626" stroke-width="2" opacity="0.8">
               <animate attributeName="r" values="13;22;13" dur="2s" repeatCount="indefinite" />
@@ -173,13 +173,12 @@
     if (!url) return '';
     const u = String(url).trim();
     if (!u) return '';
+    const origin = (window.BASE_URL || window.location.origin || '').replace(/\/+$/, '');
     const idx = u.indexOf('/uploads/icons/');
     if (idx !== -1) {
-      const origin = window.location.origin || '';
       return origin + u.substring(idx);
     }
     if (u.startsWith('/uploads/')) {
-      const origin = window.location.origin || '';
       return origin + u;
     }
     return u;
