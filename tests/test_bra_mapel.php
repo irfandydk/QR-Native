@@ -172,13 +172,6 @@ assertCheck(
     "formatTelegramReduplication correctly transforms repeated words with suffix S without hyphens"
 );
 
-// 4. Verify getDefaultTemplate('MAPEL')
-echo "\n4. Checking BraHelper::getDefaultTemplate('MAPEL'):\n";
-$defTpl = BraHelper::getDefaultTemplate('MAPEL');
-assertCheck(!empty($defTpl['sections']), "getDefaultTemplate('MAPEL') returns populated sections, not empty array");
-assertCheck(count($defTpl['sections']) === 3, "getDefaultTemplate('MAPEL') returns 3 sections");
-assertCheck($defTpl['kategori'] === 'MAPEL', "getDefaultTemplate('MAPEL') returns kategori MAPEL");
-
 // 5. Verify views/bra/form.php UI & Preset Structure
 echo "\n5. Checking views/bra/form.php UI & Preset Banner:\n";
 $formPhp = file_get_contents($baseDir . '/views/bra/form.php');

@@ -24,29 +24,6 @@ class SarUnitModel {
     }
 
     /**
-     * Alias for backward compatibility
-     */
-    public static function getSarUnits(): array {
-        return self::getAll();
-    }
-
-    /**
-     * Get single SAR unit by ID
-     */
-    public static function getById(int|string $id): ?array {
-        $units = self::getAll();
-        foreach ($units as $u) {
-            if ((string)($u['id'] ?? $u['id_unit']) === (string)$id) {
-                return $u;
-            }
-        }
-        $db = getDB();
-        $stmt = $db->prepare("SELECT * FROM SarUnit WHERE id_unit = :id LIMIT 1");
-        $stmt->execute([':id' => $id]);
-        return $stmt->fetch() ?: null;
-    }
-
-    /**
      * Create new SAR unit
      */
     public static function create(array $data): int {

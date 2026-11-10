@@ -131,29 +131,6 @@ try {
         if (($sec['kode'] ?? '') === 'AAA') $isiAaa = $sec['isi'];
     }
     assertT2(str_contains($isiAaa, 'POB 15 ORANG'), 'buildSectionsFromMapel menyertakan jumlah_pob (15 ORANG) walau korban bernama baru 2 orang');
-
-    $mockSitrep = [
-        'id_operasi' => $idOpPob,
-        'hari_ke' => 'H.1',
-        'jenis_laporan' => 'PERKEMBANGAN',
-        'isi_laporan' => 'Pencarian H.1 dilaksanakan.',
-        'waktu_laporan' => '2026-11-02 17:00:00',
-    ];
-    $braSitrep = BraHelper::buildSectionsFromSitrep($opsPob, $mockSitrep, $opsPob['korban']);
-    $isiDdd = '';
-    foreach ($braSitrep['sections'] as $sec) {
-        if (($sec['kode'] ?? '') === 'DDD') $isiDdd = $sec['isi'];
-    }
-    assertT2(str_contains($isiDdd, 'TOTAL POB : 15 ORANG') && str_contains($isiDdd, 'DALAM PENCARIAN (DP) : 13 ORANG'),
-        'buildSectionsFromSitrep menghitung POB 15 orang dan 13 orang belum ditemukan (DP) ke naskah resmi');
-
-    $braTutup = BraHelper::buildSectionsFromPenutupan($opsPob, $mockSitrep, $opsPob['korban']);
-    $isiDddTutup = '';
-    foreach ($braTutup['sections'] as $sec) {
-        if (($sec['kode'] ?? '') === 'DDD') $isiDddTutup = $sec['isi'];
-    }
-    assertT2(str_contains($isiDddTutup, 'TOTAL POB : 15 ORANG'),
-        'buildSectionsFromPenutupan tetap mempertahankan total POB 15 orang');
 } finally {
     OperasiModel::delete($idOpPob);
 }

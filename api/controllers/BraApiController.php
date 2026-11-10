@@ -47,23 +47,7 @@ class BraApiController extends BaseApiController {
             return true;
         }
 
-        // 3. Available SAR Vessels
-        if ($path === '/bra/vessels' && $method === 'GET') {
-            self::requireAuth();
-            self::json(['success' => true, 'data' => BraHelper::getAvailableVessels()]);
-            return true;
-        }
-
-        // 4. Vessel Movement Template
-        if ($path === '/bra/vessel-template' && $method === 'GET') {
-            self::requireAuth();
-            $vessel = $_GET['vessel'] ?? 'KN_SAR_PACITAN';
-            $movement = $_GET['movement'] ?? 'TOLAK';
-            self::json(['success' => true, 'data' => BraHelper::buildSectionsFromVesselMovement($vessel, $movement)]);
-            return true;
-        }
-
-        // 5. Create BRA
+        // 3. Create BRA
         if ($path === '/bra' && $method === 'POST') {
             self::requireAuth();
             $newId = BraModel::create($input);

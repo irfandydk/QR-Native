@@ -83,9 +83,6 @@ FOOTER;
     }
 
     /**
-     * Generate WhatsApp message for Laporan Awal Operasi SAR.
-     */
-    /**
      * Baris "jarak tempuh" Laporan Awal: "12 NM (Radial 277° dari Kantor SAR Kendari)".
      * Tanpa radial → "(dari …)"; tanpa asal → "(Radial …)"; tanpa jarak → "-".
      */

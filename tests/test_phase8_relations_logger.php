@@ -173,10 +173,6 @@ assertCondition(
     "GisApiController memiliki sub-dispatcher handleRoutesRoute()",
     str_contains($apiControllerFile, 'function handleRoutesRoute(')
 );
-assertCondition(
-    "GisApiController memiliki sub-dispatcher handleRoutingDirectionsRoute()",
-    str_contains($apiControllerFile, 'function handleRoutingDirectionsRoute(')
-);
 
 // ---------------------------------------------------------------------
 // 4. VERIFIKASI CENTRALIZED DAILY ROTATING LOGGER (LogService)

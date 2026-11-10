@@ -89,16 +89,8 @@ class MasterModel {
         return SarUnitModel::create($data);
     }
 
-    public static function updateSarUnit(int $id, array $data): bool {
-        return SarUnitModel::update($id, $data);
-    }
-
     public static function deleteSarUnit(int $id): bool {
         return SarUnitModel::delete($id);
-    }
-
-    public static function setDefaultSarUnit(int $id): bool {
-        return SarUnitModel::setDefault($id);
     }
 
     // --- Pejabat / SMC (Delegated to PejabatModel) ---

@@ -35,10 +35,6 @@ class TemplateHelper {
         return SarCalculationService::formatTanggalSimple($dateInput);
     }
 
-    public static function getNamaHariIndo(string|int|null $input): string {
-        return SarCalculationService::getNamaHariIndo($input);
-    }
-
     public static function formatJamWITA(?string $dateInput): string {
         return SarCalculationService::formatJamWITA($dateInput);
     }

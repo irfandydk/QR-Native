@@ -13,10 +13,6 @@ class AuthHelper {
     /** Cache verifikasi sesi per HTTP request agar tidak query Users berulang kali */
     private static ?string $verifiedSessionKey = null;
 
-    public static function clearCache(): void {
-        self::$verifiedSessionKey = null;
-    }
-
     /**
      * Sesi sah hanya bila akun masih aktif, sandinya belum berubah sejak login (sidik kredensial cocok)
      * dan belum melewati umur mutlak. Sesi yang tidak sah dibersihkan.
@@ -475,15 +471,7 @@ class AuthHelper {
         return $_SESSION['csrf_token'];
     }
 
-    public static function getCsrfToken(): string {
-        return self::csrfToken();
-    }
-
     public static function validateCsrf(?string $token): bool {
         return !empty($_SESSION['csrf_token']) && !empty($token) && hash_equals($_SESSION['csrf_token'], $token);
-    }
-
-    public static function verifyCsrf(?string $token): bool {
-        return self::validateCsrf($token);
     }
 }

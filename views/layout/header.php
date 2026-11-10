@@ -28,6 +28,11 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
     <script>
         window.BASE_URL = <?= jsonSafe(BASE_URL) ?>;
         window.CSRF_TOKEN = <?= jsonSafe(csrfToken()) ?>;
+        if (typeof window.showToast !== 'function') {
+            window.showToast = function (msg, type) {
+                console.log('[Toast ' + (type || 'info') + ']', msg);
+            };
+        }
 
         // Global Fetch Interceptor to automatically attach CSRF Token to state-changing requests
         (function() {

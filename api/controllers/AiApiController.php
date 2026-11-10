@@ -64,36 +64,6 @@ class AiApiController extends BaseApiController {
             return true;
         }
 
-        // 4. Draft SITREP
-        if ($path === '/ai/draft-sitrep' && $method === 'POST') {
-            self::prepareAiRequest();
-            $mode = $input['mode'] ?? 'quick_draft';
-            $hariKe = $input['hariKe'] ?? ($input['hari_ke'] ?? 'H.1');
-            $nama = $input['namaOperasi'] ?? ($input['nama_operasi'] ?? '');
-            $unsur = $input['unsur'] ?? '';
-            $alut = $input['alut'] ?? '';
-            $hasil = $input['hasil'] ?? 'NIHIL';
-            $kendala = $input['kendala'] ?? 'Nihil';
-
-            if ($mode === 'refine_raw') {
-                $raw = $input['rawDraft'] ?? ($input['catatan'] ?? ($input['rawText'] ?? ($input['draftInput'] ?? ($input['tindakanHariIni'] ?? ''))));
-                self::json(AiHelper::refineSitrepRawDraft($raw, $hariKe, $nama, [
-                    'unsur' => $unsur,
-                    'alut' => $alut,
-                    'hasil' => $hasil,
-                    'kendala' => $kendala
-                ]));
-                return true;
-            }
-
-            $tindakan = $input['tindakanHariIni'] ?? ($input['draftInput'] ?? ($input['catatan'] ?? ''));
-            self::json(AiHelper::draftSitrep($hariKe, $tindakan, $hasil, $kendala, $nama, [
-                'unsur' => $unsur,
-                'alut' => $alut
-            ]));
-            return true;
-        }
-
         return false;
     }
 }

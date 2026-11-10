@@ -48,12 +48,7 @@ class GisApiController extends BaseApiController {
             return true;
         }
 
-        // 8. OSRM Directions & Route Calculation
-        if (self::handleRoutingDirectionsRoute($path, $method, $input)) {
-            return true;
-        }
-
-        // 9. Document Map Snapshots (Capture 16:9 for Official Printouts)
+        // 8. Document Map Snapshots (Capture 16:9 for Official Printouts)
         if (self::handleSnapshotsRoute($path, $method, $input)) {
             return true;
         }
@@ -280,25 +275,6 @@ class GisApiController extends BaseApiController {
             self::assertCanMutateGis('GisRoute', $targetId);
             $ok = GisModel::deleteRoute($targetId);
             self::json(['success' => $ok]);
-            return true;
-        }
-
-        return false;
-    }
-
-    private static function handleRoutingDirectionsRoute(string $path, string $method, array $input): bool {
-        if ($path === '/gis/directions' && $method === 'POST') {
-            self::requireAuth();
-            if (session_status() === PHP_SESSION_ACTIVE) {
-                session_write_close();
-            }
-            self::handleDirections($input);
-            return true;
-        }
-
-        if ($path === '/maps/calculate-route' && $method === 'POST') {
-            self::requireAuth();
-            self::handleCalculateRoute($input);
             return true;
         }
 
@@ -606,94 +582,6 @@ class GisApiController extends BaseApiController {
         } catch (Throwable) {}
 
         self::json(['success' => true, 'message' => 'Logo kustom berhasil dihapus dari galeri dan dilepas dari titik peta.']);
-    }
-
-    private static function handleDirections(array $input): void {
-        $startLat = (float)($input['startLat'] ?? 0);
-        $startLng = (float)($input['startLng'] ?? 0);
-        $destLat = (float)($input['destLat'] ?? 0);
-        $destLng = (float)($input['destLng'] ?? 0);
-        $mode = (string)($input['mode'] ?? 'road');
-
-        if (!$startLat || !$startLng || !$destLat || !$destLng) {
-            self::error('Koordinat asal dan tujuan tidak valid', 400);
-        }
-
-        $points = [];
-        $engine = 'Jalur Navigasi Standar';
-        $distanceMeters = 0;
-        $durationSeconds = 0;
-
-        if (empty($points) && $mode === 'road') {
-            $osrmUrl = "https://router.project-osrm.org/route/v1/driving/{$startLng},{$startLat};{$destLng},{$destLat}?overview=full&geometries=geojson";
-            $ch = curl_init($osrmUrl);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 7,
-                CURLOPT_SSL_VERIFYPEER => true,
-                CURLOPT_SSL_VERIFYHOST => 2,
-                CURLOPT_USERAGENT => 'QR-SAR-Kendari/2.5.0 (basarnas-kendari; contact: admin@basarnas.go.id)'
-            ]);
-            $osrmRes = curl_exec($ch);
-            if (!empty($osrmRes)) {
-                $osrmData = json_decode($osrmRes, true);
-                if (!empty($osrmData['routes'][0]['geometry']['coordinates'])) {
-                    $allCoords = $osrmData['routes'][0]['geometry']['coordinates'];
-                    $totalPts = count($allCoords);
-                    if ($totalPts > 250) {
-                        $step = ($totalPts - 1) / 249;
-                        for ($idx = 0; $idx < 250; $idx++) {
-                            $coordIndex = (int)round($idx * $step);
-                            if ($coordIndex >= $totalPts) $coordIndex = $totalPts - 1;
-                            $c = $allCoords[$coordIndex];
-                            $points[] = ['lat' => (float)$c[1], 'lng' => (float)$c[0]];
-                        }
-                    } else {
-                        foreach ($allCoords as $c) {
-                            $points[] = ['lat' => (float)$c[1], 'lng' => (float)$c[0]];
-                        }
-                    }
-                    $distanceMeters = (float)($osrmData['routes'][0]['distance'] ?? 0);
-                    $durationSeconds = (float)($osrmData['routes'][0]['duration'] ?? 0);
-                    $engine = 'OSRM Server Live Routing';
-                }
-            }
-        }
-
-        self::json([
-            'success' => true,
-            'engine' => $engine,
-            'hasRoadApi' => !empty($points),
-            'points' => $points,
-            'distanceMeters' => $distanceMeters,
-            'durationSeconds' => $durationSeconds
-        ]);
-    }
-
-    private static function handleCalculateRoute(array $input): void {
-        $startLat = (float)($input['startLat'] ?? GeoHelper::KANSAR_KENDARI_LAT);
-        $startLng = (float)($input['startLng'] ?? GeoHelper::KANSAR_KENDARI_LNG);
-        $destLat = (float)($input['destLat'] ?? 0);
-        $destLng = (float)($input['destLng'] ?? 0);
-        $speed = (float)($input['speedKnots'] ?? 20);
-
-        $distNm = GeoHelper::calculateDistanceNm($startLat, $startLng, $destLat, $destLng);
-        $distKm = GeoHelper::calculateDistanceKm($startLat, $startLng, $destLat, $destLng);
-        $bearing = GeoHelper::calculateBearing($startLat, $startLng, $destLat, $destLng);
-
-        $hours = $speed > 0 ? ($distNm / $speed) : 0;
-        $hrs = floor($hours);
-        $mins = round(($hours - $hrs) * 60);
-        $etaText = "{$hrs} Jam {$mins} Menit";
-
-        self::json([
-            'success' => true,
-            'distance_nm' => $distNm,
-            'distance_km' => $distKm,
-            'bearing' => $bearing,
-            'eta_text' => $etaText,
-            'dms' => GeoHelper::decimalToDms($destLat, $destLng)
-        ]);
     }
 
     private static function handleSnapshotsRoute(string $path, string $method, array $input): bool {

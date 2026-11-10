@@ -347,11 +347,11 @@ function initBraForm() {
   });
 
   // Buttons for Waktu Sekarang
-  document.getElementById('btnSetTwbNow').addEventListener('click', function() {
+  document.getElementById('btnSetTwbNow')?.addEventListener('click', function() {
     document.getElementById('twbInput').value = getMilitaryTW(new Date(Date.now() - 15 * 60000));
     syncLivePreview();
   });
-  document.getElementById('btnSetTwuNow').addEventListener('click', function() {
+  document.getElementById('btnSetTwuNow')?.addEventListener('click', function() {
     document.getElementById('twuInput').value = getMilitaryTW(new Date());
     syncLivePreview();
   });
@@ -437,7 +437,7 @@ function initBraForm() {
   }
 
   // Format Sandi Telegram (Kapital & TTK/KMA/TTK DUA & Reduplikasi S) Manual via Button
-  document.getElementById('btnFormatTelegramPunctuation').addEventListener('click', function() {
+  document.getElementById('btnFormatTelegramPunctuation')?.addEventListener('click', function() {
     form.querySelectorAll('textarea, input[type="text"]').forEach(el => {
       if (['noBraInput','menbraInput','twuInput','twbInput','twtInput','twkInput','sistemInput','parafInput','panggilanInput','nrStnInput','namaSmcInput','pangkatSmcInput','jabatanSmcInput','dariInput','pengirimInput','aksiInput','infoInput'].includes(el.id)) {
         el.value = el.value.toUpperCase();

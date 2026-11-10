@@ -543,15 +543,17 @@ async function deleteRenops(id) {
             const res = await fetch((window.BASE_URL || '') + '/api/renops/' + encodeURIComponent(id), { 
                 method: 'DELETE',
                 headers: {
+                    'Accept': 'application/json',
                     'X-CSRF-Token': window.CSRF_TOKEN || document.querySelector('meta[name="csrf-token"]')?.content || ''
                 }
             });
-            const json = await res.json();
-            if (json.success) {
+            let json = {};
+            try { json = await res.json(); } catch (_) { json = {}; }
+            if (res.ok && json.success) {
                 showToast('RENOPS berhasil dihapus', 'success');
                 setTimeout(() => location.reload(), 600);
             } else {
-                showToast(json.error || json.message || 'Gagal menghapus RENOPS', 'error');
+                showToast(json.error || json.message || ('Gagal menghapus RENOPS (' + res.status + ')'), 'error');
             }
         } catch (e) {
             showToast('Terjadi kesalahan jaringan: ' + e.message, 'error');
@@ -573,15 +575,17 @@ async function deleteLaporan(id) {
             const res = await fetch((window.BASE_URL || '') + '/api/laporan/' + encodeURIComponent(id), { 
                 method: 'DELETE',
                 headers: {
+                    'Accept': 'application/json',
                     'X-CSRF-Token': window.CSRF_TOKEN || document.querySelector('meta[name="csrf-token"]')?.content || ''
                 }
             });
-            const json = await res.json();
-            if (json.success) {
+            let json = {};
+            try { json = await res.json(); } catch (_) { json = {}; }
+            if (res.ok && json.success) {
                 showToast('Laporan berhasil dihapus', 'success');
                 setTimeout(() => location.reload(), 600);
             } else {
-                showToast(json.error || json.message || 'Gagal menghapus laporan', 'error');
+                showToast(json.error || json.message || ('Gagal menghapus laporan (' + res.status + ')'), 'error');
             }
         } catch (e) {
             showToast('Terjadi kesalahan jaringan: ' + e.message, 'error');
@@ -645,6 +649,7 @@ async function confirmAndRollbackOperasi(idOperasi) {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json',
                     'X-CSRF-Token': window.CSRF_TOKEN || document.querySelector('meta[name="csrf-token"]')?.content || ''
                 },
                 body: JSON.stringify({ 
@@ -652,8 +657,9 @@ async function confirmAndRollbackOperasi(idOperasi) {
                     csrf_token: window.CSRF_TOKEN || document.querySelector('meta[name="csrf-token"]')?.content || ''
                 })
             });
-            const data = await resp.json();
-            if (data.success) {
+            let data = {};
+            try { data = await resp.json(); } catch (_) { data = {}; }
+            if (resp.ok && data.success) {
                 await Swal.fire({
                     icon: 'success',
                     title: 'Operasi SAR Berhasil Dibuka!',
@@ -666,7 +672,7 @@ async function confirmAndRollbackOperasi(idOperasi) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal Membuka Kembali Operasi',
-                    text: data.message || 'Terjadi kesalahan sistem saat memperbarui status.',
+                    text: data.message || ('Terjadi kesalahan sistem saat memperbarui status (' + resp.status + ').'),
                     confirmButtonColor: '#ef4444'
                 });
             }

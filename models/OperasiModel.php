@@ -94,27 +94,6 @@ class OperasiModel {
         return $stmt->fetchAll();
     }
 
-    public static function countAll(?string $status = null, ?string $search = null): int {
-        $db = getDB();
-        $sql = "SELECT COUNT(*) FROM Operasi o WHERE 1=1";
-        $params = [];
-        if ($status && in_array(strtoupper($status), ['OPEN', 'CLOSED'])) {
-            $sql .= " AND o.status = :status";
-            $params[':status'] = strtoupper($status);
-        }
-        if (!empty($search)) {
-            $sql .= " AND (o.nama_operasi LIKE :q1 OR o.lokasi_kejadian LIKE :q2 OR o.nama_pelapor LIKE :q3 OR o.koordinat LIKE :q4)";
-            $q = "%{$search}%";
-            $params[':q1'] = $q;
-            $params[':q2'] = $q;
-            $params[':q3'] = $q;
-            $params[':q4'] = $q;
-        }
-        $stmt = $db->prepare($sql);
-        $stmt->execute($params);
-        return (int)$stmt->fetchColumn();
-    }
-
     public static function getById(int $id): ?array {
         $db = getDB();
         $stmt = $db->prepare("SELECT * FROM Operasi WHERE id_operasi = :id LIMIT 1");

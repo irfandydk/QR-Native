@@ -199,19 +199,6 @@
         const hh = String(wita.getHours()).padStart(2, '0');
         const min = String(wita.getMinutes()).padStart(2, '0');
         return `${mm}${dd} ${hh}${min} H`;
-      },
-
-      /**
-       * Count words in telegram string (Senkom Basarnas standard).
-       * @param {string} text
-       * @returns {number}
-       */
-      countWords(text) {
-        if (!text || typeof text !== 'string') return 0;
-        const trimmed = text.trim();
-        if (!trimmed) return 0;
-        const words = trimmed.split(/\s+/).filter(Boolean);
-        return words.length;
       }
     }
   };

@@ -71,8 +71,13 @@ class RenopsDokumenApiController extends BaseApiController {
                 self::error('Foto tidak ditemukan.', 404);
             }
             $ket = $input['keterangan'] ?? (string)$cur['keterangan'];
-            $urutan = $input['urutan'] ?? (int)$cur['urutan'];
-            if (!is_string($ket) || !is_int($urutan) || $urutan < 0 || $urutan > 2147483647) {
+            $urutanRaw = $input['urutan'] ?? $cur['urutan'];
+            $isInteger = is_int($urutanRaw) || (is_string($urutanRaw) && ctype_digit(trim($urutanRaw)));
+            if (!is_string($ket) || !$isInteger) {
+                self::error('Keterangan harus teks dan urutan bilangan bulat.', 422);
+            }
+            $urutan = (int)$urutanRaw;
+            if ($urutan < 0 || $urutan > 2147483647) {
                 self::error('Keterangan harus teks dan urutan bilangan bulat.', 422);
             }
             RenopsFotoModel::update((int)$sub, $id, mb_substr($ket, 0, 255), $urutan);
@@ -146,14 +151,6 @@ class RenopsDokumenApiController extends BaseApiController {
             'verify_url' => $res['verify_url'], 'public_url' => $res['public_url'],
             'print_url' => BASE_URL . '/operasi.php?action=print_renops&id_renops=' . $id,
         ]);
-    }
-
-    public static function uploadFoto(int $id): void {
-        self::upload($id);
-    }
-
-    public static function jsonError(string $message, int $statusCode = 400): void {
-        self::error($message, $statusCode);
     }
 
     private static function upload(int $id): void {

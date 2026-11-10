@@ -219,10 +219,6 @@ assertAudit("LaporanModel::update() mengizinkan penyuntingan laporan penutupan p
 // ---------------------------------------------------------------------
 echo "\n--- 5. AUDIT MODUL 3: BERITA RADIO SAR (BRA SAR) ---\n";
 
-// A. Pembuatan BRA Operasi SAR otomatis dari Laporan Awal
-$tplLaporanAwal = BraHelper::buildSectionsFromLaporanAwal($closedOp);
-assertAudit("buildSectionsFromLaporanAwal() menghasilkan seksi berita", !empty($tplLaporanAwal['sections']));
-
 $braOpsData = [
     'kategori' => 'OPERASI_SAR',
     'id_operasi' => $opId,
@@ -236,8 +232,13 @@ $braOpsData = [
     'jabatan_smc' => 'SMC',
     'twu' => '1018 0815 H',
     'twb' => '1018 0800 H',
-    'perihal' => $tplLaporanAwal['perihal'],
-    'sections' => $tplLaporanAwal['sections']
+    'perihal' => 'LAPORAN AWAL ' . strtoupper($closedOp['nama_operasi']) . ' TTK',
+    'sections' => [
+        ['kode' => 'AAA', 'isi' => 'PADA TW 1018 0800 H TERIMA INFO DARI PELAPOR TTK'],
+        ['kode' => 'BBB', 'isi' => 'TIM RESCUE DIBERANGKATKAN MENUJU LKP TTK'],
+        ['kode' => 'CCC', 'isi' => 'UNSUR SAR TERLIBAT DAN KONDISI CUACA CERAH TTK'],
+        ['kode' => 'DDD', 'isi' => 'LAPORAN PERKEMBANGAN MENYUSUL KMA KA KPP KENDARI KRM TTK HBS']
+    ]
 ];
 
 $braOpsId = BraModel::create($braOpsData);

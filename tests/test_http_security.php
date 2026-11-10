@@ -170,8 +170,8 @@ try {
 
         $db->prepare("UPDATE `Users` SET password_hash = :p, is_active = 1 WHERE id = 'USR-ADMIN'")->execute([':p' => password_hash(DEFAULT_RESET_PASSWORD, PASSWORD_DEFAULT)]);
         $loginAs($adminName, DEFAULT_RESET_PASSWORD);
-        [$c, , $b] = http('GET', '/api/export/sql', ['headers' => ['X-Requested-With: XMLHttpRequest']]);
-        assertCondition($c === 403 && str_contains($b, 'PASSWORD_CHANGE_REQUIRED'), "ADMIN bersandi bawaan tidak bisa ekspor SQL lewat API (dapat {$c})");
+        [$c, , $b] = http('PUT', '/api/settings', ['headers' => ['X-Requested-With: XMLHttpRequest', 'Content-Type: application/json']]);
+        assertCondition($c === 403 && str_contains($b, 'PASSWORD_CHANGE_REQUIRED'), "ADMIN bersandi bawaan tidak bisa ubah pengaturan lewat API (dapat {$c})");
         [$c, , $b] = http('GET', '/api/settings', ['headers' => ['X-Requested-With: XMLHttpRequest']]);
         assertCondition(!str_contains($b, 'gemini_api_key'), "ADMIN bersandi bawaan tidak menerima pengaturan rahasia (dapat {$c})");
     } finally {

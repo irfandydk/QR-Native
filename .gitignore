@@ -27,3 +27,4 @@ database/*.sql
 *cookie*.txt
 storage/app.key
 .superpowers/
+graphify-out/

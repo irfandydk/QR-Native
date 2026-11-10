@@ -307,10 +307,6 @@ function validateCsrf(?string $token = null): bool {
     return AuthHelper::validateCsrf((string)$t);
 }
 
-function verifyCsrfToken(?string $token = null): bool {
-    return validateCsrf($token);
-}
-
 // Global sanitization helper
 function e(mixed $value): string {
     return htmlspecialchars((string)($value ?? ''), ENT_QUOTES, 'UTF-8');

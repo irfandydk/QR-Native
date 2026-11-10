@@ -101,7 +101,16 @@ if (!empty($isPublic) && !empty($_GET['token'])) {
         if (!sheets.length) return;
         // Lebar asli tiap lembar (portrait 210mm, landscape 297mm), diukur sebelum zoom.
         const widths = sheets.map((sh) => sh.offsetWidth);
-        const fit = () => sheets.forEach((sh, i) => { sh.style.zoom = String(Math.min(1, (box.clientWidth - 16) / widths[i])); });
+        const supportsZoom = typeof document !== 'undefined' && document.body && ('zoom' in document.body.style);
+        const fit = () => sheets.forEach((sh, i) => {
+            const ratio = Math.min(1, (box.clientWidth - 16) / widths[i]);
+            sh.style.zoom = String(Math.min(1, (box.clientWidth - 16) / widths[i]));
+            if (!supportsZoom) {
+                sh.style.transform = ratio < 1 ? `scale(${ratio})` : '';
+                sh.style.transformOrigin = 'top left';
+                sh.style.marginBottom = ratio < 1 ? `-${Math.round((1 - ratio) * sh.offsetHeight)}px` : '';
+            }
+        });
         fit();
         window.addEventListener('resize', fit);
     })();

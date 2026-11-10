@@ -662,36 +662,6 @@
   let savedRoutePolylinesMap = new Map();
   let temporarySearchMarker = null;
 
-  // Dynamic Sultra Landmarks & Maritime Presets loaded from Database (SarUnit table)
-  function getVerifiedMaritimePresets() {
-    const rawUnits = (window.SAR_INITIAL_GIS_DATA && Array.isArray(window.SAR_INITIAL_GIS_DATA.sarUnits))
-      ? window.SAR_INITIAL_GIS_DATA.sarUnits
-      : [];
-
-    return rawUnits.map((u) => {
-      const j = (u.jenis_unit || '').toUpperCase();
-      let badge = 'SAR SULTRA';
-      let type = 'Fasilitas Operasional SAR';
-      if (j === 'KANSAR') { badge = 'UNIT BASARNAS'; type = 'Kantor SAR Utama'; }
-      else if (j === 'POS_SAR') { badge = 'UNIT BASARNAS'; type = 'Pos SAR Resmi'; }
-      else if (j === 'UNIT_SIAGA') { badge = 'UNIT BASARNAS'; type = 'Unit Siaga SAR'; }
-      else if (j === 'DERMAGA') { badge = 'PANGKALAN ALUT'; type = 'Pangkalan Kapal SAR'; }
-      else if (j === 'PELABUHAN') { badge = 'PELABUHAN'; type = 'Pelabuhan Maritim'; }
-      else if (j === 'PERAIRAN') { badge = 'PERAIRAN'; type = 'Kawasan Perairan & Alur Laut'; }
-
-      return {
-        name: u.nama_unit || '',
-        address: u.alamat || `${u.nama_unit}, ${u.wilayah || 'Sulawesi Tenggara'}`,
-        lat: parseFloat(u.latitude),
-        lng: parseFloat(u.longitude),
-        badge: badge,
-        type: type,
-        dms: u.koordinat_dms || ''
-      };
-    });
-  }
-
-
   // Comprehensive Preset Point Icons for SAR operations, incidents, places, assets, and tactical markers
   const PRESET_ICONS = [
     // --- KEJADIAN & BENCANA ---
@@ -8115,9 +8085,20 @@
   // 14. BOOTSTRAP APPLICATION
   // ==========================================
 
+  let bootstrapRetryCount = 0;
+  const MAX_BOOTSTRAP_RETRIES = 60; // 60 * 50ms = 3000ms (3 detik)
+
   function bootstrapApp() {
     if (typeof L === 'undefined') {
-      setTimeout(bootstrapApp, 50);
+      bootstrapRetryCount++;
+      if (bootstrapRetryCount < MAX_BOOTSTRAP_RETRIES) {
+        setTimeout(bootstrapApp, 50);
+        return;
+      }
+      console.error('[GIS Bootstrap] Pustaka Leaflet (L) gagal dimuat setelah ' + (MAX_BOOTSTRAP_RETRIES * 50) + 'ms.');
+      if (typeof showToast === 'function') {
+        showToast('Pustaka peta (Leaflet) gagal dimuat. Periksa koneksi atau muat ulang halaman.', 'error');
+      }
       return;
     }
 

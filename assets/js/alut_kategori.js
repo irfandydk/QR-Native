@@ -5,6 +5,7 @@
   const cfg = window.ALUT_KATEGORI || { urutan: [], kata: {} };
   const kodes = cfg.urutan.map((k) => k.kode);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const escRegex = (s) => String(s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const PALSAR = 'PALSAR';
   const master = cfg.master || { id: {}, nama: {} };
   // Kunci nama sama dengan AlutKategori::kunciNama (huruf kecil, spasi dirapikan).
@@ -19,8 +20,12 @@
     const dariMaster = normalize((master.nama || {})[kunci(nama)]);
     if (dariMaster) return dariMaster;
     const n = String(nama || '');
-    for (const [kode, kata] of Object.entries(cfg.kata)) {
-      if (new RegExp('(^|[^\\p{L}\\p{N}_])(' + kata.join('|') + ')(?=$|[^\\p{L}\\p{N}_])', 'iu').test(n)) return kode;
+    for (const [kode, kata] of Object.entries(cfg.kata || {})) {
+      if (!Array.isArray(kata) || !kata.length) continue;
+      const pattern = kata.map(escRegex).join('|');
+      try {
+        if (new RegExp('(^|[^\\p{L}\\p{N}_])(' + pattern + ')(?=$|[^\\p{L}\\p{N}_])', 'iu').test(n)) return kode;
+      } catch (e) {}
     }
     return PALSAR;
   }

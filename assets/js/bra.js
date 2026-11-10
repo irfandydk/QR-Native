@@ -149,27 +149,3 @@ function renderBraQRCode(canvasId, verifyUrl, logoUrl, retries = 0) {
         }
     });
 }
-
-// Adjust Document Paper Scale & Size
-function setPaperScale(delta) {
-    const paper = document.getElementById('official-bra-document');
-    if (!paper) return;
-
-    let current = parseInt(paper.getAttribute('data-scale') || '100', 10);
-    current = Math.min(125, Math.max(75, current + delta));
-    paper.setAttribute('data-scale', current);
-    paper.style.transform = `scale(${current / 100})`;
-    paper.style.transformOrigin = 'top center';
-
-    const label = document.getElementById('scale-label');
-    if (label) label.textContent = current + '%';
-}
-
-function setPaperSize(size) {
-    const paper = document.getElementById('official-bra-document');
-    if (!paper) return;
-
-    paper.classList.remove('paper-a4', 'paper-f4', 'paper-letter', 'paper-legal');
-    paper.classList.add(`paper-${size.toLowerCase()}`);
-    showToast(`Ukuran kertas diatur ke ${size}`, 'info');
-}

@@ -489,39 +489,6 @@
   }
 
   /**
-   * Calculate total distance in Nautical Miles along waypoints
-   */
-  function calculatePatternDistance(type, waypoints) {
-    if (!waypoints || !Array.isArray(waypoints) || waypoints.length < 2) return 0;
-    let totalNm = 0;
-    if (type === 'sector_search' || type === 'e_sar') {
-      for (let i = 0; i < waypoints.length - 1; i += 2) {
-        const p1 = waypoints[i];
-        const p2 = waypoints[i + 1];
-        if (p1 && p2) {
-          totalNm += distNm(parseFloat(p1.lat), parseFloat(p1.lng), parseFloat(p2.lat), parseFloat(p2.lng));
-        }
-      }
-    } else {
-      for (let i = 0; i < waypoints.length - 1; i++) {
-        const p1 = waypoints[i];
-        const p2 = waypoints[i + 1];
-        totalNm += distNm(parseFloat(p1.lat), parseFloat(p1.lng), parseFloat(p2.lat), parseFloat(p2.lng));
-      }
-    }
-    return totalNm;
-  }
-
-  /**
-   * Calculate swept area (IAMSAR: A = S * L)
-   */
-  function calculateAreaSwept(totalNm, spacingNm) {
-    const areaSweptNm2 = Math.max(0, (totalNm || 0) * (spacingNm || 0));
-    const areaSweptKm2 = areaSweptNm2 * 3.429904;
-    return { nm2: areaSweptNm2, km2: areaSweptKm2 };
-  }
-
-  /**
    * Friendly display name for search patterns
    */
   function getPatternDisplayName(type) {
@@ -542,8 +509,6 @@
     generateFittedPatternInsidePolygon,
     generateDatumPattern,
     getPatternPolylineCoords,
-    calculatePatternDistance,
-    calculateAreaSwept,
     getPatternDisplayName
   };
 

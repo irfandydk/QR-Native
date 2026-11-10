@@ -16,23 +16,6 @@ class PejabatModel {
     }
 
     /**
-     * Alias for backward compatibility
-     */
-    public static function getPejabat(): array {
-        return self::getAll();
-    }
-
-    /**
-     * Get single official by ID
-     */
-    public static function getById(string $id): ?array {
-        $db = getDB();
-        $stmt = $db->prepare("SELECT * FROM Pejabat WHERE id = :id LIMIT 1");
-        $stmt->execute([':id' => $id]);
-        return $stmt->fetch() ?: null;
-    }
-
-    /**
      * Get default SMC (or fallback to first official)
      */
     public static function getDefaultSmc(): ?array {

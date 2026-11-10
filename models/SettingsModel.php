@@ -49,32 +49,8 @@ class SettingsModel {
         return $settings;
     }
 
-    public static function updateSatker(array $data): bool {
-        return self::updateSettings($data);
-    }
-
-    public static function updatePassword(string $newPass): array {
-        return self::changePassword('ADMIN', '', $newPass);
-    }
-
-    public static function savePejabat(array $data): string {
-        return MasterModel::createPejabat($data);
-    }
-
-    public static function updatePejabat(string $id, array $data): bool {
-        return MasterModel::updatePejabat($id, $data);
-    }
-
-    public static function deletePejabat(string $id): bool {
-        return MasterModel::deletePejabat($id);
-    }
-
     public static function getDbStats(): array {
         return BackupService::getDbStats();
-    }
-
-    public static function restoreFromJson(array $data): bool {
-        return BackupService::restoreFromJson($data);
     }
 
     public static function updateSettings(array $data): bool {
@@ -360,53 +336,5 @@ class SettingsModel {
             error_log("[SettingsModel changePassword] " . $e->getMessage());
             return ['success' => false, 'error' => 'Gagal memperbarui kata sandi: ' . $e->getMessage()];
         }
-    }
-
-    public static function resetToDefaultPassword(): bool {
-        $db = getDB();
-        $inTx = $db->inTransaction();
-        if (!$inTx) $db->beginTransaction();
-
-        try {
-            $defaultHash = password_hash(DEFAULT_RESET_PASSWORD, PASSWORD_DEFAULT);
-            $stmt = $db->prepare("UPDATE AppSettings SET admin_password = :pa, user_password = :pu WHERE id = 1");
-            $res = $stmt->execute([':pa' => $defaultHash, ':pu' => $defaultHash]);
-
-            if ($res) {
-                UserModel::ensureTableExists();
-                $db->prepare("UPDATE `Users` SET password_hash = :p, updated_at = :now")->execute([
-                    ':p' => $defaultHash,
-                    ':now' => date('Y-m-d H:i:s')
-                ]);
-
-                // Admin yang menjalankan reset tetap login; sesi akun lain gugur (refresh sebelum log, lihat changePassword)
-                AuthHelper::refreshCredentialFingerprint((string)($_SESSION['user_id'] ?? ''), $defaultHash);
-                AuditHelper::log('PASSWORD_RESET', "Mereset semua kata sandi pengguna ke bawaan sistem", 'Users', 'ALL');
-            }
-
-            if (!$inTx) $db->commit();
-            self::clearCache();
-            return $res;
-        } catch (Throwable $e) {
-            if (!$inTx && $db->inTransaction()) $db->rollBack();
-            error_log("[SettingsModel resetToDefaultPassword] " . $e->getMessage());
-            return false;
-        }
-    }
-
-    public static function exportJsonBackup(): array {
-        return BackupService::exportJsonBackup();
-    }
-
-    public static function generateSQLDump(): string {
-        return BackupService::generateSQLDump();
-    }
-
-    public static function splitSqlStatements(string $sql): array {
-        return BackupService::splitSqlStatements($sql);
-    }
-
-    public static function restoreFromSQL(string $sql): bool {
-        return BackupService::restoreFromSQL($sql);
     }
 }

@@ -39,37 +39,10 @@ class SettingsApiController extends BaseApiController {
 
         // 2. Update Settings
         if ($path === '/settings' && ($method === 'PUT' || $method === 'POST')) {
-            self::requireAdmin();
+            self::requireAdmin(true);
             $ok = SettingsModel::updateSettings($input);
             self::json(['success' => $ok, 'message' => 'Pengaturan satker berhasil disimpan.']);
             return true;
-        }
-
-        // 3. Export SQL Dump (Admin Only)
-        if ($path === '/export/sql' && $method === 'GET') {
-            self::requireAdmin();
-            if (session_status() === PHP_SESSION_ACTIVE) {
-                session_write_close();
-            }
-            $sql = SettingsModel::generateSQLDump();
-            header('Content-Type: application/sql; charset=utf-8');
-            header('Content-Disposition: attachment; filename="db_sar_qr.sql"');
-            echo $sql;
-            exit;
-        }
-
-        // 4. Backup JSON Export (Admin Only)
-        if (($path === '/database/export' || $path === '/backup/export') && $method === 'GET') {
-            self::requireAdmin();
-            if (session_status() === PHP_SESSION_ACTIVE) {
-                session_write_close();
-            }
-            $backup = SettingsModel::exportJsonBackup();
-            $date = date('Y-m-d');
-            header('Content-Type: application/json; charset=utf-8');
-            header('Content-Disposition: attachment; filename="BACKUP_DATABASE_SAR_KENDARI_' . $date . '.json"');
-            echo json_encode($backup, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            exit;
         }
 
         return false;

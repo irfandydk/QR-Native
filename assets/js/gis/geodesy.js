@@ -160,37 +160,6 @@
     },
 
     /**
-     * Calculate destination coordinates given starting point, distance in Nautical Miles, and bearing in degrees.
-     * @param {number} lat
-     * @param {number} lon
-     * @param {number} distanceNm
-     * @param {number} bearingDeg
-     * @returns {{ lat: number, lng: number }}
-     */
-    calculateDestinationPoint(lat, lon, distanceNm, bearingDeg) {
-      const R_NM = 3440.065; // Earth radius in Nautical Miles
-      const dRad = distanceNm / R_NM;
-      const bRad = (bearingDeg * Math.PI) / 180;
-      const lat1Rad = (lat * Math.PI) / 180;
-      const lon1Rad = (lon * Math.PI) / 180;
-
-      const lat2Rad = Math.asin(
-        Math.sin(lat1Rad) * Math.cos(dRad) +
-        Math.cos(lat1Rad) * Math.sin(dRad) * Math.cos(bRad)
-      );
-
-      const lon2Rad = lon1Rad + Math.atan2(
-        Math.sin(bRad) * Math.sin(dRad) * Math.cos(lat1Rad),
-        Math.cos(dRad) - Math.sin(lat1Rad) * Math.sin(lat2Rad)
-      );
-
-      return {
-        lat: (lat2Rad * 180) / Math.PI,
-        lng: ((lon2Rad * 180) / Math.PI + 540) % 360 - 180
-      };
-    },
-
-    /**
      * Calculate spherical nautical polygon area in NM² and perimeter.
      * @param {Array|Object} coordsOrPoly
      * @param {string} [shapeType]
@@ -295,24 +264,6 @@
         hectares: Math.round(hectares * 10) / 10,
         perimeterKm: Math.round(perimeterKm * 100) / 100,
         perimeterNm: Math.round(perimeterNm * 100) / 100
-      };
-    },
-
-    /**
-     * Compute polygon center centroid point.
-     * @param {Array<{lat: number, lng: number}>} points
-     * @returns {{ lat: number, lng: number }}
-     */
-    calculateCentroid(points) {
-      if (!points || !points.length) return { lat: -4.037694, lng: 122.486694 };
-      let sumLat = 0, sumLng = 0;
-      points.forEach(p => {
-        sumLat += (Number(p.lat) || 0);
-        sumLng += (Number(p.lng) || 0);
-      });
-      return {
-        lat: sumLat / points.length,
-        lng: sumLng / points.length
       };
     },
 

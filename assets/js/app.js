@@ -231,10 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-function updateThemeIcon(theme) {
-    applyThemeToDOM(theme);
-}
-
 // Check if dark mode is active
 function isAppDarkMode() {
     return document.documentElement.classList.contains('dark') ||
@@ -440,27 +436,6 @@ async function confirmAction(title, message, confirmBtnText = 'Ya, Lanjutkan', i
         return result.isConfirmed;
     }
     return confirm(message || title);
-}
-
-async function showConfirmDialog(title, message, isDanger = true) {
-    return await confirmAction(title, message, 'Ya, Hapus Data', isDanger);
-}
-
-function showSuccessAlert(title, text = '') {
-    if (window.Swal) {
-        const theme = getSwalTheme();
-        return Swal.fire({
-            icon: 'success',
-            title,
-            text,
-            confirmButtonText: 'OK, Lanjutkan',
-            confirmButtonColor: theme.confirmButtonColor,
-            background: theme.background,
-            color: theme.color,
-            customClass: theme.customClass
-        });
-    }
-    showToast(title, 'success');
 }
 
 function showErrorAlert(title, text = '') {

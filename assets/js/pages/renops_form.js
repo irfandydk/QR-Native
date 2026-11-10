@@ -959,10 +959,6 @@ async function refreshGisBundle(showToastAlert = false) {
   }
 }
 
-function formatDmsCoordPart(val, isLat) {
-  return window.QrSarUtils.formatDmsPart(val, isLat);
-}
-
 function formatDmsPair(lat, lng) {
   return window.QrSarUtils.formatDmsPair(lat, lng);
 }

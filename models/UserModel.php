@@ -147,15 +147,4 @@ class UserModel {
             $stmt->execute([':now' => date('Y-m-d H:i:s'), ':id' => $id]);
         } catch (Throwable) {}
     }
-
-    public static function updatePassword(string $id, string $newPassword): bool {
-        $db = getDB();
-        $hash = password_hash(trim($newPassword), PASSWORD_DEFAULT);
-        $stmt = $db->prepare("UPDATE `Users` SET password_hash = :p, updated_at = :u WHERE id = :id");
-        return $stmt->execute([
-            ':p' => $hash,
-            ':u' => date('Y-m-d H:i:s'),
-            ':id' => $id
-        ]);
-    }
 }

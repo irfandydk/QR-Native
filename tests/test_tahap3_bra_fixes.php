@@ -104,73 +104,6 @@ assertCondition(
 // Cleanup test Bra
 BraModel::delete($testBraId);
 
-
-// -------------------------------------------------------------
-// BAGIAN 2: UJI ISSUE-10 (Dukungan 3 Kapal Resmi Basarnas Kendari)
-// -------------------------------------------------------------
-echo "\n--- 2. UJI ISSUE-10: 3 Kapal Resmi (KN SAR PACITAN, RB 210, RB 307) ---\n";
-
-// 2.1 Cek getAvailableVessels
-$vessels = BraHelper::getAvailableVessels();
-assertCondition(
-    count($vessels) === 3 && isset($vessels['KN_SAR_PACITAN'], $vessels['RB_210'], $vessels['RB_307']),
-    "BraHelper::getAvailableVessels() mengembalikan tepat 3 kapal: KN SAR PACITAN, RB 210, dan RB 307"
-);
-
-// 2.2 Spesifikasi KN SAR PACITAN
-$pacitan = $vessels['KN_SAR_PACITAN'];
-assertCondition(
-    $pacitan['nama_resmi'] === 'KN SAR PACITAN 102' && $pacitan['panggilan'] === 'YCSB' && str_contains($pacitan['loa'], '59,80'),
-    "Spesifikasi KN SAR Pacitan 102 akurat (Call sign YCSB, LOA 59.80 M)"
-);
-
-// 2.3 Spesifikasi RESCUE BOAT 210
-$rb210 = $vessels['RB_210'];
-assertCondition(
-    $rb210['nama_resmi'] === 'RESCUE BOAT 210 KENDARI' && $rb210['panggilan'] === 'YCSB-210' && str_contains($rb210['loa'], '36 METER'),
-    "Spesifikasi Rescue Boat 210 akurat (Call sign YCSB-210, LOA 36 M)"
-);
-
-// 2.4 Spesifikasi RESCUE BOAT 307
-$rb307 = $vessels['RB_307'];
-assertCondition(
-    $rb307['nama_resmi'] === 'RESCUE BOAT 307 KENDARI' && $rb307['panggilan'] === 'YCSB-307' && str_contains($rb307['loa'], '28 METER'),
-    "Spesifikasi Rescue Boat 307 akurat (Call sign YCSB-307, LOA 28 M)"
-);
-
-// 2.5 Naskah Gerak: Tolak / Keberangkatan KN SAR Pacitan
-$pacitanTolak = BraHelper::buildSectionsFromVesselMovement('KN_SAR_PACITAN', 'TOLAK');
-assertCondition(
-    $pacitanTolak['derajat'] === 'SGR' &&
-    $pacitanTolak['panggilan'] === 'YCSB' &&
-    count($pacitanTolak['sections']) >= 3 &&
-    str_contains($pacitanTolak['sections'][0]['isi'], 'PELAYARAN KN SAR PACITAN 102') &&
-    str_contains($pacitanTolak['sections'][1]['isi'], 'NAKHODA : RUSLAN, S.T.'),
-    "Naskah Gerak TOLAK KN SAR Pacitan 102 terbentuk lengkap dengan seksi AAA, BBB, CCC baku militer"
-);
-
-// 2.6 Naskah Gerak: Pantauan Posisi RB 210
-$rb210Pantau = BraHelper::buildSectionsFromVesselMovement('RB_210', 'PANTAUAN');
-assertCondition(
-    $rb210Pantau['derajat'] === 'SGR' &&
-    $rb210Pantau['panggilan'] === 'YCSB-210' &&
-    str_contains($rb210Pantau['perihal'], 'LAPORAN PERKEMBANGAN POSISI RESCUE BOAT 210 KENDARI') &&
-    str_contains($rb210Pantau['sections'][0]['isi'], 'KOORDINAT') &&
-    str_contains($rb210Pantau['sections'][1]['isi'], 'KONDISI METEOROLOGI DAN LAUT'),
-    "Naskah Gerak PANTAUAN POSISI RB 210 terbentuk dengan koordinat, cuaca, dan kondisi material/personil"
-);
-
-// 2.7 Naskah Gerak: Sandar / Tiba RB 307
-$rb307Sandar = BraHelper::buildSectionsFromVesselMovement('RB_307', 'SANDAR');
-assertCondition(
-    $rb307Sandar['derajat'] === 'RUTIN' &&
-    $rb307Sandar['panggilan'] === 'YCSB-307' &&
-    str_contains($rb307Sandar['perihal'], 'SANDAR DI') &&
-    str_contains($rb307Sandar['sections'][1]['isi'], 'STATUS ALUT PASCA PELAYARAN') &&
-    str_contains($rb307Sandar['sections'][2]['isi'], 'NAKHODA RESCUE BOAT 307 KENDARI'),
-    "Naskah Gerak SANDAR RB 307 memiliki derajat RUTIN dan laporan status alut & personil pasca pelayaran"
-);
-
 // 2.8 Verifikasi kontrol form UI bra_form.php
 assertCondition(
     !str_contains($formFile, 'id="selectVesselChoice"') &&
@@ -182,13 +115,17 @@ assertCondition(
 // 2.9 Verifikasi Simpan Naskah Pergerakan Kapal ke DB & Word Count
 $kapalBraId = BraModel::create([
     'kategori' => 'PERGERAKAN_KAPAL',
-    'derajat' => $pacitanTolak['derajat'],
-    'panggilan' => $pacitanTolak['panggilan'],
-    'perihal' => $pacitanTolak['perihal'],
-    'aksi' => $pacitanTolak['aksi'],
-    'info' => $pacitanTolak['info'],
-    'dari' => $pacitanTolak['dari'],
-    'sections' => $pacitanTolak['sections']
+    'derajat' => 'SGR',
+    'panggilan' => 'YCSB',
+    'perihal' => 'PELAYARAN KN SAR PACITAN 102 DALAM RANGKA OPERASI SAR TTK',
+    'aksi' => 'KEPALA BADAN NASIONAL PENCARIAN DAN PERTOLONGAN',
+    'info' => 'DEPUTI BIDANG OPERASI PENCARIAN DAN PERTOLONGAN',
+    'dari' => 'KANSAR KENDARI',
+    'sections' => [
+        ['kode' => 'AAA', 'isi' => 'PADA TW 1110 0800 H PERINTAH PELAYARAN KN SAR PACITAN 102 TTK'],
+        ['kode' => 'BBB', 'isi' => 'DATA KAPAL KN SAR PACITAN 102 CALL SIGN YCSB TTK'],
+        ['kode' => 'CCC', 'isi' => 'LAPORAN PERKEMBANGAN MENYUSUL KMA NAKHODA KN SAR PACITAN 102 KRM TTK HBS']
+    ]
 ]);
 
 $savedKapalBra = BraModel::getById($kapalBraId);

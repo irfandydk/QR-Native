@@ -88,27 +88,6 @@ class GeoHelper {
     }
 
     /**
-     * Hitung jarak Nautical Miles (NM) antara dua koordinat bola bumi.
-     */
-    public static function calculateDistanceNm(float $lat1, float $lon1, float $lat2, float $lon2): float {
-        return self::calculateDistanceHaversine($lat1, $lon1, $lat2, $lon2)['nm'];
-    }
-
-    /**
-     * Hitung jarak Kilometer (KM) antara dua koordinat bola bumi.
-     */
-    public static function calculateDistanceKm(float $lat1, float $lon1, float $lat2, float $lon2): float {
-        return self::calculateDistanceHaversine($lat1, $lon1, $lat2, $lon2)['km'];
-    }
-
-    /**
-     * Hitung sudut azimuth / radial bearing (0-359 derajat) dari titik awal ke titik tujuan.
-     */
-    public static function calculateBearing(float $lat1, float $lon1, float $lat2, float $lon2): int {
-        return self::calculateDistanceHaversine($lat1, $lon1, $lat2, $lon2)['bearing'];
-    }
-
-    /**
      * Compute exact geodesic / spherical polygon area in Nautical Miles squared (Nm²).
      */
     public static function calculatePolygonAreaNm2(array $points, ?string $shapeType = null, ?float $radiusNm = null, ?float $boxWidthNm = null, ?float $boxHeightNm = null): float {

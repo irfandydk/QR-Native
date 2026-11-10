@@ -175,14 +175,6 @@ function openAiSitrepModal() {
   openModal('modal-ai-sitrep');
 }
 
-function setAiSitrepDraftInput(txt) {
-  const el = document.getElementById('ai-sitrep-draft-input');
-  if (el) {
-    el.value = txt;
-    el.focus();
-  }
-}
-
 async function generateAiSitrep() {
   const draftInput = document.getElementById('ai-sitrep-draft-input')?.value.trim() || '';
   if (!draftInput) {

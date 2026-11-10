@@ -16,14 +16,6 @@ function setPresetOps(prefix, jenisKejadian = '') {
   }
 }
 
-function setEtaPreset(text) {
-  document.getElementById('eta_lokasi').value = text;
-}
-
-function insertKronologiPreset(text) {
-  document.getElementById('kronologi').value = text;
-}
-
 // ── Interactive Unsur SAR Terlibat Editor (Reorderable + Master Data Reference) ──
 let currentUnsurList = opsFormCfg.initialUnsurData || [];
 let unsurSortable = null;
@@ -1881,15 +1873,6 @@ function copyWaText() {
     navigator.clipboard.writeText(txt).then(() => {
       if (typeof showToast === 'function') showToast('Naskah WhatsApp Berhasil Disalin!', 'success');
     });
-  }
-}
-
-// Preset input helper for modal
-function setAiDraftInput(text) {
-  const el = document.getElementById('ai-draft-input');
-  if (el) {
-    el.value = text;
-    el.focus();
   }
 }
 

@@ -53,14 +53,6 @@ class AuthApiController extends BaseApiController {
             return true;
         }
 
-        // 5. Reset Default Password (Admin only)
-        if ($path === '/auth/reset-default' && $method === 'POST') {
-            self::requireAdmin();
-            SettingsModel::resetToDefaultPassword();
-            self::json(['success' => true, 'message' => 'Kata sandi berhasil direset ke standar sistem (Kendari304).']);
-            return true;
-        }
-
         return false;
     }
 }

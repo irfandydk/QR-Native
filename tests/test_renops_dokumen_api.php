@@ -140,6 +140,9 @@ try {
     [$c] = runApi($fp, 'PUT', ['urutan' => 7], $sess);
     $row = RenopsFotoModel::listByRenops($rY)[0] ?? [];
     assertCondition($c === 200 && (int)$row['urutan'] === 7 && $row['keterangan'] === 'Awal', "PUT foto urutan saja: tersimpan, keterangan tetap (dapat {$c})");
+    [$cStr] = runApi($fp, 'PUT', ['urutan' => '8'], $sess);
+    $rowStr = RenopsFotoModel::listByRenops($rY)[0] ?? [];
+    assertCondition($cStr === 200 && (int)$rowStr['urutan'] === 8, "PUT foto urutan string integer '8' diterima (dapat {$cStr})");
 
     // Uji endpoint reorder & bulk-delete
     $t2 = tempnam(sys_get_temp_dir(), 'rdy2');

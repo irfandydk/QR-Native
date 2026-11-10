@@ -109,8 +109,8 @@ try {
         if (MasterApiController::handle($path, $method, $input)) exit;
     }
 
-    // 8. Application Settings & Database Backups
-    if (str_starts_with($path, '/settings') || str_starts_with($path, '/database/') || str_starts_with($path, '/backup/') || str_starts_with($path, '/export/')) {
+    // 8. Application Settings
+    if (str_starts_with($path, '/settings')) {
         if (SettingsApiController::handle($path, $method, $input)) exit;
     }
 
@@ -120,7 +120,7 @@ try {
     }
 
     // 10. Tactical Maritime GIS & Geocoding
-    if (str_starts_with($path, '/gis') || $path === '/geocode' || $path === '/maps/calculate-route') {
+    if (str_starts_with($path, '/gis') || $path === '/geocode') {
         if (GisApiController::handle($path, $method, $input)) exit;
     }
 
