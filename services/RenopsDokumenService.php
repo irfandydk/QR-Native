@@ -216,6 +216,7 @@ class RenopsDokumenService {
 
         $wMulaiOps = self::waktu($renops['waktu_mulai_ops'] ?? null, ', ');
         return [
+            'judul_operasi' => $nama,
             'awareness' => $awareness,
             'kronologi' => trim(str_replace(["\r\n", "\r"], "\n", $v('kronologi'))) ?: '-',
             'jenis_operasi' => $jenis ?: '-',

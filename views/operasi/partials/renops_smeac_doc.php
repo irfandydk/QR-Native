@@ -30,8 +30,10 @@ $satker = (string)($meta['satker_nama'] ?? '');
 $jenisKejadian = trim((string)($meta['jenis_kejadian'] ?? ''));
 $namaOps = trim((string)($meta['nama_operasi'] ?? ''));
 $noRenops = trim((string)($meta['nomor'] ?? $meta['no_renops'] ?? ''));
-// R7: jenis_kejadian sering kosong; tanpa spasi/titik dua menggantung.
-$kopBaris3 = 'Operasi SAR' . ($jenisKejadian !== '' ? " {$jenisKejadian}" : '') . ($namaOps !== '' ? ": {$namaOps}" : '');
+$kopBaris3 = trim((string)($S['judul_operasi'] ?? $namaOps));
+if ($kopBaris3 === '') {
+    $kopBaris3 = $namaOps;
+}
 $headerBerjalan = "Rencana Operasi SAR Hari ke-{$hariLabel} | {$satker}";
 // String CSS di dalam <style>: escape \ " dan < (cegah "</style>" menutup blok).
 $cssStr = fn(string $s): string => '"' . strtr($s, ['\\' => '\\\\', '"' => '\\"', '<' => '\\3C ', "\n" => ' ', "\r" => ' ', "\f" => ' ']) . '"';
@@ -318,7 +320,7 @@ $peng = $doc['pengesahan'] ?? [];
             <td class="kop-judul">
                 <p class="k1">RENCANA OPERASI SAR HARI KE-<?= e(mb_strtoupper($hariLabel)) ?></p>
                 <p class="k2"><?= e(mb_strtoupper($satker)) ?></p>
-                <p class="k3"><?= e($kopBaris3) ?></p>
+                <p class="k3 sec"<?= $sec('judul_operasi', 'text') ?>><span class="sec-body"><?= e($kopBaris3) ?></span></p>
             </td>
             <td class="kop-logo"><img src="<?= e(getAppLogo2DataUri()) ?>" alt="Logo SAR Nasional"></td>
         </tr>
