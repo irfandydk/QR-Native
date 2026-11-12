@@ -101,7 +101,7 @@ try {
     }
     assertCondition(str_contains($html, 'RENCANA OPERASI SAR HARI KE-1') && str_contains($html, e(getAppLogo2DataUri())) && getAppLogo2DataUri() !== getAppLogoDataUri(), 'Kop + logo kanan (logo kedua pengaturan, berbeda dari logo kiri)');
     assertCondition(str_contains($html, 'KANTOR PENCARIAN DAN PERTOLONGAN KENDARI'), 'Kop baris 2: satker huruf besar');
-    assertCondition(str_contains($html, 'Operasi SAR Kondisi Membahayakan Manusia: 1 (Satu) Orang Hilang di Kebun Desa Manuru'), 'Kop baris 3 dengan jenis kejadian');
+    assertCondition(str_contains($html, '1 (Satu) Orang Hilang di Kebun Desa Manuru') && !str_contains($html, 'Operasi SAR Kondisi Membahayakan Manusia'), 'Kop baris 3 menampilkan nama operasi murni tanpa dobel jenis kejadian');
     assertCondition(is_file(ROOT_DIR . '/assets/images/logo_sar_nasional.jpg'), 'Aset logo_sar_nasional.jpg tersedia');
     assertCondition(!str_contains($html, 'Total Endurance'), 'Tanpa kolom Total Endurance');
     assertCondition(str_contains($html, 'Tabel 1. Data Kejadian') && str_contains($html, 'Gambar 1. Peta Lokasi'), 'Penomoran tabel/gambar');
@@ -173,7 +173,7 @@ try {
     $docR7 = $doc;
     $docR7['meta']['jenis_kejadian'] = '';
     $htmlR7 = $render($docR7, 'final', $qrUrl);
-    assertCondition(str_contains($htmlR7, 'Operasi SAR: 1 (Satu) Orang Hilang di Kebun Desa Manuru') && !str_contains($htmlR7, 'Operasi SAR :'), 'Kop baris 3 tanpa jenis kejadian (R7)');
+    assertCondition(str_contains($htmlR7, '1 (Satu) Orang Hilang di Kebun Desa Manuru') && !str_contains($htmlR7, 'Operasi SAR :'), 'Kop baris 3 judul murni tanpa prefix Operasi SAR');
 
     // Hari setelah reopen ("7 + 1").
     $docRe = $doc;
