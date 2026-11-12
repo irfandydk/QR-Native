@@ -115,7 +115,48 @@ class BraController extends BaseController {
             return;
         }
 
-        // 5. Dokumen Sah: Render Portal Khusus Publik jika Guest
+        // 5. Unduh PDF Vektor (?format=pdf): Render Dokumen Resmi ke Stream PDF Vektor via Chrome Headless
+        if (($_GET['format'] ?? '') === 'pdf') {
+            ob_start();
+            $this->render('bra/view', [
+                'bra' => $bra,
+                'verificationStatus' => $verificationStatus,
+                'verificationMessage' => $verificationMessage,
+                'pageTitle' => $pageTitle,
+                'currentRoute' => $currentRoute,
+                'navbarTitle' => $navbarTitle,
+                'isGuest' => $isGuest,
+                'docId' => $docId
+            ], [
+                'layout' => 'public',
+                'title' => 'Dokumen Berita Radio SAR'
+            ]);
+            $html = (string)ob_get_clean();
+
+            $pdfBytes = BraPdfService::renderHtmlToPdf($html);
+            if ($pdfBytes !== null) {
+                $rawNo = (string)($bra['no_bra'] ?? 'BRA_SAR');
+                $safeNo = preg_replace('/[^a-zA-Z0-9_\-.]+/', '_', $rawNo);
+                $safeName = 'BRA-SAR-' . trim((string)$safeNo, '_');
+                if (!headers_sent()) {
+                    header('Content-Type: application/pdf');
+                    header('Content-Disposition: attachment; filename="' . $safeName . '.pdf"');
+                    header('Content-Length: ' . (string)strlen($pdfBytes));
+                    header('Cache-Control: no-store, no-cache, must-revalidate');
+                }
+                echo $pdfBytes;
+                exit;
+            }
+
+            http_response_code(503);
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+            }
+            echo json_encode(['success' => false, 'message' => 'ENGINE_UNAVAILABLE']);
+            exit;
+        }
+
+        // 6. Dokumen Sah: Render Portal Khusus Publik jika Guest
         if ($isGuest) {
             $this->render('bra/view', [
                 'bra' => $bra,
@@ -133,7 +174,7 @@ class BraController extends BaseController {
             return;
         }
 
-        // 6. Dokumen Sah: Render Layout Lengkap Internal jika Pengguna Sudah Login
+        // 7. Dokumen Sah: Render Layout Lengkap Internal jika Pengguna Sudah Login
         $this->render('bra/view', [
             'bra' => $bra,
             'verificationStatus' => $verificationStatus,
