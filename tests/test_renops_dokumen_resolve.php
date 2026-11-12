@@ -152,7 +152,7 @@ try {
     $s3 = $doc3['sections'];
     assertCondition($s3['struktur']['osc'] === 'Haeruddin, S.H.' && $s3['struktur']['smc'] === $defaultSmcNama && $s3['struktur']['sru'] === [], 'Struktur H2 disalin dari draf H1, SRU dari hari N');
     assertCondition($doc3['meta']['hari_label'] === '2' && $s3['upaya_sebelumnya'] === 'Pencarian hari pertama belum menemukan korban.', 'H2: upaya sebelumnya dari LAPBANG pendahulu');
-    assertCondition(str_contains($s3['operation_stage'], 'Hari ke-1:') && str_contains($s3['operation_stage'], 'Pencarian hari pertama belum menemukan korban.') && str_contains($s3['operation_stage'], 'Hari ke-2 (Rencana Pelaksanaan):') && str_contains($s3['operation_stage'], 'Operasi SAR Hari ke-2 dilanjutkan dengan 8 (delapan) orang personel.'), 'H2: operation stage = riwayat Hari ke-1 + pelaksanaan hari N');
+    assertCondition(str_contains($s3['operation_stage'], 'Hari Pertama (') && str_contains($s3['operation_stage'], 'Pencarian hari pertama belum menemukan korban.') && str_contains($s3['operation_stage'], 'Hari Kedua (') && str_contains($s3['operation_stage'], 'Operasi SAR Hari ke-2 dilanjutkan dengan 8 (delapan) orang personel.'), 'H2: operation stage = riwayat Hari Pertama + pelaksanaan Hari Kedua');
     $r3 = array_column($s3['data_kejadian'], 'value', 'label');
     assertCondition($r3['Upaya yang Telah Dilakukan'] === 'Berkoordinasi dengan Basarnas Command Center (BCC), Polres Buton, dan Polsek Sampabalo', 'H2: Tabel 1 upaya tetap kalimat koordinasi');
 

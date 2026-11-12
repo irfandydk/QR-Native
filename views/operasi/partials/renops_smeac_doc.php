@@ -61,7 +61,13 @@ $row = $draft ? ' data-row' : '';
 /** Teks multi-paragraf: paragraf dipisah baris kosong, baris tunggal jadi <br>. */
 $paras = function (string $t): string {
     $parts = preg_split('/\n\s*\n/', trim(str_replace(["\r\n", "\r"], "\n", $t))) ?: [''];
-    return implode('', array_map(fn($p) => '<p>' . nl2br(e(trim($p))) . '</p>', $parts));
+    return implode('', array_map(function ($p) {
+        $trimmed = trim($p);
+        if (preg_match('/^Hari\s+(Pertama|Kedua|Ketiga|Keempat|Kelima|Keenam|Ketujuh|ke-[\d\s\+]+)\s*(\([^\)]+\))?$/ui', $trimmed)) {
+            return '<p class="hari">' . e($trimmed) . '</p>';
+        }
+        return '<p>' . nl2br(e($trimmed)) . '</p>';
+    }, $parts));
 };
 $text = function (string $key, string $class = '') use ($S, $sec, $badge, $paras): string {
     return '<div class="sec ' . $class . '"' . $sec($key, 'text') . '>' . $badge($key)
@@ -198,6 +204,19 @@ $peng = $doc['pengesahan'] ?? [];
     .renops-smeac .sub { padding-left: 8mm; }
     .renops-smeac .dash-paras .sec-body > p { position: relative; padding-left: 5.3mm; }
     .renops-smeac .dash-paras .sec-body > p::before { content: "\2013"; position: absolute; left: 0; }
+    .renops-smeac .dash-paras .sec-body > p.hari {
+        position: static;
+        padding-left: 0;
+        font-weight: bold;
+        margin-top: 8pt;
+        margin-bottom: 2pt;
+    }
+    .renops-smeac .dash-paras .sec-body > p.hari:first-child {
+        margin-top: 0;
+    }
+    .renops-smeac .dash-paras .sec-body > p.hari::before {
+        content: none !important;
+    }
     .page-sheet.renops-smeac .cap-tabel { font-size: 9.5pt !important; font-weight: bold; color: #000000; margin: 6pt 0 4pt; text-align: left !important; break-after: avoid; page-break-after: avoid; }
     .page-sheet.renops-smeac .cap-gambar { font-size: 9pt; font-style: italic; color: #000000; text-align: center; margin: 3pt 0 10pt; }
     .page-sheet.renops-smeac table.table-dinas { border-collapse: collapse !important; table-layout: fixed !important; margin: 0 0 8pt; font-size: 9.5pt !important; }
@@ -445,7 +464,9 @@ $peng = $doc['pengesahan'] ?? [];
 
     <h2 class="h1"><span class="no">D.</span>OPERATION STAGE (TAHAP OPERASI)</h2>
     <div class="ind">
-        <p class="hari">Hari <?= e($hariOrdinal) ?> (<?= e($tglHari) ?>)</p>
+        <?php if (!preg_match('/^Hari\s+(Pertama|Kedua|Ketiga|Keempat|Kelima|Keenam|Ketujuh|ke-[\d\s\+]+)\b/ui', trim((string)($S['operation_stage'] ?? '')))): ?>
+            <p class="hari">Hari <?= e($hariOrdinal) ?> (<?= e($tglHari) ?>)</p>
+        <?php endif; ?>
         <?= $text('operation_stage', 'dash-paras') ?>
     </div>
 

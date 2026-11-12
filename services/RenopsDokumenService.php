@@ -232,11 +232,28 @@ class RenopsDokumenService {
         ];
     }
 
+    /** Format judul hari di Tahap Operasi: "Hari Pertama (11 November 2026)", "Hari Kedua (12 November 2026)" */
+    public static function formatHariJudul(int $dayNum, string $tglStr, ?string $label = null): string {
+        $words = [
+            1 => 'Pertama',
+            2 => 'Kedua',
+            3 => 'Ketiga',
+            4 => 'Keempat',
+            5 => 'Kelima',
+            6 => 'Keenam',
+            7 => 'Ketujuh',
+        ];
+        $ord = ($label !== null && str_contains($label, '+'))
+            ? 'ke-' . $label
+            : ($words[$dayNum] ?? ('ke-' . ($label ?: (string)$dayNum)));
+        return "Hari {$ord}" . ($tglStr !== '' && $tglStr !== '-' ? " ({$tglStr})" : '');
+    }
+
     /**
      * Membangun narasi Operation Stage kumulatif (Pilihan A: Struktur Berlabel Hari per Paragraf).
      * H1: Pengerahan awal langsung.
-     * H2+: Riwayat H1 s/d H(n-1) berlabel "Hari ke-i:" beserta pelaksanaan dan lapbang, ditutup dengan
-     *      "Hari ke-{$label} (Rencana Pelaksanaan):".
+     * H2+: Riwayat H1 s/d H(n-1) berlabel "Hari Pertama (tgl):" dsb beserta pelaksanaan dan lapbang, ditutup dengan
+     *      "Hari Kedua (tgl):" pelaksanaan hari N.
      */
     public static function buildOperationStage(array $ops, array $renops, array $sumber, int $personel): string {
         $v = fn(string $k) => trim((string)($ops[$k] ?? ''));
@@ -291,12 +308,36 @@ class RenopsDokumenService {
             }
         }
 
+        $resolveDate = function (int $day) use ($ops, $renops, $n, $renopsByDay, $lapbangByDay): string {
+            $raw = null;
+            if ($day === $n) {
+                $raw = $renops['tanggal_laporan'] ?? ($renops['waktu_mulai_ops'] ?? null);
+            }
+            if (!$raw && isset($renopsByDay[$day])) {
+                $raw = $renopsByDay[$day]['tanggal_laporan'] ?? ($renopsByDay[$day]['waktu_mulai_ops'] ?? null);
+            }
+            if (!$raw && isset($lapbangByDay[$day])) {
+                $raw = $lapbangByDay[$day]['waktu_laporan'] ?? ($lapbangByDay[$day]['tanggal_laporan'] ?? null);
+            }
+            if (!$raw) {
+                $baseDate = $renopsByDay[1]['tanggal_laporan'] ?? ($ops['waktu_berangkat'] ?? ($ops['waktu_kejadian'] ?? ($ops['waktu_lapor'] ?? ($ops['created_at'] ?? null))));
+                if ($baseDate) {
+                    $ts = TemplateHelper::parseToTimestamp((string)$baseDate);
+                    if ($ts) {
+                        $raw = date('Y-m-d', strtotime('+' . ($day - 1) . ' days', $ts));
+                    }
+                }
+            }
+            return $raw ? TemplateHelper::formatTanggalSimple((string)$raw) : '';
+        };
+
         $blocks = [];
 
-        // Hari ke-1
+        // Hari Pertama (H1)
+        $h1Header = self::formatHariJudul(1, $resolveDate(1));
         $isiLapbang1 = isset($lapbangByDay[1]) ? trim(str_replace(["\r\n", "\r"], "\n", (string)($lapbangByDay[1]['isi_laporan'] ?? ''))) : '';
         $h1Body = array_filter([$h1Dispatch, $isiLapbang1], 'strlen');
-        $blocks[] = "Hari ke-1:\n" . implode("\n", $h1Body);
+        $blocks[] = $h1Header . "\n\n" . implode("\n\n", $h1Body);
 
         // Hari ke-2 s/d Hari ke-(n-1)
         for ($i = 2; $i < $n; $i++) {
@@ -308,14 +349,16 @@ class RenopsDokumenService {
                 . "Operasi SAR Hari ke-{$i} dilanjutkan" . ($personelPrev > 0 ? ' dengan ' . self::orang($personelPrev) . ' personel' : '') . '.';
             $isiLapbangPrev = isset($lapbangByDay[$i]) ? trim(str_replace(["\r\n", "\r"], "\n", (string)($lapbangByDay[$i]['isi_laporan'] ?? ''))) : '';
             $prevBody = array_filter([$pelaksanaanPrev, $isiLapbangPrev], 'strlen');
-            $blocks[] = "Hari ke-{$i}:\n" . implode("\n", $prevBody);
+            $hiHeader = self::formatHariJudul($i, $resolveDate($i));
+            $blocks[] = $hiHeader . "\n\n" . implode("\n\n", $prevBody);
         }
 
         // Hari ke-n (Hari berjalan / Rencana Pelaksanaan)
         $wMulaiN = self::waktu($renops['waktu_mulai_ops'] ?? null);
         $pelaksanaanN = ($wMulaiN !== '' ? "Pada tanggal {$wMulaiN}, " : '')
             . "Operasi SAR Hari ke-{$label} dilanjutkan" . ($personel > 0 ? ' dengan ' . self::orang($personel) . ' personel' : '') . '.';
-        $blocks[] = "Hari ke-{$label} (Rencana Pelaksanaan):\n" . $pelaksanaanN;
+        $hnHeader = self::formatHariJudul($n, $resolveDate($n), $label);
+        $blocks[] = $hnHeader . "\n\n" . $pelaksanaanN;
 
         return implode("\n\n", $blocks);
     }

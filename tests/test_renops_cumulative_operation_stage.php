@@ -40,8 +40,8 @@ $idR2 = RenopsModel::create([
 ]);
 $doc2 = RenopsDokumenService::resolve($idR2);
 $stage2 = $doc2['sections']['operation_stage'];
-assertCondition(str_contains($stage2, 'Hari ke-1:') && str_contains($stage2, 'Hasil H1: Pencarian seluas 10 NM2 nihil korban.'), 'H2: memuat rekapitulasi Hari ke-1 beserta hasil lapbang H1');
-assertCondition(str_contains($stage2, 'Hari ke-2 (Rencana Pelaksanaan):') && str_contains($stage2, 'Operasi SAR Hari ke-2 dilanjutkan'), 'H2: memuat pelaksanaan Hari ke-2');
+assertCondition(str_contains($stage2, 'Hari Pertama (') && str_contains($stage2, 'Hasil H1: Pencarian seluas 10 NM2 nihil korban.'), 'H2: memuat rekapitulasi Hari Pertama beserta hasil lapbang H1');
+assertCondition(str_contains($stage2, 'Hari Kedua (') && str_contains($stage2, 'Operasi SAR Hari ke-2 dilanjutkan'), 'H2: memuat pelaksanaan Hari Kedua');
 
 // Lapbang H2
 LaporanModel::create([
@@ -56,7 +56,10 @@ $idR3 = RenopsModel::create([
 ]);
 $doc3 = RenopsDokumenService::resolve($idR3);
 $stage3 = $doc3['sections']['operation_stage'];
-assertCondition(str_contains($stage3, 'Hari ke-1:') && str_contains($stage3, 'Hari ke-2:') && str_contains($stage3, 'Hari ke-3 (Rencana Pelaksanaan):'), 'H3: memuat kumulatif Hari ke-1, Hari ke-2, dan Hari ke-3');
+assertCondition(str_contains($stage3, 'Hari Pertama (') && str_contains($stage3, 'Hari Kedua (') && str_contains($stage3, 'Hari Ketiga ('), 'H3: memuat kumulatif Hari Pertama, Hari Kedua, dan Hari Ketiga');
+
+$viewHtml = (string)file_get_contents(ROOT_DIR . '/views/operasi/partials/renops_smeac_doc.php');
+assertCondition(str_contains($viewHtml, '.dash-paras .sec-body > p.hari'), 'CSS mendukung format bold tanpa dash untuk judul hari di operation stage');
 
 echo "\nTotal: {$testTotal}, Lolos: {$testPassed}\n";
 exit($testPassed === $testTotal ? 0 : 1);
