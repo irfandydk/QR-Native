@@ -155,4 +155,46 @@ if ($testBraId > 0) {
         $statusFakeToken === 404 && !str_starts_with($bodyFakeToken, '%PDF-'),
         "Akses publik dengan token tidak sah pada ?format=pdf ditolak (HTTP 404)"
     );
+
+    // 10. Uji frontend markup: Verifikasi tombol resmi "Unduh PDF" pada tampilan web
+    [$statusViewHtml, , , $bodyViewHtml] = runBraAction(
+        ['view' => (string)$testBraId],
+        $mockLoginSession
+    );
+    assertCondition(
+        $statusViewHtml === 200 && str_contains($bodyViewHtml, 'id="btnDownloadPdf"'),
+        "Tombol unduh PDF dengan ID btnDownloadPdf tersedia pada lembar dokumen BRA"
+    );
+    assertCondition(
+        str_contains($bodyViewHtml, 'data-pdf-url=') && str_contains($bodyViewHtml, 'data-pdf-filename='),
+        "Tombol unduh memiliki atribut data-pdf-url dan data-pdf-filename"
+    );
+    assertCondition(
+        str_contains($bodyViewHtml, 'downloadOfficialPdf(null, this)'),
+        "Tombol unduh memanggil downloadOfficialPdf(null, this)"
+    );
+    assertCondition(
+        str_contains($bodyViewHtml, 'Unduh PDF') && !str_contains($bodyViewHtml, 'PDF Gambar'),
+        "Label tombol adalah 'Unduh PDF' dan label lama 'PDF Gambar' telah digantikan"
+    );
+    assertCondition(
+        str_contains($bodyViewHtml, 'pdf_document_exporter.js'),
+        "Skrip assets/js/pdf_document_exporter.js dimuat pada lembar dokumen BRA"
+    );
+    assertCondition(
+        str_contains($bodyViewHtml, 'id="official-bra-document"') && str_contains($bodyViewHtml, 'page-sheet'),
+        "Elemen dokumen resmi BRA memiliki penanda class .page-sheet untuk eksportir PDF"
+    );
 }
+
+echo "\n--- HASIL PENGUJIAN BRA PDF EXPORT ---\n";
+echo "Total Asersi: {$testTotal}\n";
+echo "Lulus (PASS): {$testPassed}\n";
+echo "Gagal (FAIL): " . ($testTotal - $testPassed) . "\n";
+if ($testPassed === $testTotal) {
+    echo "STATUS: SELURUH PENGUJIAN BRA PDF BERHASIL (100% PASS)!\n";
+} else {
+    echo "STATUS: ADA PENGUJIAN YANG GAGAL!\n";
+    exit(1);
+}
+

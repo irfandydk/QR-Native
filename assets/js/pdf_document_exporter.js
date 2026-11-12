@@ -274,7 +274,7 @@
     }
 
     window.downloadOfficialPdf = function (customFilename, buttonEl) {
-        const sheet = document.querySelector('.page-sheet');
+        const sheet = document.querySelector('.page-sheet') || document.querySelector('#official-bra-document') || document.querySelector('.bra-official-paper');
         if (!sheet) {
             showPdfAlert('Dokumen Tidak Ditemukan', 'Elemen lembar dokumen (.page-sheet) tidak ditemukan.', 'error');
             return;

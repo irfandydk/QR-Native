@@ -40,6 +40,12 @@ $docHash = BraModel::generateVerifyToken($bra);
 $verifyUrl = BraModel::generateVerifyUrl($bra);
 $isGuest = !AuthHelper::isLoggedIn();
 $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyToken($bra, (string)$_GET['token']) ? 'VERIFIED_SIGNATURE' : 'LEGACY_VERIFIED');
+
+$cleanNoBra = preg_replace('/[^a-zA-Z0-9_\-.]/', '_', (string)($bra['no_bra'] ?? 'BRA_SAR'));
+$pdfFilename = 'BRA-SAR-' . trim((string)$cleanNoBra, '_') . '.pdf';
+$pdfDownloadUrl = BASE_URL . '/bra.php?view=' . (int)$bra['id_bra']
+    . (!empty($_GET['token']) ? '&token=' . urlencode((string)$_GET['token']) : ($isGuest ? '&token=' . urlencode($docHash) : ''))
+    . '&format=pdf';
 ?>
 
 <div class="space-y-6">
@@ -103,9 +109,14 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
         <span class="hidden sm:inline">HTML</span>
       </button>
 
-      <button type="button" onclick="window.downloadBraDocumentPdf()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition" title="PDF berbentuk gambar (teks tidak bisa dicari). Untuk naskah resmi gunakan Cetak / Simpan PDF.">
+      <button type="button" id="btnDownloadPdf" 
+              data-pdf-filename="<?= e($pdfFilename) ?>" 
+              data-pdf-url="<?= e($pdfDownloadUrl) ?>" 
+              onclick="downloadOfficialPdf(null, this)" 
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition cursor-pointer" 
+              title="Unduh berkas PDF resmi (teks tajam &amp; dapat dicari / searchable, identik dengan hasil cetak)">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        <span>PDF Gambar</span>
+        <span>Unduh PDF</span>
       </button>
 
       <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg shadow-md transition" title="Naskah resmi: teks tajam &amp; bisa dicari. Pilih &quot;Simpan sebagai PDF&quot; pada dialog cetak.">
@@ -169,7 +180,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
   <div class="flex justify-center w-full py-2">
     <!-- Screen-only card frame: provides drop-shadow on UI without leaking outer borders into PDF -->
     <div class="w-full max-w-4xl bg-white rounded-xl shadow-xl p-4 sm:p-6 print:p-0 print:shadow-none print:rounded-none">
-      <div id="official-bra-document" class="w-full bg-white text-black p-0 border-0 shadow-none font-sans print:p-0">
+      <div id="official-bra-document" class="page-sheet bra-official-paper w-full bg-white text-black p-0 border-0 shadow-none font-sans print:p-0">
         
         <!-- Header Kop: Logo sejajar dengan BRA SAR dan BADAN NASIONAL PENCARIAN DAN PERTOLONGAN -->
         <div class="bra-kop relative flex items-center justify-center gap-4 pb-2 mb-2 border-b-2 border-black text-black">
@@ -445,6 +456,7 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
 <!-- QR Code & PDF Libraries (Local Offline Vendor) -->
 <script src="<?= assetUrl('assets/vendor/qrcode/qrcode.min.js') ?>"></script>
 <script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>"></script>
+<script src="<?= assetUrl('assets/js/pdf_document_exporter.js') ?>"></script>
 <script>
 (function() {
   const verifyUrl = <?= jsonSafe($verifyUrl) ?>;
@@ -670,86 +682,13 @@ $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyT
     }
   });
 
-  // High-fidelity Client-Side PDF Downloader (html2pdf A4 Retina 300 DPI)
-  window.downloadBraDocumentPdf = function() {
-    if (!doc) return;
-    if (typeof html2pdf === 'undefined') {
-      if (typeof showToast === 'function') showToast('Modul generator PDF sedang dimuat...', 'info');
-      return;
+  // Official Vector PDF Exporter (Delegates to universal server-side & print-to-pdf engine)
+  window.downloadBraDocumentPdf = function(btnEl) {
+    if (typeof window.downloadOfficialPdf === 'function') {
+      window.downloadOfficialPdf(null, btnEl || document.getElementById('btnDownloadPdf'));
+    } else {
+      window.print();
     }
-    const prevTransform = doc.style.transform;
-    const prevBorder = doc.style.border;
-    const prevBoxShadow = doc.style.boxShadow;
-    const prevPadding = doc.style.padding;
-    const prevWidth = doc.style.width;
-    const prevMaxWidth = doc.style.maxWidth;
-    const prevBoxSizing = doc.style.boxSizing;
-
-    // Standardize to exact printable A4 width (180mm = 680px at 96 DPI)
-    // with 15mm (1.5 cm) margins on all 4 sides.
-    // 680px * (267 / 180) = 1008.66px, exactly matching html2pdf inner.px.height (1009px).
-    // Eliminates pagebreak drift to 0px across all pages and prevents text cuts in CCC and DDD.
-    doc.style.width = '680px';
-    doc.style.maxWidth = '680px';
-    doc.style.boxSizing = 'border-box';
-    doc.style.transform = 'none';
-    doc.style.border = 'none';
-    doc.style.boxShadow = 'none';
-    // 4px right safety padding ensures the 2px right border is 100% inside canvas
-    doc.style.padding = '0 4px 0 0';
-
-    const cleanNo = noBra.replace(/[^a-zA-Z0-9_\-]/g, '_');
-    const opt = {
-      margin: [5, 15, 15, 15],
-      filename: `BRA-SAR-${cleanNo}.pdf`,
-      image: { type: 'jpeg', quality: 0.85 },
-      html2canvas: {
-        // Turunkan skala untuk naskah panjang agar kanvas di bawah batas ~16,7 juta piksel Safari iOS
-        scale: Math.max(1, Math.min(2, Math.sqrt(16000000 / Math.max(1, doc.scrollWidth * doc.scrollHeight)))),
-        useCORS: true,
-        letterRendering: true,
-        scrollX: 0,
-        scrollY: 0,
-        backgroundColor: '#ffffff'
-      },
-      jsPDF: {
-        unit: 'mm',
-        format: 'a4',
-        orientation: 'portrait',
-        compress: true
-      },
-      pagebreak: {
-        mode: ['css', 'legacy'],
-        avoid: ['.bra-text-line', '.bra-kop', '.bra-top-header', '.bra-footer-section']
-      }
-    };
-
-    if (typeof showToast === 'function') {
-      showToast('Memproses berkas PDF resmi Basarnas...', 'info');
-    }
-
-    const restoreStyles = function() {
-      doc.style.transform = prevTransform;
-      doc.style.border = prevBorder;
-      doc.style.boxShadow = prevBoxShadow;
-      doc.style.padding = prevPadding;
-      doc.style.width = prevWidth;
-      doc.style.maxWidth = prevMaxWidth;
-      doc.style.boxSizing = prevBoxSizing;
-    };
-
-    html2pdf().set(opt).from(doc).save().then(function() {
-      restoreStyles();
-      if (typeof showToast === 'function') {
-        showToast('Dokumen PDF resmi berhasil diunduh!', 'success');
-      }
-    }).catch(function(err) {
-      restoreStyles();
-      console.error('PDF generation error:', err);
-      if (typeof showToast === 'function') {
-        showToast('Gagal membuat PDF: ' + err.message, 'error');
-      }
-    });
   };
 
   // Download Standalone HTML
