@@ -203,16 +203,7 @@ class RenopsDokumenService {
         }
 
         // 4. Operation stage
-        $tim = $v('tim_berangkat') ?: implode(', ', array_filter(array_map(fn($t) => trim((string)($t['nama_tim'] ?? '')), $ops['detail_tim_berangkat'] ?? []), 'strlen'));
-        if ($n <= 1) {
-            $wBerangkat = self::waktu($ops['waktu_berangkat'] ?? null);
-            $stage = ($wBerangkat !== '' ? "Pada tanggal {$wBerangkat}, diberangkatkan " : 'Diberangkatkan ')
-                . ($personel > 0 ? self::orang($personel) . ' ' : '') . 'personel' . ($tim !== '' ? " {$tim}" : '') . '.';
-        } else {
-            $wMulai = self::waktu($renops['waktu_mulai_ops'] ?? null);
-            $stage = ($isiLapbang !== '' ? "{$isiLapbang}\n\n" : '') . ($wMulai !== '' ? "Pada tanggal {$wMulai}, " : '')
-                . "Operasi SAR Hari ke-{$label} dilanjutkan" . ($personel > 0 ? ' dengan ' . self::orang($personel) . ' personel' : '') . '.';
-        }
+        $stage = self::buildOperationStage($ops, $renops, $sumber, $personel);
 
         $wMulaiOps = self::waktu($renops['waktu_mulai_ops'] ?? null, ', ');
         return [
@@ -239,6 +230,94 @@ class RenopsDokumenService {
             'logistik' => ['Makanan darurat;', 'Bahan bakar;', 'Air mineral untuk menjaga daya tahan tubuh; dan', 'Kebutuhan logistik lainnya.'],
             'struktur' => self::defaultStruktur($ops, $renops, $n, $sruStruktur),
         ];
+    }
+
+    /**
+     * Membangun narasi Operation Stage kumulatif (Pilihan A: Struktur Berlabel Hari per Paragraf).
+     * H1: Pengerahan awal langsung.
+     * H2+: Riwayat H1 s/d H(n-1) berlabel "Hari ke-i:" beserta pelaksanaan dan lapbang, ditutup dengan
+     *      "Hari ke-{$label} (Rencana Pelaksanaan):".
+     */
+    public static function buildOperationStage(array $ops, array $renops, array $sumber, int $personel): string {
+        $v = fn(string $k) => trim((string)($ops[$k] ?? ''));
+        $n = (int)$sumber['hari_num'];
+        $label = (string)$sumber['hari_label'];
+
+        $tim = $v('tim_berangkat') ?: implode(', ', array_filter(array_map(fn($t) => trim((string)($t['nama_tim'] ?? '')), $ops['detail_tim_berangkat'] ?? []), 'strlen'));
+        $unsurAwal = is_array($ops['detail_unsur'] ?? null) ? $ops['detail_unsur'] : [];
+        $personelAwal = array_sum(array_map(fn($u) => max(0, (int)($u['jumlah_personil'] ?? 0)), $unsurAwal));
+        $wBerangkat = self::waktu($ops['waktu_berangkat'] ?? null);
+        $h1Dispatch = ($wBerangkat !== '' ? "Pada tanggal {$wBerangkat}, diberangkatkan " : 'Diberangkatkan ')
+            . ($personelAwal > 0 ? self::orang($personelAwal) . ' ' : '') . 'personel' . ($tim !== '' ? " {$tim}" : '') . '.';
+
+        if ($n <= 1) {
+            return $h1Dispatch;
+        }
+
+        // Kumpulkan LaporanHarian dan Renops terdahulu
+        $idOps = (int)($ops['id_operasi'] ?? ($renops['id_operasi'] ?? 0));
+        $lapbangList = is_array($ops['laporan_harian'] ?? null) ? $ops['laporan_harian'] : ($idOps > 0 ? LaporanModel::getByOperasiId($idOps) : []);
+        $renopsList = is_array($ops['renops'] ?? null) ? $ops['renops'] : ($idOps > 0 ? RenopsModel::getByOperasiId($idOps) : []);
+
+        $lapbangByDay = [];
+        foreach ($lapbangList as $l) {
+            $rawDate = (string)($l['waktu_laporan'] ?? ($l['tanggal_laporan'] ?? ''));
+            $hariStr = TemplateHelper::hitungHariKe($ops, $rawDate !== '' ? $rawDate : null, $l['hari_ke'] ?? null);
+            $d = HierarchyHelper::absoluteDayNumber($hariStr);
+            if ($d >= 1 && (!isset($lapbangByDay[$d]) || strcmp((string)($l['waktu_laporan'] ?? ''), (string)($lapbangByDay[$d]['waktu_laporan'] ?? '')) >= 0)) {
+                $lapbangByDay[$d] = $l;
+            }
+        }
+        if (!empty($sumber['lapbang'])) {
+            $sl = $sumber['lapbang'];
+            $rawDate = (string)($sl['waktu_laporan'] ?? ($sl['tanggal_laporan'] ?? ''));
+            $hariStr = TemplateHelper::hitungHariKe($ops, $rawDate !== '' ? $rawDate : null, $sl['hari_ke'] ?? null);
+            $d = HierarchyHelper::absoluteDayNumber($hariStr);
+            if ($d >= 1 && !isset($lapbangByDay[$d])) {
+                $lapbangByDay[$d] = $sl;
+            }
+        }
+
+        $renopsByDay = [];
+        foreach ($renopsList as $r) {
+            if ((int)($r['id_renops'] ?? 0) === (int)($renops['id_renops'] ?? -1)) {
+                continue;
+            }
+            $rDate = (string)($r['tanggal_laporan'] ?? '');
+            $hariStr = TemplateHelper::hitungHariKe($ops, $rDate !== '' ? $rDate : null, $r['hari_ke'] ?? null);
+            $d = HierarchyHelper::absoluteDayNumber($hariStr);
+            if ($d >= 1 && (!isset($renopsByDay[$d]) || (int)($r['id_renops'] ?? 0) > (int)($renopsByDay[$d]['id_renops'] ?? 0))) {
+                $renopsByDay[$d] = $r;
+            }
+        }
+
+        $blocks = [];
+
+        // Hari ke-1
+        $isiLapbang1 = isset($lapbangByDay[1]) ? trim(str_replace(["\r\n", "\r"], "\n", (string)($lapbangByDay[1]['isi_laporan'] ?? ''))) : '';
+        $h1Body = array_filter([$h1Dispatch, $isiLapbang1], 'strlen');
+        $blocks[] = "Hari ke-1:\n" . implode("\n", $h1Body);
+
+        // Hari ke-2 s/d Hari ke-(n-1)
+        for ($i = 2; $i < $n; $i++) {
+            $rPrev = $renopsByDay[$i] ?? null;
+            $wMulaiPrev = $rPrev ? self::waktu($rPrev['waktu_mulai_ops'] ?? null) : '';
+            $unsurPrev = $rPrev && is_array($rPrev['detail_unsur'] ?? null) ? $rPrev['detail_unsur'] : [];
+            $personelPrev = array_sum(array_map(fn($u) => max(0, (int)($u['jumlah_personil'] ?? 0)), $unsurPrev));
+            $pelaksanaanPrev = ($wMulaiPrev !== '' ? "Pada tanggal {$wMulaiPrev}, " : '')
+                . "Operasi SAR Hari ke-{$i} dilanjutkan" . ($personelPrev > 0 ? ' dengan ' . self::orang($personelPrev) . ' personel' : '') . '.';
+            $isiLapbangPrev = isset($lapbangByDay[$i]) ? trim(str_replace(["\r\n", "\r"], "\n", (string)($lapbangByDay[$i]['isi_laporan'] ?? ''))) : '';
+            $prevBody = array_filter([$pelaksanaanPrev, $isiLapbangPrev], 'strlen');
+            $blocks[] = "Hari ke-{$i}:\n" . implode("\n", $prevBody);
+        }
+
+        // Hari ke-n (Hari berjalan / Rencana Pelaksanaan)
+        $wMulaiN = self::waktu($renops['waktu_mulai_ops'] ?? null);
+        $pelaksanaanN = ($wMulaiN !== '' ? "Pada tanggal {$wMulaiN}, " : '')
+            . "Operasi SAR Hari ke-{$label} dilanjutkan" . ($personel > 0 ? ' dengan ' . self::orang($personel) . ' personel' : '') . '.';
+        $blocks[] = "Hari ke-{$label} (Rencana Pelaksanaan):\n" . $pelaksanaanN;
+
+        return implode("\n\n", $blocks);
     }
 
     /** Sarana = kategori ALUT_* (Darat/Laut/Udara), Peralatan = PALSAR. Urutan masukan dipertahankan. @return array{sarana: list<string>, peralatan: list<string>} */
