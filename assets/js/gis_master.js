@@ -2484,19 +2484,25 @@
     };
 
     try {
-      await gisFetch(`${BASE_URL}/api/gis/points`, {
+      const res = await gisFetch(`${BASE_URL}/api/gis/points`, {
         method: 'POST',
         body: JSON.stringify(pointPayload)
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || (data && data.success === false)) {
+        throw new Error(data.error || data.message || `Gagal menyimpan titik SAR (HTTP ${res.status})`);
+      }
 
+      if (data && data.id) {
+        pointPayload.id = data.id;
+      }
       updateRawPoint(pointPayload, false);
       closePointCreator();
       renderSavedPoints();
+      showToast('Titik koordinat SAR berhasil disimpan.', 'success');
     } catch (err) {
       console.error('Error saving point:', err);
-      updateRawPoint(pointPayload, false);
-      closePointCreator();
-      renderSavedPoints();
+      showToast(err.message || 'Gagal menyimpan titik SAR ke server!', 'error');
     }
   }
 
@@ -3407,18 +3413,25 @@
     };
 
     try {
-      await gisFetch(`${BASE_URL}/api/gis/polygons`, {
+      const res = await gisFetch(`${BASE_URL}/api/gis/polygons`, {
         method: 'POST',
         body: JSON.stringify(payload)
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || (data && data.success === false)) {
+        throw new Error(data.error || data.message || `Gagal menyimpan area pencarian (HTTP ${res.status})`);
+      }
+      if (data && data.id) {
+        payload.id = data.id;
+      }
 
       updateRawPolygon(payload, false);
       cancelPolygonDrawing();
       renderSavedPolygons();
+      showToast(editingPolygonId ? 'Area pencarian berhasil diperbarui.' : 'Area pencarian berhasil disimpan.', 'success');
     } catch (err) {
-      updateRawPolygon(payload, false);
-      cancelPolygonDrawing();
-      renderSavedPolygons();
+      console.error('Save polygon failed:', err);
+      showToast(err.message || 'Gagal menyimpan perubahan search area ke server!', 'error');
     }
   }
 
@@ -5061,6 +5074,9 @@
         body: JSON.stringify(payload)
       });
       const resJson = await resp.json().catch(() => ({}));
+      if (!resp.ok || (resJson && resJson.success === false)) {
+        throw new Error(resJson.error || resJson.message || `Gagal menyimpan pola pencarian (HTTP ${resp.status})`);
+      }
       if (resJson && resJson.id) {
         payload.id = resJson.id;
       }
@@ -5070,6 +5086,7 @@
       if (btnSave) {
         btnSave.innerHTML = isEditing ? '<span>✓ Berhasil Diperbarui</span>' : '<span>✓ Berhasil Disimpan</span>';
       }
+      showToast(isEditing ? 'Pola pencarian SAR berhasil diperbarui.' : 'Pola pencarian SAR berhasil disimpan.', 'success');
 
       setTimeout(() => {
         clearCurrentPatternVisual();
@@ -5087,28 +5104,11 @@
       }, 600);
     } catch (err) {
       console.error('Error saving search pattern:', err);
-      const existingIdx = savedPatterns.findIndex(p => String(p.id) === String(payload.id));
-      if (existingIdx >= 0) {
-        savedPatterns[existingIdx] = payload;
-      } else {
-        savedPatterns.unshift(payload);
+      showToast(err.message || 'Gagal menyimpan pola lintasan SAR ke server!', 'error');
+      if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.innerHTML = '<span>💾 Simpan Pola SAR</span>';
       }
-      renderSavedPatterns();
-
-      setTimeout(() => {
-        clearCurrentPatternVisual();
-        editingPatternId = null;
-        const card = document.getElementById('patternCreationCard');
-        if (card) card.classList.add('hidden');
-        const btnNew = document.getElementById('btnStartNewPattern');
-        if (btnNew) btnNew.classList.remove('hidden');
-        const formTitle = document.getElementById('patternFormHeaderTitle');
-        if (formTitle) formTitle.textContent = '📐 Parameter Pola Lintasan IAMSAR';
-        if (btnSave) {
-          btnSave.disabled = false;
-          btnSave.innerHTML = '<span>💾 Simpan Pola SAR</span>';
-        }
-      }, 600);
     }
   }
 
@@ -5965,6 +5965,9 @@
         body: JSON.stringify(payload)
       });
       const resJson = await resp.json().catch(() => ({}));
+      if (!resp.ok || (resJson && resJson.success === false)) {
+        throw new Error(resJson.error || resJson.message || `Gagal menyimpan rute (HTTP ${resp.status})`);
+      }
       if (resJson && resJson.id) {
         currentActiveRouteId = resJson.id;
         payload.id = resJson.id;
@@ -5987,27 +5990,10 @@
       const btnNewRoute = document.getElementById('btnStartNewRoute');
       if (btnNewRoute) btnNewRoute.classList.remove('hidden');
     } catch (err) {
-      console.warn('Save route offline or failed:', err);
-      const existingIdx = savedRoutes.findIndex(r => String(r.id) === String(payload.id));
-      if (existingIdx >= 0) {
-        savedRoutes[existingIdx] = payload;
-      } else {
-        savedRoutes.unshift(payload);
-      }
-      renderSavedRoutes();
-
+      console.error('Save route failed:', err);
       if (typeof showToast === 'function') {
-        showToast(`Rute "${routeName}" disimpan secara lokal (${metrics.totalNm.toFixed(2)} NM).`, 'info');
+        showToast(err.message || `Gagal menyimpan rute "${routeName}" ke server!`, 'error');
       }
-
-      // Requirement 1: Auto-hide form after route is added/updated
-      clearMeasureVisual();
-      isMeasureModeActive = false;
-      currentActiveRouteId = null;
-      const routeCard = document.getElementById('routePlanningCard');
-      if (routeCard) routeCard.classList.add('hidden');
-      const btnNewRoute = document.getElementById('btnStartNewRoute');
-      if (btnNewRoute) btnNewRoute.classList.remove('hidden');
     } finally {
       if (saveBtn) {
         saveBtn.disabled = false;
@@ -6574,12 +6560,17 @@
       const ok = await confirmAction('Hapus Titik SAR', 'Apakah Anda yakin ingin menghapus titik SAR ini?', 'Ya, Hapus Titik', true);
       if (!ok) return;
       try {
-        await gisFetch(`${BASE_URL}/api/gis/points/${id}`, { method: 'DELETE' });
+        const res = await gisFetch(`${BASE_URL}/api/gis/points/${id}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || (data && data.success === false)) {
+          throw new Error(data.error || data.message || `Gagal menghapus titik SAR (HTTP ${res.status})`);
+        }
         updateRawPoint({ id }, true);
         renderSavedPoints();
+        showToast('Titik SAR berhasil dihapus.', 'success');
       } catch (err) {
-        updateRawPoint({ id }, true);
-        renderSavedPoints();
+        console.error('Delete point failed:', err);
+        showToast(err.message || 'Gagal menghapus titik SAR dari server!', 'error');
       }
     },
 
@@ -6607,12 +6598,17 @@
       const ok = await confirmAction('Hapus Poligon Sektor', 'Apakah Anda yakin ingin menghapus polygon area pencarian ini?', 'Ya, Hapus Poligon', true);
       if (!ok) return;
       try {
-        await gisFetch(`${BASE_URL}/api/gis/polygons/${id}`, { method: 'DELETE' });
+        const res = await gisFetch(`${BASE_URL}/api/gis/polygons/${id}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || (data && data.success === false)) {
+          throw new Error(data.error || data.message || `Gagal menghapus poligon (HTTP ${res.status})`);
+        }
         updateRawPolygon({ id }, true);
         renderSavedPolygons();
+        showToast('Poligon area pencarian berhasil dihapus.', 'success');
       } catch (err) {
-        updateRawPolygon({ id }, true);
-        renderSavedPolygons();
+        console.error('Delete polygon failed:', err);
+        showToast(err.message || 'Gagal menghapus poligon dari server!', 'error');
       }
     },
 
@@ -6669,12 +6665,17 @@
       const ok = await confirmAction('Hapus Lintasan SAR', 'Apakah Anda yakin ingin menghapus pola lintasan pencarian IAMSAR ini?', 'Ya, Hapus Pola', true);
       if (!ok) return;
       try {
-        await gisFetch(`${BASE_URL}/api/gis/search-patterns/${id}`, { method: 'DELETE' });
+        const res = await gisFetch(`${BASE_URL}/api/gis/search-patterns/${id}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || (data && data.success === false)) {
+          throw new Error(data.error || data.message || `Gagal menghapus pola pencarian (HTTP ${res.status})`);
+        }
         updateRawPattern({ id }, true);
         renderSavedPatterns();
+        showToast('Pola pencarian berhasil dihapus.', 'success');
       } catch (err) {
-        updateRawPattern({ id }, true);
-        renderSavedPatterns();
+        console.error('Delete pattern failed:', err);
+        showToast(err.message || 'Gagal menghapus pola pencarian dari server!', 'error');
       }
     },
 
@@ -6699,12 +6700,17 @@
       const ok = await confirmAction('Hapus Rute Jarak', 'Apakah Anda yakin ingin menghapus rute jarak dan kalkulasi waktu tempuh ini?', 'Ya, Hapus Rute', true);
       if (!ok) return;
       try {
-        await gisFetch(`${BASE_URL}/api/gis/routes/${id}`, { method: 'DELETE' });
+        const res = await gisFetch(`${BASE_URL}/api/gis/routes/${id}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || (data && data.success === false)) {
+          throw new Error(data.error || data.message || `Gagal menghapus rute (HTTP ${res.status})`);
+        }
         updateRawRoute({ id }, true);
         renderSavedRoutes();
+        showToast('Rute pelayaran berhasil dihapus.', 'success');
       } catch (err) {
-        updateRawRoute({ id }, true);
-        renderSavedRoutes();
+        console.error('Delete route failed:', err);
+        showToast(err.message || 'Gagal menghapus rute dari server!', 'error');
       }
     },
 

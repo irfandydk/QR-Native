@@ -238,7 +238,20 @@ class GisModel {
         }
         $type = !empty($customIcon) ? 'custom_upload' : ($data['pointType'] ?? ($data['point_type'] ?? 'pin_umum'));
 
-        $stmt = $db->prepare("REPLACE INTO GisPoint (id, id_operasi, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar) VALUES (:id, :id_ops, :lat, :lng, :label, :type, :customIcon, :desc, :category, :alphabetChar)");
+        $stmt = $db->prepare("INSERT INTO GisPoint (
+            id, id_operasi, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar
+        ) VALUES (
+            :id, :id_ops, :lat, :lng, :label, :type, :customIcon, :desc, :category, :alphabetChar
+        ) ON DUPLICATE KEY UPDATE
+            id_operasi = VALUES(id_operasi),
+            lat = VALUES(lat),
+            lng = VALUES(lng),
+            label = VALUES(label),
+            pointType = VALUES(pointType),
+            customIconUrl = VALUES(customIconUrl),
+            description = VALUES(description),
+            category = VALUES(category),
+            alphabetChar = VALUES(alphabetChar)");
         $stmt->execute([
             ':id' => $id,
             ':id_ops' => $idOperasi,
@@ -334,13 +347,27 @@ class GisModel {
             );
             $areaNm2 = isset($data['areaNm2']) && (float)$data['areaNm2'] > 0 ? (float)$data['areaNm2'] : $calcArea;
 
-            $stmt = $db->prepare("REPLACE INTO GisPolygon (
+            $stmt = $db->prepare("INSERT INTO GisPolygon (
                 id, id_operasi, name, strokeColor, strokeWeight, strokeOpacity, fillColor, fillOpacity,
                 shapeType, centerLat, centerLng, radiusNm, boxWidthNm, boxHeightNm, areaNm2
             ) VALUES (
                 :id, :id_ops, :name, :sc, :sw, :so, :fc, :fo,
                 :st, :clat, :clng, :r, :bw, :bh, :area
-            )");
+            ) ON DUPLICATE KEY UPDATE
+                id_operasi = VALUES(id_operasi),
+                name = VALUES(name),
+                strokeColor = VALUES(strokeColor),
+                strokeWeight = VALUES(strokeWeight),
+                strokeOpacity = VALUES(strokeOpacity),
+                fillColor = VALUES(fillColor),
+                fillOpacity = VALUES(fillOpacity),
+                shapeType = VALUES(shapeType),
+                centerLat = VALUES(centerLat),
+                centerLng = VALUES(centerLng),
+                radiusNm = VALUES(radiusNm),
+                boxWidthNm = VALUES(boxWidthNm),
+                boxHeightNm = VALUES(boxHeightNm),
+                areaNm2 = VALUES(areaNm2)");
             $stmt->execute([
                 ':id' => $id,
                 ':id_ops' => $idOperasi,
@@ -629,13 +656,29 @@ class GisModel {
                 $idOperasi = null;
             }
 
-            $stmt = $db->prepare("REPLACE INTO GisSearchPattern (
+            $stmt = $db->prepare("INSERT INTO GisSearchPattern (
                 id, id_operasi, name, polygonId, polygonName, patternType, trackSpacingNm,
                 legsCount, poskoId, poskoName, color, opacity, strokeWeight, totalDistanceNm, createdAt, flipH, flipV
             ) VALUES (
                 :id, :id_ops, :name, :polyId, :polyName, :pt, :spacing,
                 :legs, :poskoId, :poskoName, :color, :opacity, :weight, :dist, :created, :flipH, :flipV
-            )");
+            ) ON DUPLICATE KEY UPDATE
+                id_operasi = VALUES(id_operasi),
+                name = VALUES(name),
+                polygonId = VALUES(polygonId),
+                polygonName = VALUES(polygonName),
+                patternType = VALUES(patternType),
+                trackSpacingNm = VALUES(trackSpacingNm),
+                legsCount = VALUES(legsCount),
+                poskoId = VALUES(poskoId),
+                poskoName = VALUES(poskoName),
+                color = VALUES(color),
+                opacity = VALUES(opacity),
+                strokeWeight = VALUES(strokeWeight),
+                totalDistanceNm = VALUES(totalDistanceNm),
+                createdAt = VALUES(createdAt),
+                flipH = VALUES(flipH),
+                flipV = VALUES(flipV)");
 
             $stmt->execute([
                 ':id' => $id,
