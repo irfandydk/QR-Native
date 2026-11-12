@@ -398,6 +398,9 @@
   let vesselSpeedKnots = 25;
   let speedUnit = activeGlobalUnit === 'KM' ? 'kmh' : (activeGlobalUnit === 'M' ? 'ms' : 'knot');
   let patternSpacingUnit = activeGlobalUnit; // 'NM' | 'KM' | 'M'
+  let routeStrokeColor = '#10b981';
+  let routeStrokeWeight = 3.5;
+  let routeStrokeOpacity = 0.9;
 
   /**
    * Helper pemformat jarak dinamis mengacu pada activeGlobalUnit
@@ -2804,6 +2807,24 @@
     bindSwatches('polyStrokeColorSwatches', 'poly-color-dot', () => polyStrokeColor, (c) => { polyStrokeColor = c; });
     bindSwatches('polyFillColorSwatches', 'poly-fill-dot', () => polyFillColor, (c) => { polyFillColor = c; });
 
+    const customStrokeInput = document.getElementById('polyCustomStrokeColorInput');
+    if (customStrokeInput) {
+      customStrokeInput.addEventListener('input', (e) => {
+        polyStrokeColor = e.target.value;
+        syncPolyStyleControls();
+        updateLivePolygonVisual();
+      });
+    }
+
+    const customFillInput = document.getElementById('polyCustomFillColorInput');
+    if (customFillInput) {
+      customFillInput.addEventListener('input', (e) => {
+        polyFillColor = e.target.value;
+        syncPolyStyleControls();
+        updateLivePolygonVisual();
+      });
+    }
+
     const strokeOpacitySlider = document.getElementById('polyStrokeOpacitySlider');
     if (strokeOpacitySlider) {
       strokeOpacitySlider.addEventListener('input', (e) => {
@@ -3058,6 +3079,8 @@
     };
     setText('labelStrokeColor', polyStrokeColor.toUpperCase(), polyStrokeColor);
     setText('labelFillColor', polyFillColor.toUpperCase(), polyFillColor);
+    setText('polyCustomStrokeColorHex', polyStrokeColor.toUpperCase());
+    setText('polyCustomFillColorHex', polyFillColor.toUpperCase());
     setText('labelStrokeWeight', `${polyStrokeWeight} px`);
     setText('labelStrokeOpacity', `${Math.round(polyStrokeOpacity * 100)}%`);
     setText('labelFillOpacity', `${Math.round(polyFillOpacity * 100)}%`);
@@ -3065,6 +3088,16 @@
     setVal('polyStrokeWeightSlider', polyStrokeWeight);
     setVal('polyStrokeOpacitySlider', polyStrokeOpacity);
     setVal('polyFillOpacitySlider', polyFillOpacity);
+
+    const customStrokeInput = document.getElementById('polyCustomStrokeColorInput');
+    if (customStrokeInput && customStrokeInput.value.toLowerCase() !== polyStrokeColor.toLowerCase()) {
+      customStrokeInput.value = polyStrokeColor.startsWith('#') && polyStrokeColor.length === 7 ? polyStrokeColor : '#ea580c';
+    }
+
+    const customFillInput = document.getElementById('polyCustomFillColorInput');
+    if (customFillInput && customFillInput.value.toLowerCase() !== polyFillColor.toLowerCase()) {
+      customFillInput.value = polyFillColor.startsWith('#') && polyFillColor.length === 7 ? polyFillColor : '#ea580c';
+    }
   }
 
   function startPolygonDrawing(existingData = null) {
@@ -3728,6 +3761,11 @@
         if (nameInput) {
           nameInput.value = '';
         }
+        const patCol = document.getElementById('patternLineColor');
+        if (patCol) patCol.value = '#0284c7';
+        const patOp = document.getElementById('patternLineOpacity');
+        if (patOp) patOp.value = 0.9;
+        syncPatternStyleControls();
         refreshPatternAutoName();
         const card = document.getElementById('patternCreationCard');
         if (card) card.classList.remove('hidden');
@@ -3959,32 +3997,7 @@
     }
 
     // Customization: Color picker, Preset Buttons, Opacity Slider, Line Weight & Style
-    const patColorInput = document.getElementById('patternLineColor');
-    if (patColorInput) {
-      patColorInput.addEventListener('input', () => {
-        updateActivePatternStyle();
-      });
-    }
-
-    document.querySelectorAll('.pat-color-preset').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const col = btn.getAttribute('data-color');
-        if (col && patColorInput) {
-          patColorInput.value = col;
-          updateActivePatternStyle();
-        }
-      });
-    });
-
-    const patOpacityInput = document.getElementById('patternLineOpacity');
-    const patOpacityValDisplay = document.getElementById('patternOpacityValDisplay');
-    if (patOpacityInput) {
-      patOpacityInput.addEventListener('input', (e) => {
-        const pct = Math.round(parseFloat(e.target.value) * 100);
-        if (patOpacityValDisplay) patOpacityValDisplay.textContent = `${pct}%`;
-        updateActivePatternStyle();
-      });
-    }
+    initPatternStyleControls();
 
     const patWeightInput = document.getElementById('patternLineWeight');
     if (patWeightInput) {
@@ -4004,7 +4017,73 @@
     updatePatternAutoCalculation();
   }
 
+  function syncPatternStyleControls() {
+    const colorInput = document.getElementById('patternLineColor');
+    const color = colorInput ? colorInput.value : '#0284c7';
+
+    document.querySelectorAll('#patternColorSwatches .pat-color-dot').forEach((b) => {
+      const c = b.getAttribute('data-color') || '';
+      const on = c.toLowerCase() === color.toLowerCase();
+      b.classList.toggle('border-white', on);
+      b.classList.toggle('scale-110', on);
+      b.classList.toggle('border-transparent', !on);
+    });
+
+    const hexLabel = document.getElementById('patternCustomColorHex');
+    if (hexLabel) hexLabel.textContent = color.toUpperCase();
+
+    const topLabel = document.getElementById('labelPatternLineColor');
+    if (topLabel) {
+      topLabel.textContent = color.toUpperCase();
+      topLabel.style.color = color;
+    }
+
+    const opacityInput = document.getElementById('patternLineOpacity');
+    const opacityValDisplay = document.getElementById('patternOpacityValDisplay');
+    if (opacityInput && opacityValDisplay) {
+      opacityValDisplay.textContent = `${Math.round((parseFloat(opacityInput.value) || 0.9) * 100)}%`;
+    }
+  }
+
+  function initPatternStyleControls() {
+    const swatchesBox = document.getElementById('patternColorSwatches');
+    if (swatchesBox) {
+      swatchesBox.innerHTML = ROUTE_COLOR_PALETTE.map(
+        (c) => `<button type="button" data-color="${c.color}" class="pat-color-dot w-6 h-6 rounded-full border-2 transition ${c.color.toLowerCase() === '#0284c7' ? 'border-white scale-110' : 'border-transparent'}" style="background:${c.color};" title="${c.label}"></button>`
+      ).join('');
+
+      swatchesBox.querySelectorAll('.pat-color-dot').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const col = btn.getAttribute('data-color') || '#0284c7';
+          const colorInput = document.getElementById('patternLineColor');
+          if (colorInput) colorInput.value = col;
+          syncPatternStyleControls();
+          updateActivePatternStyle();
+        });
+      });
+    }
+
+    const patColorInput = document.getElementById('patternLineColor');
+    if (patColorInput) {
+      patColorInput.addEventListener('input', () => {
+        syncPatternStyleControls();
+        updateActivePatternStyle();
+      });
+    }
+
+    const patOpacityInput = document.getElementById('patternLineOpacity');
+    if (patOpacityInput) {
+      patOpacityInput.addEventListener('input', () => {
+        syncPatternStyleControls();
+        updateActivePatternStyle();
+      });
+    }
+
+    syncPatternStyleControls();
+  }
+
   function updateActivePatternStyle() {
+    syncPatternStyleControls();
     if (!activePatternPolyline || !map) return;
     const colorInput = document.getElementById('patternLineColor');
     const opacityInput = document.getElementById('patternLineOpacity');
@@ -5342,6 +5421,7 @@
     if (styleInput) {
       styleInput.value = (pat.dashArray && pat.dashArray !== 'none' && pat.dashArray !== '') ? 'dashed' : (pat.dashArray === '' ? 'solid' : 'dashed');
     }
+    syncPatternStyleControls();
 
     const formTitle = document.getElementById('patternFormHeaderTitle');
     if (formTitle) formTitle.textContent = 'Edit Parameter Pola Lintasan SAR';
@@ -5528,7 +5608,107 @@
     return { totalKm, totalNm, lastBearing, lastHeading, etaMins };
   }
 
+  const ROUTE_COLOR_PALETTE = [
+    { color: '#10b981', label: 'Hijau Emerald' },
+    { color: '#ea580c', label: 'Oranye Basarnas' },
+    { color: '#0284c7', label: 'Biru Laut' },
+    { color: '#ef4444', label: 'Merah Bahaya' },
+    { color: '#8b5cf6', label: 'Ungu Taktis' },
+    { color: '#f59e0b', label: 'Kuning Cerah' },
+    { color: '#06b6d4', label: 'Sian / Cyan' },
+    { color: '#ffffff', label: 'Putih Kontras' }
+  ];
+
+  function syncRouteStyleControls() {
+    document.querySelectorAll('#routeColorSwatches .route-color-dot').forEach((b) => {
+      const c = b.getAttribute('data-color') || '';
+      const on = c.toLowerCase() === routeStrokeColor.toLowerCase();
+      b.classList.toggle('border-white', on);
+      b.classList.toggle('scale-110', on);
+      b.classList.toggle('border-transparent', !on);
+    });
+
+    const customColorInput = document.getElementById('routeCustomColorInput');
+    if (customColorInput && customColorInput.value.toLowerCase() !== routeStrokeColor.toLowerCase()) {
+      customColorInput.value = routeStrokeColor.startsWith('#') && routeStrokeColor.length === 7 ? routeStrokeColor : '#10b981';
+    }
+
+    const customColorHex = document.getElementById('routeCustomColorHex');
+    if (customColorHex) customColorHex.textContent = routeStrokeColor.toUpperCase();
+
+    const labelColor = document.getElementById('labelRouteStrokeColor');
+    if (labelColor) {
+      labelColor.textContent = routeStrokeColor.toUpperCase();
+      labelColor.style.color = routeStrokeColor;
+    }
+
+    const weightSlider = document.getElementById('routeStrokeWeightSlider');
+    if (weightSlider) weightSlider.value = routeStrokeWeight;
+    const labelWeight = document.getElementById('labelRouteStrokeWeight');
+    if (labelWeight) labelWeight.textContent = `${routeStrokeWeight} px`;
+
+    const opacitySlider = document.getElementById('routeStrokeOpacitySlider');
+    if (opacitySlider) opacitySlider.value = routeStrokeOpacity;
+    const labelOpacity = document.getElementById('labelRouteStrokeOpacity');
+    if (labelOpacity) labelOpacity.textContent = `${Math.round(routeStrokeOpacity * 100)}%`;
+  }
+
+  function initRouteStyleControls() {
+    const swatchesBox = document.getElementById('routeColorSwatches');
+    if (swatchesBox) {
+      swatchesBox.innerHTML = ROUTE_COLOR_PALETTE.map(
+        (c) => `<button type="button" data-color="${c.color}" class="route-color-dot w-6 h-6 rounded-full border-2 transition ${routeStrokeColor.toLowerCase() === c.color.toLowerCase() ? 'border-white scale-110' : 'border-transparent'}" style="background:${c.color};" title="${c.label}"></button>`
+      ).join('');
+
+      swatchesBox.querySelectorAll('.route-color-dot').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          routeStrokeColor = btn.getAttribute('data-color') || '#10b981';
+          syncRouteStyleControls();
+          if (measurePolyline) {
+            measurePolyline.setStyle({ color: routeStrokeColor, weight: routeStrokeWeight, opacity: routeStrokeOpacity });
+          }
+        });
+      });
+    }
+
+    const customColorInput = document.getElementById('routeCustomColorInput');
+    if (customColorInput) {
+      customColorInput.addEventListener('input', (e) => {
+        routeStrokeColor = e.target.value;
+        syncRouteStyleControls();
+        if (measurePolyline) {
+          measurePolyline.setStyle({ color: routeStrokeColor, weight: routeStrokeWeight, opacity: routeStrokeOpacity });
+        }
+      });
+    }
+
+    const weightSlider = document.getElementById('routeStrokeWeightSlider');
+    if (weightSlider) {
+      weightSlider.addEventListener('input', (e) => {
+        routeStrokeWeight = parseFloat(e.target.value) || 3.5;
+        syncRouteStyleControls();
+        if (measurePolyline) {
+          measurePolyline.setStyle({ color: routeStrokeColor, weight: routeStrokeWeight, opacity: routeStrokeOpacity });
+        }
+      });
+    }
+
+    const opacitySlider = document.getElementById('routeStrokeOpacitySlider');
+    if (opacitySlider) {
+      opacitySlider.addEventListener('input', (e) => {
+        routeStrokeOpacity = parseFloat(e.target.value) || 0.9;
+        syncRouteStyleControls();
+        if (measurePolyline) {
+          measurePolyline.setStyle({ color: routeStrokeColor, weight: routeStrokeWeight, opacity: routeStrokeOpacity });
+        }
+      });
+    }
+
+    syncRouteStyleControls();
+  }
+
   function initMeasureDistanceUI() {
+    initRouteStyleControls();
     document.getElementById('measureRouteTargetArea')?.addEventListener('change', refreshRouteAutoName);
     const toggleSwitch = document.getElementById('toggleMeasureMode');
     if (toggleSwitch) {
@@ -5618,6 +5798,10 @@
         isMeasureModeActive = true;
         currentActiveRouteId = null;
         clearMeasureVisual();
+        routeStrokeColor = '#10b981';
+        routeStrokeWeight = 3.5;
+        routeStrokeOpacity = 0.9;
+        syncRouteStyleControls();
         const rNameInput = document.getElementById('measureRouteNameInput');
         if (rNameInput) {
           rNameInput.value = '';
@@ -5629,28 +5813,36 @@
       });
     }
 
-    // Cancel / Clear Route Buttons
-    const clearBtn = document.getElementById('btnClearMeasureRoute');
+    // Tombol [X] (Pojok Kanan Atas): Murni Menutup Form & Menghentikan Mode Ukur
     const cancelTopBtn = document.getElementById('btnCancelRouteFormTop');
-    [clearBtn, cancelTopBtn].forEach((b) => {
-      if (b) {
-        b.addEventListener('click', () => {
-          clearMeasureVisual();
-          isMeasureModeActive = false;
-          const card = document.getElementById('routePlanningCard');
-          if (card) card.classList.add('hidden');
-          const btnNew = document.getElementById('btnStartNewRoute');
-          if (btnNew) btnNew.classList.remove('hidden');
-        });
-      }
-    });
+    if (cancelTopBtn) {
+      cancelTopBtn.addEventListener('click', () => {
+        clearMeasureVisual();
+        isMeasureModeActive = false;
+        const card = document.getElementById('routePlanningCard');
+        if (card) card.classList.add('hidden');
+        const btnNew = document.getElementById('btnStartNewRoute');
+        if (btnNew) btnNew.classList.remove('hidden');
+      });
+    }
+
+    // Tombol "Bersihkan" (Baris Aksi Bawah): Murni Mengosongkan Titik & Garis Rute (Reset Garis), Form Tetap Terbuka
+    const clearBtn = document.getElementById('btnClearMeasureRoute');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        resetMeasureLine();
+        if (typeof showToast === 'function') {
+          showToast('Titik dan garis rute berhasil dibersihkan.', 'info');
+        }
+      });
+    }
 
     const saveBtn = document.getElementById('btnSaveMeasureRoute');
     if (saveBtn) {
       saveBtn.addEventListener('click', () => performSaveRoute({ isManualClick: true }));
     }
 
-    // Undo Waypoint Buttons (Both Counter Pill & Bottom Action Bar)
+    // Tombol "Undo" (Tunggal): Membatalkan Titik Terakhir 1 per 1
     const btnUndoWaypoint = document.getElementById('btnUndoMeasureRouteWaypoint');
     const btnBottomUndo = document.getElementById('btnBottomUndoRoute');
     [btnUndoWaypoint, btnBottomUndo].forEach((btn) => {
@@ -5757,8 +5949,9 @@
     if (measurePoints.length >= 2) {
       const latlngs = measurePoints.map((p) => [p.lat, p.lng]);
       measurePolyline = L.polyline(latlngs, {
-        color: '#10b981',
-        weight: 3.5
+        color: routeStrokeColor || '#10b981',
+        weight: routeStrokeWeight || 3.5,
+        opacity: routeStrokeOpacity !== undefined ? routeStrokeOpacity : 0.9
       }).addTo(map);
     }
 
@@ -5842,6 +6035,10 @@
   function clearMeasureVisual() {
     measurePoints = [];
     currentActiveRouteId = null;
+    routeStrokeColor = '#10b981';
+    routeStrokeWeight = 3.5;
+    routeStrokeOpacity = 0.9;
+    syncRouteStyleControls();
     if (autoSaveRouteDebounceTimer) {
       clearTimeout(autoSaveRouteDebounceTimer);
       autoSaveRouteDebounceTimer = null;
@@ -5921,7 +6118,9 @@
     }
 
     const metrics = recalcRouteMetrics(measurePoints);
-    const strokeColor = '#10b981';
+    const strokeColor = routeStrokeColor || '#10b981';
+    const strokeWeight = routeStrokeWeight || 3.5;
+    const strokeOpacity = routeStrokeOpacity !== undefined ? routeStrokeOpacity : 0.9;
 
     const targetOpId = (filterMode === 'operasi' && currentOperasiId)
       ? currentOperasiId
@@ -5942,8 +6141,8 @@
       etaText: formatDurationIndonesian(metrics.etaMins),
       routingMode: measureModeType,
       strokeColor: strokeColor,
-      strokeWeight: 3.5,
-      strokeOpacity: 0.9,
+      strokeWeight: strokeWeight,
+      strokeOpacity: strokeOpacity,
       createdAt: `${window.formatTanggalIndo(new Date())} WITA`
     };
 
@@ -6092,6 +6291,11 @@
     if (counter) {
       counter.textContent = `${measurePoints.length} Titik (Mode Edit)`;
     }
+
+    routeStrokeColor = rt.strokeColor || '#10b981';
+    routeStrokeWeight = parseFloat(rt.strokeWeight) || 3.5;
+    routeStrokeOpacity = (rt.strokeOpacity !== undefined && rt.strokeOpacity !== null) ? parseFloat(rt.strokeOpacity) : 0.9;
+    syncRouteStyleControls();
 
     setMeasureMode(measureModeType);
     updateMeasureVisual();
@@ -6716,7 +6920,8 @@
 
     setMeasureMode: (mode) => setMeasureMode(mode),
     saveRoute: () => performSaveRoute({ isManualClick: true }),
-    clearRoute: () => clearMeasureVisual(),
+    clearRoute: () => resetMeasureLine(),
+    cancelRoute: () => clearMeasureVisual(),
     resetMeasureLine: () => resetMeasureLine(),
     undoRoutePoint: () => undoLastMeasurePoint(),
     copyPointCoordinates: (id) => copyPointCoordinates(id),
@@ -7870,7 +8075,7 @@
       // Top-left official badge
       const opId = selOperasi && selOperasi.value ? parseInt(selOperasi.value, 10) : currentOperasiId;
       const opObj = operasiList.find(o => parseInt(o.id_operasi, 10) === opId) || currentOperasi;
-      const opTitle = opObj ? `OPS #${opObj.id_operasi} - ${opObj.nama_operasi}` : 'PETA TAKTIS OPERASI SAR';
+      const opTitle = opObj ? (opObj.nama_operasi || 'OPERASI SAR') : 'PETA TAKTIS OPERASI SAR';
       const docLabelMap = {
         RENOPS: 'PETA LOKASI LKP OPERASI SAR',
         RENOPS_RENCANA: 'PETA RENCANA OPERASI SAR (RENOPS)'
@@ -7884,11 +8089,53 @@
         }
       }
 
+      const subText = `BASARNAS KENDARI • ${docTitle}`;
+      const maxAvailableWidth = Math.max(300, (w || 1280) - 85);
+
+      // Measure font & auto-wrap if needed so title is never cut off
+      let titleFont = 'bold 13px Arial, sans-serif';
+      ctx.font = titleFont;
+      let titleWidth = ctx.measureText(opTitle).width;
+      ctx.font = 'bold 11px Arial, sans-serif';
+      let subWidth = ctx.measureText(subText).width;
+
+      let lines = [opTitle];
+      let titleFontSize = 13;
+      if (titleWidth + 32 > maxAvailableWidth) {
+        titleFontSize = 12;
+        titleFont = 'bold 12px Arial, sans-serif';
+        ctx.font = titleFont;
+        titleWidth = ctx.measureText(opTitle).width;
+        if (titleWidth + 32 > maxAvailableWidth) {
+          const words = String(opTitle).split(' ');
+          lines = [];
+          let cur = '';
+          const maxLineWidth = maxAvailableWidth - 32;
+          for (const word of words) {
+            const test = cur ? cur + ' ' + word : word;
+            if (ctx.measureText(test).width <= maxLineWidth) {
+              cur = test;
+            } else {
+              if (cur) lines.push(cur);
+              cur = word;
+            }
+          }
+          if (cur) lines.push(cur);
+        }
+      }
+
+      ctx.font = titleFont;
+      const longestLine = lines.reduce((max, l) => Math.max(max, ctx.measureText(l).width), 0);
+      const contentWidth = Math.max(longestLine, subWidth);
+      const boxWidth = Math.min(maxAvailableWidth, Math.max(540, contentWidth + 32));
+      const lineHeight = titleFontSize + 3;
+      const boxHeight = lines.length > 1 ? 44 + (lines.length - 1) * lineHeight : 44;
+
       ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
       ctx.strokeStyle = '#ea580c';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.roundRect(14, 12, 540, 44, 8);
+      ctx.roundRect(14, 12, boxWidth, boxHeight, 8);
       ctx.fill();
       ctx.stroke();
 
@@ -7896,11 +8143,13 @@
       ctx.font = 'bold 11px Arial, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
-      ctx.fillText(`BASARNAS KENDARI • ${docTitle}`, 26, 19);
+      ctx.fillText(subText, 26, 19);
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 13px Arial, sans-serif';
-      ctx.fillText(String(opTitle).substring(0, 62), 26, 35);
+      ctx.font = titleFont;
+      lines.forEach((line, idx) => {
+        ctx.fillText(line, 26, 35 + idx * lineHeight);
+      });
 
       // Top-right Compass Rose (Utara / North)
       const cx = w - 42;
