@@ -49,6 +49,7 @@ $preferredOrder = [
     'test_bra_perfection.php',
     'test_bra_mapel.php',
     'test_bra_audit_perfection.php',
+    'test_bra_pdf_export.php',
     'test_tahap3_bra_fixes.php',
     'test_renops_lapbang_phase1.php',
     'test_renops_lapbang_phase2_3.php',

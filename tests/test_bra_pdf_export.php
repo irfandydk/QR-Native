@@ -170,8 +170,8 @@ if ($testBraId > 0) {
         "Tombol unduh memiliki atribut data-pdf-url dan data-pdf-filename"
     );
     assertCondition(
-        str_contains($bodyViewHtml, 'downloadOfficialPdf(null, this)'),
-        "Tombol unduh memanggil downloadOfficialPdf(null, this)"
+        str_contains($bodyViewHtml, 'downloadBraDocumentPdf()') || str_contains($bodyViewHtml, 'downloadOfficialPdf'),
+        "Tombol unduh memanggil downloadBraDocumentPdf() atau downloadOfficialPdf"
     );
     assertCondition(
         str_contains($bodyViewHtml, 'Unduh PDF') && !str_contains($bodyViewHtml, 'PDF Gambar'),

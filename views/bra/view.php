@@ -112,7 +112,7 @@ $pdfDownloadUrl = BASE_URL . '/bra.php?view=' . (int)$bra['id_bra']
       <button type="button" id="btnDownloadPdf" 
               data-pdf-filename="<?= e($pdfFilename) ?>" 
               data-pdf-url="<?= e($pdfDownloadUrl) ?>" 
-              onclick="downloadOfficialPdf(null, this)" 
+              onclick="window.downloadBraDocumentPdf()" 
               class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition cursor-pointer" 
               title="Unduh berkas PDF resmi (teks tajam &amp; dapat dicari / searchable, identik dengan hasil cetak)">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
@@ -684,11 +684,85 @@ $pdfDownloadUrl = BASE_URL . '/bra.php?view=' . (int)$bra['id_bra']
 
   // Official Vector PDF Exporter (Delegates to universal server-side & print-to-pdf engine)
   window.downloadBraDocumentPdf = function(btnEl) {
+    const btn = btnEl || document.getElementById('btnDownloadPdf');
     if (typeof window.downloadOfficialPdf === 'function') {
-      window.downloadOfficialPdf(null, btnEl || document.getElementById('btnDownloadPdf'));
-    } else {
-      window.print();
+      window.downloadOfficialPdf(null, btn);
+      return;
     }
+    // High-fidelity Client-Side PDF Downloader Fallback (html2pdf A4 Retina 300 DPI)
+    if (!doc) return;
+    if (typeof html2pdf === 'undefined') {
+      if (typeof showToast === 'function') showToast('Modul generator PDF sedang dimuat...', 'info');
+      window.print();
+      return;
+    }
+    const prevTransform = doc.style.transform;
+    const prevBorder = doc.style.border;
+    const prevBoxShadow = doc.style.boxShadow;
+    const prevPadding = doc.style.padding;
+    const prevWidth = doc.style.width;
+    const prevMaxWidth = doc.style.maxWidth;
+    const prevBoxSizing = doc.style.boxSizing;
+
+    doc.style.width = '680px';
+    doc.style.maxWidth = '680px';
+    doc.style.boxSizing = 'border-box';
+    doc.style.transform = 'none';
+    doc.style.border = 'none';
+    doc.style.boxShadow = 'none';
+    doc.style.padding = '0 4px 0 0';
+
+    const cleanNo = noBra.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    const opt = {
+      margin: [5, 15, 15, 15],
+      filename: `BRA-SAR-${cleanNo}.pdf`,
+      image: { type: 'jpeg', quality: 0.85 },
+      html2canvas: {
+        scale: Math.max(1, Math.min(2, Math.sqrt(16000000 / Math.max(1, doc.scrollWidth * doc.scrollHeight)))),
+        useCORS: true,
+        letterRendering: true,
+        scrollX: 0,
+        scrollY: 0,
+        backgroundColor: '#ffffff'
+      },
+      jsPDF: {
+        unit: 'mm',
+        format: 'a4',
+        orientation: 'portrait',
+        compress: true
+      },
+      pagebreak: {
+        mode: ['css', 'legacy'],
+        avoid: ['.bra-text-line', '.bra-kop', '.bra-top-header', '.bra-footer-section']
+      }
+    };
+
+    if (typeof showToast === 'function') {
+      showToast('Memproses berkas PDF resmi Basarnas...', 'info');
+    }
+
+    const restoreStyles = function() {
+      doc.style.transform = prevTransform;
+      doc.style.border = prevBorder;
+      doc.style.boxShadow = prevBoxShadow;
+      doc.style.padding = prevPadding;
+      doc.style.width = prevWidth;
+      doc.style.maxWidth = prevMaxWidth;
+      doc.style.boxSizing = prevBoxSizing;
+    };
+
+    html2pdf().set(opt).from(doc).save().then(function() {
+      restoreStyles();
+      if (typeof showToast === 'function') {
+        showToast('Dokumen PDF resmi berhasil diunduh!', 'success');
+      }
+    }).catch(function(err) {
+      restoreStyles();
+      console.error('PDF generation error:', err);
+      if (typeof showToast === 'function') {
+        showToast('Gagal membuat PDF: ' + err.message, 'error');
+      }
+    });
   };
 
   // Download Standalone HTML
