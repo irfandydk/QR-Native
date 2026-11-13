@@ -178,9 +178,9 @@ $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
                 <span class="text-xs text-amber-600 dark:text-amber-400 font-medium hidden sm:inline">
                     Ditutup <?= $tglSelesai ? "({$tglSelesai})" : '' ?>
                 </span>
-                <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition cursor-pointer">
+                <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition cursor-pointer" title="Perpanjang hari operasi SAR (buka hari lanjutan)">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
-                    <span>Buka Kembali</span>
+                    <span>Perpanjang Operasi</span>
                 </button>
             </div>
             <?php endif; ?>

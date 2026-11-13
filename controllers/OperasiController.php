@@ -703,7 +703,7 @@ class OperasiController extends BaseController {
                         }
                     }
 
-                    $pola = 'Parallel Track Search';
+                    $pola = '';
                     $totalSapuan = '';
                     if ($matchedPattern) {
                         $ptType = $matchedPattern['patternType'] ?? 'parallel_track';
@@ -743,7 +743,7 @@ class OperasiController extends BaseController {
                         'nama_sru' => 'SRU 1 Laut / Darat',
                         'koordinat_area' => "Penyisiran di sekitar LKP ({$lkpDesc})\nKoordinat: {$koorDesc}",
                         'luas_area' => '',
-                        'pola_pencarian' => 'Parallel Track Search',
+                        'pola_pencarian' => '',
                         'total_sapuan' => ''
                     ]
                 ];
@@ -839,7 +839,16 @@ class OperasiController extends BaseController {
 
             $waktuLap = $_POST['waktu_laporan'] ?? date('Y-m-d H:i:s');
             $tglLap = date('Y-m-d', strtotime($waktuLap));
-            $_POST['hari_ke'] = TemplateHelper::hitungHariKe($operasi, $tglLap);
+            if ($editMode && !empty($laporan['hari_ke'])) {
+                $origTgl = !empty($laporan['waktu_laporan']) ? date('Y-m-d', strtotime($laporan['waktu_laporan'])) : null;
+                if ($origTgl === $tglLap) {
+                    $_POST['hari_ke'] = $laporan['hari_ke'];
+                } else {
+                    $_POST['hari_ke'] = !empty($_POST['hari_ke']) ? trim($_POST['hari_ke']) : TemplateHelper::hitungHariKe($operasi, $tglLap, $laporan['hari_ke']);
+                }
+            } else {
+                $_POST['hari_ke'] = TemplateHelper::hitungHariKe($operasi, $tglLap);
+            }
 
             try {
                 if ($editMode) {
@@ -865,7 +874,7 @@ class OperasiController extends BaseController {
         if ($editMode) {
             $waktuLaporan = !empty($laporan['waktu_laporan']) ? date('Y-m-d\TH:i', strtotime($laporan['waktu_laporan'])) : date('Y-m-d\TH:i');
             $tglLap = date('Y-m-d', strtotime($waktuLaporan));
-            $hariKe = TemplateHelper::hitungHariKe($operasi, $tglLap);
+            $hariKe = !empty($laporan['hari_ke']) ? $laporan['hari_ke'] : TemplateHelper::hitungHariKe($operasi, $tglLap);
             $jenisLaporan = $laporan['jenis_laporan'] ?? 'PERKEMBANGAN';
             $waktuDebrief = !empty($laporan['waktu_debrief']) ? date('Y-m-d\TH:i', strtotime($laporan['waktu_debrief'])) : date('Y-m-d\TH:i');
             $cuaca = $laporan['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');

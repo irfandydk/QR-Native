@@ -129,9 +129,13 @@ $initialAlutData = $initialAlutData ?? [];
             Pilih "Penutupan Operasi" jika seluruh korban telah ditemukan atau operasi resmi dihentikan
           </p>
         </div>
+        <?php $isClosedPenutupanEdit = (($operasi['status'] ?? '') === 'CLOSED' && $editMode && $jenisLaporan === 'PENUTUPAN'); ?>
         <div class="flex items-center gap-2">
-          <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold <?= $jenisLaporan === 'PERKEMBANGAN' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700' ?>" id="label-jenis-perkembangan">
-            <input type="radio" name="jenis_laporan" value="PERKEMBANGAN" <?= $jenisLaporan === 'PERKEMBANGAN' ? 'checked' : '' ?> onchange="handleJenisLaporanChange(this.value)" class="hidden">
+          <?php if ($isClosedPenutupanEdit): ?>
+            <input type="hidden" name="jenis_laporan" value="PENUTUPAN">
+          <?php endif; ?>
+          <label class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold <?= $jenisLaporan === 'PERKEMBANGAN' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700' ?> <?= $isClosedPenutupanEdit ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer' ?>" id="label-jenis-perkembangan" title="<?= $isClosedPenutupanEdit ? 'Operasi berstatus CLOSED: jenis laporan terkunci pada Penutupan' : '' ?>">
+            <input type="radio" name="jenis_laporan" value="PERKEMBANGAN" <?= $jenisLaporan === 'PERKEMBANGAN' ? 'checked' : '' ?> <?= $isClosedPenutupanEdit ? 'disabled' : '' ?> onchange="handleJenisLaporanChange(this.value)" class="hidden">
             <span>Laporan Harian (LAPBANG)</span>
           </label>
           <label class="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold <?= $jenisLaporan === 'PENUTUPAN' ? 'bg-red-600 text-white border-red-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700' ?>" id="label-jenis-penutupan">

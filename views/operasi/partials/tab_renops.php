@@ -29,8 +29,8 @@ $renopsDocStatus = RenopsDokumenModel::statusByOperasi((int)$id);
                 <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">Penambahan RENOPS dinonaktifkan. Buka kembali operasi jika ada pembaharuan.</p>
             </div>
         </div>
-        <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition whitespace-nowrap cursor-pointer">
-            Buka Kembali Operasi
+        <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition whitespace-nowrap cursor-pointer" title="Khusus perpanjangan hari operasi SAR lanjutan (misal H7+1)">
+            Perpanjang Operasi SAR
         </button>
     </div>
     <?php endif; ?>

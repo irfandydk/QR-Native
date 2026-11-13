@@ -31,11 +31,11 @@
             <svg class="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 00-2.25 2.25z"/></svg>
             <div>
                 <h4 class="font-bold text-xs text-amber-900 dark:text-amber-100">Operasi Telah Ditutup (CLOSED)</h4>
-                <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">Penambahan LAPBANG dinonaktifkan demi integritas arsip.</p>
+                <p class="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">Penambahan LAPBANG dinonaktifkan demi integritas arsip. Jika terdapat kekeliruan, Laporan Penutupan tetap dapat diedit langsung tanpa membuka operasi.</p>
             </div>
         </div>
-        <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition whitespace-nowrap cursor-pointer">
-            Buka Kembali Operasi
+        <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition whitespace-nowrap cursor-pointer" title="Khusus perpanjangan hari operasi SAR lanjutan (misal H7+1)">
+            Perpanjang Operasi SAR
         </button>
     </div>
     <?php endif; ?>
@@ -104,8 +104,8 @@
                     </button>
 
 
-                    <?php if ($isOpen): ?>
-                    <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>&id_laporan=<?= $lap['id_laporan'] ?>" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer">
+                    <?php if ($isOpen || $isPenutupan): ?>
+                    <a href="<?= BASE_URL ?>/sitrep_form.php?id_operasi=<?= $id ?>&id_laporan=<?= $lap['id_laporan'] ?>" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs transition cursor-pointer" title="<?= $isPenutupan && !$isOpen ? 'Koreksi data Laporan Penutupan Operasi SAR' : 'Edit Laporan Perkembangan' ?>">
                         <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"/></svg>
                         <span>Edit</span>
                     </a>
