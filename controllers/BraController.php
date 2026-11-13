@@ -137,7 +137,8 @@ class BraController extends BaseController {
             if ($pdfBytes !== null) {
                 $rawNo = (string)($bra['no_bra'] ?? 'BRA_SAR');
                 $safeNo = preg_replace('/[^a-zA-Z0-9_\-.]+/', '_', $rawNo);
-                $safeName = 'BRA-SAR-' . trim((string)$safeNo, '_');
+                $cleanNo = trim((string)$safeNo, '_');
+                $safeName = 'BRA-SAR-' . ($cleanNo !== '' ? $cleanNo : 'DOKUMEN');
                 if (!headers_sent()) {
                     header('Content-Type: application/pdf');
                     header('Content-Disposition: attachment; filename="' . $safeName . '.pdf"');

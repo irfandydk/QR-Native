@@ -41,8 +41,8 @@ $verifyUrl = BraModel::generateVerifyUrl($bra);
 $isGuest = !AuthHelper::isLoggedIn();
 $verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyToken($bra, (string)$_GET['token']) ? 'VERIFIED_SIGNATURE' : 'LEGACY_VERIFIED');
 
-$cleanNoBra = preg_replace('/[^a-zA-Z0-9_\-.]/', '_', (string)($bra['no_bra'] ?? 'BRA_SAR'));
-$pdfFilename = 'BRA-SAR-' . trim((string)$cleanNoBra, '_') . '.pdf';
+$cleanNoBra = trim((string)preg_replace('/[^a-zA-Z0-9_\-.]/', '_', (string)($bra['no_bra'] ?? 'BRA_SAR')), '_');
+$pdfFilename = 'BRA-SAR-' . ($cleanNoBra !== '' ? $cleanNoBra : 'DOKUMEN') . '.pdf';
 $pdfDownloadUrl = BASE_URL . '/bra.php?view=' . (int)$bra['id_bra']
     . (!empty($_GET['token']) ? '&token=' . urlencode((string)$_GET['token']) : ($isGuest ? '&token=' . urlencode($docHash) : ''))
     . '&format=pdf';
