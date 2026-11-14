@@ -926,6 +926,26 @@ try {
         !str_contains($gisMasterSrc, '<kml xmlns="http://www.opengis.net/kml/2.2">')
     );
 
+    assertCondition(
+        "assets/js/gis_master.js menyerialisasi atribut parametrik poligon (clientRefId, shapeType, centerLat, radiusNm, boxWidthNm, boxHeightNm)",
+        str_contains($gisMasterSrc, 'clientRefId: item.original.sourceId') &&
+        str_contains($gisMasterSrc, 'shapeType: item.original.shapeType') &&
+        str_contains($gisMasterSrc, 'centerLat: item.original.centerLat') &&
+        str_contains($gisMasterSrc, 'radiusNm: item.original.radiusNm') &&
+        str_contains($gisMasterSrc, 'boxWidthNm: item.original.boxWidthNm') &&
+        str_contains($gisMasterSrc, 'boxHeightNm: item.original.boxHeightNm')
+    );
+
+    assertCondition(
+        "assets/js/gis_master.js menyerialisasi properti color untuk pola SAR",
+        str_contains($gisMasterSrc, 'color: item.original.color || item.original.strokeColor')
+    );
+
+    assertCondition(
+        "assets/js/gis_master.js membatasi fitBounds hanya saat target impor tampak pada filter aktif (isImportedTargetVisible)",
+        str_contains($gisMasterSrc, 'isImportedTargetVisible')
+    );
+
     // Jalankan pengujian unit roundtrip KML / KMZ di Node.js
     echo PHP_EOL . "--- MENJALANKAN NODE.JS TEST: tests/js/kml_roundtrip.test.js ---" . PHP_EOL;
     $nodeCmd = 'node --test ' . escapeshellarg($rootDir . '/tests/js/kml_roundtrip.test.js') . ' 2>&1';

@@ -7214,15 +7214,19 @@
           } else if (item.entityType === 'polygon') {
             payloadPolygons.push({
               id: item.original.id || undefined,
+              clientRefId: item.original.sourceId || item.original.clientRefId || item.original.id || undefined,
               name: (item.name || '').trim() || item.original.name || 'Sektor Poligon',
-              type: item.original.type || 'polygon',
+              shapeType: item.original.shapeType || item.original.type || 'polygon',
+              centerLat: item.original.centerLat ?? (item.original.center?.lat ?? null),
+              centerLng: item.original.centerLng ?? (item.original.center?.lng ?? null),
+              radiusNm: item.original.radiusNm ?? null,
+              boxWidthNm: item.original.boxWidthNm ?? null,
+              boxHeightNm: item.original.boxHeightNm ?? null,
               points: item.original.points || [],
               strokeColor: item.original.strokeColor || '#ea580c',
               fillColor: item.original.fillColor || '#ea580c',
               strokeOpacity: item.original.strokeOpacity ?? 0.8,
               fillOpacity: item.original.fillOpacity ?? 0.2,
-              center: item.original.center || null,
-              radiusKm: item.original.radiusKm || null,
               areaNm2: item.original.areaNm2 || null
             });
           } else if (item.entityType === 'line') {
@@ -7234,8 +7238,12 @@
                 trackSpacingNm: item.original.trackSpacingNm || 1.0,
                 searchSpeedKnots: item.original.searchSpeedKnots || 10,
                 waypoints: rawCoords,
-                strokeColor: item.original.strokeColor || '#f97316',
+                color: item.original.color || item.original.strokeColor || '#f97316',
+                strokeColor: item.original.strokeColor || item.original.color || '#f97316',
+                opacity: item.original.opacity ?? 0.9,
+                strokeWeight: item.original.strokeWeight ?? 3.0,
                 polygonId: item.original.polygonId || item.original.polygonRef || null,
+                polygonRef: item.original.polygonRef || item.original.polygonId || null,
                 datumLatLng: item.original.datumLatLng || (rawCoords[0] ? { lat: rawCoords[0].lat, lng: rawCoords[0].lng } : null),
                 legsCount: item.original.legsCount || (rawCoords.length > 1 ? rawCoords.length - 1 : 1),
                 totalDistanceNm: item.original.totalDistanceNm || null,
@@ -7247,7 +7255,10 @@
                 points: rawCoords,
                 vesselSpeedKnots: item.original.vesselSpeedKnots || 15,
                 strokeColor: item.original.strokeColor || '#10b981',
-                polygonId: item.original.polygonId || item.original.polygonRef || null
+                strokeWeight: item.original.strokeWeight ?? 3.5,
+                strokeOpacity: item.original.strokeOpacity ?? 0.9,
+                polygonId: item.original.polygonId || item.original.polygonRef || null,
+                polygonRef: item.original.polygonRef || item.original.polygonId || null
               });
             }
           }
@@ -7300,8 +7311,22 @@
           reRenderAllLayers();
           notifyGisStorageUpdate();
 
-          // Auto-zoom if checked
-          if (autoZoomCheck && autoZoomCheck.checked && typeof L !== 'undefined' && map) {
+          function isImportedTargetVisible(targetOpId) {
+            const normTarget = targetOpId ? parseInt(targetOpId, 10) : 0;
+            if (filterMode === 'basemap' || filterMode === 'dasar') {
+              return normTarget === 0;
+            }
+            if (filterMode === 'operasi' && currentOperasiId) {
+              if (normTarget === parseInt(currentOperasiId, 10)) return true;
+              if (includeBaseInActive && normTarget === 0) return true;
+              return false;
+            }
+            // filterMode === 'all'
+            return normTarget === 0 || (activeOperasiIds && activeOperasiIds.has(normTarget));
+          }
+
+          // Auto-zoom only if checked and imported target is visible in current active filter view
+          if (autoZoomCheck && autoZoomCheck.checked && isImportedTargetVisible(id_operasi) && typeof L !== 'undefined' && map) {
             const allCoords = [];
             (imported.points || []).forEach((p) => { if (p.lat && p.lng) allCoords.push([p.lat, p.lng]); });
             (imported.polygons || []).forEach((poly) => {
