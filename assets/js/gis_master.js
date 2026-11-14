@@ -6393,181 +6393,132 @@
   // 10. SPATIAL EXPORT UTILITIES (KML, KMZ, GEOJSON)
   // ==========================================
 
-  function generateKmlDocument() {
+  function buildExportPayload(scopeMode, options = {}) {
+    const mode = scopeMode || 'current';
+    const includeHidden = !!options.includeHidden;
+    const includeBase = options.includeBase !== undefined ? !!options.includeBase : true;
+    const targetOperasiId = options.targetOperasiId ? parseInt(options.targetOperasiId, 10) : (currentOperasiId || null);
+    const dateStr = new Date().toISOString().slice(0, 10);
+
+    let pts = [];
+    let polys = [];
+    let pats = [];
+    let rts = [];
+    let opName = 'Plotting Operasi SAR Kendari';
+    let baseFilename = `SAR_KENDARI_PLOTTING_${dateStr}`;
+
+    if (mode === 'basemap') {
+      opName = 'Base Map SAR Kendari';
+      baseFilename = `SAR_KENDARI_BASEMAP_${dateStr}`;
+      const isBase = (item) => !item.id_operasi || parseInt(item.id_operasi, 10) === 0;
+      pts = rawAllPoints.filter(isBase);
+      polys = rawAllPolygons.filter(isBase);
+      pats = rawAllPatterns.filter(isBase);
+      rts = rawAllRoutes.filter(isBase);
+    } else if (mode === 'operasi' && targetOperasiId) {
+      const foundOp = Array.isArray(initialData.operasiList)
+        ? initialData.operasiList.find((o) => parseInt(o.id_operasi, 10) === targetOperasiId)
+        : null;
+      opName = foundOp ? foundOp.nama_operasi : (currentOperasi ? currentOperasi.nama_operasi : `Operasi SAR #${targetOperasiId}`);
+      baseFilename = `SAR_KENDARI_OPS_${targetOperasiId}_${dateStr}`;
+
+      pts = rawAllPoints.filter((p) => {
+        const opId = p.id_operasi ? parseInt(p.id_operasi, 10) : 0;
+        if (opId === targetOperasiId) return true;
+        if (includeBase && opId === 0) return true;
+        return false;
+      });
+      polys = rawAllPolygons.filter((p) => {
+        const opId = p.id_operasi ? parseInt(p.id_operasi, 10) : 0;
+        if (opId === targetOperasiId) return true;
+        if (includeBase && opId === 0) return true;
+        return false;
+      });
+      pats = rawAllPatterns.filter((p) => {
+        const opId = p.id_operasi ? parseInt(p.id_operasi, 10) : 0;
+        if (opId === targetOperasiId) return true;
+        if (includeBase && opId === 0) return true;
+        return false;
+      });
+      rts = rawAllRoutes.filter((r) => {
+        const opId = r.id_operasi ? parseInt(r.id_operasi, 10) : 0;
+        if (opId === targetOperasiId) return true;
+        if (includeBase && opId === 0) return true;
+        return false;
+      });
+    } else {
+      // mode === 'current'
+      opName = currentOperasi ? currentOperasi.nama_operasi : 'Plotting Operasi SAR Kendari';
+      baseFilename = `SAR_KENDARI_PLOTTING_${dateStr}`;
+      pts = [...savedPoints];
+      polys = [...savedPolygons];
+      pats = [...savedPatterns];
+      rts = [...savedRoutes];
+    }
+
+    // Filter hidden layers if includeHidden is false
+    if (!includeHidden) {
+      pts = pts.filter((p) => !isIdHidden(hiddenPointIds, p.id));
+      polys = polys.filter((p) => !isIdHidden(hiddenPolygonIds, p.id));
+      pats = pats.filter((p) => !isIdHidden(hiddenPatternIds, p.id));
+      rts = rts.filter((r) => !isIdHidden(hiddenRouteIds, r.id));
+    }
+
+    // Enrich patterns with segments for E-SAR <MultiGeometry>
+    const enrichedPatterns = pats.map((pat) => {
+      let segments = null;
+      try {
+        if (typeof getPatternPolylineCoords === 'function') {
+          segments = getPatternPolylineCoords(pat.patternType, pat.waypoints);
+        }
+      } catch (e) {
+        // ignore
+      }
+      return {
+        ...pat,
+        ...(segments && segments.length > 0 ? { segments } : {})
+      };
+    });
+
+    return {
+      filename: baseFilename,
+      data: {
+        operasiName: opName,
+        points: pts,
+        polygons: polys,
+        patterns: enrichedPatterns,
+        routes: rts
+      }
+    };
+  }
+
+  function generateKmlDocument(customData) {
     if (window.QrSarGis && window.QrSarGis.Export && typeof window.QrSarGis.Export.generateKmlDocument === 'function') {
-      return window.QrSarGis.Export.generateKmlDocument({
-        operasiName: currentOperasi ? currentOperasi.nama_operasi : 'Plotting Operasi SAR Kendari',
-        points: savedPoints,
-        polygons: savedPolygons,
-        patterns: savedPatterns,
-        routes: savedRoutes
-      });
+      const payload = customData || buildExportPayload('current', { includeHidden: false }).data;
+      return window.QrSarGis.Export.generateKmlDocument(payload);
     }
-    let kml = `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>${escapeXml(currentOperasi ? currentOperasi.nama_operasi : 'Plotting Operasi SAR Kendari')}</name>\n`;
-
-    // Folder 1: Points
-    kml += `    <Folder>\n      <name>Titik Operasi SAR</name>\n`;
-    savedPoints.forEach((p) => {
-      kml += `      <Placemark>\n        <name>${escapeXml(p.label || 'Titik')}</name>\n        <description>${escapeXml(p.description || '')} [${escapeXml(p.category || 'SAR')}]</description>\n        <Point><coordinates>${p.lng},${p.lat},0</coordinates></Point>\n      </Placemark>\n`;
-    });
-    kml += `    </Folder>\n`;
-
-    // Folder 2: Polygons
-    kml += `    <Folder>\n      <name>Area Sektor Poligon</name>\n`;
-    savedPolygons.forEach((poly) => {
-      if (poly.points && poly.points.length >= 3) {
-        const coordsStr = poly.points.map((pt) => `${pt.lng},${pt.lat},0`).join(' ');
-        kml += `      <Placemark>\n        <name>${escapeXml(poly.name || 'Sektor')}</name>\n        <Polygon><outerBoundaryIs><LinearRing><coordinates>${coordsStr} ${poly.points[0].lng},${poly.points[0].lat},0</coordinates></LinearRing></outerBoundaryIs></Polygon>\n      </Placemark>\n`;
-      }
-    });
-    kml += `    </Folder>\n`;
-
-    // Folder 3: Patterns & Routes
-    kml += `    <Folder>\n      <name>Rute dan Lintasan SAR</name>\n`;
-    savedPatterns.forEach((pat) => {
-      if (pat.waypoints && pat.waypoints.length >= 2) {
-        const coordsStr = pat.waypoints.map((pt) => `${pt.lng},${pt.lat},0`).join(' ');
-        kml += `      <Placemark>\n        <name>${escapeXml(pat.name || 'Pola Lintasan')}</name>\n        <LineString><coordinates>${coordsStr}</coordinates></LineString>\n      </Placemark>\n`;
-      }
-    });
-    savedRoutes.forEach((rt) => {
-      if (rt.points && rt.points.length >= 2) {
-        const coordsStr = rt.points.map((pt) => `${pt.lng},${pt.lat},0`).join(' ');
-        kml += `      <Placemark>\n        <name>${escapeXml(rt.name || 'Rute Jarak')}</name>\n        <LineString><coordinates>${coordsStr}</coordinates></LineString>\n      </Placemark>\n`;
-      }
-    });
-    kml += `    </Folder>\n  </Document>\n</kml>`;
-
-    return kml;
+    return '';
   }
 
-  function downloadKmlFile() {
+  function downloadKmlFile(customData, filename) {
     if (window.QrSarGis && window.QrSarGis.Export && typeof window.QrSarGis.Export.downloadKml === 'function') {
-      window.QrSarGis.Export.downloadKml({
-        operasiName: currentOperasi ? currentOperasi.nama_operasi : 'Plotting Operasi SAR Kendari',
-        points: savedPoints,
-        polygons: savedPolygons,
-        patterns: savedPatterns,
-        routes: savedRoutes
-      });
-      return;
+      const payload = customData || buildExportPayload('current', { includeHidden: false }).data;
+      window.QrSarGis.Export.downloadKml(payload, filename);
     }
-    const kml = generateKmlDocument();
-    const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `SAR_KENDARI_PLOTTING_${new Date().toISOString().slice(0, 10)}.kml`;
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
-  async function downloadKmzFile() {
+  async function downloadKmzFile(customData, filename) {
     if (window.QrSarGis && window.QrSarGis.Export && typeof window.QrSarGis.Export.downloadKmz === 'function') {
-      await window.QrSarGis.Export.downloadKmz({
-        operasiName: currentOperasi ? currentOperasi.nama_operasi : 'Plotting Operasi SAR Kendari',
-        points: savedPoints,
-        polygons: savedPolygons,
-        patterns: savedPatterns,
-        routes: savedRoutes
-      });
-      return;
+      const payload = customData || buildExportPayload('current', { includeHidden: false }).data;
+      await window.QrSarGis.Export.downloadKmz(payload, filename);
     }
-    if (typeof JSZip === 'undefined') {
-      downloadKmlFile();
-      return;
-    }
-
-    const zip = new JSZip();
-    zip.file('doc.kml', generateKmlDocument());
-    const content = await zip.generateAsync({ type: 'blob' });
-    const url = URL.createObjectURL(content);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `SAR_KENDARI_PLOTTING_${new Date().toISOString().slice(0, 10)}.kmz`;
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
-  function downloadGeoJsonFile() {
+  function downloadGeoJsonFile(customData, filename) {
     if (window.QrSarGis && window.QrSarGis.Export && typeof window.QrSarGis.Export.downloadGeoJson === 'function') {
-      window.QrSarGis.Export.downloadGeoJson({
-        points: savedPoints,
-        polygons: savedPolygons,
-        patterns: savedPatterns,
-        routes: savedRoutes
-      });
-      return;
+      const payload = customData || buildExportPayload('current', { includeHidden: false }).data;
+      window.QrSarGis.Export.downloadGeoJson(payload, filename);
     }
-    const features = [];
-
-    savedPoints.forEach((p) => {
-      features.push({
-        type: 'Feature',
-        properties: { name: p.label || '', category: p.category || 'Tanpa Kategori', type: p.pointType, id_operasi: p.id_operasi || null },
-        geometry: { type: 'Point', coordinates: [p.lng, p.lat] }
-      });
-    });
-
-    savedPolygons.forEach((poly) => {
-      if (poly.points && poly.points.length >= 3) {
-        const ring = poly.points.map((pt) => [pt.lng, pt.lat]);
-        ring.push([poly.points[0].lng, poly.points[0].lat]);
-        features.push({
-          type: 'Feature',
-          properties: { name: poly.name, id_operasi: poly.id_operasi || null },
-          geometry: { type: 'Polygon', coordinates: [ring] }
-        });
-      }
-    });
-
-    savedPatterns.forEach((pat) => {
-      if (pat.waypoints && pat.waypoints.length >= 2) {
-        features.push({
-          type: 'Feature',
-          properties: {
-            name: pat.name || 'Pola SAR',
-            type: pat.patternType,
-            trackSpacingNm: pat.trackSpacingNm,
-            totalDistanceNm: pat.totalDistanceNm,
-            legsCount: pat.legsCount,
-            id_operasi: pat.id_operasi || null
-          },
-          geometry: {
-            type: 'LineString',
-            coordinates: pat.waypoints.map((wp) => [wp.lng, wp.lat])
-          }
-        });
-      }
-    });
-
-    savedRoutes.forEach((rt) => {
-      if (rt.points && rt.points.length >= 2) {
-        features.push({
-          type: 'Feature',
-          properties: {
-            name: rt.name || 'Rute Jarak & Navigasi',
-            vesselSpeedKnots: rt.vesselSpeedKnots,
-            distanceNm: rt.distanceNm,
-            etaText: rt.etaText,
-            id_operasi: rt.id_operasi || null
-          },
-          geometry: {
-            type: 'LineString',
-            coordinates: rt.points.map((pt) => [pt.lng, pt.lat])
-          }
-        });
-      }
-    });
-
-    const geoJson = { type: 'FeatureCollection', features };
-    const blob = new Blob([JSON.stringify(geoJson, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `SAR_KENDARI_GEOJSON_${new Date().toISOString().slice(0, 10)}.geojson`;
-    a.click();
-    URL.revokeObjectURL(url);
   }
 
   // ==========================================
@@ -6681,33 +6632,743 @@
 
   function initExportDropdown() {
     const toggleBtn = document.getElementById('btnToggleExportMenu');
-    const dropdown = document.getElementById('exportDropdownMenu');
+    const modal = document.getElementById('exportSpatialModal');
+    const closeBtn = document.getElementById('btnCloseExportModal');
+    const cancelBtn = document.getElementById('btnCancelExportModal');
+    const executeBtn = document.getElementById('btnExecuteSpatialExport');
+    const scopeRadios = document.querySelectorAll('input[name="exportScope"]');
+    const includeHiddenCheck = document.getElementById('exportIncludeHiddenCheck');
+    const operasiSelect = document.getElementById('exportOperasiSelect');
 
-    if (toggleBtn && dropdown) {
+    if (!modal) return;
+
+    function openModal() {
+      if (currentOperasiId && operasiSelect) {
+        operasiSelect.value = String(currentOperasiId);
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      modal.classList.add('hidden');
+    }
+
+    if (toggleBtn) {
       toggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        dropdown.classList.toggle('hidden');
+        openModal();
+      });
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    scopeRadios.forEach((radio) => {
+      radio.addEventListener('change', () => {
+        if (!includeHiddenCheck) return;
+        if (radio.value === 'current') {
+          includeHiddenCheck.checked = false;
+        } else {
+          includeHiddenCheck.checked = true;
+        }
+      });
+    });
+
+    if (executeBtn) {
+      executeBtn.addEventListener('click', async () => {
+        const scope = document.querySelector('input[name="exportScope"]:checked')?.value || 'current';
+        const format = document.querySelector('input[name="exportFormat"]:checked')?.value || 'kmz';
+        const includeHidden = !!includeHiddenCheck?.checked;
+        const includeBase = !!document.getElementById('exportIncludeBaseCheck')?.checked;
+        const targetOpId = operasiSelect ? operasiSelect.value : '';
+
+        const payload = buildExportPayload(scope, {
+          targetOperasiId: targetOpId,
+          includeBase,
+          includeHidden
+        });
+
+        const fullFilename = `${payload.filename}.${format}`;
+
+        closeModal();
+
+        try {
+          if (format === 'kmz') {
+            await downloadKmzFile(payload.data, fullFilename);
+          } else if (format === 'kml') {
+            downloadKmlFile(payload.data, fullFilename);
+          } else if (format === 'geojson') {
+            downloadGeoJsonFile(payload.data, fullFilename);
+          }
+          if (typeof showToast === 'function') {
+            showToast(`Mengekspor ${fullFilename}...`, 'success');
+          }
+        } catch (err) {
+          console.error('[Export Error]', err);
+          if (typeof showToast === 'function') {
+            showToast(`Gagal mengekspor data: ${err.message || err}`, 'error');
+          }
+        }
+      });
+    }
+  }
+
+  // ==========================================
+  // 12. INTERACTIVE KML/KMZ IMPORT WORKFLOW
+  // ==========================================
+
+  function initImportKmlUI() {
+    const openBtn = document.getElementById('btnOpenImportKmlModal');
+    const modal = document.getElementById('importKmlModal');
+    const closeBtn = document.getElementById('btnCloseImportModal');
+    const cancelBtn = document.getElementById('btnCancelImportKml');
+    const confirmBtn = document.getElementById('btnConfirmImportKml');
+    const dropZone = document.getElementById('importDropZone');
+    const fileInput = document.getElementById('importKmlFileInput');
+    const fileInfo = document.getElementById('importFileInfo');
+    const fileNameEl = document.getElementById('importFileName');
+    const fileSizeEl = document.getElementById('importFileSize');
+    const warningsBox = document.getElementById('importWarningsBox');
+    const warningsList = document.getElementById('importWarningsList');
+    const previewList = document.getElementById('importPreviewList');
+    const autoZoomCheck = document.getElementById('importAutoZoomCheck');
+
+    const targetOperasiRadio = document.getElementById('importTargetTypeOperasi');
+    const targetBasemapRadio = document.getElementById('importTargetTypeBasemap');
+    const targetOperasiSelect = document.getElementById('importTargetOperasiSelect');
+
+    const countPtsEl = document.getElementById('importCountPoints');
+    const countPolyEl = document.getElementById('importCountPolygons');
+    const countPatEl = document.getElementById('importCountPatterns');
+    const countRtEl = document.getElementById('importCountRoutes');
+    const countWarnEl = document.getElementById('importCountWarnings');
+
+    const selectAllBtn = document.getElementById('importSelectAllBtn');
+    const deselectAllBtn = document.getElementById('importDeselectAllBtn');
+    const setAllRouteBtn = document.getElementById('importSetAllLinesRoute');
+    const setAllPatternBtn = document.getElementById('importSetAllLinesPattern');
+
+    if (!modal) return;
+
+    const isAdmin = !!(initialData && initialData.isAdmin);
+    let parsedItems = [];
+    let isImporting = false;
+
+    // RBAC check on target radio
+    if (targetBasemapRadio && !isAdmin) {
+      targetBasemapRadio.disabled = true;
+      if (targetOperasiRadio) targetOperasiRadio.checked = true;
+    }
+
+    function openModal() {
+      if (currentOperasiId && targetOperasiSelect) {
+        targetOperasiSelect.value = String(currentOperasiId);
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      if (isImporting) return;
+      modal.classList.add('hidden');
+    }
+
+    if (openBtn) openBtn.addEventListener('click', openModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Drag and Drop Zone
+    if (dropZone && fileInput) {
+      dropZone.addEventListener('click', () => fileInput.click());
+
+      ['dragenter', 'dragover'].forEach((eventName) => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.add('border-orange-500', 'bg-orange-500/5');
+        });
       });
 
-      document.addEventListener('click', (e) => {
-        if (!e.target.closest('#exportMenuWrapper')) {
-          dropdown.classList.add('hidden');
+      ['dragleave', 'drop'].forEach((eventName) => {
+        dropZone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropZone.classList.remove('border-orange-500', 'bg-orange-500/5');
+        });
+      });
+
+      dropZone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer?.files;
+        if (files && files.length > 0) {
+          handleFile(files[0]);
         }
       });
 
-      document.getElementById('btnExportKml')?.addEventListener('click', () => {
-        dropdown.classList.add('hidden');
-        downloadKmlFile();
+      fileInput.addEventListener('change', (e) => {
+        const files = e.target?.files;
+        if (files && files.length > 0) {
+          handleFile(files[0]);
+        }
+      });
+    }
+
+    async function handleFile(file) {
+      if (!file) return;
+      const lower = file.name.toLowerCase();
+      if (!lower.endsWith('.kml') && !lower.endsWith('.kmz')) {
+        if (typeof showToast === 'function') {
+          showToast('Format berkas tidak didukung. Harap pilih berkas .kml atau .kmz', 'error');
+        }
+        return;
+      }
+
+      // Display file info
+      if (fileInfo && fileNameEl && fileSizeEl) {
+        fileNameEl.textContent = file.name;
+        const sizeKb = (file.size / 1024).toFixed(1);
+        fileSizeEl.textContent = `(${sizeKb} KB)`;
+        fileInfo.classList.remove('hidden');
+      }
+
+      if (previewList) {
+        previewList.innerHTML = `
+          <div class="p-6 text-center text-slate-500 flex flex-col items-center justify-center gap-2">
+            <svg class="w-6 h-6 animate-spin text-orange-500" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+            <span>Membedah berkas ${escapeHtml(file.name)}...</span>
+          </div>
+        `;
+      }
+
+      try {
+        if (!window.QrSarGis || !window.QrSarGis.KmlImporter || typeof window.QrSarGis.KmlImporter.parseFile !== 'function') {
+          throw new Error('Modul KmlImporter belum dimuat.');
+        }
+
+        const res = await window.QrSarGis.KmlImporter.parseFile(file);
+        populateParsedItems(res);
+      } catch (err) {
+        console.error('[KML Import Parse Error]', err);
+        if (previewList) {
+          previewList.innerHTML = `
+            <div class="p-4 text-center text-rose-500 font-bold">
+              Gagal memproses berkas: ${escapeHtml(err.message || err)}
+            </div>
+          `;
+        }
+        if (typeof showToast === 'function') {
+          showToast(`Gagal membedah berkas: ${err.message || err}`, 'error');
+        }
+        updateValidationState();
+      }
+    }
+
+    function populateParsedItems(res) {
+      parsedItems = [];
+      let itemIdx = 0;
+
+      // 1. Points
+      (res.points || []).forEach((pt) => {
+        parsedItems.push({
+          id: `pt_${itemIdx++}`,
+          checked: true,
+          entityType: 'point',
+          name: pt.label || 'Titik KML',
+          pointType: pt.pointType || 'pos_sar',
+          category: pt.category || 'SAR',
+          original: pt
+        });
       });
 
-      document.getElementById('btnExportKmz')?.addEventListener('click', () => {
-        dropdown.classList.add('hidden');
-        downloadKmzFile();
+      // 2. Polygons
+      (res.polygons || []).forEach((poly) => {
+        parsedItems.push({
+          id: `poly_${itemIdx++}`,
+          checked: true,
+          entityType: 'polygon',
+          name: poly.name || 'Sektor Poligon',
+          original: poly
+        });
       });
 
-      document.getElementById('btnExportGeoJson')?.addEventListener('click', () => {
-        dropdown.classList.add('hidden');
-        downloadGeoJsonFile();
+      // 3. Patterns
+      (res.patterns || []).forEach((pat) => {
+        parsedItems.push({
+          id: `line_${itemIdx++}`,
+          checked: true,
+          entityType: 'line',
+          sarType: 'pattern',
+          name: pat.name || 'Pola Pencarian SAR',
+          original: pat
+        });
+      });
+
+      // 4. Routes
+      (res.routes || []).forEach((rt) => {
+        parsedItems.push({
+          id: `line_${itemIdx++}`,
+          checked: true,
+          entityType: 'line',
+          sarType: 'route',
+          name: rt.name || 'Jalur Navigasi',
+          original: rt
+        });
+      });
+
+      // Handle Warnings
+      const warnings = res.warnings || [];
+      if (warningsBox && warningsList && countWarnEl) {
+        countWarnEl.textContent = String(warnings.length);
+        if (warnings.length > 0) {
+          warningsList.innerHTML = warnings
+            .map((w) => `<li>${escapeHtml(w)}</li>`)
+            .join('');
+          warningsBox.classList.remove('hidden');
+        } else {
+          warningsBox.classList.add('hidden');
+          warningsList.innerHTML = '';
+        }
+      }
+
+      renderPreviewList();
+      updateValidationState();
+    }
+
+    function renderPreviewList() {
+      if (!previewList) return;
+
+      if (parsedItems.length === 0) {
+        previewList.innerHTML = `
+          <div class="p-6 text-center text-slate-400">
+            Tidak ada entitas geospasial yang ditemukan dalam berkas ini.
+          </div>
+        `;
+        updateCounters();
+        return;
+      }
+
+      const presetIcons = (window.QrSarGis && window.QrSarGis.Markers && Array.isArray(window.QrSarGis.Markers.PRESET_ICONS))
+        ? window.QrSarGis.Markers.PRESET_ICONS
+        : [
+            { type: 'pos_sar', label: 'Pos / Pangkalan SAR' },
+            { type: 'lkp', label: 'LKP / Titik Kejadian' },
+            { type: 'orang_hilang', label: 'Korban / Survivor' },
+            { type: 'posko_sar', label: 'Posko Lapangan' },
+            { type: 'kapal_sar', label: 'Kapal / Alut Air' },
+            { type: 'heli_sar', label: 'Helikopter / Pesawat' }
+          ];
+
+      const html = parsedItems.map((item, idx) => {
+        const isChecked = item.checked ? 'checked' : '';
+        let badgeHtml = '';
+        let configHtml = '';
+        let metaHtml = '';
+
+        if (item.entityType === 'point') {
+          badgeHtml = `<span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold border border-rose-500/20 shrink-0">Titik</span>`;
+          metaHtml = `<span class="font-mono text-slate-400">${item.original.lat.toFixed(5)}, ${item.original.lng.toFixed(5)}</span>`;
+
+          const optionsHtml = presetIcons
+            .map((ic) => {
+              const sel = ic.type === item.pointType ? 'selected' : '';
+              return `<option value="${escapeHtml(ic.type)}" ${sel}>${escapeHtml(ic.emoji || '')} ${escapeHtml(ic.label)}</option>`;
+            })
+            .join('');
+
+          configHtml = `
+            <select data-idx="${idx}" class="import-point-type-select px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200">
+              ${optionsHtml}
+            </select>
+          `;
+        } else if (item.entityType === 'polygon') {
+          badgeHtml = `<span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/20 shrink-0">Poligon</span>`;
+          const ptCount = Array.isArray(item.original.points) ? item.original.points.length : (item.original.type === 'circle' ? 36 : 0);
+          metaHtml = `<span class="font-mono text-slate-400">${ptCount} Titik Vertex ${item.original.areaNm2 ? `• ${parseFloat(item.original.areaNm2).toFixed(2)} NM²` : ''}</span>`;
+        } else if (item.entityType === 'line') {
+          const isRoute = item.sarType === 'route';
+          badgeHtml = isRoute
+            ? `<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20 shrink-0">Jalur</span>`
+            : `<span class="px-2 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/20 shrink-0">Pola SAR</span>`;
+
+          const coords = item.original.waypoints || item.original.points || [];
+          metaHtml = `<span class="font-mono text-slate-400">${coords.length} Koordinat</span>`;
+
+          configHtml = `
+            <select data-idx="${idx}" class="import-line-type-select px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200">
+              <option value="route" ${isRoute ? 'selected' : ''}>Jalur (Navigasi)</option>
+              <option value="pattern" ${!isRoute ? 'selected' : ''}>Pola SAR (Search)</option>
+            </select>
+          `;
+        }
+
+        return `
+          <div class="flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition">
+            <input type="checkbox" data-idx="${idx}" class="import-item-check rounded text-orange-600 focus:ring-orange-500" ${isChecked}>
+            ${badgeHtml}
+            <input type="text" data-idx="${idx}" value="${escapeHtml(item.name)}" class="import-item-name flex-1 min-w-[140px] px-2 py-1 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500">
+            ${configHtml}
+            <div class="text-[11px] shrink-0 text-right">${metaHtml}</div>
+          </div>
+        `;
+      }).join('');
+
+      previewList.innerHTML = html;
+      wirePreviewListEvents();
+      updateCounters();
+    }
+
+    function wirePreviewListEvents() {
+      if (!previewList) return;
+
+      // Item checkboxes
+      previewList.querySelectorAll('.import-item-check').forEach((chk) => {
+        chk.addEventListener('change', (e) => {
+          const idx = parseInt(e.target.getAttribute('data-idx'), 10);
+          if (parsedItems[idx]) {
+            parsedItems[idx].checked = !!e.target.checked;
+            updateCounters();
+            updateValidationState();
+          }
+        });
+      });
+
+      // Name inputs
+      previewList.querySelectorAll('.import-item-name').forEach((inp) => {
+        inp.addEventListener('input', (e) => {
+          const idx = parseInt(e.target.getAttribute('data-idx'), 10);
+          if (parsedItems[idx]) {
+            parsedItems[idx].name = e.target.value;
+          }
+        });
+      });
+
+      // Point icon selects
+      previewList.querySelectorAll('.import-point-type-select').forEach((sel) => {
+        sel.addEventListener('change', (e) => {
+          const idx = parseInt(e.target.getAttribute('data-idx'), 10);
+          if (parsedItems[idx]) {
+            parsedItems[idx].pointType = e.target.value;
+          }
+        });
+      });
+
+      // Line type selects
+      previewList.querySelectorAll('.import-line-type-select').forEach((sel) => {
+        sel.addEventListener('change', (e) => {
+          const idx = parseInt(e.target.getAttribute('data-idx'), 10);
+          if (parsedItems[idx]) {
+            parsedItems[idx].sarType = e.target.value;
+            renderPreviewList();
+          }
+        });
+      });
+    }
+
+    function updateCounters() {
+      let ptCount = 0;
+      let polyCount = 0;
+      let patCount = 0;
+      let rtCount = 0;
+
+      parsedItems.forEach((item) => {
+        if (!item.checked) return;
+        if (item.entityType === 'point') ptCount++;
+        else if (item.entityType === 'polygon') polyCount++;
+        else if (item.entityType === 'line') {
+          if (item.sarType === 'pattern') patCount++;
+          else rtCount++;
+        }
+      });
+
+      if (countPtsEl) countPtsEl.textContent = String(ptCount);
+      if (countPolyEl) countPolyEl.textContent = String(polyCount);
+      if (countPatEl) countPatEl.textContent = String(patCount);
+      if (countRtEl) countRtEl.textContent = String(rtCount);
+    }
+
+    function updateValidationState() {
+      if (!confirmBtn) return;
+      const checkedCount = parsedItems.filter((i) => i.checked).length;
+      const targetType = document.querySelector('input[name="importTargetType"]:checked')?.value || 'operasi';
+
+      let isValid = checkedCount > 0 && !isImporting;
+      if (targetType === 'basemap' && !isAdmin) {
+        isValid = false;
+      }
+      if (targetType === 'operasi') {
+        const opVal = targetOperasiSelect?.value;
+        if (!opVal || isNaN(parseInt(opVal, 10)) || parseInt(opVal, 10) <= 0) {
+          isValid = false;
+        }
+      }
+
+      confirmBtn.disabled = !isValid;
+    }
+
+    // Bulk buttons
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', () => {
+        parsedItems.forEach((i) => (i.checked = true));
+        renderPreviewList();
+        updateValidationState();
+      });
+    }
+
+    if (deselectAllBtn) {
+      deselectAllBtn.addEventListener('click', () => {
+        parsedItems.forEach((i) => (i.checked = false));
+        renderPreviewList();
+        updateValidationState();
+      });
+    }
+
+    if (setAllRouteBtn) {
+      setAllRouteBtn.addEventListener('click', () => {
+        parsedItems.forEach((i) => {
+          if (i.entityType === 'line') i.sarType = 'route';
+        });
+        renderPreviewList();
+        updateValidationState();
+      });
+    }
+
+    if (setAllPatternBtn) {
+      setAllPatternBtn.addEventListener('click', () => {
+        parsedItems.forEach((i) => {
+          if (i.entityType === 'line') i.sarType = 'pattern';
+        });
+        renderPreviewList();
+        updateValidationState();
+      });
+    }
+
+    // Target scope radio switches
+    [targetOperasiRadio, targetBasemapRadio].forEach((rad) => {
+      if (rad) {
+        rad.addEventListener('change', updateValidationState);
+      }
+    });
+
+    if (targetOperasiSelect) {
+      targetOperasiSelect.addEventListener('change', updateValidationState);
+    }
+
+    // Confirm Import Action
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', async () => {
+        if (isImporting) return;
+
+        const targetType = document.querySelector('input[name="importTargetType"]:checked')?.value || 'operasi';
+        let id_operasi = null;
+
+        if (targetType === 'basemap') {
+          if (!isAdmin) {
+            if (typeof showToast === 'function') {
+              showToast('Khusus Administrator: Anda tidak memiliki izin mengimpor ke Base Map', 'error');
+            }
+            return;
+          }
+          id_operasi = null;
+        } else {
+          const opId = targetOperasiSelect ? parseInt(targetOperasiSelect.value, 10) : 0;
+          if (!opId || isNaN(opId) || opId <= 0) {
+            if (typeof showToast === 'function') {
+              showToast('Pilih operasi SAR aktif tujuan impor', 'error');
+            }
+            return;
+          }
+          id_operasi = opId;
+        }
+
+        const checkedItems = parsedItems.filter((i) => i.checked);
+        if (checkedItems.length === 0) {
+          if (typeof showToast === 'function') {
+            showToast('Tidak ada entitas yang dipilih untuk diimpor', 'error');
+          }
+          return;
+        }
+
+        const payloadPoints = [];
+        const payloadPolygons = [];
+        const payloadPatterns = [];
+        const payloadRoutes = [];
+
+        checkedItems.forEach((item) => {
+          if (item.entityType === 'point') {
+            payloadPoints.push({
+              label: (item.name || '').trim() || item.original.label || 'Titik SAR',
+              lat: item.original.lat,
+              lng: item.original.lng,
+              pointType: item.pointType || item.original.pointType || 'pos_sar',
+              category: item.original.category || 'SAR',
+              description: item.original.description || null,
+              customIconUrl: item.original.customIconUrl || null,
+              strokeColor: item.original.strokeColor || null,
+              fillColor: item.original.fillColor || null
+            });
+          } else if (item.entityType === 'polygon') {
+            payloadPolygons.push({
+              id: item.original.id || undefined,
+              name: (item.name || '').trim() || item.original.name || 'Sektor Poligon',
+              type: item.original.type || 'polygon',
+              points: item.original.points || [],
+              strokeColor: item.original.strokeColor || '#ea580c',
+              fillColor: item.original.fillColor || '#ea580c',
+              strokeOpacity: item.original.strokeOpacity ?? 0.8,
+              fillOpacity: item.original.fillOpacity ?? 0.2,
+              center: item.original.center || null,
+              radiusKm: item.original.radiusKm || null,
+              areaNm2: item.original.areaNm2 || null
+            });
+          } else if (item.entityType === 'line') {
+            const rawCoords = item.original.waypoints || item.original.points || [];
+            if (item.sarType === 'pattern') {
+              payloadPatterns.push({
+                name: (item.name || '').trim() || item.original.name || 'Pola SAR Impor',
+                patternType: item.original.patternType || 'creeping_line',
+                trackSpacingNm: item.original.trackSpacingNm || 1.0,
+                searchSpeedKnots: item.original.searchSpeedKnots || 10,
+                waypoints: rawCoords,
+                strokeColor: item.original.strokeColor || '#f97316',
+                polygonId: item.original.polygonId || item.original.polygonRef || null,
+                datumLatLng: item.original.datumLatLng || (rawCoords[0] ? { lat: rawCoords[0].lat, lng: rawCoords[0].lng } : null),
+                legsCount: item.original.legsCount || (rawCoords.length > 1 ? rawCoords.length - 1 : 1),
+                totalDistanceNm: item.original.totalDistanceNm || null,
+                areaNm2: item.original.areaNm2 || null
+              });
+            } else {
+              payloadRoutes.push({
+                name: (item.name || '').trim() || item.original.name || 'Jalur Navigasi Impor',
+                points: rawCoords,
+                vesselSpeedKnots: item.original.vesselSpeedKnots || 15,
+                strokeColor: item.original.strokeColor || '#10b981',
+                polygonId: item.original.polygonId || item.original.polygonRef || null
+              });
+            }
+          }
+        });
+
+        isImporting = true;
+        const origBtnHtml = confirmBtn.innerHTML;
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = `
+          <svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+          <span>Menyimpan ke Database...</span>
+        `;
+
+        try {
+          const bodyPayload = {
+            id_operasi,
+            points: payloadPoints,
+            polygons: payloadPolygons,
+            patterns: payloadPatterns,
+            routes: payloadRoutes
+          };
+
+          const res = await gisFetch(`${BASE_URL}/api/gis/import`, {
+            method: 'POST',
+            body: JSON.stringify(bodyPayload)
+          });
+
+          const data = await res.json().catch(() => ({}));
+
+          if (!res.ok || !data.success) {
+            throw new Error(data.message || data.error || `Gagal mengimpor data (HTTP ${res.status})`);
+          }
+
+          // Hydrate master collections
+          const imported = data.imported || {};
+          if (Array.isArray(imported.points)) {
+            imported.points.forEach((p) => rawAllPoints.unshift(p));
+          }
+          if (Array.isArray(imported.polygons)) {
+            imported.polygons.forEach((p) => rawAllPolygons.unshift(p));
+          }
+          if (Array.isArray(imported.patterns)) {
+            imported.patterns.forEach((p) => rawAllPatterns.unshift(p));
+          }
+          if (Array.isArray(imported.routes)) {
+            imported.routes.forEach((r) => rawAllRoutes.unshift(r));
+          }
+
+          applyActiveFilter();
+          reRenderAllLayers();
+          notifyGisStorageUpdate();
+
+          // Auto-zoom if checked
+          if (autoZoomCheck && autoZoomCheck.checked && typeof L !== 'undefined' && map) {
+            const allCoords = [];
+            (imported.points || []).forEach((p) => { if (p.lat && p.lng) allCoords.push([p.lat, p.lng]); });
+            (imported.polygons || []).forEach((poly) => {
+              if (Array.isArray(poly.points)) {
+                poly.points.forEach((pt) => { if (pt.lat && pt.lng) allCoords.push([pt.lat, pt.lng]); });
+              } else if (poly.center && poly.center.lat && poly.center.lng) {
+                allCoords.push([poly.center.lat, poly.center.lng]);
+              }
+            });
+            (imported.patterns || []).forEach((pat) => {
+              if (Array.isArray(pat.waypoints)) {
+                pat.waypoints.forEach((wp) => { if (wp.lat && wp.lng) allCoords.push([wp.lat, wp.lng]); });
+              }
+            });
+            (imported.routes || []).forEach((rt) => {
+              if (Array.isArray(rt.points)) {
+                rt.points.forEach((pt) => { if (pt.lat && pt.lng) allCoords.push([pt.lat, pt.lng]); });
+              }
+            });
+
+            if (allCoords.length > 0) {
+              const bounds = L.latLngBounds(allCoords);
+              if (bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+              }
+            }
+          }
+
+          const counts = data.counts || {};
+          const totalSaved = (counts.points || 0) + (counts.polygons || 0) + (counts.patterns || 0) + (counts.routes || 0);
+
+          if (id_operasi === null) {
+            if (typeof showToast === 'function') {
+              showToast(`Berhasil mengimpor ${totalSaved} entitas ke Base Map Global`, 'success');
+            }
+          } else if (filterMode === 'operasi' && currentOperasiId === id_operasi) {
+            if (typeof showToast === 'function') {
+              showToast(`Berhasil mengimpor ${totalSaved} entitas ke Operasi SAR #${id_operasi}`, 'success');
+            }
+          } else {
+            if (typeof showToast === 'function') {
+              showToast(`Berhasil mengimpor ${totalSaved} entitas ke Operasi SAR #${id_operasi}. Beralihlah ke operasi tersebut untuk melihat data.`, 'success');
+            }
+          }
+
+          closeModal();
+
+          // Reset input and parsed state
+          parsedItems = [];
+          if (fileInput) fileInput.value = '';
+          if (fileInfo) fileInfo.classList.add('hidden');
+          if (previewList) {
+            previewList.innerHTML = '<div class="p-6 text-center text-slate-400">Pilih atau seret berkas KML / KMZ untuk memuat daftar entitas geospasial</div>';
+          }
+          if (warningsBox) warningsBox.classList.add('hidden');
+          updateCounters();
+        } catch (err) {
+          console.error('[Import Error]', err);
+          if (typeof showToast === 'function') {
+            showToast(`Gagal mengimpor data: ${err.message || err}`, 'error');
+          }
+        } finally {
+          isImporting = false;
+          confirmBtn.disabled = false;
+          confirmBtn.innerHTML = origBtnHtml;
+          updateValidationState();
+        }
       });
     }
   }
@@ -8364,6 +9025,7 @@
     try { initBasemapSwitcher(); } catch (e) { console.error('[GIS Bootstrap] BasemapSwitcher error:', e); }
     try { initGlobalUnitSwitcher(); } catch (e) { console.error('[GIS Bootstrap] GlobalUnitSwitcher error:', e); }
     try { initExportDropdown(); } catch (e) { console.error('[GIS Bootstrap] ExportDropdown error:', e); }
+    try { initImportKmlUI(); } catch (e) { console.error('[GIS Bootstrap] ImportKmlUI error:', e); }
     try { initFullscreenToggle(); } catch (e) { console.error('[GIS Bootstrap] FullscreenToggle error:', e); }
     try { initOperasiSelector(); } catch (e) { console.error('[GIS Bootstrap] OperasiSelector error:', e); }
 

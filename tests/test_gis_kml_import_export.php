@@ -870,6 +870,76 @@ try {
         "Pt: {$checkUserPt}, Poly: {$checkUserPoly}, Pat: {$checkUserPat}, Rt: {$checkUserRt}"
     );
 
+    // -----------------------------------------------------------------
+    // PENGUJIAN INTEGRASI VIEW & JS (TASK 5)
+    // -----------------------------------------------------------------
+    echo PHP_EOL . "--- PENGUJIAN INTEGRASI UI GIS: EXPORT MODAL & IMPORT WORKFLOW ---" . PHP_EOL;
+
+    $viewGisPath = $rootDir . '/views/gis.php';
+    $viewGisSrc = file_exists($viewGisPath) ? file_get_contents($viewGisPath) : '';
+
+    $gisMasterPath = $rootDir . '/assets/js/gis_master.js';
+    $gisMasterSrc = file_exists($gisMasterPath) ? file_get_contents($gisMasterPath) : '';
+
+    assertCondition(
+        "views/gis.php mengekspos isAdmin di SAR_INITIAL_GIS_DATA",
+        str_contains($viewGisSrc, 'isAdmin:') || str_contains($viewGisSrc, "'isAdmin'")
+    );
+
+    assertCondition(
+        "views/gis.php memuat script assets/js/gis/kml_importer.js",
+        str_contains($viewGisSrc, 'assets/js/gis/kml_importer.js')
+    );
+
+    assertCondition(
+        "views/gis.php memuat elemen DOM UI Impor (#btnOpenImportKmlModal & #importKmlModal)",
+        str_contains($viewGisSrc, 'id="btnOpenImportKmlModal"') && str_contains($viewGisSrc, 'id="importKmlModal"')
+    );
+
+    assertCondition(
+        "views/gis.php memuat elemen DOM UI Ekspor Spasial (#exportSpatialModal)",
+        str_contains($viewGisSrc, 'id="exportSpatialModal"')
+    );
+
+    assertCondition(
+        "views/gis.php memuat tombol konfirmasi impor (#btnConfirmImportKml)",
+        str_contains($viewGisSrc, 'id="btnConfirmImportKml"')
+    );
+
+    assertCondition(
+        "assets/js/gis_master.js memanggil endpoint /api/gis/import via fetch / gisFetch",
+        str_contains($gisMasterSrc, '/api/gis/import')
+    );
+
+    assertCondition(
+        "assets/js/gis_master.js mendelegasikan parsing berkas ke QrSarGis.KmlImporter.parseFile",
+        str_contains($gisMasterSrc, 'QrSarGis.KmlImporter.parseFile')
+    );
+
+    assertCondition(
+        "assets/js/gis_master.js mempertahankan delegasi QrSarGis.Export.generateKmlDocument",
+        str_contains($gisMasterSrc, 'QrSarGis.Export.generateKmlDocument')
+    );
+
+    assertCondition(
+        "assets/js/gis_master.js tidak lagi memuat string XML fallback duplikat (<kml xmlns=)",
+        !str_contains($gisMasterSrc, '<kml xmlns="http://www.opengis.net/kml/2.2">')
+    );
+
+    // Jalankan pengujian unit roundtrip KML / KMZ di Node.js
+    echo PHP_EOL . "--- MENJALANKAN NODE.JS TEST: tests/js/kml_roundtrip.test.js ---" . PHP_EOL;
+    $nodeCmd = 'node --test ' . escapeshellarg($rootDir . '/tests/js/kml_roundtrip.test.js') . ' 2>&1';
+    $nodeOutput = [];
+    $nodeExitCode = 0;
+    exec($nodeCmd, $nodeOutput, $nodeExitCode);
+    $nodeOutputStr = implode(PHP_EOL, $nodeOutput);
+
+    assertCondition(
+        "Node.js kml_roundtrip.test.js lulus tanpa galat (exit code 0)",
+        $nodeExitCode === 0,
+        "Exit Code: {$nodeExitCode}, Output:\n" . substr($nodeOutputStr, 0, 500)
+    );
+
 } finally {
     // -----------------------------------------------------------------
     // PEMBERSIHAN DATA TEST (CLEANUP SPOTLESS)
