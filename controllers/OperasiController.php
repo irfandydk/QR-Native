@@ -877,7 +877,9 @@ class OperasiController extends BaseController {
             $hariKe = !empty($laporan['hari_ke']) ? $laporan['hari_ke'] : TemplateHelper::hitungHariKe($operasi, $tglLap);
             $jenisLaporan = $laporan['jenis_laporan'] ?? 'PERKEMBANGAN';
             $waktuDebrief = !empty($laporan['waktu_debrief']) ? date('Y-m-d\TH:i', strtotime($laporan['waktu_debrief'])) : date('Y-m-d\TH:i');
-            $cuaca = $laporan['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
+            $cuaca = ($laporan['cuaca'] ?? '') !== '' ? $laporan['cuaca'] : ($operasi['cuaca'] ?: 'Cerah Berawan');
+            $gelombang = ($laporan['gelombang'] ?? '') !== '' ? $laporan['gelombang'] : ($operasi['gelombang'] ?? '');
+            $angin = ($laporan['angin'] ?? '') !== '' ? $laporan['angin'] : ($operasi['angin'] ?? '');
             $isiLaporan = $laporan['isi_laporan'] ?? '';
             $initialUnsurData = !empty($laporan['detail_unsur']) ? $laporan['detail_unsur'] : ($operasi['detail_unsur'] ?? []);
             $initialAlutData = !empty($laporan['detail_alut']) ? $laporan['detail_alut'] : ($operasi['detail_alut'] ?? []);
@@ -888,8 +890,10 @@ class OperasiController extends BaseController {
             $hariKe = $nextLapbang['hari_ke'] ?? TemplateHelper::hitungHariKe($operasi, $tglLap);
             $jenisLaporan = 'PERKEMBANGAN';
             $waktuDebrief = date('Y-m-d\TH:i');
-            $cuaca = $nextLapbang['inherited_cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
-            $isiLaporan = "Pada pelaksanaan operasi SAR hari ini, tim gabungan telah melaksanakan pencarian sesuai rencana operasi (RENOPS). Hingga saat laporan ini disusun, hasil pencarian masih nihil / korban belum ditemukan. Operasi SAR dihentikan sementara dan akan dilanjutkan esok hari.";
+            $cuaca = ($nextLapbang['inherited_cuaca'] ?? '') !== '' ? $nextLapbang['inherited_cuaca'] : ($operasi['cuaca'] ?: 'Cerah Berawan');
+            $gelombang = ($nextLapbang['inherited_gelombang'] ?? '') !== '' ? $nextLapbang['inherited_gelombang'] : ($operasi['gelombang'] ?? '');
+            $angin = ($nextLapbang['inherited_angin'] ?? '') !== '' ? $nextLapbang['inherited_angin'] : ($operasi['angin'] ?? '');
+            $isiLaporan = "- Pada pelaksanaan operasi SAR hari ini, tim gabungan telah melaksanakan pencarian sesuai rencana operasi (RENOPS).\n- Hingga saat laporan ini disusun, hasil pencarian masih nihil / korban belum ditemukan. Operasi SAR dihentikan sementara dan akan dilanjutkan esok hari.";
             $initialUnsurData = !empty($nextLapbang['inherited_unsur']) ? $nextLapbang['inherited_unsur'] : (!empty($operasi['detail_unsur']) ? $operasi['detail_unsur'] : []);
             $initialAlutData = !empty($nextLapbang['inherited_alut']) ? $nextLapbang['inherited_alut'] : (!empty($operasi['detail_alut']) ? $operasi['detail_alut'] : []);
         }
@@ -912,6 +916,8 @@ class OperasiController extends BaseController {
             'jenisLaporan' => $jenisLaporan,
             'waktuDebrief' => $waktuDebrief,
             'cuaca' => $cuaca,
+            'gelombang' => $gelombang,
+            'angin' => $angin,
             'isiLaporan' => $isiLaporan,
             'initialUnsurData' => $initialUnsurData,
             'initialAlutData' => $initialAlutData,

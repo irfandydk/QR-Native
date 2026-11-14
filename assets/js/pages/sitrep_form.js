@@ -71,7 +71,7 @@ function applyH7ClosureTemplate() {
   const isiEl = document.getElementById('sitrep_isi_laporan');
   if (isiEl) {
     // namaOps initialized above from sitrepFormCfg
-    isiEl.value = `1. Tim SAR Gabungan telah melaksanakan upaya pencarian dan pertolongan maksimal hingga hari ke-7 (H.7) sesuai Rencana Operasi (RENOPS H.7).\n2. Hingga pukul 17.00 WITA, hasil penyisiran lapangan di seluruh sektor pencarian masih NIHIL dan tidak ditemukan tanda-tanda keberadaan korban.\n3. Berdasarkan hasil evaluasi menyeluruh, debriefing bersama seluruh Potensi SAR yang terlibat, serta musyawarah bersama pihak keluarga korban, dengan merujuk pada ketentuan Pasal 34 Undang-Undang No. 29 Tahun 2014 tentang Pencarian dan Pertolongan, maka Operasi SAR ${namaOps} secara resmi diusulkan untuk DITUTUP.\n4. Seluruh unsur Potensi SAR yang terlibat dikembalikan ke kesatuan dan instansi masing-masing dengan ucapan terima kasih dan apresiasi setinggi-tingginya.\n5. Operasi SAR dapat dibuka kembali sewaktu-waktu apabila di kemudian hari ditemukan petunjuk atau tanda-tanda baru mengenai keberadaan korban.`;
+    isiEl.value = `- Tim SAR Gabungan telah melaksanakan upaya pencarian dan pertolongan maksimal hingga hari ke-7 (H.7) sesuai Rencana Operasi (RENOPS H.7).\n- Hingga pukul 17.00 WITA, hasil penyisiran lapangan di seluruh sektor pencarian masih NIHIL dan tidak ditemukan tanda-tanda keberadaan korban.\n- Berdasarkan hasil evaluasi menyeluruh, musyawarah evaluasi bersama seluruh Potensi SAR yang terlibat, serta musyawarah bersama pihak keluarga korban, dengan merujuk pada ketentuan Pasal 34 Undang-Undang No. 29 Tahun 2014 tentang Pencarian dan Pertolongan, maka Operasi SAR ${namaOps} secara resmi diusulkan untuk DITUTUP.`;
     isiEl.focus();
   }
   if (typeof showToast === 'function') {
@@ -88,7 +88,7 @@ function applyH7ExtensionTemplate() {
   const isiEl = document.getElementById('sitrep_isi_laporan');
   if (isiEl) {
     // namaOps initialized above from sitrepFormCfg
-    isiEl.value = `1. Pada pelaksanaan operasi SAR hari ke-7 (H.7), Tim SAR Gabungan memperoleh petunjuk dan laporan informasi mengenai kemungkinan posisi korban di lapangan.\n2. Berdasarkan hasil analisa SMC dan kesepakatan bersama Potensi SAR serta pihak keluarga korban, diputuskan bahwa Operasi SAR ${namaOps} diusulkan untuk DIPERPANJANG selama 3 (tiga) hari ke depan sesuai wewenang Kepala Kantor SAR guna mengoptimalkan pencarian.\n3. Rencana operasi lanjutan (RENOPS H.8) akan difokuskan pada perluasan area pencarian sesuai datum dan perkembangan terkini.`;
+    isiEl.value = `- Pada pelaksanaan operasi SAR hari ke-7 (H.7), Tim SAR Gabungan memperoleh petunjuk dan laporan informasi mengenai kemungkinan posisi korban di lapangan.\n- Berdasarkan hasil analisa SMC dan kesepakatan bersama Potensi SAR serta pihak keluarga korban, diputuskan bahwa Operasi SAR ${namaOps} diusulkan untuk DIPERPANJANG selama 3 (tiga) hari ke depan sesuai wewenang Kepala Kantor SAR guna mengoptimalkan pencarian.\n- Rencana operasi lanjutan (RENOPS H.8) akan difokuskan pada perluasan area pencarian sesuai datum dan perkembangan terkini.`;
     isiEl.focus();
   }
   if (typeof showToast === 'function') {
@@ -613,9 +613,12 @@ function closeModal(id) {
 function saveSitrepDraft() {
   if (isSitrepEditMode) return;
   const draft = {
-    waktu_laporan: document.getElementById('input-waktu-laporan')?.value,
-    waktu_debriefing: document.getElementById('input-waktu-debriefing')?.value,
-    isi_laporan: document.getElementById('input-isi-laporan')?.value,
+    waktu_laporan: document.getElementById('sitrep_waktu_laporan')?.value,
+    waktu_debriefing: document.getElementById('sitrep_waktu_debrief')?.value,
+    cuaca: document.getElementById('sitrep_cuaca')?.value,
+    gelombang: document.getElementById('sitrep_gelombang')?.value,
+    angin: document.getElementById('sitrep_angin')?.value,
+    isi_laporan: document.getElementById('sitrep_isi_laporan')?.value,
     unsur: currentUnsurList,
     alut: currentAlutList,
     savedAt: new Date().toISOString()
@@ -630,10 +633,20 @@ function restoreSitrepDraft() {
   try {
     const d = JSON.parse(raw);
     if (!d) return;
-    if (d.isi_laporan) document.getElementById('input-isi-laporan').value = d.isi_laporan;
-    if (d.waktu_debriefing && document.getElementById('input-waktu-debriefing')) {
-      document.getElementById('input-waktu-debriefing').value = d.waktu_debriefing;
+    const waktuLapEl = document.getElementById('sitrep_waktu_laporan');
+    if (d.waktu_laporan && waktuLapEl) waktuLapEl.value = d.waktu_laporan;
+    const isiEl = document.getElementById('sitrep_isi_laporan');
+    if (d.isi_laporan && isiEl) isiEl.value = d.isi_laporan;
+    const debriefEl = document.getElementById('sitrep_waktu_debrief');
+    if (d.waktu_debriefing && debriefEl) {
+      debriefEl.value = d.waktu_debriefing;
     }
+    const cuacaEl = document.getElementById('sitrep_cuaca');
+    if (d.cuaca !== undefined && cuacaEl) cuacaEl.value = d.cuaca;
+    const gelombangEl = document.getElementById('sitrep_gelombang');
+    if (d.gelombang !== undefined && gelombangEl) gelombangEl.value = d.gelombang;
+    const anginEl = document.getElementById('sitrep_angin');
+    if (d.angin !== undefined && anginEl) anginEl.value = d.angin;
     if (Array.isArray(d.unsur) && d.unsur.length > 0) { currentUnsurList = d.unsur; renderUnsurList(); }
     if (Array.isArray(d.alut) && d.alut.length > 0) { currentAlutList = d.alut; renderAlutList(); }
     
@@ -655,7 +668,7 @@ document.addEventListener('input', (e) => {
 });
 
 document.getElementById('form-sitrep')?.addEventListener('submit', () => {
-  recalculateSitrepHariKe();
+  if (!isSitrepEditMode) recalculateSitrepHariKe();
   clearSitrepDraft();
 });
 
@@ -716,9 +729,9 @@ function initVictimStatusListeners() {
   selects.forEach(sel => {
     sel.addEventListener('change', () => {
       updateVictimStatusBadges();
-      const previewModal = document.getElementById('modal-preview-wa-sitrep');
+      const previewModal = document.getElementById('modal-preview-sitrep-wa');
       if (previewModal && !previewModal.classList.contains('hidden')) {
-        previewSitrepWA();
+        previewSitrepWa();
       }
     });
   });
@@ -729,12 +742,12 @@ document.getElementById('sitrep_waktu_laporan')?.addEventListener('input', recal
 document.getElementById('sitrep_waktu_laporan')?.addEventListener('change', recalculateSitrepHariKe);
 
 document.addEventListener('DOMContentLoaded', () => {
-  recalculateSitrepHariKe();
+  if (!isSitrepEditMode) recalculateSitrepHariKe();
   renderUnsurList();
   renderAlutList();
   initVictimStatusListeners();
   restoreSitrepDraft();
-  recalculateSitrepHariKe();
+  if (!isSitrepEditMode) recalculateSitrepHariKe();
 });
 
 // Kategori input alut: tebakan otomatis dari nama sampai pengguna memilih sendiri.

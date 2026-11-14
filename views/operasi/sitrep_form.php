@@ -14,6 +14,8 @@
  * @var string $waktuLaporan
  * @var string $waktuDebrief
  * @var string $cuaca
+ * @var string $gelombang
+ * @var string $angin
  * @var string $isiLaporan
  * @var array $initialUnsurData
  * @var array $initialAlutData
@@ -36,6 +38,8 @@ $jenisLaporan = $jenisLaporan ?? 'PERKEMBANGAN';
 $waktuLaporan = $waktuLaporan ?? date('Y-m-d\TH:i');
 $waktuDebrief = $waktuDebrief ?? date('Y-m-d\TH:i');
 $cuaca = $cuaca ?? '';
+$gelombang = $gelombang ?? '';
+$angin = $angin ?? '';
 $isiLaporan = $isiLaporan ?? '';
 $masterTim = $masterTim ?? [];
 $masterAlut = $masterAlut ?? [];
@@ -208,13 +212,25 @@ $initialAlutData = $initialAlutData ?? [];
         </div>
       </div>
 
-      <!-- Cuaca BMKG -->
-      <div>
+      <!-- Cuaca BMKG Terpisah (Opsi A) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="field">
-          <label class="field-label">Kondisi Cuaca Terkini (BMKG)</label>
+          <label class="field-label">Kondisi Cuaca (BMKG)</label>
           <input class="field-input w-full" type="text" name="cuaca" id="sitrep_cuaca"
-          placeholder="Contoh: Cerah Berawan, Gelombang 0.5 - 1.25 M, Angin 5 - 15 Knots"
-          value="<?= e($cuaca) ?>"  />
+          placeholder="Contoh: Cerah / Cerah Berawan"
+          value="<?= e($cuaca) ?>" />
+        </div>
+        <div class="field">
+          <label class="field-label">Tinggi Gelombang</label>
+          <input class="field-input w-full" type="text" name="gelombang" id="sitrep_gelombang"
+          placeholder="Contoh: 0,2 Mtr"
+          value="<?= e($gelombang) ?>" />
+        </div>
+        <div class="field">
+          <label class="field-label">Arah &amp; Kecepatan Angin</label>
+          <input class="field-input w-full" type="text" name="angin" id="sitrep_angin"
+          placeholder="Contoh: 3,1km/jam dari Utara"
+          value="<?= e($angin) ?>" />
         </div>
       </div>
     </div>

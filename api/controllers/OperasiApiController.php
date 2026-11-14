@@ -51,7 +51,21 @@ class OperasiApiController extends BaseApiController {
                 $text = RenopsModel::buildPreviewWa($ops, $data, $existing);
             } elseif ($doc === 'sitrep') {
                 $existing = !empty($data['id_laporan']) ? LaporanModel::getById((int)$data['id_laporan']) : null;
-                $data['hari_ke'] = TemplateHelper::hitungHariKe($ops, date('Y-m-d', strtotime($data['waktu_laporan'] ?? 'now') ?: time()));
+                $tglLap = date('Y-m-d', strtotime($data['waktu_laporan'] ?? 'now') ?: time());
+                if ($existing && !empty($existing['hari_ke'])) {
+                    $origTgl = !empty($existing['waktu_laporan']) ? date('Y-m-d', strtotime($existing['waktu_laporan'])) : null;
+                    if ($origTgl === $tglLap) {
+                        $data['hari_ke'] = $existing['hari_ke'];
+                    } else {
+                        $data['hari_ke'] = !empty(trim((string)($data['hari_ke'] ?? '')))
+                            ? trim((string)$data['hari_ke'])
+                            : TemplateHelper::hitungHariKe($ops, $tglLap, $existing['hari_ke']);
+                    }
+                } else {
+                    $data['hari_ke'] = !empty(trim((string)($data['hari_ke'] ?? '')))
+                        ? trim((string)$data['hari_ke'])
+                        : TemplateHelper::hitungHariKe($ops, $tglLap);
+                }
                 $text = LaporanModel::buildPreviewWa($ops, $data, $existing);
             } else {
                 self::error('Jenis naskah WA tidak dikenal.', 400);

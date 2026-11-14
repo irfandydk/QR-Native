@@ -401,5 +401,156 @@ assertCase(
     "Cuaca kosong seluruhnya menampilkan '-' tanpa suffix BMKG"
 );
 
+// -----------------------------------------------------------------------------
+// 3. Integrasi View sitrep_form.php, Controller, API Preview, & JS SITREP
+// -----------------------------------------------------------------------------
+echo "\n--- 3. Integrasi View, Controller, API Preview & JS SITREP ---\n";
+
+$idOperasi = 1;
+$operasi = ['id_operasi' => 1, 'nama_operasi' => 'Test Ops View', 'korban' => [], 'detail_unsur' => [], 'detail_alut' => []];
+$idLaporan = 0;
+$editMode = false;
+$laporan = null;
+$masterTim = [];
+$masterAlut = [];
+$baseDateOps = '2026-11-12';
+$waktuLaporan = '2026-11-12T10:00';
+$tglLap = '2026-11-12';
+$hariKe = 'H.1';
+$jenisLaporan = 'PERKEMBANGAN';
+$waktuDebrief = '2026-11-12T10:00';
+$cuaca = 'Cerah "<xss>';
+$gelombang = '0,2 Mtr "<xss>';
+$angin = '3,1km/jam dari Utara "<xss>';
+$isiLaporan = '- Test isi';
+$initialUnsurData = [];
+$initialAlutData = [];
+$pageTitle = 'Test';
+$navbarTitle = 'Test';
+
+ob_start();
+include ROOT_DIR . '/views/operasi/sitrep_form.php';
+$sitrepHtml = (string)ob_get_clean();
+
+assertCase(
+    str_contains($sitrepHtml, 'name="cuaca"')
+    && str_contains($sitrepHtml, 'id="sitrep_cuaca"')
+    && str_contains($sitrepHtml, 'Cerah &quot;&lt;xss&gt;')
+    && !str_contains($sitrepHtml, 'Cerah "<xss>'),
+    "sitrep_form.php merender input name=\"cuaca\" dengan escaping XSS"
+);
+assertCase(
+    str_contains($sitrepHtml, 'name="gelombang"')
+    && str_contains($sitrepHtml, 'id="sitrep_gelombang"')
+    && str_contains($sitrepHtml, '0,2 Mtr &quot;&lt;xss&gt;'),
+    "sitrep_form.php merender input name=\"gelombang\" (#sitrep_gelombang) dengan escaping XSS"
+);
+assertCase(
+    str_contains($sitrepHtml, 'name="angin"')
+    && str_contains($sitrepHtml, 'id="sitrep_angin"')
+    && str_contains($sitrepHtml, '3,1km/jam dari Utara &quot;&lt;xss&gt;'),
+    "sitrep_form.php merender input name=\"angin\" (#sitrep_angin) dengan escaping XSS"
+);
+
+// E2E lifecycle: create() -> getById()['full_text_wa'] === buildPreviewWa(), lalu update() -> identik
+$e2eOpId = null;
+try {
+    $e2eOpId = OperasiModel::create([
+        'nama_operasi' => 'Kecelakaan Kapal, 1 Orang ABK hilang di Perairan Wakatobi',
+        'jenis_kejadian' => 'KMM',
+        'lokasi_kejadian' => 'Perairan Wakatobi',
+        'waktu_kejadian' => '2026-11-06 06:00:00',
+        'waktu_lapor' => '2026-11-06 07:00:00',
+        'waktu_berangkat' => '2026-11-06 07:30:00',
+        'eta_tiba' => '2026-11-06 09:00:00',
+        'jumlah_pob' => 1,
+        'cuaca' => 'Berawan',
+        'gelombang' => '0,5 Mtr',
+        'angin' => '5 km/jam dari Timur',
+        'korban' => [[
+            'nama_korban' => 'Rendi',
+            'umur' => '24 Tahun',
+            'jk' => 'Laki-laki',
+            'alamat' => 'Bira',
+            'status_korban' => 'MD',
+        ]],
+    ]);
+    $e2eOps = OperasiModel::getById($e2eOpId);
+    $createData = [
+        'id_operasi' => $e2eOpId,
+        'hari_ke' => 'H.7',
+        'jenis_laporan' => 'PENUTUPAN',
+        'waktu_laporan' => '2026-11-12 12:15:00',
+        'waktu_debrief' => '2026-11-12 12:10:00',
+        'cuaca' => 'Cerah',
+        'gelombang' => '0,2 Mtr',
+        'angin' => '3,1km/jam dari Utara',
+        'isi_laporan' => "- Pukul 08.10 WITA, RIB tiba di LKP.",
+    ];
+    $e2eLapId = LaporanModel::create($createData);
+    $savedCreate = LaporanModel::getById($e2eLapId);
+    $previewCreate = LaporanModel::buildPreviewWa($e2eOps, $createData);
+    assertCase(
+        ($savedCreate['full_text_wa'] ?? '') === $previewCreate && str_contains($previewCreate, '• Angin: 3,1km/jam dari Utara (Sumber BMKG)'),
+        "E2E create(): full_text_wa tersimpan identik dengan LaporanModel::buildPreviewWa()"
+    );
+
+    $updateData = [
+        'hari_ke' => 'H.7',
+        'jenis_laporan' => 'PENUTUPAN',
+        'waktu_laporan' => '2026-11-12 12:15:00',
+        'waktu_debrief' => '2026-11-12 12:20:00',
+        'cuaca' => 'Cerah Berawan',
+        'gelombang' => '0,4 Mtr',
+        'angin' => '6 km/jam dari Selatan',
+        'isi_laporan' => "- Pukul 08.10 WITA, RIB tiba di LKP.\n- Pukul 09.00 WITA, korban dievakuasi.",
+    ];
+    LaporanModel::update($e2eLapId, $updateData);
+    $savedUpdate = LaporanModel::getById($e2eLapId);
+    $previewUpdate = LaporanModel::buildPreviewWa($e2eOps, $updateData, $savedUpdate);
+    assertCase(
+        ($savedUpdate['full_text_wa'] ?? '') === $previewUpdate && str_contains($previewUpdate, 'pukul 12.20 WITA') && str_contains($previewUpdate, '• Gelombang : 0,4 Mtr'),
+        "E2E update(): full_text_wa terbarui identik dengan LaporanModel::buildPreviewWa()"
+    );
+} finally {
+    if ($e2eOpId) {
+        try {
+            OperasiModel::delete($e2eOpId);
+        } catch (Throwable $e) {
+            // Cleanup best-effort
+        }
+    }
+}
+
+// Pemeriksaan integrasi Controller, Preview API, dan JS sitrep_form
+$controllerSrc = (string)file_get_contents(ROOT_DIR . '/controllers/OperasiController.php');
+assertCase(
+    str_contains($controllerSrc, "'gelombang' => \$gelombang")
+    && str_contains($controllerSrc, "'angin' => \$angin"),
+    "OperasiController::sitrepForm meneruskan variabel gelombang & angin ke view"
+);
+
+$apiSrc = (string)file_get_contents(ROOT_DIR . '/api/controllers/OperasiApiController.php');
+assertCase(
+    str_contains($apiSrc, "\$existing['hari_ke']") && str_contains($apiSrc, '$origTgl === $tglLap'),
+    "OperasiApiController::waPreview mempertahankan hari_ke existing saat tanggal edit tidak berubah"
+);
+
+$jsSrc = (string)file_get_contents(ROOT_DIR . '/assets/js/pages/sitrep_form.js');
+assertCase(
+    str_contains($jsSrc, 'sitrep_gelombang')
+    && str_contains($jsSrc, 'sitrep_angin')
+    && str_contains($jsSrc, 'modal-preview-sitrep-wa')
+    && !str_contains($jsSrc, 'modal-preview-wa-sitrep')
+    && str_contains($jsSrc, 'previewSitrepWa()')
+    && !str_contains($jsSrc, 'previewSitrepWA()')
+    && str_contains($jsSrc, 'if (!isSitrepEditMode) recalculateSitrepHariKe()'),
+    "sitrep_form.js memuat ID cuaca/modal/preview yang benar serta menjaga hari_ke pada edit mode"
+);
+assertCase(
+    !str_contains($jsSrc, '1. Tim SAR Gabungan telah melaksanakan') && str_contains($jsSrc, '- Tim SAR Gabungan telah melaksanakan'),
+    "Template cepat H.7 pada sitrep_form.js menggunakan bullet '-' selaras format WA"
+);
+
 echo "\nRingkasan: Lulus {$passed}, Gagal {$failed}\n";
 exit($failed > 0 ? 1 : 0);
