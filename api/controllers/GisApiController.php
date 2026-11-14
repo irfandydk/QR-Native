@@ -23,6 +23,11 @@ class GisApiController extends BaseApiController {
             return true;
         }
 
+        // 2b. Atomic GIS KML/KMZ Batch Import
+        if (self::handleImportRoute($path, $method, $input)) {
+            return true;
+        }
+
         // 3. GIS Points
         if (self::handlePointsRoute($path, $method, $input)) {
             return true;
@@ -93,6 +98,110 @@ class GisApiController extends BaseApiController {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Menangani POST /api/gis/import untuk impor atomik batch KML/KMZ
+     * Mengimpor entitas titik, poligon, pola pencarian, dan rute secara transaksional
+     * dengan penegakan hak akses RBAC dan validasi geometri koordinat.
+     */
+    private static function handleImportRoute(string $path, string $method, array $input): bool {
+        if ($path !== '/gis/import' || $method !== 'POST') {
+            return false;
+        }
+
+        // 1. Otentikasi Sesi Pengguna
+        self::requireAuth();
+
+        // 2. Normalisasi & Validasi id_operasi sasaran
+        $rawIdOp = $input['id_operasi'] ?? null;
+        $idOperasi = null;
+
+        if ($rawIdOp === null || $rawIdOp === '') {
+            $idOperasi = null;
+        } elseif (is_string($rawIdOp) && strtolower(trim($rawIdOp)) === 'basemap') {
+            $idOperasi = null;
+        } elseif ($rawIdOp === 0 || $rawIdOp === '0') {
+            $idOperasi = null;
+        } elseif (is_int($rawIdOp)) {
+            if ($rawIdOp < 0) {
+                self::error('Parameter id_operasi tidak valid: tidak boleh bernilai negatif.', 400);
+            }
+            $idOperasi = $rawIdOp === 0 ? null : $rawIdOp;
+        } elseif (is_string($rawIdOp) && ctype_digit(trim($rawIdOp))) {
+            $intVal = (int)trim($rawIdOp);
+            $idOperasi = $intVal === 0 ? null : $intVal;
+        } else {
+            self::error('Parameter id_operasi tidak valid: harus berupa integer positif atau null/basemap.', 400);
+        }
+
+        // 3. Penegakan RBAC & Status Operasi (Base Map hanya Admin, CLOSED op terkunci)
+        self::assertCanMutateGis('GisPoint', null, ['id_operasi' => $idOperasi]);
+
+        // 4. Validasi Struktur Entitas (points, polygons, patterns, routes)
+        $entityKeys = ['points', 'polygons', 'patterns', 'routes'];
+        $totalCount = 0;
+        foreach ($entityKeys as $key) {
+            if (array_key_exists($key, $input)) {
+                if (!is_array($input[$key])) {
+                    self::error("Data entitas '{$key}' harus berupa array.", 400);
+                }
+                foreach ($input[$key] as $idx => $item) {
+                    if (!is_array($item)) {
+                        self::error("Elemen entitas '{$key}' pada indeks {$idx} harus berupa object/array.", 400);
+                    }
+                }
+                $totalCount += count($input[$key]);
+            }
+        }
+
+        // Dukungan alias pola pencarian jika dikirim dengan key searchPatterns / search_patterns
+        if (!array_key_exists('patterns', $input)) {
+            foreach (['searchPatterns', 'search_patterns'] as $altKey) {
+                if (array_key_exists($altKey, $input)) {
+                    if (!is_array($input[$altKey])) {
+                        self::error("Data entitas '{$altKey}' harus berupa array.", 400);
+                    }
+                    foreach ($input[$altKey] as $idx => $item) {
+                        if (!is_array($item)) {
+                            self::error("Elemen entitas '{$altKey}' pada indeks {$idx} harus berupa object/array.", 400);
+                        }
+                    }
+                    $totalCount += count($input[$altKey]);
+                    $input['patterns'] = $input[$altKey];
+                    break;
+                }
+            }
+        }
+
+        // 5. Batas Ukuran Batch (1..500)
+        if ($totalCount === 0 || $totalCount > 500) {
+            self::error("Batch import harus berisi antara 1 dan 500 entitas (diterima {$totalCount}).", 400);
+        }
+
+        // 6. Eksekusi Batch Transaksional via GisModel::importBatch
+        try {
+            $result = GisModel::importBatch($idOperasi, $input);
+            self::json([
+                'success' => true,
+                'id_operasi' => $idOperasi,
+                'counts' => $result['counts'],
+                'imported' => [
+                    'points' => $result['points'],
+                    'polygons' => $result['polygons'],
+                    'patterns' => $result['patterns'],
+                    'routes' => $result['routes']
+                ]
+            ], 200);
+            return true;
+        } catch (InvalidArgumentException $e) {
+            self::error($e->getMessage(), 400);
+        } catch (Throwable $e) {
+            error_log('QR-SAR GIS Import Error: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            self::error('Gagal mengimpor data KML/KMZ secara atomik.', 500);
+        }
+
+        return true;
     }
 
     private static function handlePointsRoute(string $path, string $method, array $input): bool {

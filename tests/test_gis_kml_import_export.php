@@ -51,6 +51,7 @@ $db = getDB();
 // Test Operations & State
 $opA = null;
 $opB = null;
+$opClosed = null;
 $createdBaseMapPointIds = [];
 $createdBaseMapPolyIds = [];
 $createdLogoFixture = false;
@@ -521,11 +522,370 @@ try {
         );
     }
 
+    // -----------------------------------------------------------------
+    // 8. VERIFIKASI CONTROLLER GisApiController POST /api/gis/import
+    // -----------------------------------------------------------------
+    echo PHP_EOL . "--- 8. VERIFIKASI CONTROLLER GisApiController::handle('/gis/import') ---" . PHP_EOL;
+
+    $phpBin = PHP_BINARY ?: 'php';
+
+    $opClosed = (int)OperasiModel::create([
+        'nama_operasi' => 'TEST GIS KML CLOSED OP - ' . time(),
+        'jenis_kejadian' => 'KECELAKAAN_KAPAL',
+        'lokasi_kejadian' => 'Selat Buton',
+        'nama_pelapor' => 'Petugas Ops Closed',
+        'hubungan_pelapor' => 'Internal',
+        'no_telp_pelapor' => '081122334403',
+        'koordinat' => "04° 15' 00\" S - 122° 45' 00\" E",
+        'waktu_kejadian' => date('Y-m-d H:i:s', strtotime('-12 hours')),
+        'waktu_lapor' => date('Y-m-d H:i:s', strtotime('-10 hours')),
+        'waktu_berangkat' => date('Y-m-d H:i:s', strtotime('-9 hours')),
+        'status' => 'CLOSED'
+    ]);
+    $db->prepare("UPDATE Operasi SET status = 'CLOSED' WHERE id_operasi = ?")->execute([$opClosed]);
+
+    $runGisController = function (string $path, string $method, array $body, ?string $role = 'USER') use ($phpBin, $rootDir): array {
+        $sess = '';
+        if ($role === 'USER') {
+            $sess = '$_SESSION["user_id"] = "USR-USER"; $_SESSION["role"] = "USER"; $_SESSION["user"] = ["id" => "USR-USER", "role" => "USER"];';
+        } elseif ($role === 'ADMIN') {
+            $sess = '$_SESSION["user_id"] = "USR-ADMIN"; $_SESSION["role"] = "ADMIN"; $_SESSION["user"] = ["id" => "USR-ADMIN", "role" => "ADMIN"];';
+        } else {
+            $sess = '$_SESSION = [];';
+        }
+        $code = sprintf(
+            'putenv("DB_DATABASE=" . %s); require %s; register_shutdown_function(function() { $c = http_response_code(); if ($c) echo "\n__HTTP_STATUS__:" . $c; }); %s GisApiController::handle(%s, %s, %s);',
+            var_export(getenv('DB_DATABASE') ?: 'qrsar_test', true),
+            var_export($rootDir . '/config/app.php', true),
+            $sess,
+            var_export($path, true),
+            var_export($method, true),
+            var_export($body, true)
+        );
+        $out = [];
+        exec(escapeshellarg($phpBin) . ' -r ' . escapeshellarg($code) . ' 2>&1', $out);
+        $raw = trim(implode("\n", $out));
+        $httpStatus = 200;
+        if (preg_match('/__HTTP_STATUS__:(\d+)/', $raw, $m)) {
+            $httpStatus = (int)$m[1];
+            $raw = trim(str_replace($m[0], '', $raw));
+        }
+        $res = json_decode($raw, true);
+        if (!is_array($res)) {
+            $res = ['success' => false, 'raw' => $raw];
+        }
+        $res['__http_status__'] = $httpStatus;
+        return $res;
+    };
+
+    // 8.1 Unauthenticated Request
+    $unauthRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => $opA,
+        'points' => [['label' => 'Titik Unauth', 'lat' => -4.01, 'lng' => 122.51]]
+    ], null);
+    assertCondition(
+        "Controller menolak akses tanpa sesi login (HTTP 401)",
+        ($unauthRes['__http_status__'] ?? 0) === 401 && ($unauthRes['success'] ?? true) === false,
+        "Status: " . ($unauthRes['__http_status__'] ?? 0) . ", Raw: " . ($unauthRes['raw'] ?? json_encode($unauthRes))
+    );
+
+    // 8.2 USER Non-admin targeting Base Map (null)
+    $userBaseRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => null,
+        'points' => [['label' => 'Titik Base User', 'lat' => -4.01, 'lng' => 122.51]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak USER non-admin targeting Base Map null (HTTP 403 Administrator)",
+        ($userBaseRes['__http_status__'] ?? 0) === 403 &&
+        ($userBaseRes['success'] ?? true) === false &&
+        stripos($userBaseRes['message'] ?? '', 'Administrator') !== false,
+        "Status: " . ($userBaseRes['__http_status__'] ?? 0) . ", Message: " . ($userBaseRes['message'] ?? '')
+    );
+
+    // 8.3 USER Non-admin targeting Base Map via 'basemap', 0, ''
+    $userBasemapStrRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => 'basemap',
+        'points' => [['label' => 'Titik Base User Str', 'lat' => -4.01, 'lng' => 122.51]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak USER non-admin targeting id_operasi 'basemap' (HTTP 403 Administrator)",
+        ($userBasemapStrRes['__http_status__'] ?? 0) === 403 &&
+        ($userBasemapStrRes['success'] ?? true) === false &&
+        stripos($userBasemapStrRes['message'] ?? '', 'Administrator') !== false,
+        "Status: " . ($userBasemapStrRes['__http_status__'] ?? 0) . ", Message: " . ($userBasemapStrRes['message'] ?? '')
+    );
+
+    $userZeroRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => 0,
+        'points' => [['label' => 'Titik Base User Zero', 'lat' => -4.01, 'lng' => 122.51]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak USER non-admin targeting id_operasi 0 (HTTP 403 Administrator)",
+        ($userZeroRes['__http_status__'] ?? 0) === 403 &&
+        ($userZeroRes['success'] ?? true) === false &&
+        stripos($userZeroRes['message'] ?? '', 'Administrator') !== false,
+        "Status: " . ($userZeroRes['__http_status__'] ?? 0) . ", Message: " . ($userZeroRes['message'] ?? '')
+    );
+
+    $userEmptyStrRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => '',
+        'points' => [['label' => 'Titik Base User Empty', 'lat' => -4.01, 'lng' => 122.51]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak USER non-admin targeting id_operasi '' (HTTP 403 Administrator)",
+        ($userEmptyStrRes['__http_status__'] ?? 0) === 403 &&
+        ($userEmptyStrRes['success'] ?? true) === false &&
+        stripos($userEmptyStrRes['message'] ?? '', 'Administrator') !== false,
+        "Status: " . ($userEmptyStrRes['__http_status__'] ?? 0) . ", Message: " . ($userEmptyStrRes['message'] ?? '')
+    );
+
+    // 8.4 Penolakan id_operasi invalid (negatif, non-numerik, bool, array) -> HTTP 400
+    $invalidIdNeg = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => -5,
+        'points' => [['label' => 'Titik Negatif', 'lat' => -4.01, 'lng' => 122.51]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak id_operasi negatif -5 (HTTP 400)",
+        ($invalidIdNeg['__http_status__'] ?? 0) === 400 && ($invalidIdNeg['success'] ?? true) === false,
+        "Status: " . ($invalidIdNeg['__http_status__'] ?? 0) . ", Message: " . ($invalidIdNeg['message'] ?? '')
+    );
+
+    $invalidIdAbc = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => 'abc',
+        'points' => [['label' => 'Titik ABC', 'lat' => -4.01, 'lng' => 122.51]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak id_operasi non-numerik 'abc' (HTTP 400)",
+        ($invalidIdAbc['__http_status__'] ?? 0) === 400 && ($invalidIdAbc['success'] ?? true) === false,
+        "Status: " . ($invalidIdAbc['__http_status__'] ?? 0) . ", Message: " . ($invalidIdAbc['message'] ?? '')
+    );
+
+    $invalidIdBool = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => true,
+        'points' => [['label' => 'Titik Bool', 'lat' => -4.01, 'lng' => 122.51]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak id_operasi boolean true (HTTP 400)",
+        ($invalidIdBool['__http_status__'] ?? 0) === 400 && ($invalidIdBool['success'] ?? true) === false,
+        "Status: " . ($invalidIdBool['__http_status__'] ?? 0) . ", Message: " . ($invalidIdBool['message'] ?? '')
+    );
+
+    $invalidIdArr = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => ['id' => 1],
+        'points' => [['label' => 'Titik Arr', 'lat' => -4.01, 'lng' => 122.51]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak id_operasi bertipe array (HTTP 400)",
+        ($invalidIdArr['__http_status__'] ?? 0) === 400 && ($invalidIdArr['success'] ?? true) === false,
+        "Status: " . ($invalidIdArr['__http_status__'] ?? 0) . ", Message: " . ($invalidIdArr['message'] ?? '')
+    );
+
+    // 8.5 USER targeting operasi CLOSED -> HTTP 403
+    $closedOpRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => $opClosed,
+        'points' => [['label' => 'Titik Closed', 'lat' => -4.01, 'lng' => 122.51]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak impor ke operasi SAR CLOSED (HTTP 403)",
+        ($closedOpRes['__http_status__'] ?? 0) === 403 &&
+        ($closedOpRes['success'] ?? true) === false &&
+        (stripos($closedOpRes['message'] ?? '', 'CLOSED') !== false || stripos($closedOpRes['message'] ?? '', 'DITUTUP') !== false),
+        "Status: " . ($closedOpRes['__http_status__'] ?? 0) . ", Message: " . ($closedOpRes['message'] ?? '')
+    );
+
+    // 8.6 USER targeting operasi nonexistent 9999999 -> HTTP 404
+    $notFoundOpRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => 9999999,
+        'points' => [['label' => 'Titik 404', 'lat' => -4.01, 'lng' => 122.51]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak id_operasi fiktif 9999999 (HTTP 404)",
+        ($notFoundOpRes['__http_status__'] ?? 0) === 404 &&
+        ($notFoundOpRes['success'] ?? true) === false &&
+        stripos($notFoundOpRes['message'] ?? '', 'tidak ditemukan') !== false,
+        "Status: " . ($notFoundOpRes['__http_status__'] ?? 0) . ", Message: " . ($notFoundOpRes['message'] ?? '')
+    );
+
+    // 8.7 Validasi struktur array entitas (non-array key / non-array element) -> HTTP 400
+    $nonArrayKeyRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => $opA,
+        'points' => 'string_bukan_array'
+    ], 'USER');
+    assertCondition(
+        "Controller menolak payload dengan entity key bukan array (HTTP 400)",
+        ($nonArrayKeyRes['__http_status__'] ?? 0) === 400 && ($nonArrayKeyRes['success'] ?? true) === false,
+        "Status: " . ($nonArrayKeyRes['__http_status__'] ?? 0) . ", Message: " . ($nonArrayKeyRes['message'] ?? '')
+    );
+
+    $nonArrayElemRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => $opA,
+        'points' => ['elemen_bukan_array_object']
+    ], 'USER');
+    assertCondition(
+        "Controller menolak payload dengan elemen entitas bukan object/array (HTTP 400)",
+        ($nonArrayElemRes['__http_status__'] ?? 0) === 400 && ($nonArrayElemRes['success'] ?? true) === false,
+        "Status: " . ($nonArrayElemRes['__http_status__'] ?? 0) . ", Message: " . ($nonArrayElemRes['message'] ?? '')
+    );
+
+    // 8.8 Batas batch & validasi koordinat -> HTTP 400
+    $emptyBatchRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => $opA,
+        'points' => []
+    ], 'USER');
+    assertCondition(
+        "Controller menolak batch kosong 0 item (HTTP 400)",
+        ($emptyBatchRes['__http_status__'] ?? 0) === 400 && ($emptyBatchRes['success'] ?? true) === false,
+        "Status: " . ($emptyBatchRes['__http_status__'] ?? 0) . ", Message: " . ($emptyBatchRes['message'] ?? '')
+    );
+
+    $oversizeList = [];
+    for ($i = 0; $i < 501; $i++) {
+        $oversizeList[] = ['label' => "P-{$i}", 'lat' => -4.0, 'lng' => 122.0];
+    }
+    $oversizeBatchRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => $opA,
+        'points' => $oversizeList
+    ], 'USER');
+    assertCondition(
+        "Controller menolak batch melebihi 500 entitas (HTTP 400)",
+        ($oversizeBatchRes['__http_status__'] ?? 0) === 400 && ($oversizeBatchRes['success'] ?? true) === false,
+        "Status: " . ($oversizeBatchRes['__http_status__'] ?? 0) . ", Message: " . ($oversizeBatchRes['message'] ?? '')
+    );
+
+    $invalidCoordRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => $opA,
+        'points' => [['label' => 'Kutub Invalid', 'lat' => 95.0, 'lng' => 122.0]]
+    ], 'USER');
+    assertCondition(
+        "Controller menolak koordinat di luar jangkauan [-90, 90] (HTTP 400)",
+        ($invalidCoordRes['__http_status__'] ?? 0) === 400 && ($invalidCoordRes['success'] ?? true) === false,
+        "Status: " . ($invalidCoordRes['__http_status__'] ?? 0) . ", Message: " . ($invalidCoordRes['message'] ?? '')
+    );
+
+    // 8.9 ADMIN import ke Base Map (id_operasi null) -> HTTP 200 & id_operasi IS NULL di DB
+    $adminBaseRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => null,
+        'points' => [
+            ['label' => 'Titik Base Admin API', 'pointType' => 'kantor', 'lat' => -3.99, 'lng' => 122.50]
+        ],
+        'polygons' => [
+            [
+                'name' => 'Area Base Admin API',
+                'shapeType' => 'polygon',
+                'points' => [
+                    ['lat' => -3.90, 'lng' => 122.40],
+                    ['lat' => -3.90, 'lng' => 122.60],
+                    ['lat' => -4.00, 'lng' => 122.60]
+                ]
+            ]
+        ]
+    ], 'ADMIN');
+    assertCondition(
+        "ADMIN berhasil mengimpor data ke Base Map null (HTTP 200)",
+        ($adminBaseRes['__http_status__'] ?? 0) === 200 &&
+        ($adminBaseRes['success'] ?? false) === true &&
+        $adminBaseRes['id_operasi'] === null &&
+        ($adminBaseRes['counts']['points'] ?? 0) === 1 &&
+        ($adminBaseRes['counts']['polygons'] ?? 0) === 1,
+        "Status: " . ($adminBaseRes['__http_status__'] ?? 0) . ", Res: " . json_encode($adminBaseRes)
+    );
+
+    $adminPtId = $adminBaseRes['imported']['points'][0]['id'] ?? '';
+    $adminPolyId = $adminBaseRes['imported']['polygons'][0]['id'] ?? '';
+    if ($adminPtId) $createdBaseMapPointIds[] = $adminPtId;
+    if ($adminPolyId) $createdBaseMapPolyIds[] = $adminPolyId;
+
+    $checkAdminPtDb = $adminPtId ? (int)$db->query("SELECT COUNT(*) FROM GisPoint WHERE id = '{$adminPtId}' AND id_operasi IS NULL")->fetchColumn() : 0;
+    assertCondition("Titik Base Map benar tersimpan di database dengan id_operasi IS NULL", $checkAdminPtDb === 1);
+
+    // 8.10 USER import 1 Point + 1 Polygon + 1 Pattern + 1 Route ke operasi OPEN -> HTTP 200
+    $userOpRes = $runGisController('/gis/import', 'POST', [
+        'id_operasi' => $opA,
+        'points' => [
+            ['label' => 'Titik Temuan API', 'pointType' => 'posko', 'lat' => -4.025, 'lng' => 122.525]
+        ],
+        'polygons' => [
+            [
+                'clientRefId' => 'poly-ref-api',
+                'name' => 'Sektor Pencarian API',
+                'shapeType' => 'polygon',
+                'points' => [
+                    ['lat' => -4.020, 'lng' => 122.510],
+                    ['lat' => -4.020, 'lng' => 122.530],
+                    ['lat' => -4.040, 'lng' => 122.530]
+                ]
+            ]
+        ],
+        'patterns' => [
+            [
+                'name' => 'Pola Paralel API',
+                'polygonRef' => 'poly-ref-api',
+                'patternType' => 'parallel_track',
+                'trackSpacingNm' => 0.5,
+                'legsCount' => 3,
+                'waypoints' => [
+                    ['lat' => -4.022, 'lng' => 122.515],
+                    ['lat' => -4.022, 'lng' => 122.525],
+                    ['lat' => -4.032, 'lng' => 122.525]
+                ]
+            ]
+        ],
+        'routes' => [
+            [
+                'name' => 'Rute Evakuasi API',
+                'vesselSpeedKnots' => 20.0,
+                'waypoints' => [
+                    ['lat' => -4.026, 'lng' => 122.526],
+                    ['lat' => -4.036, 'lng' => 122.536]
+                ]
+            ]
+        ]
+    ], 'USER');
+
+    assertCondition(
+        "USER berhasil mengimpor 1 Pt + 1 Poly + 1 Pattern + 1 Route ke operasi OPEN (HTTP 200)",
+        ($userOpRes['__http_status__'] ?? 0) === 200 &&
+        ($userOpRes['success'] ?? false) === true &&
+        $userOpRes['id_operasi'] === $opA &&
+        ($userOpRes['counts']['points'] ?? 0) === 1 &&
+        ($userOpRes['counts']['polygons'] ?? 0) === 1 &&
+        ($userOpRes['counts']['patterns'] ?? 0) === 1 &&
+        ($userOpRes['counts']['routes'] ?? 0) === 1,
+        "Status: " . ($userOpRes['__http_status__'] ?? 0) . ", Res: " . json_encode($userOpRes)
+    );
+
+    $userPtId = $userOpRes['imported']['points'][0]['id'] ?? '';
+    $userPolyId = $userOpRes['imported']['polygons'][0]['id'] ?? '';
+    $userPatId = $userOpRes['imported']['patterns'][0]['id'] ?? '';
+    $userRtId = $userOpRes['imported']['routes'][0]['id'] ?? '';
+
+    $checkUserPt = $userPtId ? (int)$db->query("SELECT COUNT(*) FROM GisPoint WHERE id = '{$userPtId}' AND id_operasi = {$opA}")->fetchColumn() : 0;
+    $checkUserPoly = $userPolyId ? (int)$db->query("SELECT COUNT(*) FROM GisPolygon WHERE id = '{$userPolyId}' AND id_operasi = {$opA}")->fetchColumn() : 0;
+    $checkUserPat = $userPatId ? (int)$db->query("SELECT COUNT(*) FROM GisSearchPattern WHERE id = '{$userPatId}' AND id_operasi = {$opA}")->fetchColumn() : 0;
+    $checkUserRt = $userRtId ? (int)$db->query("SELECT COUNT(*) FROM GisRoute WHERE id = '{$userRtId}' AND id_operasi = {$opA}")->fetchColumn() : 0;
+
+    assertCondition(
+        "Seluruh entitas impor tersimpan fisik di database dengan id_operasi yang sesuai",
+        $checkUserPt === 1 && $checkUserPoly === 1 && $checkUserPat === 1 && $checkUserRt === 1,
+        "Pt: {$checkUserPt}, Poly: {$checkUserPoly}, Pat: {$checkUserPat}, Rt: {$checkUserRt}"
+    );
+
 } finally {
     // -----------------------------------------------------------------
     // PEMBERSIHAN DATA TEST (CLEANUP SPOTLESS)
     // -----------------------------------------------------------------
     echo PHP_EOL . "--- PEMBERSIHAN DATA UJI (CLEANUP) ---" . PHP_EOL;
+
+    if ($opClosed) {
+        $db->exec("DELETE p FROM GisPolygonPoint p INNER JOIN GisPolygon g ON p.polygonId = g.id WHERE g.id_operasi = {$opClosed}");
+        $db->exec("DELETE w FROM GisSearchPatternWaypoint w INNER JOIN GisSearchPattern s ON w.searchPatternId = s.id WHERE s.id_operasi = {$opClosed}");
+        $db->exec("DELETE r FROM GisRoutePoint r INNER JOIN GisRoute g ON r.routeId = g.id WHERE g.id_operasi = {$opClosed}");
+        $db->exec("DELETE FROM GisPoint WHERE id_operasi = {$opClosed}");
+        $db->exec("DELETE FROM GisPolygon WHERE id_operasi = {$opClosed}");
+        $db->exec("DELETE FROM GisSearchPattern WHERE id_operasi = {$opClosed}");
+        $db->exec("DELETE FROM GisRoute WHERE id_operasi = {$opClosed}");
+        $db->exec("DELETE FROM Operasi WHERE id_operasi = {$opClosed}");
+    }
 
     if ($opA) {
         // Hapus detail rute, pola, dan poligon terkait opA
