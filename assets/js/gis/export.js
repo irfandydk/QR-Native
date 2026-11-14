@@ -144,6 +144,33 @@
   }
 
   /**
+   * Resolve polygon points, automatically generating circle ring coordinates if needed.
+   * Supports stringified coordinates from database / JSON payloads.
+   * @param {Object} poly Polygon object
+   * @returns {Array<{lat: number, lng: number}>} Valid vertex points
+   */
+  function resolvePolygonPoints(poly) {
+    if (!poly) return [];
+    if (poly.shapeType === 'circle') {
+      if (!poly.points || poly.points.length < 3) {
+        const cLat = parseFloat(poly.centerLat);
+        const cLng = parseFloat(poly.centerLng);
+        const rNm = parseFloat(poly.radiusNm);
+        if (isValidCoord(cLat, cLng) && Number.isFinite(rNm) && rNm > 0) {
+          return generateCircleRing(cLat, cLng, rNm, 64);
+        }
+        return [];
+      }
+      return poly.points
+        .map(pt => ({ lat: parseFloat(pt.lat), lng: parseFloat(pt.lng) }))
+        .filter(pt => isValidCoord(pt.lat, pt.lng));
+    }
+    return (poly.points || [])
+      .map(pt => ({ lat: parseFloat(pt.lat), lng: parseFloat(pt.lng) }))
+      .filter(pt => isValidCoord(pt.lat, pt.lng));
+  }
+
+  /**
    * Render KML ExtendedData block from key-value pairs
    */
   function renderExtendedData(entries) {
@@ -211,22 +238,10 @@
     // Folder 2: Polygons
     let polygonsPlacemarks = '';
     polygons.forEach((poly) => {
-      let ringPoints = [];
-      if (poly.shapeType === 'circle') {
-        if (!poly.points || poly.points.length < 3) {
-          if (Number.isFinite(poly.centerLat) && Number.isFinite(poly.centerLng) && Number.isFinite(poly.radiusNm) && poly.radiusNm > 0) {
-            ringPoints = generateCircleRing(poly.centerLat, poly.centerLng, poly.radiusNm, 64);
-          }
-        } else {
-          ringPoints = poly.points.filter(pt => isValidCoord(parseFloat(pt.lat), parseFloat(pt.lng)));
-        }
-      } else {
-        ringPoints = (poly.points || []).filter(pt => isValidCoord(parseFloat(pt.lat), parseFloat(pt.lng)));
-      }
-
+      const ringPoints = resolvePolygonPoints(poly);
       if (ringPoints.length < 3) return;
 
-      const ring = ringPoints.map(pt => ({ lat: parseFloat(pt.lat), lng: parseFloat(pt.lng) }));
+      const ring = ringPoints.map(pt => ({ lat: pt.lat, lng: pt.lng }));
       const first = ring[0];
       const last = ring[ring.length - 1];
       if (first.lat !== last.lat || first.lng !== last.lng) {
@@ -488,22 +503,10 @@
     });
 
     polygons.forEach((poly) => {
-      let ringPoints = [];
-      if (poly.shapeType === 'circle') {
-        if (!poly.points || poly.points.length < 3) {
-          if (Number.isFinite(poly.centerLat) && Number.isFinite(poly.centerLng) && Number.isFinite(poly.radiusNm) && poly.radiusNm > 0) {
-            ringPoints = generateCircleRing(poly.centerLat, poly.centerLng, poly.radiusNm, 64);
-          }
-        } else {
-          ringPoints = poly.points.filter(pt => isValidCoord(parseFloat(pt.lat), parseFloat(pt.lng)));
-        }
-      } else {
-        ringPoints = (poly.points || []).filter(pt => isValidCoord(parseFloat(pt.lat), parseFloat(pt.lng)));
-      }
-
+      const ringPoints = resolvePolygonPoints(poly);
       if (ringPoints.length < 3) return;
 
-      const ring = ringPoints.map(pt => [parseFloat(pt.lng), parseFloat(pt.lat)]);
+      const ring = ringPoints.map(pt => [pt.lng, pt.lat]);
       const first = ring[0];
       const last = ring[ring.length - 1];
       if (first[0] !== last[0] || first[1] !== last[1]) {

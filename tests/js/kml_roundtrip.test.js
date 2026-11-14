@@ -262,3 +262,39 @@ test('export.js loads cleanly and functions when siblings are absent', () => {
   assert.equal(geoJson.type, 'FeatureCollection');
   assert.equal(geoJson.features.length, 1);
 });
+
+test('circle polygon with stringified centerLat, centerLng, radiusNm and empty points synthesizes ring in KML and GeoJSON', () => {
+  const QrSarGis = loadGisModules();
+  const { generateKmlDocument, generateGeoJson } = QrSarGis.Export;
+
+  const stringifiedCircle = {
+    id: 'poly-circle-str',
+    name: 'Lingkaran Stringified',
+    shapeType: 'circle',
+    points: [],
+    centerLat: '-4.0376',
+    centerLng: '122.4866',
+    radiusNm: '2.5'
+  };
+
+  // 1. KML generation
+  const kml = generateKmlDocument({
+    polygons: [stringifiedCircle]
+  });
+  const circleMatch = kml.match(/<Placemark>[\s\S]*?<name>Lingkaran Stringified<\/name>[\s\S]*?<coordinates>([\s\S]*?)<\/coordinates>[\s\S]*?<\/Placemark>/);
+  assert.ok(circleMatch, 'KML must contain Placemark for stringified circle');
+  const kmlCoords = circleMatch[1].trim().split(/\s+/);
+  assert.equal(kmlCoords.length, 65, 'KML coordinates must have 65 tuples');
+  assert.equal(kmlCoords[0], kmlCoords[64], 'KML first and last coordinates must match');
+
+  // 2. GeoJSON generation
+  const geoJson = generateGeoJson({
+    polygons: [stringifiedCircle]
+  });
+  assert.equal(geoJson.type, 'FeatureCollection');
+  assert.equal(geoJson.features.length, 1, 'GeoJSON must contain 1 feature for stringified circle');
+  const ring = geoJson.features[0].geometry.coordinates[0];
+  assert.equal(ring.length, 65, 'GeoJSON ring must have 65 coordinates');
+  assert.deepEqual(ring[0], ring[64], 'GeoJSON first and last coordinates must match');
+});
+
