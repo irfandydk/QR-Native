@@ -532,8 +532,71 @@ assertCase(
 
 $apiSrc = (string)file_get_contents(ROOT_DIR . '/api/controllers/OperasiApiController.php');
 assertCase(
-    str_contains($apiSrc, "\$existing['hari_ke']") && str_contains($apiSrc, '$origTgl === $tglLap'),
-    "OperasiApiController::waPreview mempertahankan hari_ke existing saat tanggal edit tidak berubah"
+    str_contains($apiSrc, "LaporanModel::resolveSitrepHariKe")
+    && str_contains($apiSrc, "\$existing['id_operasi']"),
+    "OperasiApiController::waPreview memakai resolveSitrepHariKe & memvalidasi kepemilikan id_operasi"
+);
+
+// Pemeriksaan perilaku Review Minor: mixed S+H closure, partial buildPreviewWa, resolveSitrepHariKe, & schema restore
+$waMixedSH = WhatsAppTemplateService::generateLapbangWA(
+    ['nama_operasi' => 'Kapal Tenggelam', 'jumlah_pob' => 2],
+    ['hari_ke' => 'H.7', 'waktu_laporan' => '2026-11-12 17:00:00', 'waktu_debrief' => '2026-11-12 17:00:00', 'isi_laporan' => '- Penutupan operasi.'],
+    [
+        ['nama_korban' => 'Andi', 'status_korban' => 'S'],
+        ['nama_korban' => 'Budi', 'status_korban' => 'H'],
+    ],
+    [],
+    [],
+    true
+);
+assertCase(
+    str_contains($waMixedSH, 'Dengan selesainya seluruh rangkaian pencarian, Operasi SAR dinyatakan ditutup')
+    && !str_contains($waMixedSH, 'Dengan ditemukannya korban serta selesainya'),
+    "Penutupan campuran (S/MD + H) tetap memakai redaksi 'Dengan selesainya seluruh rangkaian pencarian'"
+);
+
+$reopenedOps = [
+    'waktu_kejadian' => '2026-11-06 06:00:00',
+    'waktu_lapor' => '2026-11-06 07:00:00',
+    'waktu_berangkat' => '2026-11-06 07:30:00',
+    'waktu_reopen' => '2026-11-13 08:00:00',
+    'hari_sebelum_reopen' => 7,
+];
+$existingH7 = ['id_operasi' => 1, 'hari_ke' => 'H.7', 'waktu_laporan' => '2026-11-12 12:15:00'];
+$resolvedSameDate = method_exists('LaporanModel', 'resolveSitrepHariKe')
+    ? LaporanModel::resolveSitrepHariKe($reopenedOps, $existingH7, '2026-11-12 16:00:00', 'H7 + 1', false)
+    : 'MISSING';
+$resolvedMovedDate = method_exists('LaporanModel', 'resolveSitrepHariKe')
+    ? LaporanModel::resolveSitrepHariKe($reopenedOps, $existingH7, '2026-11-14 10:00:00', '', false)
+    : 'MISSING';
+assertCase(
+    $resolvedSameDate === 'H.7' && $resolvedMovedDate === 'H7 + 2',
+    "LaporanModel::resolveSitrepHariKe mempertahankan H.7 saat tanggal sama dan menghitung ulang saat tanggal berubah",
+    "same={$resolvedSameDate}, moved={$resolvedMovedDate}"
+);
+
+$partialPreviewExisting = [
+    'id_operasi' => 1,
+    'hari_ke' => 'H.7',
+    'jenis_laporan' => 'PENUTUPAN',
+    'waktu_laporan' => '2026-11-12 12:15:00',
+    'waktu_debrief' => '2026-11-12 12:10:00',
+    'isi_laporan' => '- RIB tiba di LKP.',
+    'cuaca' => 'Cerah',
+    'gelombang' => '0,2 Mtr',
+    'angin' => '4 km/jam',
+];
+$partialPreview = LaporanModel::buildPreviewWa(
+    ['nama_operasi' => 'Uji Partial Preview', 'jumlah_pob' => 1, 'korban' => [['id_korban' => 1, 'nama_korban' => 'Rendi', 'status_korban' => 'MD']]],
+    ['waktu_debrief' => '2026-11-12 12:35:00'],
+    $partialPreviewExisting
+);
+assertCase(
+    str_contains($partialPreview, 'LAPBANG OPS SAR H.7 DAN PENUTUPAN')
+    && str_contains($partialPreview, '- RIB tiba di LKP.')
+    && str_contains($partialPreview, 'pukul 12.35 WITA')
+    && str_contains($partialPreview, '• cuaca : Cerah'),
+    "LaporanModel::buildPreviewWa mewarisi field existing pada payload parsial selaras update()"
 );
 
 $jsSrc = (string)file_get_contents(ROOT_DIR . '/assets/js/pages/sitrep_form.js');

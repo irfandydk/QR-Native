@@ -395,7 +395,7 @@ BODY;
             $waktuDebrief = ($laporan['waktu_debrief'] ?? '') ?: (($laporan['waktu_laporan'] ?? '') ?: date('Y-m-d H:i:s'));
             $tglDebrief = SarCalculationService::formatTanggalSimple($waktuDebrief);
             $jamDebrief = str_replace(':', '.', SarCalculationService::formatJamWITA($waktuDebrief));
-            $ditemukanSemua = ($stats['dp'] === 0 && ($stats['s'] > 0 || $stats['md'] > 0));
+            $ditemukanSemua = ($stats['dp'] === 0 && $stats['h'] === 0 && ($stats['s'] > 0 || $stats['md'] > 0));
             $alasanTutup = $ditemukanSemua
                 ? 'Dengan ditemukannya korban serta selesainya proses evakuasi dan penyerahan'
                 : 'Dengan selesainya seluruh rangkaian pencarian';

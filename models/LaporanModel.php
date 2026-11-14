@@ -7,13 +7,11 @@
 declare(strict_types=1);
 
 class LaporanModel {
-    private static bool $schemaChecked = false;
     private static ?bool $weatherColsAvailable = null;
 
     public static function ensureSchemaUpdated(bool $force = false): void {
         if (!$force) return;
-        if (self::$schemaChecked) return;
-        self::$schemaChecked = true;
+        self::$weatherColsAvailable = null;
         try {
             $db = getDB();
             if ($db->inTransaction()) return;
@@ -54,14 +52,43 @@ class LaporanModel {
     private static function resolveWeatherFields(array $ops, array $data, ?array $existing = null): array {
         $resolve = static function (string $key) use ($ops, $data, $existing): string {
             if (array_key_exists($key, $data) && $data[$key] !== null) {
-                return trim((string)$data[$key]);
+                $val = trim((string)$data[$key]);
+            } elseif ($existing !== null && array_key_exists($key, $existing) && $existing[$key] !== null) {
+                $val = trim((string)$existing[$key]);
+            } else {
+                $val = trim((string)($ops[$key] ?? ''));
             }
-            if ($existing !== null && array_key_exists($key, $existing) && $existing[$key] !== null) {
-                return trim((string)$existing[$key]);
-            }
-            return trim((string)($ops[$key] ?? ''));
+            return mb_substr($val, 0, 191, 'UTF-8');
         };
         return [$resolve('cuaca'), $resolve('gelombang'), $resolve('angin')];
+    }
+
+    /**
+     * Resolve hari_ke SITREP secara konsisten untuk simpan & pratinjau WA:
+     * mempertahankan hari_ke tersimpan saat tanggal edit tidak berubah (mencegah mutasi H+X).
+     */
+    public static function resolveSitrepHariKe(
+        array $ops,
+        ?array $existing,
+        string $waktuLaporan,
+        ?string $submittedHariKe = null,
+        bool $allowOverrideOnCreate = false
+    ): string {
+        $tglLap = date('Y-m-d', strtotime($waktuLaporan) ?: time());
+        $trimmedHariKe = trim((string)($submittedHariKe ?? ''));
+        if ($existing && !empty($existing['hari_ke'])) {
+            $origTgl = !empty($existing['waktu_laporan']) ? date('Y-m-d', strtotime($existing['waktu_laporan'])) : null;
+            if ($origTgl === $tglLap) {
+                return (string)$existing['hari_ke'];
+            }
+            return $trimmedHariKe !== ''
+                ? $trimmedHariKe
+                : TemplateHelper::hitungHariKe($ops, $tglLap, $existing['hari_ke']);
+        }
+        if ($allowOverrideOnCreate && $trimmedHariKe !== '') {
+            return $trimmedHariKe;
+        }
+        return TemplateHelper::hitungHariKe($ops, $tglLap);
     }
 
     public static function getByOperasiId(int $idOperasi): array {
@@ -135,7 +162,7 @@ class LaporanModel {
         }
         [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $existing);
         [$cuaca, $gelombang, $angin] = self::resolveWeatherFields($ops, $data, $existing);
-        $waData = array_merge($data, ['cuaca' => $cuaca, 'gelombang' => $gelombang, 'angin' => $angin]);
+        $waData = array_merge($existing ?? [], $data, ['cuaca' => $cuaca, 'gelombang' => $gelombang, 'angin' => $angin]);
         $isPenutupan = strtoupper($data['jenis_laporan'] ?? ($existing['jenis_laporan'] ?? '')) === 'PENUTUPAN';
         return TemplateHelper::generateLapbangWA($ops, $waData, $ops['korban'] ?? [], $unsur, $alut, $isPenutupan);
     }

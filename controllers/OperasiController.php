@@ -838,17 +838,7 @@ class OperasiController extends BaseController {
             }
 
             $waktuLap = $_POST['waktu_laporan'] ?? date('Y-m-d H:i:s');
-            $tglLap = date('Y-m-d', strtotime($waktuLap));
-            if ($editMode && !empty($laporan['hari_ke'])) {
-                $origTgl = !empty($laporan['waktu_laporan']) ? date('Y-m-d', strtotime($laporan['waktu_laporan'])) : null;
-                if ($origTgl === $tglLap) {
-                    $_POST['hari_ke'] = $laporan['hari_ke'];
-                } else {
-                    $_POST['hari_ke'] = !empty($_POST['hari_ke']) ? trim($_POST['hari_ke']) : TemplateHelper::hitungHariKe($operasi, $tglLap, $laporan['hari_ke']);
-                }
-            } else {
-                $_POST['hari_ke'] = TemplateHelper::hitungHariKe($operasi, $tglLap);
-            }
+            $_POST['hari_ke'] = LaporanModel::resolveSitrepHariKe($operasi, $editMode ? $laporan : null, $waktuLap, $_POST['hari_ke'] ?? null, false);
 
             try {
                 if ($editMode) {
@@ -877,9 +867,9 @@ class OperasiController extends BaseController {
             $hariKe = !empty($laporan['hari_ke']) ? $laporan['hari_ke'] : TemplateHelper::hitungHariKe($operasi, $tglLap);
             $jenisLaporan = $laporan['jenis_laporan'] ?? 'PERKEMBANGAN';
             $waktuDebrief = !empty($laporan['waktu_debrief']) ? date('Y-m-d\TH:i', strtotime($laporan['waktu_debrief'])) : date('Y-m-d\TH:i');
-            $cuaca = ($laporan['cuaca'] ?? '') !== '' ? $laporan['cuaca'] : ($operasi['cuaca'] ?: 'Cerah Berawan');
-            $gelombang = ($laporan['gelombang'] ?? '') !== '' ? $laporan['gelombang'] : ($operasi['gelombang'] ?? '');
-            $angin = ($laporan['angin'] ?? '') !== '' ? $laporan['angin'] : ($operasi['angin'] ?? '');
+            $cuaca = $laporan['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
+            $gelombang = $laporan['gelombang'] ?? ($operasi['gelombang'] ?? '');
+            $angin = $laporan['angin'] ?? ($operasi['angin'] ?? '');
             $isiLaporan = $laporan['isi_laporan'] ?? '';
             $initialUnsurData = !empty($laporan['detail_unsur']) ? $laporan['detail_unsur'] : ($operasi['detail_unsur'] ?? []);
             $initialAlutData = !empty($laporan['detail_alut']) ? $laporan['detail_alut'] : ($operasi['detail_alut'] ?? []);
