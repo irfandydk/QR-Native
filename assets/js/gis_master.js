@@ -6973,7 +6973,13 @@
           badgeHtml = `<span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold border border-rose-500/20 shrink-0">Titik</span>`;
           metaHtml = `<span class="font-mono text-slate-400">${item.original.lat.toFixed(5)}, ${item.original.lng.toFixed(5)}</span>`;
 
-          const optionsHtml = presetIcons
+          let customOpt = '';
+          if (item.pointType === 'custom_upload' || (item.original && item.original.customIconUrl)) {
+            const isCustomSel = item.pointType === 'custom_upload' ? 'selected' : '';
+            customOpt = `<option value="custom_upload" ${isCustomSel}>🖼️ Ikon Lokal Basarnas</option>`;
+          }
+
+          const optionsHtml = customOpt + presetIcons
             .map((ic) => {
               const sel = ic.type === item.pointType ? 'selected' : '';
               return `<option value="${escapeHtml(ic.type)}" ${sel}>${escapeHtml(ic.emoji || '')} ${escapeHtml(ic.label)}</option>`;

@@ -1026,6 +1026,9 @@
                 color: style.iconColor || null
               });
               stats.parsedCount++;
+            } else {
+              warnings.push(`MultiGeometry Point child in "${name || 'Unnamed'}" has invalid coordinates; skipped.`);
+              stats.skippedCount++;
             }
           } else if (gLocal === 'polygon') {
             const ringNode = geom.getElementsByTagName('LinearRing')[0];
@@ -1047,6 +1050,9 @@
                 points: pts
               });
               stats.parsedCount++;
+            } else {
+              warnings.push(`MultiGeometry Polygon child in "${name || 'Unnamed'}" has fewer than 3 valid coordinates; skipped.`);
+              stats.skippedCount++;
             }
           }
         }

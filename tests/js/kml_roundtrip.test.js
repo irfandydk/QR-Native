@@ -10,10 +10,15 @@ function loadGisModules(options = {}) {
   const windowObj = {};
   const sandbox = {
     window: windowObj,
+    self: windowObj,
     get JSZip() { return global.JSZip || windowObj.JSZip; },
     set JSZip(val) { windowObj.JSZip = val; },
     global,
     globalThis: windowObj,
+    setTimeout,
+    clearTimeout,
+    setImmediate,
+    clearImmediate,
     console,
     Math,
     JSON,
@@ -37,6 +42,13 @@ function loadGisModules(options = {}) {
   };
   vm.createContext(sandbox);
 
+  if (options.includeJSZip) {
+    const jszipPath = path.resolve(__dirname, '../../assets/vendor/jszip/jszip.min.js');
+    if (fs.existsSync(jszipPath)) {
+      vm.runInContext(fs.readFileSync(jszipPath, 'utf8'), sandbox);
+    }
+  }
+
   const baseDir = path.resolve(__dirname, '../../assets/js/gis');
   if (options.includeGeodesy !== false) {
     vm.runInContext(fs.readFileSync(path.join(baseDir, 'geodesy.js'), 'utf8'), sandbox);
@@ -54,6 +66,9 @@ function loadGisModules(options = {}) {
     vm.runInContext(fs.readFileSync(path.join(baseDir, 'kml_importer.js'), 'utf8'), sandbox);
   }
 
+  if (options.returnSandbox) {
+    return sandbox;
+  }
   return sandbox.window.QrSarGis;
 }
 
@@ -862,6 +877,116 @@ test('kml_importer.js loads cleanly and functions when siblings are absent', () 
   const res = parseKmlString(kml);
   assert.equal(res.points.length, 1);
   assert.equal(res.points[0].label, 'Standalone Point');
+});
+
+test('generateKmlDocument normalizes ETA minute overflow (e.g. 11.99 NM at 12 knots -> 1 jam 0 menit, not 60 menit)', () => {
+  const QrSarGis = loadGisModules();
+  const { generateKmlDocument } = QrSarGis.Export;
+
+  const kml = generateKmlDocument({
+    operasiName: 'ETA Overflow Test',
+    routes: [
+      {
+        id: 'rt-overflow',
+        name: 'Rute Overflow ETA',
+        distanceNm: 11.99,
+        vesselSpeedKnots: 12,
+        points: [
+          { lat: -4.0, lng: 122.0 },
+          { lat: -4.1, lng: 122.1 }
+        ]
+      }
+    ]
+  });
+
+  assert.ok(kml.includes('ETA: 1 jam 0 menit'), 'Must normalize 60 menit overflow to 1 jam 0 menit');
+  assert.ok(!kml.includes('60 menit'), 'Must not emit 60 menit');
+});
+
+test('MultiGeometry skips invalid child Point and Polygon with warnings and increments skippedCount', () => {
+  const QrSarGis = loadGisModules();
+  const { parseKmlString } = QrSarGis.KmlImporter;
+
+  const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>Mixed MultiGeom</name>
+      <MultiGeometry>
+        <Point><coordinates></coordinates></Point>
+        <Polygon>
+          <outerBoundaryIs>
+            <LinearRing><coordinates>122.0,-4.0 122.1,-4.1</coordinates></LinearRing>
+          </outerBoundaryIs>
+        </Polygon>
+        <Point><coordinates>122.5,-4.0,0</coordinates></Point>
+      </MultiGeometry>
+    </Placemark>
+  </Document>
+</kml>`;
+
+  const res = parseKmlString(kml);
+  assert.equal(res.points.length, 1);
+  assert.equal(res.points[0].label, 'Mixed MultiGeom (3)');
+  assert.equal(res.stats.skippedCount, 2);
+  assert.ok(res.warnings.some(w => w.includes('MultiGeometry Point child')), 'Records warning for invalid Point child');
+  assert.ok(res.warnings.some(w => w.includes('MultiGeometry Polygon child')), 'Records warning for invalid Polygon child');
+});
+
+test('real JSZip compression and parseFile KMZ round-trip', async () => {
+  const sandbox = loadGisModules({ includeJSZip: true, returnSandbox: true });
+  const QrSarGis = sandbox.window.QrSarGis;
+  const JSZip = sandbox.window.JSZip;
+
+  assert.equal(typeof JSZip, 'function', 'Real JSZip constructor must load cleanly');
+
+  const exportData = {
+    operasiName: 'Ops SAR Kendari KMZ Real Test',
+    points: [
+      { id: 'pt-kmz-1', label: 'Posko KMZ Kendari', lat: -4.0123, lng: 122.5678, pointType: 'posko_sar', category: 'posko' }
+    ],
+    polygons: [
+      {
+        id: 'poly-kmz-1',
+        name: 'Sektor KMZ Utama',
+        points: [{ lat: -4.0, lng: 122.5 }, { lat: -4.0, lng: 122.6 }, { lat: -4.1, lng: 122.6 }, { lat: -4.1, lng: 122.5 }],
+        shapeType: 'polygon',
+        strokeColor: '#0284c7'
+      }
+    ],
+    routes: [
+      {
+        id: 'rt-kmz-1',
+        name: 'Rute KMZ KN SAR',
+        points: [{ lat: -4.0, lng: 122.5 }, { lat: -4.05, lng: 122.55 }],
+        vesselSpeedKnots: 15
+      }
+    ]
+  };
+
+  const kml = QrSarGis.Export.generateKmlDocument(exportData);
+  assert.ok(kml.includes('Posko KMZ Kendari'));
+
+  const zip = new JSZip();
+  zip.file('doc.kml', kml);
+  const kmzBuffer = await zip.generateAsync({ type: 'arraybuffer' });
+  assert.ok(kmzBuffer.byteLength > 100, 'KMZ ArrayBuffer must be generated');
+
+  const kmzFileMock = {
+    name: 'test_ops.kmz',
+    size: kmzBuffer.byteLength,
+    arrayBuffer: async () => kmzBuffer
+  };
+
+  const parsed = await QrSarGis.KmlImporter.parseFile(kmzFileMock);
+  assert.equal(parsed.points.length, 1);
+  assert.equal(parsed.points[0].label, 'Posko KMZ Kendari');
+  assert.equal(parsed.polygons.length, 1);
+  assert.equal(parsed.polygons[0].name, 'Sektor KMZ Utama');
+  assert.equal(parsed.routes.length, 1);
+  assert.equal(parsed.routes[0].name, 'Rute KMZ KN SAR');
+  assert.equal(parsed.stats.skippedCount, 0);
+  assert.equal(parsed.warnings.length, 0);
 });
 
 

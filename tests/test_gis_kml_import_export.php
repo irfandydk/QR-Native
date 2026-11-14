@@ -946,6 +946,11 @@ try {
         str_contains($gisMasterSrc, 'isImportedTargetVisible')
     );
 
+    assertCondition(
+        "assets/js/gis_master.js menyertakan opsi visual custom_upload dalam preview dropdown",
+        str_contains($gisMasterSrc, 'value="custom_upload"')
+    );
+
     // Jalankan pengujian unit roundtrip KML / KMZ di Node.js
     echo PHP_EOL . "--- MENJALANKAN NODE.JS TEST: tests/js/kml_roundtrip.test.js ---" . PHP_EOL;
     $nodeCmd = 'node --test ' . escapeshellarg($rootDir . '/tests/js/kml_roundtrip.test.js') . ' 2>&1';

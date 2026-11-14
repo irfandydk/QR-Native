@@ -418,8 +418,12 @@
       let etaText = rt.etaText || '';
       if (!etaText && rt.vesselSpeedKnots && rt.vesselSpeedKnots > 0 && totalNm > 0) {
         const hours = totalNm / rt.vesselSpeedKnots;
-        const h = Math.floor(hours);
-        const m = Math.round((hours - h) * 60);
+        let h = Math.floor(hours);
+        let m = Math.round((hours - h) * 60);
+        if (m === 60) {
+          h += 1;
+          m = 0;
+        }
         etaText = h > 0 ? `${h} jam ${m} menit` : `${m} menit`;
       }
 
