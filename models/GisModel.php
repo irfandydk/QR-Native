@@ -86,6 +86,116 @@ class GisModel {
         return GeoHelper::calculateDistanceHaversine($lat1, $lon1, $lat2, $lon2);
     }
 
+    /**
+     * Generate geodesic circle ring coordinates (unclosed).
+     * Used for circle polygon rendering, KMZ export, GeoJSON fallback, and import vertex generation.
+     *
+     * @param float $centerLat Latitude of circle center
+     * @param float $centerLng Longitude of circle center
+     * @param float $radiusNm Radius in Nautical Miles (> 0)
+     * @param int $numPoints Number of vertices (min 3, default 64)
+     * @return array<int, array{lat: float, lng: float}>
+     */
+    public static function generateCircleRing(float $centerLat, float $centerLng, float $radiusNm, int $numPoints = 64): array {
+        if ($radiusNm <= 0 || !is_finite($centerLat) || !is_finite($centerLng) || $centerLat < -90.0 || $centerLat > 90.0 || $centerLng < -180.0 || $centerLng > 180.0) {
+            return [];
+        }
+        $n = max(3, $numPoints);
+        $radiusKm = $radiusNm * 1.852;
+        $deltaLatDeg = $radiusKm / 110.574;
+        $cosLat = cos($centerLat * M_PI / 180.0);
+        $cosFactor = abs($cosLat) < 1e-6 ? 1e-6 : abs($cosLat);
+        $deltaLngDeg = $radiusKm / (111.32 * $cosFactor);
+
+        $ring = [];
+        for ($i = 0; $i < $n; $i++) {
+            $angle = (2.0 * M_PI * $i) / $n;
+            $lat = $centerLat + $deltaLatDeg * sin($angle);
+            $lng = $centerLng + $deltaLngDeg * cos($angle);
+            $ring[] = ['lat' => $lat, 'lng' => $lng];
+        }
+        return $ring;
+    }
+
+    /**
+     * Validates that a pair of coordinates are finite floats within standard WGS84 bounds.
+     * Throws InvalidArgumentException on failure.
+     *
+     * @param mixed $lat
+     * @param mixed $lng
+     * @param string $context
+     * @return array{lat: float, lng: float}
+     * @throws InvalidArgumentException
+     */
+    private static function validateCoordPair(mixed $lat, mixed $lng, string $context = 'coordinate'): array {
+        if (!is_numeric($lat) || !is_numeric($lng)) {
+            throw new InvalidArgumentException("Non-numeric coordinate in {$context}: lat=" . var_export($lat, true) . ", lng=" . var_export($lng, true));
+        }
+        $latF = (float)$lat;
+        $lngF = (float)$lng;
+        if (!is_finite($latF) || !is_finite($lngF)) {
+            throw new InvalidArgumentException("Non-finite coordinate in {$context}");
+        }
+        if ($latF < -90.0 || $latF > 90.0) {
+            throw new InvalidArgumentException("Latitude out of range [-90, 90] in {$context}: {$latF}");
+        }
+        if ($lngF < -180.0 || $lngF > 180.0) {
+            throw new InvalidArgumentException("Longitude out of range [-180, 180] in {$context}: {$lngF}");
+        }
+        return ['lat' => $latF, 'lng' => $lngF];
+    }
+
+    /**
+     * Validates and normalizes local custom icon paths.
+     * Accepts only relative paths matching ^(assets/img|uploads/icons)/[A-Za-z0-9_.\-/]+$
+     * that exist on disk (is_file(ROOT_DIR . '/' . $rel)). Rejects traversal (..), external origins, and missing files.
+     *
+     * @param mixed $path
+     * @return string|null Normalized relative path or null if unsafe/invalid/missing
+     */
+    public static function resolveSafeLocalIconPath(mixed $path): ?string {
+        if (!is_string($path)) {
+            return null;
+        }
+        $trimmed = trim($path);
+        if ($trimmed === '' || str_contains($trimmed, '..') || str_starts_with($trimmed, 'data:') || preg_match('/[?#\s]/', $trimmed)) {
+            return null;
+        }
+
+        // Normalize full URL (if originating from local server / BASE_URL)
+        if (preg_match('#^https?://#i', $trimmed)) {
+            $parsed = parse_url($trimmed);
+            if (!$parsed || empty($parsed['path'])) {
+                return null;
+            }
+            $baseParsed = parse_url(defined('BASE_URL') ? BASE_URL : '');
+            $baseHost = $baseParsed['host'] ?? null;
+            $targetHost = $parsed['host'] ?? null;
+            if ($baseHost !== null && $targetHost !== null && strcasecmp($baseHost, $targetHost) !== 0) {
+                return null; // External host (e.g. evil.com)
+            }
+            $trimmed = $parsed['path'];
+        }
+
+        // Strip any leading slash or project subfolder up to assets/img or uploads/icons
+        $rel = ltrim($trimmed, '/');
+        if (preg_match('#(?:^|/)((?:assets/img|uploads/icons)/[A-Za-z0-9_.\-/]+)$#', $rel, $m)) {
+            $rel = $m[1];
+        }
+
+        if (!preg_match('#^(assets/img|uploads/icons)/[A-Za-z0-9_.\-/]+$#', $rel) || str_contains($rel, '..')) {
+            return null;
+        }
+
+        $rootDir = defined('ROOT_DIR') ? ROOT_DIR : dirname(__DIR__);
+        $fullPath = $rootDir . '/' . $rel;
+        if (!is_file($fullPath)) {
+            return null;
+        }
+
+        return $rel;
+    }
+
     public static function getPoints(?int $idOperasi = null, bool $includeGlobal = true): array {
         $db = getDB();
         if ($idOperasi !== null && $idOperasi > 0) {
@@ -328,7 +438,10 @@ class GisModel {
 
     public static function savePolygon(array $data): string {
         $db = getDB();
-        $db->beginTransaction();
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
         try {
             $id = self::validId((string)($data['id'] ?? ('poly-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4))));
             $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
@@ -419,14 +532,12 @@ class GisModel {
                 $stmtDel->execute([...$toDeletePts, $id]);
             }
 
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->commit();
-            }
-            if (!empty($toDeletePts)) {
             }
             return $id;
         } catch (Throwable $e) {
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->rollBack();
             }
             throw $e;
@@ -435,16 +546,19 @@ class GisModel {
 
     public static function deletePolygon(string $id): bool {
         $db = getDB();
-        $db->beginTransaction();
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
         try {
             $db->prepare("DELETE FROM GisPolygonPoint WHERE polygonId = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM GisPolygon WHERE id = :id")->execute([':id' => $id]);
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->commit();
             }
             return true;
         } catch (Throwable) {
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->rollBack();
             }
             return false;
@@ -499,7 +613,10 @@ class GisModel {
 
     public static function saveRoute(array $data): string {
         $db = getDB();
-        $db->beginTransaction();
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
         try {
             $id = self::validId((string)($data['id'] ?? ('route-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4))));
             $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
@@ -568,14 +685,12 @@ class GisModel {
                 $stmtDel->execute([...$toDeletePts, $id]);
             }
 
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->commit();
-            }
-            if (!empty($toDeletePts)) {
             }
             return $id;
         } catch (Throwable $e) {
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->rollBack();
             }
             throw $e;
@@ -584,16 +699,19 @@ class GisModel {
 
     public static function deleteRoute(string $id): bool {
         $db = getDB();
-        $db->beginTransaction();
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
         try {
             $db->prepare("DELETE FROM GisRoutePoint WHERE routeId = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM GisRoute WHERE id = :id")->execute([':id' => $id]);
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->commit();
             }
             return true;
         } catch (Throwable) {
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->rollBack();
             }
             return false;
@@ -646,7 +764,10 @@ class GisModel {
 
     public static function saveSearchPattern(array $data): string {
         $db = getDB();
-        $db->beginTransaction();
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
         try {
             $id = self::validId((string)($data['id'] ?? ('pattern-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4))));
             $idOperasi = isset($data['id_operasi']) && $data['id_operasi'] !== '' && $data['id_operasi'] !== null
@@ -733,14 +854,12 @@ class GisModel {
                 $stmtDel->execute([...$toDeleteWps, $id]);
             }
 
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->commit();
-            }
-            if (!empty($toDeleteWps)) {
             }
             return $id;
         } catch (Throwable $e) {
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->rollBack();
             }
             throw $e;
@@ -749,16 +868,19 @@ class GisModel {
 
     public static function deleteSearchPattern(string $id): bool {
         $db = getDB();
-        $db->beginTransaction();
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
         try {
             $db->prepare("DELETE FROM GisSearchPatternWaypoint WHERE searchPatternId = :id")->execute([':id' => $id]);
             $db->prepare("DELETE FROM GisSearchPattern WHERE id = :id")->execute([':id' => $id]);
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->commit();
             }
             return true;
         } catch (Throwable) {
-            if ($db->inTransaction()) {
+            if ($ownTx && $db->inTransaction()) {
                 $db->rollBack();
             }
             return false;
@@ -954,6 +1076,9 @@ class GisModel {
         $polys = self::getPolygons($idOperasi, $includeGlobal);
         foreach ($polys as $pl) {
             $rawPts = $pl['points'] ?? [];
+            if (empty($rawPts) && ($pl['shapeType'] ?? '') === 'circle' && isset($pl['radiusNm']) && (float)$pl['radiusNm'] > 0 && isset($pl['centerLat'], $pl['centerLng'])) {
+                $rawPts = self::generateCircleRing((float)$pl['centerLat'], (float)$pl['centerLng'], (float)$pl['radiusNm'], 64);
+            }
             if (empty($rawPts)) continue;
             $ring = [];
             foreach ($rawPts as $p) {
@@ -973,8 +1098,8 @@ class GisModel {
                     'name' => $pl['name'] ?? 'Search Area',
                     'shapeType' => $pl['shapeType'] ?? 'polygon',
                     'areaNm2' => (float)($pl['areaNm2'] ?? 0),
-                    'color' => $pl['color'] ?? '#f97316',
-                    'opacity' => (float)($pl['opacity'] ?? 0.25),
+                    'color' => $pl['color'] ?? ($pl['strokeColor'] ?? '#f97316'),
+                    'opacity' => (float)($pl['opacity'] ?? ($pl['fillOpacity'] ?? 0.25)),
                     'id_operasi' => $pl['id_operasi'] ?? null
                 ]
             ];
@@ -1036,5 +1161,456 @@ class GisModel {
             'type' => 'FeatureCollection',
             'features' => $features
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * Atomically import a batch of tactical GIS entities (Points, Polygons, SearchPatterns, Routes).
+     *
+     * Validates:
+     * - Total entity count between 1 and 500.
+     * - Geographic coordinate bounds on all points / waypoints.
+     * - Minimum vertex counts (polygons >= 3, routes >= 2, patterns >= 2).
+     * - Circles generate 36 geodesic vertices when raw vertices are absent.
+     * - Safe local custom icon allowlist with graceful fallback to presets.
+     * - 3-stage polygonRef resolution (batch remap -> datum_kansar -> scoped DB lookup -> null).
+     * - Single atomic transaction with full rollback on any validation / DB error.
+     *
+     * @param int|null $idOperasi Target operation ID or null for Base Map
+     * @param array $payload Batch payload containing points, polygons, patterns, routes
+     * @return array{
+     *     counts: array{points: int, polygons: int, patterns: int, routes: int},
+     *     points: array,
+     *     polygons: array,
+     *     patterns: array,
+     *     routes: array
+     * }
+     * @throws InvalidArgumentException
+     * @throws Throwable
+     */
+    public static function importBatch(?int $idOperasi, array $payload): array {
+        if ($idOperasi !== null && $idOperasi <= 0) {
+            $idOperasi = null;
+        }
+
+        $points = isset($payload['points']) && is_array($payload['points']) ? array_values($payload['points']) : [];
+        $polygons = isset($payload['polygons']) && is_array($payload['polygons']) ? array_values($payload['polygons']) : [];
+        $patterns = isset($payload['patterns']) && is_array($payload['patterns']) ? array_values($payload['patterns']) : [];
+        $routes = isset($payload['routes']) && is_array($payload['routes']) ? array_values($payload['routes']) : [];
+
+        $totalCount = count($points) + count($polygons) + count($patterns) + count($routes);
+        if ($totalCount === 0 || $totalCount > 500) {
+            throw new InvalidArgumentException("Batch import must contain between 1 and 500 entities (received {$totalCount}).");
+        }
+
+        $db = getDB();
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
+
+        try {
+            $seq = 0;
+            $newPointIds = [];
+            $newPolyIds = [];
+            $newPatternIds = [];
+            $newRouteIds = [];
+            $clientRefIdMap = [];
+
+            // 1. Process Points
+            foreach ($points as $idx => $pt) {
+                $seq++;
+                $newId = "pt-imp-" . bin2hex(random_bytes(5)) . "-{$seq}";
+                $label = isset($pt['label']) && $pt['label'] !== '' ? trim((string)$pt['label']) : (isset($pt['name']) ? trim((string)$pt['name']) : 'Titik SAR');
+                $coords = self::validateCoordPair($pt['lat'] ?? null, $pt['lng'] ?? null, "point #{$idx} '{$label}'");
+
+                $rawType = trim((string)($pt['pointType'] ?? ($pt['point_type'] ?? '')));
+                $rawIcon = $pt['customIconUrl'] ?? ($pt['custom_icon_url'] ?? ($pt['customIconPath'] ?? ($pt['iconUrl'] ?? null)));
+
+                $customIconUrl = null;
+                $pointType = $rawType !== '' ? $rawType : 'pin_umum';
+
+                if ($pointType === 'custom_upload' || !empty($rawIcon)) {
+                    $safeIcon = self::resolveSafeLocalIconPath($rawIcon);
+                    if ($safeIcon !== null) {
+                        $pointType = 'custom_upload';
+                        $customIconUrl = $safeIcon;
+                    } else {
+                        // Safe downgrade to preset icon
+                        $customIconUrl = null;
+                        $fallbackPreset = trim((string)($pt['fallbackType'] ?? ($pt['preset'] ?? '')));
+                        if ($fallbackPreset !== '' && preg_match('/^[a-z0-9_]{1,40}$/', $fallbackPreset)) {
+                            $pointType = $fallbackPreset;
+                        } else {
+                            $cat = trim((string)($pt['category'] ?? ''));
+                            if (stripos($label, 'kantor') !== false) {
+                                $pointType = 'kantor';
+                            } elseif (stripos($label, 'pos') !== false || stripos($cat, 'pos') !== false) {
+                                $pointType = 'pos_sar';
+                            } elseif (stripos($label, 'unit') !== false) {
+                                $pointType = 'unit_siaga';
+                            } elseif (stripos($label, 'dermaga') !== false || stripos($label, 'kapal') !== false) {
+                                $pointType = 'dermaga';
+                            } elseif (stripos($label, 'lkp') !== false) {
+                                $pointType = 'lkp';
+                            } else {
+                                $pointType = 'pin_umum';
+                            }
+                        }
+                    }
+                } else {
+                    if (!preg_match('/^[a-z0-9_]{1,40}$/', $pointType)) {
+                        $pointType = 'pin_umum';
+                    }
+                }
+
+                $pointData = [
+                    'id' => $newId,
+                    'id_operasi' => $idOperasi,
+                    'lat' => $coords['lat'],
+                    'lng' => $coords['lng'],
+                    'label' => $label,
+                    'pointType' => $pointType,
+                    'customIconUrl' => $customIconUrl,
+                    'description' => $pt['description'] ?? '',
+                    'category' => $pt['category'] ?? 'Tanpa Kategori',
+                    'alphabetChar' => $pt['alphabetChar'] ?? 'A'
+                ];
+                self::savePoint($pointData);
+                $newPointIds[] = $newId;
+            }
+
+            // 2. Process Polygons
+            foreach ($polygons as $idx => $poly) {
+                $seq++;
+                $newId = "poly-imp-" . bin2hex(random_bytes(5)) . "-{$seq}";
+                $polyName = isset($poly['name']) && $poly['name'] !== '' ? trim((string)$poly['name']) : 'Area Pencarian';
+                $shapeType = trim((string)($poly['shapeType'] ?? 'polygon'));
+                $cLat = isset($poly['centerLat']) && is_numeric($poly['centerLat']) ? (float)$poly['centerLat'] : null;
+                $cLng = isset($poly['centerLng']) && is_numeric($poly['centerLng']) ? (float)$poly['centerLng'] : null;
+                $radiusNm = isset($poly['radiusNm']) && is_numeric($poly['radiusNm']) ? (float)$poly['radiusNm'] : null;
+
+                $pts = isset($poly['points']) && is_array($poly['points']) ? $poly['points'] : [];
+
+                if ($shapeType === 'circle' && count($pts) < 3 && $cLat !== null && $cLng !== null && $radiusNm !== null && $radiusNm > 0) {
+                    self::validateCoordPair($cLat, $cLng, "circle center '{$polyName}'");
+                    $pts = self::generateCircleRing($cLat, $cLng, $radiusNm, 36);
+                }
+
+                if (count($pts) < 3) {
+                    throw new InvalidArgumentException("Polygon '{$polyName}' requires at least 3 vertices (received " . count($pts) . ").");
+                }
+
+                $validatedPts = [];
+                foreach ($pts as $vIdx => $pt) {
+                    $c = self::validateCoordPair($pt['lat'] ?? null, $pt['lng'] ?? null, "polygon '{$polyName}' vertex #{$vIdx}");
+                    $validatedPts[] = [
+                        'lat' => $c['lat'],
+                        'lng' => $c['lng'],
+                        'label' => $pt['label'] ?? ''
+                    ];
+                }
+
+                $calcArea = self::calculatePolygonAreaNm2(
+                    $validatedPts,
+                    $shapeType,
+                    $radiusNm,
+                    isset($poly['boxWidthNm']) && is_numeric($poly['boxWidthNm']) ? (float)$poly['boxWidthNm'] : null,
+                    isset($poly['boxHeightNm']) && is_numeric($poly['boxHeightNm']) ? (float)$poly['boxHeightNm'] : null
+                );
+                $areaNm2 = isset($poly['areaNm2']) && (float)$poly['areaNm2'] > 0 ? (float)$poly['areaNm2'] : $calcArea;
+
+                $polyData = [
+                    'id' => $newId,
+                    'id_operasi' => $idOperasi,
+                    'name' => $polyName,
+                    'shapeType' => $shapeType,
+                    'strokeColor' => $poly['strokeColor'] ?? '#ea580c',
+                    'strokeWeight' => $poly['strokeWeight'] ?? 2.5,
+                    'strokeOpacity' => $poly['strokeOpacity'] ?? 1.0,
+                    'fillColor' => $poly['fillColor'] ?? '#ea580c',
+                    'fillOpacity' => $poly['fillOpacity'] ?? 0.2,
+                    'centerLat' => $cLat,
+                    'centerLng' => $cLng,
+                    'radiusNm' => $radiusNm,
+                    'boxWidthNm' => isset($poly['boxWidthNm']) && is_numeric($poly['boxWidthNm']) ? (float)$poly['boxWidthNm'] : null,
+                    'boxHeightNm' => isset($poly['boxHeightNm']) && is_numeric($poly['boxHeightNm']) ? (float)$poly['boxHeightNm'] : null,
+                    'areaNm2' => $areaNm2,
+                    'points' => $validatedPts
+                ];
+
+                self::savePolygon($polyData);
+                $newPolyIds[] = $newId;
+
+                // Index clientRefId mappings for pattern / route cross-reference
+                $cRef = trim((string)($poly['clientRefId'] ?? ($poly['sourceId'] ?? ($poly['id'] ?? ''))));
+                if ($cRef !== '') {
+                    $clientRefIdMap[$cRef] = ['id' => $newId, 'name' => $polyName];
+                }
+                if (!empty($poly['id']) && (string)$poly['id'] !== $cRef) {
+                    $clientRefIdMap[(string)$poly['id']] = ['id' => $newId, 'name' => $polyName];
+                }
+                $clientRefIdMap[$newId] = ['id' => $newId, 'name' => $polyName];
+            }
+
+            // 3-Stage polygonRef resolver closure
+            $resolvePolyRef = function(mixed $ref) use ($db, $idOperasi, $clientRefIdMap): array {
+                $refStr = trim((string)$ref);
+                if ($refStr === '') {
+                    return ['id' => '', 'name' => ''];
+                }
+                if ($refStr === 'datum_kansar') {
+                    return ['id' => 'datum_kansar', 'name' => 'Datum / Kansar Kendari'];
+                }
+                if (isset($clientRefIdMap[$refStr])) {
+                    return $clientRefIdMap[$refStr];
+                }
+                if ($idOperasi !== null) {
+                    $stmt = $db->prepare("SELECT id, name FROM GisPolygon WHERE id = :ref AND (id_operasi = :id_ops OR id_operasi IS NULL) LIMIT 1");
+                    $stmt->execute([':ref' => $refStr, ':id_ops' => $idOperasi]);
+                } else {
+                    $stmt = $db->prepare("SELECT id, name FROM GisPolygon WHERE id = :ref AND id_operasi IS NULL LIMIT 1");
+                    $stmt->execute([':ref' => $refStr]);
+                }
+                $row = $stmt->fetch();
+                if ($row) {
+                    return ['id' => (string)$row['id'], 'name' => (string)$row['name']];
+                }
+                return ['id' => '', 'name' => ''];
+            };
+
+            // 3. Process Search Patterns
+            foreach ($patterns as $idx => $pat) {
+                $seq++;
+                $newId = "pattern-imp-" . bin2hex(random_bytes(5)) . "-{$seq}";
+                $patName = isset($pat['name']) && $pat['name'] !== '' ? trim((string)$pat['name']) : 'Pola Pencarian SAR';
+                $wps = !empty($pat['waypoints']) && is_array($pat['waypoints'])
+                    ? $pat['waypoints']
+                    : (!empty($pat['points']) && is_array($pat['points']) ? $pat['points'] : []);
+
+                if (count($wps) < 2) {
+                    throw new InvalidArgumentException("Search pattern '{$patName}' requires at least 2 waypoints (received " . count($wps) . ").");
+                }
+
+                $validatedWps = [];
+                foreach ($wps as $wIdx => $wp) {
+                    $c = self::validateCoordPair($wp['lat'] ?? null, $wp['lng'] ?? null, "pattern '{$patName}' waypoint #{$wIdx}");
+                    $validatedWps[] = [
+                        'lat' => $c['lat'],
+                        'lng' => $c['lng'],
+                        'label' => $wp['label'] ?? ''
+                    ];
+                }
+
+                $ref = $pat['polygonRef'] ?? ($pat['polygonId'] ?? '');
+                $resolved = $resolvePolyRef($ref);
+
+                $patternData = [
+                    'id' => $newId,
+                    'id_operasi' => $idOperasi,
+                    'name' => $patName,
+                    'polygonId' => $resolved['id'],
+                    'polygonName' => $resolved['name'],
+                    'patternType' => $pat['patternType'] ?? 'parallel_track',
+                    'trackSpacingNm' => isset($pat['trackSpacingNm']) && is_numeric($pat['trackSpacingNm']) ? (float)$pat['trackSpacingNm'] : 1.0,
+                    'legsCount' => isset($pat['legsCount']) && is_numeric($pat['legsCount']) ? (int)$pat['legsCount'] : 5,
+                    'poskoId' => $pat['poskoId'] ?? '',
+                    'poskoName' => $pat['poskoName'] ?? '',
+                    'color' => $pat['color'] ?? '#0284c7',
+                    'opacity' => isset($pat['opacity']) && is_numeric($pat['opacity']) ? (float)$pat['opacity'] : 0.9,
+                    'strokeWeight' => isset($pat['strokeWeight']) && is_numeric($pat['strokeWeight']) ? (float)$pat['strokeWeight'] : (isset($pat['weight']) && is_numeric($pat['weight']) ? (float)$pat['weight'] : 3.0),
+                    'totalDistanceNm' => isset($pat['totalDistanceNm']) && is_numeric($pat['totalDistanceNm']) ? (float)$pat['totalDistanceNm'] : 0.0,
+                    'flipH' => !empty($pat['flipH']),
+                    'flipV' => !empty($pat['flipV']),
+                    'waypoints' => $validatedWps
+                ];
+
+                self::saveSearchPattern($patternData);
+                $newPatternIds[] = $newId;
+            }
+
+            // 4. Process Routes
+            foreach ($routes as $idx => $rt) {
+                $seq++;
+                $newId = "route-imp-" . bin2hex(random_bytes(5)) . "-{$seq}";
+                $rtName = isset($rt['name']) && $rt['name'] !== '' ? trim((string)$rt['name']) : 'Rute Operasi';
+                $pts = !empty($rt['points']) && is_array($rt['points'])
+                    ? $rt['points']
+                    : (!empty($rt['waypoints']) && is_array($rt['waypoints']) ? $rt['waypoints'] : []);
+
+                if (count($pts) < 2) {
+                    throw new InvalidArgumentException("Route '{$rtName}' requires at least 2 points (received " . count($pts) . ").");
+                }
+
+                $validatedPts = [];
+                foreach ($pts as $pIdx => $pt) {
+                    $c = self::validateCoordPair($pt['lat'] ?? null, $pt['lng'] ?? null, "route '{$rtName}' point #{$pIdx}");
+                    $validatedPts[] = [
+                        'lat' => $c['lat'],
+                        'lng' => $c['lng'],
+                        'label' => $pt['label'] ?? ''
+                    ];
+                }
+
+                $ref = $rt['polygonRef'] ?? ($rt['polygonId'] ?? '');
+                $resolved = $resolvePolyRef($ref);
+
+                $routeData = [
+                    'id' => $newId,
+                    'id_operasi' => $idOperasi,
+                    'name' => $rtName,
+                    'polygonId' => $resolved['id'] !== '' ? $resolved['id'] : null,
+                    'vesselSpeedKnots' => isset($rt['vesselSpeedKnots']) && is_numeric($rt['vesselSpeedKnots']) ? (float)$rt['vesselSpeedKnots'] : 25.0,
+                    'strokeColor' => $rt['strokeColor'] ?? '#059669',
+                    'strokeWeight' => isset($rt['strokeWeight']) && is_numeric($rt['strokeWeight']) ? (float)$rt['strokeWeight'] : 3.5,
+                    'strokeOpacity' => isset($rt['strokeOpacity']) && is_numeric($rt['strokeOpacity']) ? (float)$rt['strokeOpacity'] : 0.9,
+                    'points' => $validatedPts
+                ];
+
+                self::saveRoute($routeData);
+                $newRouteIds[] = $newId;
+            }
+
+            // 5. Hydrate persisted shapes exactly matching model getters
+            $hydratedPoints = [];
+            if (!empty($newPointIds)) {
+                $in = implode(',', array_fill(0, count($newPointIds), '?'));
+                $stmt = $db->prepare("SELECT * FROM GisPoint WHERE id IN ($in)");
+                $stmt->execute($newPointIds);
+                $rows = $stmt->fetchAll();
+                $map = [];
+                foreach ($rows as $r) {
+                    $r['lat'] = (float)$r['lat'];
+                    $r['lng'] = (float)$r['lng'];
+                    $map[$r['id']] = $r;
+                }
+                foreach ($newPointIds as $nid) {
+                    if (isset($map[$nid])) $hydratedPoints[] = $map[$nid];
+                }
+            }
+
+            $hydratedPolygons = [];
+            if (!empty($newPolyIds)) {
+                $in = implode(',', array_fill(0, count($newPolyIds), '?'));
+                $stmt = $db->prepare("SELECT * FROM GisPolygon WHERE id IN ($in)");
+                $stmt->execute($newPolyIds);
+                $polys = $stmt->fetchAll();
+
+                $stmtPts = $db->prepare("SELECT polygonId, lat, lng, label FROM GisPolygonPoint WHERE polygonId IN ($in) ORDER BY id ASC");
+                $stmtPts->execute($newPolyIds);
+                $allPts = $stmtPts->fetchAll();
+                $ptsByPoly = [];
+                foreach ($allPts as $pt) {
+                    $ptsByPoly[$pt['polygonId']][] = [
+                        'lat' => (float)$pt['lat'],
+                        'lng' => (float)$pt['lng'],
+                        'label' => $pt['label'] ?? ''
+                    ];
+                }
+
+                $map = [];
+                foreach ($polys as $p) {
+                    $p['points'] = $ptsByPoly[$p['id']] ?? [];
+                    $calcArea = self::calculatePolygonAreaNm2(
+                        $p['points'],
+                        $p['shapeType'] ?? null,
+                        isset($p['radiusNm']) ? (float)$p['radiusNm'] : null,
+                        isset($p['boxWidthNm']) ? (float)$p['boxWidthNm'] : null,
+                        isset($p['boxHeightNm']) ? (float)$p['boxHeightNm'] : null
+                    );
+                    $p['areaNm2'] = (!empty($p['areaNm2']) && (float)$p['areaNm2'] > 0) ? (float)$p['areaNm2'] : $calcArea;
+                    $p['strokeOpacity'] = isset($p['strokeOpacity']) ? (float)$p['strokeOpacity'] : 1.0;
+                    $map[$p['id']] = $p;
+                }
+                foreach ($newPolyIds as $nid) {
+                    if (isset($map[$nid])) $hydratedPolygons[] = $map[$nid];
+                }
+            }
+
+            $hydratedPatterns = [];
+            if (!empty($newPatternIds)) {
+                $in = implode(',', array_fill(0, count($newPatternIds), '?'));
+                $stmt = $db->prepare("SELECT * FROM GisSearchPattern WHERE id IN ($in)");
+                $stmt->execute($newPatternIds);
+                $pats = $stmt->fetchAll();
+
+                $stmtWp = $db->prepare("SELECT searchPatternId, lat, lng, label FROM GisSearchPatternWaypoint WHERE searchPatternId IN ($in) ORDER BY id ASC");
+                $stmtWp->execute($newPatternIds);
+                $allWp = $stmtWp->fetchAll();
+                $wpByPattern = [];
+                foreach ($allWp as $wp) {
+                    $wpByPattern[$wp['searchPatternId']][] = [
+                        'lat' => (float)$wp['lat'],
+                        'lng' => (float)$wp['lng'],
+                        'label' => $wp['label'] ?? ''
+                    ];
+                }
+
+                $map = [];
+                foreach ($pats as $p) {
+                    $p['waypoints'] = $wpByPattern[$p['id']] ?? [];
+                    $p['flipH'] = !empty($p['flipH']);
+                    $p['flipV'] = !empty($p['flipV']);
+                    $map[$p['id']] = $p;
+                }
+                foreach ($newPatternIds as $nid) {
+                    if (isset($map[$nid])) $hydratedPatterns[] = $map[$nid];
+                }
+            }
+
+            $hydratedRoutes = [];
+            if (!empty($newRouteIds)) {
+                $in = implode(',', array_fill(0, count($newRouteIds), '?'));
+                $stmt = $db->prepare("SELECT * FROM GisRoute WHERE id IN ($in)");
+                $stmt->execute($newRouteIds);
+                $rts = $stmt->fetchAll();
+
+                $stmtPts = $db->prepare("SELECT routeId, lat, lng, label FROM GisRoutePoint WHERE routeId IN ($in) ORDER BY id ASC");
+                $stmtPts->execute($newRouteIds);
+                $allPts = $stmtPts->fetchAll();
+                $ptsByRoute = [];
+                foreach ($allPts as $pt) {
+                    $ptsByRoute[$pt['routeId']][] = [
+                        'lat' => (float)$pt['lat'],
+                        'lng' => (float)$pt['lng'],
+                        'label' => $pt['label'] ?? ''
+                    ];
+                }
+
+                $map = [];
+                foreach ($rts as $r) {
+                    $r['vesselSpeedKnots'] = (float)($r['vesselSpeedKnots'] ?? 25);
+                    $r['strokeWeight'] = (float)($r['strokeWeight'] ?? 3.5);
+                    $r['strokeOpacity'] = (float)($r['strokeOpacity'] ?? 0.9);
+                    $r['polygonId'] = ($r['polygonId'] ?? '') !== '' ? (string)$r['polygonId'] : null;
+                    $r['points'] = $ptsByRoute[$r['id']] ?? [];
+                    $map[$r['id']] = $r;
+                }
+                foreach ($newRouteIds as $nid) {
+                    if (isset($map[$nid])) $hydratedRoutes[] = $map[$nid];
+                }
+            }
+
+            if ($ownTx && $db->inTransaction()) {
+                $db->commit();
+            }
+
+            return [
+                'counts' => [
+                    'points' => count($hydratedPoints),
+                    'polygons' => count($hydratedPolygons),
+                    'patterns' => count($hydratedPatterns),
+                    'routes' => count($hydratedRoutes)
+                ],
+                'points' => $hydratedPoints,
+                'polygons' => $hydratedPolygons,
+                'patterns' => $hydratedPatterns,
+                'routes' => $hydratedRoutes
+            ];
+        } catch (\Throwable $e) {
+            if ($ownTx && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
     }
 }
