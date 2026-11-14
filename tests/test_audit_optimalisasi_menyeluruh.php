@@ -169,7 +169,7 @@ $checkKorban1 = $db->query("SELECT status_korban FROM Korban WHERE id_korban = {
 $checkKorban2 = $db->query("SELECT status_korban FROM Korban WHERE id_korban = {$korbanId2}")->fetchColumn();
 assertAudit("Status Korban #{$korbanId1} di database telah terbarui menjadi 'S' (Selamat)", $checkKorban1 === 'S');
 assertAudit("Status Korban #{$korbanId2} di database tetap 'DP' (Dalam Pencarian)", $checkKorban2 === 'DP');
-assertAudit("Teks WA SITREP memuat angka 'S : 1 ORANG'", str_contains($fetchedSitrep1['full_text_wa'] ?? '', 'S : 1 ORANG'));
+assertAudit("Teks WA SITREP memuat angka '- S : 1 Orang'", str_contains($fetchedSitrep1['full_text_wa'] ?? '', '- S : 1 Orang'));
 
 
 // ---------------------------------------------------------------------

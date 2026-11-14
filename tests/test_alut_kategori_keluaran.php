@@ -31,6 +31,7 @@ $alut = [
     ['nama_alut' => 'Speedboat Lama', 'satuan' => 'Unit', 'jumlah_alut' => 1], // data lama tanpa kategori (Review Focus 1)
 ];
 $urut = "• 2 Unit Mobil Uji\n• 1 Unit Speedboat Lama\n• 1 Unit Drone Uji\n• 1 Set Palsar Uji";
+$urutLapbang = "- 2 Unit Mobil Uji\n- 1 Unit Speedboat Lama\n- 1 Unit Drone Uji\n- 1 Set Palsar Uji";
 $ops = ['nama_operasi' => 'Uji', 'waktu_kejadian' => '2026-11-01 08:00:00', 'waktu_lapor' => '2026-11-01 08:00:00', 'waktu_berangkat' => '2026-11-01 09:00:00'];
 try {
     $wa = TemplateHelper::generateLaporanAwalWA($ops, [], [], $alut);
@@ -38,8 +39,8 @@ try {
     $wa = WhatsAppTemplateService::generateRenopsWA($ops, ['hari_ke' => 'H.1', 'tanggal_laporan' => '2026-11-01'], [], [], [], $alut);
     assertCondition(str_contains($wa, $urut), 'WA RENOPS: isi terurut per kategori');
     $wa = WhatsAppTemplateService::generateLapbangWA($ops, ['hari_ke' => 'H.1'], [], [], $alut);
-    assertCondition(str_contains($wa, $urut), 'WA LAPBANG: isi terurut per kategori');
-    assertCondition(str_contains(WhatsAppTemplateService::generateLapbangWA($ops, ['hari_ke' => 'H.1'], [], [], []), '• Belum ada data alut'), 'WA tanpa alut tetap "Belum ada data alut"');
+    assertCondition(str_contains($wa, $urutLapbang), 'WA LAPBANG: isi terurut per kategori');
+    assertCondition(str_contains(WhatsAppTemplateService::generateLapbangWA($ops, ['hari_ke' => 'H.1'], [], [], []), '- Belum ada data alut'), 'WA tanpa alut tetap "Belum ada data alut"');
 
     $operasi = ['detail_alut' => $alut, 'alut_palsar' => '', 'detail_unsur' => [], 'korban' => []];
     $activeTab = 'kekuatan';
@@ -52,7 +53,7 @@ try {
     assertCondition(false, 'Tanpa exception: ' . get_class($e) . ': ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
 }
 $waSrc = (string)file_get_contents(ROOT_DIR . '/services/WhatsAppTemplateService.php');
-assertCondition(substr_count($waSrc, 'self::formatAlutLines($alut)') === 3 && substr_count($waSrc, '"• Belum ada data alut"') === 1, 'Satu formatter alut WA (tidak duplikat)');
+assertCondition(substr_count($waSrc, 'self::formatAlutLines($alut') === 3 && substr_count($waSrc, 'Belum ada data alut') === 1, 'Satu formatter alut WA (tidak duplikat)');
 
 echo "\nTotal: {$testTotal}, Lolos: {$testPassed}\n";
 exit($testPassed === $testTotal ? 0 : 1);

@@ -21,24 +21,26 @@ class WhatsAppTemplateService {
         $tglFormatted = SarCalculationService::formatTanggalIndo($waktu ?: date('Y-m-d H:i:s'));
         $judulUpper = strtoupper($judulLaporan);
         $nomorLine = !empty($nomor) ? "\nNO: {$nomor}" : "";
+        $subjectClean = rtrim(trim($namaOperasi), '. ');
         return <<<HEADER
+————————-
 FILE AKTIF
-____
+————————-
 
 SEMANGAT QUICK ACTION SEARCH AND RESCUE
 SATU JIWA SATU RASA
 WE ARE FAMILY
 PROFESIONAL MODERN TERUJI
-{$judulUpper}{$nomorLine}
 
+{$judulUpper}{$nomorLine}
 KANTOR PENCARIAN DAN PERTOLONGAN KENDARI
 {$tglFormatted}
 
 YTH : KABASARNAS
 CC : PIMTI MADYA & PRATAMA
 
-Dengan hormat, mohon ijin melaporkan {$namaOperasi}.
-__________________________________________________
+Dengan hormat, mohon izin melaporkan {$subjectClean}.
+====================================
 HEADER;
     }
 
@@ -47,20 +49,20 @@ HEADER;
      */
     public static function getFooterWA(): string {
         return <<<FOOTER
-Demikian kami laporkan, mohon petunjuk dan arahan
+Demikian kami laporkan, mohon petunjuk dan arahan.
 
 Ttd
 
 KKS Kendari
-===========================
-🏢 Kantor Pencarian Dan Pertolongan Kendari
+==================================================
+🏢 Kantor Pencarian dan Pertolongan Kendari
 📍 Alamat Kantor : Jl. Kapt. Piere Tendean No. 91 Baruga, Kota Kendari, Sultra 93116
 ☎️ Telp. : (0401) 3196557
 📠 Fax. : (0401) 3196558
 📱 WhatsApp : +62811-4034-115
 🚨 Emergency Call : 115
-🌐 Website : Www.Kendari.Basarnas.go.id
-📧 E-Mail : Sar304kendari@gmail.com / Pusdatinsarkendari@Yahoo.co.id
+🌐 Website : www.kendari.basarnas.go.id
+📧 E-Mail : sar304kendari@gmail.com / pusdatinsarkendari@yahoo.co.id
 📲 Medsos : @Basarnaskendari
 FOOTER;
     }
@@ -103,16 +105,50 @@ FOOTER;
     }
 
     /** Daftar "ALUT DAN PALSAR" naskah WA: satu judul gabungan, isi diurutkan Darat → Laut → Udara → PALSAR. */
-    private static function formatAlutLines(array $alut): string {
+    private static function formatAlutLines(array $alut, string $bullet = '•'): string {
         if (empty($alut)) {
-            return "• Belum ada data alut";
+            return "{$bullet} Belum ada data alut";
         }
         $aList = [];
         foreach (AlutKategori::sort($alut) as $a) {
             $sat = ($a['satuan'] ?? '') ?: 'Unit';
-            $aList[] = "• {$a['jumlah_alut']} {$sat} {$a['nama_alut']}";
+            $aList[] = "{$bullet} {$a['jumlah_alut']} {$sat} {$a['nama_alut']}";
         }
         return implode("\n", $aList);
+    }
+
+    /** Format nama operasi sebagai frasa "Operasi SAR <judul>" tanpa duplikasi awalan. */
+    private static function formatOperasiSubject(array $ops): string {
+        $raw = rtrim(trim((string)($ops['nama_operasi'] ?? '')), '. ');
+        if ($raw === '' || preg_match('/^(?:operasi|ops)\.?\s*sar$/i', $raw)) {
+            return 'Operasi SAR';
+        }
+        $stripped = preg_replace('/^(?:operasi|ops)\.?\s*sar\b[:\-\s]*/i', '', $raw) ?? $raw;
+        $stripped = trim($stripped);
+        return $stripped !== '' ? "Operasi SAR {$stripped}" : 'Operasi SAR';
+    }
+
+    /** Normalisasi baris poin hasil operasi menjadi bullet "- ". */
+    private static function formatHasilOpsLines(string $isi): string {
+        $normalized = str_replace(["\r\n", "\r"], "\n", trim($isi));
+        if ($normalized === '') {
+            return '-';
+        }
+        $out = [];
+        foreach (explode("\n", $normalized) as $line) {
+            $trim = trim($line);
+            if ($trim === '') {
+                continue;
+            }
+            if (preg_match('/^\d+[.)]\s+/', $trim)) {
+                $out[] = $trim;
+                continue;
+            }
+            $clean = preg_replace('/^(?:[-•*]|\x{2022})\s*/u', '', $trim) ?? $trim;
+            $clean = preg_replace('/^[\s\x{2060}]+/u', '', $clean) ?? ltrim($clean);
+            $out[] = '- ' . $clean;
+        }
+        return empty($out) ? '-' : implode("\n", $out);
     }
 
     public static function generateLaporanAwalWA(array $ops, array $korban = [], array $unsur = [], array $alut = []): string {
@@ -343,21 +379,31 @@ BODY;
         $rawHari = trim((string)($laporan['hari_ke'] ?? 'H.1'));
         $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
         $judul = $isPenutupan ? "LAPBANG OPS SAR {$hariKe} DAN PENUTUPAN" : "LAPBANG OPS SAR {$hariKe}";
-        $namaOps = $ops['nama_operasi'] ?? 'Operasi SAR';
+        $opsSubject = self::formatOperasiSubject($ops);
+        $subjectHeader = $isPenutupan ? "Perkembangan dan Penutupan {$opsSubject}" : "Perkembangan {$opsSubject}";
         $waktuLap = $laporan['waktu_laporan'] ?? date('Y-m-d H:i:s');
 
-        $header = self::getHeaderWA($judul, "Perkembangan Ops {$namaOps}", $waktuLap);
-
-        $klausulPenutupan = '';
-        if ($isPenutupan) {
-            $waktuDebrief = ($laporan['waktu_debrief'] ?? '') ?: (($laporan['waktu_laporan'] ?? '') ?: date('Y-m-d H:i:s'));
-            $tglDebrief = SarCalculationService::formatTanggalSimple($waktuDebrief);
-            $jamDebrief = SarCalculationService::formatJamWITA($waktuDebrief);
-            $klausulPenutupan = "\n\n• Pada tanggal {$tglDebrief} Pukul {$jamDebrief} WITA, Tim SAR Gabungan melakukan debriefing penutupan Ops SAR terhadap {$namaOps}, selanjutnya operasi SAR diusulkan ditutup dan unsur SAR yang terlibat kembali ke kesatuannya masing-masing dengan ucapan terima kasih.";
-        }
+        $header = self::getHeaderWA($judul, $subjectHeader, $waktuLap);
 
         $pobTotal = max((int)($ops['jumlah_pob'] ?? 0), count($korban));
         $stats = SarCalculationService::hitungStatistikKorban($korban, $pobTotal);
+
+        $isiRaw = (string)($laporan['isi_laporan'] ?? '');
+        $isiFormatted = self::formatHasilOpsLines($isiRaw);
+        $klausulPenutupan = '';
+        if ($isPenutupan && !preg_match('/debriefing/i', $isiRaw)) {
+            $waktuDebrief = ($laporan['waktu_debrief'] ?? '') ?: (($laporan['waktu_laporan'] ?? '') ?: date('Y-m-d H:i:s'));
+            $tglDebrief = SarCalculationService::formatTanggalSimple($waktuDebrief);
+            $jamDebrief = str_replace(':', '.', SarCalculationService::formatJamWITA($waktuDebrief));
+            $ditemukanSemua = ($stats['dp'] === 0 && ($stats['s'] > 0 || $stats['md'] > 0));
+            $alasanTutup = $ditemukanSemua
+                ? 'Dengan ditemukannya korban serta selesainya proses evakuasi dan penyerahan'
+                : 'Dengan selesainya seluruh rangkaian pencarian';
+            $klausulPenutupan = "- Pada tanggal {$tglDebrief} pukul {$jamDebrief} WITA, Tim SAR Gabungan tiba di posko dan melaksanakan debriefing penutupan terhadap {$opsSubject}. {$alasanTutup}, Operasi SAR dinyatakan ditutup dan unsur SAR yang terlibat kembali ke kesatuannya masing-masing dengan ucapan terima kasih.";
+        }
+        $hasilBody = $klausulPenutupan !== ''
+            ? ($isiFormatted === '-' ? $klausulPenutupan : ($isiFormatted . "\n" . $klausulPenutupan))
+            : $isiFormatted;
 
         $kList = [];
         if (!empty($korban)) {
@@ -384,44 +430,61 @@ BODY;
         }
 
         if (empty($unsur)) {
-            $unsurText = "• Belum ada data unsur SAR";
+            $unsurText = "- Belum ada data unsur SAR";
         } else {
             $uList = [];
             foreach ($unsur as $u) {
-                $uList[] = "• {$u['nama_unsur']} : {$u['jumlah_personil']} Orang";
+                $uList[] = "- {$u['nama_unsur']} : {$u['jumlah_personil']} Orang";
             }
             $unsurText = implode("\n", $uList);
         }
 
-        $alutText = self::formatAlutLines($alut);
+        $alutText = self::formatAlutLines($alut, '-');
 
-        $isi = !empty($laporan['isi_laporan']) ? $laporan['isi_laporan'] : '-';
-
-        $dataKorbanHeader = '1. Data Korban: ' . self::jumlahOrang((int)$stats['total'], 'Orang');
-        $jml = array_map(fn($n) => self::jumlahOrang((int)$n, 'ORANG'), ['s' => $stats['s'], 'md' => $stats['md'], 'dp' => $stats['dp'], 'h' => $stats['h']]);
+        $dataKorbanHeader = 'Data Korban: ' . self::jumlahOrang((int)$stats['total'], 'Orang');
+        $jml = array_map(fn($n) => self::jumlahOrang((int)$n, 'Orang'), ['s' => $stats['s'], 'md' => $stats['md'], 'dp' => $stats['dp'], 'h' => $stats['h']]);
         if ($stats['unrecorded_dp'] > 0) {
             $dataKorbanHeader .= " (POB: {$stats['total']} Org, Teridentifikasi: {$stats['identified']} Org, Belum Terdata: {$stats['unrecorded_dp']} Org)";
         }
 
+        $pickWeather = static function (string $key) use ($laporan, $ops): string {
+            if (array_key_exists($key, $laporan) && $laporan[$key] !== null) {
+                $v = trim((string)$laporan[$key]);
+                return $v !== '' ? $v : '-';
+            }
+            $opVal = trim((string)($ops[$key] ?? ''));
+            return $opVal !== '' ? $opVal : '-';
+        };
+        $cuacaVal = $pickWeather('cuaca');
+        $gelombangVal = $pickWeather('gelombang');
+        $anginVal = $pickWeather('angin');
+        $hasBmkg = stripos("{$cuacaVal} {$gelombangVal} {$anginVal}", 'BMKG') !== false;
+        $anginLine = ($anginVal !== '-' && !$hasBmkg) ? "{$anginVal} (Sumber BMKG)" : $anginVal;
+
         $body = <<<BODY
 Hasil Ops SAR {$hariKe}:
 
-{$isi}{$klausulPenutupan}
+{$hasilBody}
 
 {$dataKorbanHeader}
-• S : {$jml['s']}
-• MD : {$jml['md']}
-• DP : {$jml['dp']}
-• H : {$jml['h']}
+- S : {$jml['s']}
+- MD : {$jml['md']}
+- DP : {$jml['dp']}
+- H : {$jml['h']}
 
-2. Identitas Korban
+Identitas Korban:
 {$identitasText}
 
-3. Unsur SAR Terlibat
+Unsur SAR Terlibat:
 {$unsurText}
 
-4. Alut dan Palsar
+Alut dan Palsar:
 {$alutText}
+
+Kondisi Cuaca:
+• cuaca : {$cuacaVal}
+• Gelombang : {$gelombangVal}
+• Angin: {$anginLine}
 BODY;
 
         return $header . "\n\n" . $body . "\n\n" . self::getFooterWA();
