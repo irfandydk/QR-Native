@@ -124,6 +124,13 @@ try {
         echo "[OK] DokumenPetaSnapshot schema validated.\n";
     }
 
+    // 1c-3. Run LaporanModel forced migration
+    if (class_exists('LaporanModel')) {
+        echo "[RUN] Checking LaporanHarian weather columns...\n";
+        LaporanModel::ensureSchemaUpdated(true);
+        echo "[OK] LaporanHarian schema validated.\n";
+    }
+
     // 1d. Validate and Apply Composite Indexes for High Performance
     echo "[RUN] Checking Composite Indexes (Korban, Operasi, Renops, LaporanHarian)...\n";
     $compositeIndexes = [

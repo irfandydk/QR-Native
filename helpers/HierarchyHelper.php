@@ -378,7 +378,18 @@ class HierarchyHelper {
         $predecessorLabel = 'Laporan Awal';
         $inheritedUnsur = $ops['detail_unsur'] ?? [];
         $inheritedAlut = $ops['detail_alut'] ?? [];
-        $inheritedCuaca = !empty($ops['cuaca']) ? $ops['cuaca'] : 'Cerah Berawan, Angin Barat 5-15 Kts, Gelombang 0.5 - 1.25 M';
+        $inheritedCuaca = !empty($ops['cuaca']) ? (string)$ops['cuaca'] : 'Cerah Berawan';
+        $inheritedGelombang = (string)($ops['gelombang'] ?? '');
+        $inheritedAngin = (string)($ops['angin'] ?? '');
+
+        if ($latestLapbang) {
+            if (!empty($latestLapbang['gelombang'])) {
+                $inheritedGelombang = (string)$latestLapbang['gelombang'];
+            }
+            if (!empty($latestLapbang['angin'])) {
+                $inheritedAngin = (string)$latestLapbang['angin'];
+            }
+        }
 
         $matchingRenops = null;
         foreach ($renopsList as $r) {
@@ -405,7 +416,7 @@ class HierarchyHelper {
                 $inheritedAlut = $matchingRenops['detail_alut'];
             }
             if (!empty($matchingRenops['cuaca'])) {
-                $inheritedCuaca = $matchingRenops['cuaca'];
+                $inheritedCuaca = (string)$matchingRenops['cuaca'];
             }
         } elseif ($latestLapbang) {
             $lapDate = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($maxLapbangDay - 1) . " days", $t1)) : $todayYmd;
@@ -417,7 +428,7 @@ class HierarchyHelper {
                 $inheritedAlut = $latestLapbang['detail_alut'];
             }
             if (!empty($latestLapbang['cuaca'])) {
-                $inheritedCuaca = $latestLapbang['cuaca'];
+                $inheritedCuaca = (string)$latestLapbang['cuaca'];
             }
         } else {
             // First report on Day 1: inherits directly from Laporan Awal
@@ -440,6 +451,8 @@ class HierarchyHelper {
             'inherited_unsur' => $inheritedUnsur,
             'inherited_alut' => $inheritedAlut,
             'inherited_cuaca' => $inheritedCuaca,
+            'inherited_gelombang' => $inheritedGelombang,
+            'inherited_angin' => $inheritedAngin,
             'inherited_korban' => $ops['korban'] ?? [],
             'suggested_isi_laporan' => $suggestedIsiLaporan,
             'predecessor_label' => $predecessorLabel,

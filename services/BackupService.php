@@ -262,6 +262,9 @@ class BackupService {
             // Cadangan lama mungkin tanpa kolom terbaru: pulihkan skema (DDL di luar transaksi).
             GisModel::ensureSchemaUpdated(true);
             OperasiModel::ensureSchemaUpdated(true);
+            if (class_exists('LaporanModel')) {
+                LaporanModel::ensureSchemaUpdated(true);
+            }
             // Cadangan sebelum fitur kategori alut: isi ulang master & item laporan.
             AlutKategori::pulihkan($db, AlutKategori::cadanganTanpaKategori($data));
             if (class_exists('SettingsModel')) {
@@ -627,6 +630,9 @@ class BackupService {
             // Dump lama menghapus kolom terbaru (DROP/CREATE TABLE); migrations tetap mencatatnya sudah jalan.
             GisModel::ensureSchemaUpdated(true);
             OperasiModel::ensureSchemaUpdated(true);
+            if (class_exists('LaporanModel')) {
+                LaporanModel::ensureSchemaUpdated(true);
+            }
             AlutKategori::pulihkan($db);
             if (class_exists('SettingsModel')) {
                 SettingsModel::clearCache();

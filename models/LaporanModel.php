@@ -7,6 +7,63 @@
 declare(strict_types=1);
 
 class LaporanModel {
+    private static bool $schemaChecked = false;
+    private static ?bool $weatherColsAvailable = null;
+
+    public static function ensureSchemaUpdated(bool $force = false): void {
+        if (!$force) return;
+        if (self::$schemaChecked) return;
+        self::$schemaChecked = true;
+        try {
+            $db = getDB();
+            if ($db->inTransaction()) return;
+
+            $lapCols = [
+                'gelombang' => "ALTER TABLE LaporanHarian ADD COLUMN gelombang VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL AFTER cuaca",
+                'angin' => "ALTER TABLE LaporanHarian ADD COLUMN angin VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL AFTER gelombang",
+            ];
+            foreach ($lapCols as $colName => $alterSql) {
+                $cols = $db->query("SHOW COLUMNS FROM LaporanHarian LIKE '{$colName}'")->fetchAll();
+                if (empty($cols)) {
+                    $db->exec($alterSql);
+                }
+            }
+            self::$weatherColsAvailable = true;
+        } catch (Throwable $e) {
+            error_log("[LaporanModel Schema Check] " . $e->getMessage());
+        }
+    }
+
+    private static function hasWeatherColumns(PDO $db): bool {
+        if (self::$weatherColsAvailable !== null) {
+            return self::$weatherColsAvailable;
+        }
+        try {
+            $g = !empty($db->query("SHOW COLUMNS FROM LaporanHarian LIKE 'gelombang'")->fetchAll());
+            $a = !empty($db->query("SHOW COLUMNS FROM LaporanHarian LIKE 'angin'")->fetchAll());
+            self::$weatherColsAvailable = ($g && $a);
+            return self::$weatherColsAvailable;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Resolve cuaca, gelombang, angin secara konsisten antara pratinjau WA dan simpan/perbarui DB.
+     */
+    private static function resolveWeatherFields(array $ops, array $data, ?array $existing = null): array {
+        $resolve = static function (string $key) use ($ops, $data, $existing): string {
+            if (array_key_exists($key, $data) && $data[$key] !== null) {
+                return trim((string)$data[$key]);
+            }
+            if ($existing !== null && array_key_exists($key, $existing) && $existing[$key] !== null) {
+                return trim((string)$existing[$key]);
+            }
+            return trim((string)($ops[$key] ?? ''));
+        };
+        return [$resolve('cuaca'), $resolve('gelombang'), $resolve('angin')];
+    }
+
     public static function getByOperasiId(int $idOperasi): array {
         $db = getDB();
         $stmt = $db->prepare("SELECT * FROM LaporanHarian WHERE id_operasi = :id ORDER BY id_laporan ASC");
@@ -77,8 +134,10 @@ class LaporanModel {
             }
         }
         [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $existing);
+        [$cuaca, $gelombang, $angin] = self::resolveWeatherFields($ops, $data, $existing);
+        $waData = array_merge($data, ['cuaca' => $cuaca, 'gelombang' => $gelombang, 'angin' => $angin]);
         $isPenutupan = strtoupper($data['jenis_laporan'] ?? ($existing['jenis_laporan'] ?? '')) === 'PENUTUPAN';
-        return TemplateHelper::generateLapbangWA($ops, $data, $ops['korban'] ?? [], $unsur, $alut, $isPenutupan);
+        return TemplateHelper::generateLapbangWA($ops, $waData, $ops['korban'] ?? [], $unsur, $alut, $isPenutupan);
     }
 
     public static function create(array $data): int {
@@ -117,24 +176,41 @@ class LaporanModel {
 
             $isPenutupan = strtoupper($data['jenis_laporan'] ?? '') === 'PENUTUPAN';
             [$unsur, $alut] = self::resolveUnsurAlut($ops, $data);
+            [$cuaca, $gelombang, $angin] = self::resolveWeatherFields($ops, $data);
             
             // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
             $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($ops['unsur_terlibat'] ?? ''));
             $alutText = OperasiModel::formatAlutText($alut, $data['alut_text'] ?? ($ops['alut_palsar'] ?? ''));
 
-            $fullTextWa = TemplateHelper::generateLapbangWA($ops, $data, $ops['korban'], $unsur, $alut, $isPenutupan);
+            $waData = array_merge($data, ['cuaca' => $cuaca, 'gelombang' => $gelombang, 'angin' => $angin]);
+            $fullTextWa = TemplateHelper::generateLapbangWA($ops, $waData, $ops['korban'], $unsur, $alut, $isPenutupan);
 
-            $stmt = $db->prepare("INSERT INTO LaporanHarian (
-                id_operasi, hari_ke, jenis_laporan, isi_laporan,
-                waktu_debrief, cuaca, unsur_text, alut_text,
-                detail_unsur, detail_alut,
-                full_text_wa, waktu_laporan
-            ) VALUES (
-                :id_operasi, :hari_ke, :jenis_laporan, :isi_laporan,
-                :waktu_debrief, :cuaca, :unsur_text, :alut_text,
-                :detail_unsur, :detail_alut,
-                :full_text_wa, :waktu_laporan
-            )");
+            $hasWeatherCols = self::hasWeatherColumns($db);
+            if ($hasWeatherCols) {
+                $stmt = $db->prepare("INSERT INTO LaporanHarian (
+                    id_operasi, hari_ke, jenis_laporan, isi_laporan,
+                    waktu_debrief, cuaca, gelombang, angin, unsur_text, alut_text,
+                    detail_unsur, detail_alut,
+                    full_text_wa, waktu_laporan
+                ) VALUES (
+                    :id_operasi, :hari_ke, :jenis_laporan, :isi_laporan,
+                    :waktu_debrief, :cuaca, :gelombang, :angin, :unsur_text, :alut_text,
+                    :detail_unsur, :detail_alut,
+                    :full_text_wa, :waktu_laporan
+                )");
+            } else {
+                $stmt = $db->prepare("INSERT INTO LaporanHarian (
+                    id_operasi, hari_ke, jenis_laporan, isi_laporan,
+                    waktu_debrief, cuaca, unsur_text, alut_text,
+                    detail_unsur, detail_alut,
+                    full_text_wa, waktu_laporan
+                ) VALUES (
+                    :id_operasi, :hari_ke, :jenis_laporan, :isi_laporan,
+                    :waktu_debrief, :cuaca, :unsur_text, :alut_text,
+                    :detail_unsur, :detail_alut,
+                    :full_text_wa, :waktu_laporan
+                )");
+            }
 
             $now = date('Y-m-d H:i:s');
             // ISSUE-RENOPS-04: Normalisasi format waktu DATETIME
@@ -146,20 +222,25 @@ class LaporanModel {
             $rawHari = trim((string)($data['hari_ke'] ?? 'H.1'));
             $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
 
-            $stmt->execute([
+            $params = [
                 ':id_operasi' => (int)$data['id_operasi'],
                 ':hari_ke' => $hariKe,
                 ':jenis_laporan' => $isPenutupan ? 'PENUTUPAN' : 'PERKEMBANGAN',
                 ':isi_laporan' => $data['isi_laporan'] ?? '',
                 ':waktu_debrief' => $waktuDebrief,
-                ':cuaca' => $data['cuaca'] ?? ($ops['cuaca'] ?? ''),
+                ':cuaca' => $cuaca,
                 ':unsur_text' => $unsurText,
                 ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
                 ':detail_alut' => json_encode($alut, JSON_UNESCAPED_UNICODE),
                 ':full_text_wa' => $fullTextWa,
                 ':waktu_laporan' => $waktuLaporan
-            ]);
+            ];
+            if ($hasWeatherCols) {
+                $params[':gelombang'] = $gelombang;
+                $params[':angin'] = $angin;
+            }
+            $stmt->execute($params);
 
             $idLaporan = (int)$db->lastInsertId();
 
@@ -221,12 +302,14 @@ class LaporanModel {
             }
 
             [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $lap);
+            [$cuaca, $gelombang, $angin] = self::resolveWeatherFields($ops, $data, $lap);
 
             // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
             $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($lap['unsur_text'] ?: ($ops['unsur_terlibat'] ?? '')));
             $alutText = OperasiModel::formatAlutText($alut, $data['alut_text'] ?? ($lap['alut_text'] ?: ($ops['alut_palsar'] ?? '')));
 
-            $fullTextWa = TemplateHelper::generateLapbangWA($ops, $data, $ops['korban'], $unsur, $alut, $isPenutupan);
+            $waData = array_merge($lap, $data, ['cuaca' => $cuaca, 'gelombang' => $gelombang, 'angin' => $angin]);
+            $fullTextWa = TemplateHelper::generateLapbangWA($ops, $waData, $ops['korban'], $unsur, $alut, $isPenutupan);
 
             // ISSUE-RENOPS-04: Normalisasi format waktu DATETIME
             $waktuDebrief = !empty($data['waktu_debrief'])
@@ -234,12 +317,15 @@ class LaporanModel {
                 : (!empty($lap['waktu_debrief']) ? OperasiModel::normalizeDateTime($lap['waktu_debrief'], true) : ($isPenutupan ? date('Y-m-d H:i:s') : null));
             $waktuLaporan = OperasiModel::normalizeDateTime($data['waktu_laporan'] ?? $lap['waktu_laporan']);
 
+            $hasWeatherCols = self::hasWeatherColumns($db);
+            $weatherSetSql = $hasWeatherCols ? ",\n                gelombang = :gelombang,\n                angin = :angin" : '';
+
             $stmt = $db->prepare("UPDATE LaporanHarian SET
                 hari_ke = :hari_ke,
                 jenis_laporan = :jenis_laporan,
                 isi_laporan = :isi_laporan,
                 waktu_debrief = :waktu_debrief,
-                cuaca = :cuaca,
+                cuaca = :cuaca{$weatherSetSql},
                 unsur_text = :unsur_text,
                 alut_text = :alut_text,
                 detail_unsur = :detail_unsur,
@@ -251,20 +337,25 @@ class LaporanModel {
             $rawHari = trim((string)($data['hari_ke'] ?? $lap['hari_ke']));
             $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
 
-            $stmt->execute([
+            $params = [
                 ':id' => $id,
                 ':hari_ke' => $hariKe,
                 ':jenis_laporan' => $isPenutupan ? 'PENUTUPAN' : 'PERKEMBANGAN',
                 ':isi_laporan' => $data['isi_laporan'] ?? $lap['isi_laporan'],
                 ':waktu_debrief' => $waktuDebrief,
-                ':cuaca' => $data['cuaca'] ?? ($lap['cuaca'] ?: ($ops['cuaca'] ?? '')),
+                ':cuaca' => $cuaca,
                 ':unsur_text' => $unsurText,
                 ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
                 ':detail_alut' => json_encode($alut, JSON_UNESCAPED_UNICODE),
                 ':full_text_wa' => $fullTextWa,
                 ':waktu_laporan' => $waktuLaporan
-            ]);
+            ];
+            if ($hasWeatherCols) {
+                $params[':gelombang'] = $gelombang;
+                $params[':angin'] = $angin;
+            }
+            $stmt->execute($params);
 
             // Sync operational state
             OperasiModel::syncUnsurAlut((int)$lap['id_operasi'], $unsur, $alut);
