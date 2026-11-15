@@ -18,14 +18,16 @@
 
   // Fallback preset marker icon types when markers.js is not loaded
   const FALLBACK_PRESET_TYPES = new Set([
-    'lkp', 'orang_hilang', 'tenggelam', 'kecelakaan_kapal', 'perahu', 'kecelakaan_pesawat',
+    'lkp', 'orang_hilang', 'sinyal_sos', 'tenggelam', 'kecelakaan_kapal', 'perahu', 'kecelakaan_pesawat',
     'laka_darat', 'kmm', 'banjir', 'longsor', 'gempa', 'kebakaran', 'gunung_api', 'badai',
-    'hewan_buas', 'medis_gawat', 'bencana', 'kantor', 'pos_sar', 'posko_sar', 'tenda',
-    'rumah_sakit', 'pelabuhan', 'bandara', 'helipad', 'mercusuar', 'spbu_bbm', 'rumah',
-    'pantai', 'pulau', 'hutan', 'jembatan', 'kapal', 'rib', 'perahu_karet', 'speedboat',
+    'hewan_buas', 'medis_gawat', 'bencana', 'korban_selamat', 'korban_luka', 'korban_md', 'korban_meninggal',
+    'korban_hilang', 'kantor', 'kansar', 'pos_sar', 'unit_siaga', 'posko_sar', 'posko', 'tenda',
+    'rumah_sakit', 'medis', 'pelabuhan', 'dermaga', 'bandara', 'helipad', 'mercusuar', 'spbu_bbm', 'rumah',
+    'pantai', 'pulau', 'hutan', 'jembatan', 'kapal', 'kapal_sar', 'rib', 'perahu_karet', 'speedboat',
     'helikopter', 'pesawat', 'rescue_car', 'rescue_truck', 'ambulans', 'motor_trail',
-    'penyelam', 'drone', 'tim_rescue', 'k9', 'korban_selamat', 'korban_md', 'korban_hilang',
-    'korban_luka', 'alphabet', 'pin_umum', 'waypoint', 'target', 'debris', 'radio'
+    'penyelam', 'drone', 'tim_rescuer', 'tim_rescue', 'k9', 'alphabet', 'pin_umum', 'target',
+    'entry_point', 'exit_point', 'titik_kumpul', 'waypoint', 'bendera', 'bintang', 'debris',
+    'logistik', 'komunikasi', 'radio', 'rintangan', 'jangkar', 'teropong'
   ]);
 
   const SAR_KEYWORD_REGEX = /\b(pola|pattern|parallel|creeping|expanding|square|sector|e-sar|lintasan)\b/i;

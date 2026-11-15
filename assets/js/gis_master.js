@@ -330,21 +330,27 @@
   // Point Creator state
   let isCreatingPoint = false;
   let editingPointId = null;
-  let pointIconType = 'lkp';
+  let pointIconType = 'pin_umum';
+  let lastPresetIconType = 'pin_umum';
   let pointAlphabetChar = 'A';
   let pointCustomIconUrl = '';
   let pointDraftCoords = { lat: -4.015, lng: 122.585 };
+  let renderPresetIconsFn = null;
 
   function normalizeIconUrl(url) {
     if (!url) return '';
     const u = String(url).trim();
     if (!u) return '';
-    if (u.startsWith('/uploads/')) {
-      return BASE_URL + u;
-    }
+    const base = String(BASE_URL || '').replace(/\/+$/, '');
     const idx = u.indexOf('/uploads/icons/');
     if (idx !== -1) {
-      return BASE_URL + u.substring(idx);
+      return base + u.substring(idx);
+    }
+    if (u.startsWith('uploads/icons/') || u.startsWith('uploads/') || u.startsWith('assets/')) {
+      return (base ? base + '/' : '/') + u;
+    }
+    if (u.startsWith('/uploads/') || u.startsWith('/assets/')) {
+      return base + u;
     }
     return u;
   }
@@ -665,14 +671,17 @@
   let savedRoutePolylinesMap = new Map();
   let temporarySearchMarker = null;
 
-  // Comprehensive Preset Point Icons for SAR operations, incidents, places, assets, and tactical markers
-  const PRESET_ICONS = [
+  // Comprehensive Preset Point Icons for SAR operations, incidents, places, assets, and tactical markers (SSOT synced with markers.js)
+  const PRESET_ICONS = (window.QrSarGis && window.QrSarGis.Markers && Array.isArray(window.QrSarGis.Markers.PRESET_ICONS))
+    ? window.QrSarGis.Markers.PRESET_ICONS
+    : [
     // --- KEJADIAN & BENCANA ---
     { type: 'lkp', label: 'LKP / Titik Kejadian', color: '#dc2626', emoji: '🚨', group: 'kejadian' },
     { type: 'orang_hilang', label: 'Orang Hilang / Survivor', color: '#ef4444', emoji: '👤', group: 'kejadian' },
+    { type: 'sinyal_sos', label: 'Sinyal SOS / Distress', color: '#dc2626', emoji: '🆘', group: 'kejadian' },
     { type: 'tenggelam', label: 'Korban Tenggelam / Laka Air', color: '#0284c7', emoji: '🏊', group: 'kejadian' },
     { type: 'kecelakaan_kapal', label: 'Laka Kapal / Karam', color: '#b91c1c', emoji: '🚢', group: 'kejadian' },
-    { type: 'perahu', label: 'Perahu Terbalik / Nelayan', color: '#06b6d4', emoji: '⛵', group: 'kejadian' },
+    { type: 'perahu', label: 'Perahu Terbalik / Nelayan', color: '#0891b2', emoji: '⛵', group: 'kejadian' },
     { type: 'kecelakaan_pesawat', label: 'Laka Pesawat / Jatuh', color: '#7c3aed', emoji: '✈️', group: 'kejadian' },
     { type: 'laka_darat', label: 'Laka Transportasi Darat', color: '#d97706', emoji: '🚗', group: 'kejadian' },
     { type: 'kmm', label: 'KMM / Bahaya Jiwa', color: '#ea580c', emoji: '🧗', group: 'kejadian' },
@@ -683,16 +692,24 @@
     { type: 'gunung_api', label: 'Erupsi Gunung Berapi', color: '#991b1b', emoji: '🌋', group: 'kejadian' },
     { type: 'badai', label: 'Cuaca Buruk / Badai', color: '#475569', emoji: '🌪️', group: 'kejadian' },
     { type: 'hewan_buas', label: 'Serangan Satwa / Buaya', color: '#15803d', emoji: '🐊', group: 'kejadian' },
-    { type: 'medis_gawat', label: 'Korban Medis Kritis', color: '#be123c', emoji: '🩸', group: 'kejadian' },
+    { type: 'medis_gawat', label: 'Darurat Medis Kritis', color: '#be123c', emoji: '🩸', group: 'kejadian' },
     { type: 'bencana', label: 'Bencana Alam / Hazard', color: '#d97706', emoji: '⚠️', group: 'kejadian' },
 
-    // --- TEMPAT & FASILITAS ---
+    // --- TEMUAN KORBAN & SURVIVOR ---
+    { type: 'korban_selamat', label: 'Temuan Korban Selamat', color: '#16a34a', emoji: '🟢', group: 'korban' },
+    { type: 'korban_luka', label: 'Temuan Korban Luka', color: '#ca8a04', emoji: '🟡', group: 'korban' },
+    { type: 'korban_md', label: 'Temuan Korban MD', color: '#1e293b', emoji: '⚫', group: 'korban' },
+    { type: 'korban_hilang', label: 'Titik Duga Korban (DP)', color: '#dc2626', emoji: '🔴', group: 'korban' },
+
+    // --- TEMPAT, POS & FASILITAS ---
     { type: 'kantor', label: 'Kantor / Pangkalan SAR', color: '#1e3a8a', emoji: '🏢', group: 'tempat' },
     { type: 'pos_sar', label: 'Pos / Stasiun SAR', color: '#ea580c', emoji: '📻', group: 'tempat' },
+    { type: 'unit_siaga', label: 'Unit Siaga SAR', color: '#0284c7', emoji: '🛡️', group: 'tempat' },
     { type: 'posko_sar', label: 'Posko Taktis Lapangan', color: '#059669', emoji: '🏕️', group: 'tempat' },
     { type: 'tenda', label: 'Tenda Siaga / Pengungsi', color: '#0d9488', emoji: '⛺', group: 'tempat' },
     { type: 'rumah_sakit', label: 'Rumah Sakit / Faskes', color: '#e11d48', emoji: '🏥', group: 'tempat' },
     { type: 'pelabuhan', label: 'Pelabuhan / Dermaga', color: '#0284c7', emoji: '⚓', group: 'tempat' },
+    { type: 'dermaga', label: 'Dermaga Kapal SAR', color: '#0369a1', emoji: '⛴️', group: 'tempat' },
     { type: 'bandara', label: 'Bandara / Airstrip', color: '#4338ca', emoji: '🛫', group: 'tempat' },
     { type: 'helipad', label: 'Helipad / LZ Evakuasi', color: '#ca8a04', emoji: '🚁', group: 'tempat' },
     { type: 'mercusuar', label: 'Mercusuar / Tower Pantau', color: '#334155', emoji: '🗼', group: 'tempat' },
@@ -716,21 +733,44 @@
     { type: 'motor_trail', label: 'Motor Trail Rescuer', color: '#c2410c', emoji: '🏍️', group: 'alut' },
     { type: 'penyelam', label: 'Tim Selam / Under-Water', color: '#0369a1', emoji: '🤿', group: 'alut' },
     { type: 'k9', label: 'Unit Anjing Pelacak K-9', color: '#854d0e', emoji: '🐕', group: 'alut' },
-    { type: 'drone', label: 'Drone / UAV Thermal', color: '#6d28d9', emoji: '🛰️', group: 'alut' },
+    { type: 'drone', label: 'Drone / UAV Pemantau', color: '#6d28d9', emoji: '🛸', group: 'alut' },
     { type: 'tim_rescuer', label: 'Tim Personel Rescuer', color: '#ea580c', emoji: '👷', group: 'alut' },
 
     // --- TAKTIS & NAVIGASI ---
-    { type: 'titik_kumpul', label: 'Titik Kumpul / Assembly', color: '#16a34a', emoji: '🏁', group: 'taktis' },
+    { type: 'pin_umum', label: 'Pin Lokasi Standar', color: '#ea580c', emoji: '📍', group: 'taktis' },
+    { type: 'target', label: 'Objek Sasaran / Datum', color: '#dc2626', emoji: '🎯', group: 'taktis' },
     { type: 'entry_point', label: 'Entry Poin / Pintu Masuk', color: '#15803d', emoji: '🟢', group: 'taktis' },
     { type: 'exit_point', label: 'Exit Poin / Titik Keluar', color: '#b91c1c', emoji: '🔴', group: 'taktis' },
-    { type: 'target', label: 'Objek Sasaran / Datum', color: '#dc2626', emoji: '🎯', group: 'taktis' },
+    { type: 'titik_kumpul', label: 'Titik Kumpul / Assembly', color: '#16a34a', emoji: '🏁', group: 'taktis' },
+    { type: 'waypoint', label: 'Titik Waypoint Navigasi', color: '#0284c7', emoji: '🧭', group: 'taktis' },
     { type: 'bendera', label: 'Bendera Marker Taktis', color: '#ef4444', emoji: '🚩', group: 'taktis' },
-    { type: 'rintangan', label: 'Bahaya / Rintangan Alur', color: '#eab308', emoji: '⚠️', group: 'taktis' },
+    { type: 'bintang', label: 'Titik Prioritas Utama', color: '#eab308', emoji: '⭐', group: 'taktis' },
+    { type: 'debris', label: 'Puing / Serpihan / Objek', color: '#0891b2', emoji: '🛟', group: 'taktis' },
     { type: 'logistik', label: 'Drop Zone Logistik / Air', color: '#b45309', emoji: '📦', group: 'taktis' },
     { type: 'komunikasi', label: 'Stasiun Radio / Repeater', color: '#0891b2', emoji: '📡', group: 'taktis' },
-    { type: 'bintang', label: 'Titik Prioritas Utama', color: '#eab308', emoji: '⭐', group: 'taktis' },
-    { type: 'pin_umum', label: 'Pin Marker Default', color: '#ea580c', emoji: '📍', group: 'taktis' }
+    { type: 'rintangan', label: 'Bahaya / Rintangan Alur', color: '#eab308', emoji: '🚧', group: 'taktis' },
+    { type: 'jangkar', label: 'Titik Lego Jangkar', color: '#1d4ed8', emoji: '⚓', group: 'taktis' },
+    { type: 'teropong', label: 'Titik Pantau Visual', color: '#0f766e', emoji: '🔭', group: 'taktis' }
   ];
+
+  const PRESET_ALIAS_MAP = {
+    tim_rescue: 'tim_rescuer',
+    radio: 'komunikasi',
+    korban_meninggal: 'korban_md',
+    kansar: 'kantor',
+    kapal_sar: 'kapal',
+    medis: 'rumah_sakit',
+    posko: 'posko_sar'
+  };
+
+  function getPresetIcon(rawType) {
+    if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.getPreset === 'function') {
+      return window.QrSarGis.Markers.getPreset(rawType);
+    }
+    const t = String(rawType || 'pin_umum').trim().toLowerCase();
+    const mapped = PRESET_ALIAS_MAP[t] || t;
+    return PRESET_ICONS.find((p) => p.type === mapped) || PRESET_ICONS.find((p) => p.type === t) || null;
+  }
 
   // Color Palette for Polygons and Routes
   const COLOR_PALETTE = [
@@ -978,6 +1018,9 @@
     const width = isEditing ? 46 : 38;
     const height = isEditing ? 54 : 46;
     const cx = width / 2;
+    const normType = String(type || 'pin_umum').trim().toLowerCase();
+    const preset = getPresetIcon(normType);
+    const pinColor = color || (preset ? preset.color : '#ea580c');
 
     let innerContent = '';
 
@@ -988,48 +1031,34 @@
         <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
         <image href="${safeUrl}" xlink:href="${safeUrl}" x="${cx - 10}" y="6" width="20" height="20" preserveAspectRatio="xMidYMid slice" />
       `;
-    } else if (type === 'alphabet') {
-      const char = (labelNumber || 'A').toUpperCase();
-      innerContent = `
-        <circle cx="${cx}" cy="16" r="10" fill="#ffffff" />
-        <text x="${cx}" y="20.5" font-family="Arial, system-ui, sans-serif" font-size="12" font-weight="900" fill="${color}" text-anchor="middle">${escapeHtml(char)}</text>
-      `;
-    } else if (type === 'lkp' || type === 'target') {
+    } else if (normType === 'alphabet') {
+      const char = String(labelNumber || 'A').trim().toUpperCase().slice(0, 3) || 'A';
       innerContent = `
         <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-        <circle cx="${cx}" cy="16" r="9" fill="${color}" />
-        <circle cx="${cx}" cy="16" r="4" fill="#ffffff" />
-        <line x1="${cx - 10}" y1="16" x2="${cx + 10}" y2="16" stroke="#ffffff" stroke-width="1.8" />
-        <line x1="${cx}" y1="6" x2="${cx}" y2="26" stroke="#ffffff" stroke-width="1.8" />
+        <text x="${cx}" y="20.5" font-family="Arial, system-ui, sans-serif" font-size="12.5" font-weight="900" fill="${pinColor}" text-anchor="middle">${escapeHtml(char)}</text>
       `;
     } else {
-      const preset = PRESET_ICONS.find((p) => p.type === type);
       const emoji = preset ? preset.emoji : '📍';
       innerContent = `
-        <circle cx="${cx}" cy="16" r="10" fill="#ffffff" />
-        <text x="${cx}" y="16.5" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', Arial, sans-serif" font-size="12" text-anchor="middle" dominant-baseline="central">${emoji}</text>
+        <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
+        <text x="${cx}" y="16.5" font-family="'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', Arial, sans-serif" font-size="13.5" text-anchor="middle" dominant-baseline="central">${emoji}</text>
       `;
     }
 
     const haloRing = isEditing
       ? `<circle cx="${cx}" cy="16" r="17" fill="none" stroke="#facc15" stroke-width="3" stroke-dasharray="3,3" />`
-      : (type === 'lkp' || type === 'target' || type === 'medis_gawat' || type === 'bencana')
-        ? `<circle cx="${cx}" cy="16" r="18" fill="none" stroke="${color}" stroke-width="1.5" stroke-opacity="0.6">
+      : (normType === 'lkp' || normType === 'target' || normType === 'sinyal_sos' || normType === 'orang_hilang' || normType === 'tenggelam' || normType === 'medis_gawat' || normType === 'bencana')
+        ? `<circle cx="${cx}" cy="16" r="18" fill="none" stroke="${pinColor}" stroke-width="1.8" stroke-opacity="0.65">
           <animate attributeName="r" values="14;22;14" dur="2s" repeatCount="indefinite" />
-          <animate attributeName="stroke-opacity" values="0.8;0.1;0.8" dur="2s" repeatCount="indefinite" />
+          <animate attributeName="stroke-opacity" values="0.85;0.1;0.85" dur="2s" repeatCount="indefinite" />
          </circle>`
         : '';
 
     return `
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="display:block;">
-        <defs>
-          <filter id="shadow_${Math.random().toString(36).substring(2, 6)}" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.45" />
-          </filter>
-        </defs>
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">
         <g>
           ${haloRing}
-          <path d="M${cx} ${height - 4} C${cx - 2} ${height - 10}, ${cx - 14} 24, ${cx - 14} 16 A14 14 0 1 1 ${cx + 14} 16 C${cx + 14} 24, ${cx + 2} ${height - 10}, ${cx} ${height - 4} Z" fill="${color}" stroke="#ffffff" stroke-width="2" />
+          <path d="M${cx} ${height - 4} C${cx - 2} ${height - 10}, ${cx - 14} 24, ${cx - 14} 16 A14 14 0 1 1 ${cx + 14} 16 C${cx + 14} 24, ${cx + 2} ${height - 10}, ${cx} ${height - 4} Z" fill="${pinColor}" stroke="#ffffff" stroke-width="2" />
           ${innerContent}
         </g>
       </svg>
@@ -1040,8 +1069,8 @@
     if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createMarkerHtml === 'function') {
       return window.QrSarGis.Markers.createMarkerHtml(point, isEditing);
     }
-    const pType = point.pointType || point.type || 'pin_umum';
-    const preset = PRESET_ICONS.find((p) => p.type === pType);
+    const pType = String(point.pointType || point.type || 'pin_umum').trim().toLowerCase() || 'pin_umum';
+    const preset = getPresetIcon(pType);
     const color = point.customColor || (preset ? preset.color : '#ea580c');
     const label = point.label !== undefined && point.label !== null ? String(point.label).trim() : '';
     const width = isEditing ? 46 : 38;
@@ -1701,6 +1730,7 @@
 
       const q = (query || '').toLowerCase().trim();
       const filtered = PRESET_ICONS.filter((p) => {
+        if (p.hiddenInGrid) return false;
         const matchGroup = group === 'all' || p.group === group;
         const matchQuery = !q || p.label.toLowerCase().includes(q) || p.type.toLowerCase().includes(q);
         return matchGroup && matchQuery;
@@ -1712,19 +1742,23 @@
       }
 
       gridSar.innerHTML = filtered
-        .map(
-          (p) => `
-          <button type="button" data-icon="${p.type}" title="${p.label}" class="preset-icon-btn p-1.5 rounded-xl border border-slate-800 bg-slate-900 hover:border-orange-500 text-center flex flex-col items-center justify-center gap-1 transition cursor-pointer ${pointIconType === p.type ? 'border-orange-500 ring-2 ring-orange-500/30 bg-orange-500/10' : ''}">
-            <span class="text-base select-none">${p.emoji}</span>
-            <span class="text-[11px] font-bold text-slate-300 truncate w-full px-0.5">${p.label}</span>
+        .map((p) => {
+          const isSelected = !pointCustomIconUrl && pointIconType === p.type;
+          return `
+          <button type="button" data-icon="${p.type}" title="${p.label} (Hanya penanda visual titik)" class="preset-icon-btn p-1.5 rounded-xl border ${isSelected ? 'border-orange-500 ring-2 ring-orange-500/30 bg-orange-500/15' : 'border-slate-800 bg-slate-900 hover:border-orange-500'} text-center flex flex-col items-center justify-center gap-1 transition cursor-pointer">
+            <span class="w-7 h-7 rounded-full flex items-center justify-center shadow-inner border border-white/30 select-none shrink-0" style="background:${p.color};">
+              <span class="w-5 h-5 rounded-full bg-white flex items-center justify-center text-[13px] leading-none">${p.emoji}</span>
+            </span>
+            <span class="text-[10px] leading-tight font-bold text-slate-200 line-clamp-2 w-full px-0.5">${p.label}</span>
           </button>
-        `
-        )
+        `;
+        })
         .join('');
 
       gridSar.querySelectorAll('.preset-icon-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
-          pointIconType = btn.getAttribute('data-icon');
+          pointIconType = btn.getAttribute('data-icon') || 'pin_umum';
+          lastPresetIconType = pointIconType;
           pointCustomIconUrl = '';
           const previewCard = document.getElementById('pcCustomIconPreviewCard');
           if (previewCard) previewCard.classList.add('hidden');
@@ -1736,12 +1770,18 @@
               if (check) check.remove();
             });
           }
-          gridSar.querySelectorAll('.preset-icon-btn').forEach((b) => b.classList.remove('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/10'));
-          btn.classList.add('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/10');
+          gridSar.querySelectorAll('.preset-icon-btn').forEach((b) => {
+            b.classList.remove('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/15');
+            b.classList.add('border-slate-800', 'bg-slate-900');
+          });
+          btn.classList.remove('border-slate-800', 'bg-slate-900');
+          btn.classList.add('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/15');
           updateDraftMarkerVisual();
         });
       });
     }
+
+    renderPresetIconsFn = renderPresetIcons;
 
     // Initial render of preset icons
     renderPresetIcons('all', '');
@@ -1783,7 +1823,7 @@
       gridAlphabet.querySelectorAll('.alpha-icon-btn').forEach((btn) => {
         btn.addEventListener('click', () => {
           pointIconType = 'alphabet';
-          pointAlphabetChar = btn.getAttribute('data-char');
+          pointAlphabetChar = btn.getAttribute('data-char') || 'A';
           pointCustomIconUrl = '';
           const previewCard = document.getElementById('pcCustomIconPreviewCard');
           if (previewCard) previewCard.classList.add('hidden');
@@ -1818,6 +1858,12 @@
         if (panelSar) panelSar.classList.remove('hidden');
         if (panelAlpha) panelAlpha.classList.add('hidden');
         if (panelCustom) panelCustom.classList.add('hidden');
+        if (pointIconType === 'alphabet' || pointIconType === 'custom_upload' || pointCustomIconUrl) {
+          pointIconType = lastPresetIconType || 'pin_umum';
+          pointCustomIconUrl = '';
+          renderPresetIcons(currentPresetGroup, currentPresetQuery);
+          updateDraftMarkerVisual();
+        }
       });
 
       tabAlpha.addEventListener('click', () => {
@@ -1827,6 +1873,18 @@
         if (panelAlpha) panelAlpha.classList.remove('hidden');
         if (panelSar) panelSar.classList.add('hidden');
         if (panelCustom) panelCustom.classList.add('hidden');
+        if (pointIconType !== 'alphabet' || pointCustomIconUrl) {
+          pointIconType = 'alphabet';
+          pointCustomIconUrl = '';
+          if (gridAlphabet) {
+            gridAlphabet.querySelectorAll('.alpha-icon-btn').forEach((b) => {
+              const isMatch = b.getAttribute('data-char') === pointAlphabetChar;
+              b.classList.toggle('border-orange-500', isMatch);
+              b.classList.toggle('bg-orange-500/20', isMatch);
+            });
+          }
+          updateDraftMarkerVisual();
+        }
       });
 
       tabCustom.addEventListener('click', () => {
@@ -2214,14 +2272,20 @@
     const descInput = document.getElementById('pcPointDesc');
     if (descInput) descInput.value = data.description || '';
 
-    pointIconType = data.pointType || 'pin_umum';
-    pointAlphabetChar = data.alphabetChar || 'A';
+    const rawPointType = String(data.pointType || '').trim();
+    pointAlphabetChar = String(data.alphabetChar || 'A').trim().toUpperCase() || 'A';
     pointCustomIconUrl = normalizeIconUrl(data.customIconUrl || '');
     if (pointCustomIconUrl) {
       pointIconType = 'custom_upload';
+    } else if (rawPointType.toLowerCase() === 'alphabet') {
+      pointIconType = 'alphabet';
+    } else {
+      const matchedPreset = getPresetIcon(rawPointType || 'pin_umum');
+      pointIconType = matchedPreset ? matchedPreset.type : 'pin_umum';
+      lastPresetIconType = pointIconType;
     }
 
-    // Reset search and filter pills in preset selector
+    // Reset search and filter pills in preset selector AND re-render full preset grid
     const searchInput = document.getElementById('pcPresetSearch');
     if (searchInput) searchInput.value = '';
     document.querySelectorAll('.preset-filter-btn').forEach((b) => {
@@ -2231,6 +2295,19 @@
         b.className = 'preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition';
       }
     });
+    if (typeof renderPresetIconsFn === 'function') {
+      renderPresetIconsFn('all', '');
+    }
+
+    // Sync Alphabet button highlight
+    const gridAlphabet = document.getElementById('iconGridAlphabet');
+    if (gridAlphabet) {
+      gridAlphabet.querySelectorAll('.alpha-icon-btn').forEach((b) => {
+        const isMatch = b.getAttribute('data-char') === pointAlphabetChar;
+        b.classList.toggle('border-orange-500', isMatch);
+        b.classList.toggle('bg-orange-500/20', isMatch);
+      });
+    }
 
     const tabSar = document.getElementById('tabIconPresetSar');
     const tabAlpha = document.getElementById('tabIconAlphabet');
@@ -2249,10 +2326,12 @@
       if (gridSar) {
         gridSar.querySelectorAll('.preset-icon-btn').forEach((b) => {
           if (b.getAttribute('data-icon') === pointIconType) {
-            b.classList.add('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/10');
+            b.classList.remove('border-slate-800', 'bg-slate-900');
+            b.classList.add('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/15');
             b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
           } else {
-            b.classList.remove('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/10');
+            b.classList.remove('border-orange-500', 'ring-2', 'ring-orange-500/30', 'bg-orange-500/15');
+            b.classList.add('border-slate-800', 'bg-slate-900');
           }
         });
       }
@@ -2395,6 +2474,19 @@
     const nameInput = document.getElementById('pcPointName');
     const name = nameInput ? nameInput.value.trim() : '';
     const normCustom = normalizeIconUrl(pointCustomIconUrl);
+
+    const badgeEl = document.getElementById('pcSelectedIconBadge');
+    if (badgeEl) {
+      if (normCustom) {
+        badgeEl.textContent = '🖼️ Logo Kustom';
+      } else if (pointIconType === 'alphabet') {
+        badgeEl.textContent = `🔤 Huruf: ${pointAlphabetChar || 'A'}`;
+      } else {
+        const activePreset = getPresetIcon(pointIconType) || PRESET_ICONS[0];
+        badgeEl.textContent = `${activePreset.emoji} ${activePreset.label}`;
+      }
+    }
+
     const html = createMarkerHtml(
       {
         label: name,
@@ -2690,7 +2782,7 @@
       const isHidden = isIdHidden(hiddenPointIds, pt.id);
       const dms = decimalToDms(pt.lat, pt.lng);
       const dist = calculateDistanceHaversine(-4.037694, 122.486694, pt.lat, pt.lng);
-      const preset = PRESET_ICONS.find((p) => p.type === pt.pointType) || PRESET_ICONS[0];
+      const preset = getPresetIcon(pt.pointType) || PRESET_ICONS[0];
       const category = pt.category || 'Tanpa Kategori';
       const hasName = pt.label && pt.label.trim();
       const displayTitle = hasName ? pt.label : (category !== 'Tanpa Kategori' ? `${category} (Tanpa Nama)` : '(Titik Tanpa Nama)');
@@ -7962,11 +8054,11 @@
         if (captureLatLngBounds.contains([lat, lng])) {
           const cat = pt.category || 'Tanpa Kategori';
           const label = (pt.label && pt.label.trim()) ? pt.label.trim() : (cat !== 'Tanpa Kategori' ? cat : 'Titik SAR');
-          const pType = pt.pointType || (cat === 'LKP' ? 'lkp' : 'pin_umum');
-          const preset = PRESET_ICONS.find((p) => p.type === pType);
+          const pType = pt.pointType || 'pin_umum';
+          const preset = getPresetIcon(pType);
           const normCustomUrl = normalizeIconUrl(pt.customIconUrl || '');
-          const pinColor = pt.customColor || (preset ? preset.color : (cat === 'LKP' ? '#dc2626' : (cat === 'Penemuan Korban' || cat === 'Lokasi Penemuan Korban' ? '#d97706' : '#ea580c')));
-          const emoji = preset ? preset.emoji : (cat === 'LKP' ? '🚨' : (cat === 'Dermaga SAR' ? '⚓' : (cat === 'Kantor SAR' ? '🏢' : '📍')));
+          const pinColor = pt.customColor || (preset ? preset.color : '#ea580c');
+          const emoji = preset ? preset.emoji : '📍';
 
           detectedPoints.push({
             id: pt.id,
@@ -8737,23 +8829,6 @@
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(String(pt.alphabetChar || 'A').toUpperCase(), cPt.x, headY + 0.5);
-        } else if (pt.pointType === 'lkp' || pt.pointType === 'target') {
-          ctx.beginPath();
-          ctx.arc(cPt.x, headY, 8.5, 0, Math.PI * 2);
-          ctx.fillStyle = pinColor;
-          ctx.fill();
-          ctx.beginPath();
-          ctx.arc(cPt.x, headY, 3.5, 0, Math.PI * 2);
-          ctx.fillStyle = '#ffffff';
-          ctx.fill();
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.6;
-          ctx.beginPath();
-          ctx.moveTo(cPt.x - 8.5, headY);
-          ctx.lineTo(cPt.x + 8.5, headY);
-          ctx.moveTo(cPt.x, headY - 8.5);
-          ctx.lineTo(cPt.x, headY + 8.5);
-          ctx.stroke();
         } else {
           const iconEmoji = pt.emoji || '📍';
           ctx.font = '13px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", Arial, sans-serif';

@@ -1033,7 +1033,7 @@ class GisModel {
         return self::saveRoute([
             'id' => $routeId,
             'id_operasi' => $idOperasi,
-            'name' => "Rute Pelayaran - " . (mb_strlen($namaOperasi) > 30 ? mb_substr($namaOperasi, 0, 27) . '...' : $namaOperasi),
+            'name' => 'Rute ke LKP',
             'vesselSpeedKnots' => $speed,
             'strokeColor' => '#ea580c',
             'strokeWeight' => 3.5,

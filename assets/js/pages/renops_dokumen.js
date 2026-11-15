@@ -593,16 +593,40 @@
   }));
 
   secs().forEach(setup);
+  if (typeof window.paginateRenopsSheets === 'function') window.paginateRenopsSheets();
 
   // ---- muat pas lebar: layar saja (@media print & exporter PDF memakai zoom 1); 72px kanan untuk lencana/Reset ----
   const paper = $('#renopsPaper');
-  const sheets = paper ? $$('.page-sheet.renops-smeac', paper) : [];
+  let sheets = paper ? $$('.page-sheet.renops-smeac', paper) : [];
+  let widths = [];
+  const measureSheets = () => {
+    sheets = paper ? $$('.page-sheet.renops-smeac', paper) : [];
+    widths = sheets.map((sh) => {
+      const z = sh.style.zoom;
+      sh.style.zoom = '1';
+      const w = sh.offsetWidth || 794;
+      sh.style.zoom = z;
+      return w;
+    });
+  };
+  const fit = () => sheets.forEach((sh, i) => { sh.style.zoom = String(Math.min(1, (paper.clientWidth - 72) / widths[i])); });
   if (sheets.length) {
-    // Lebar asli tiap lembar (portrait 210mm, landscape 297mm), diukur sebelum zoom.
-    const widths = sheets.map((sh) => sh.offsetWidth);
-    const fit = () => sheets.forEach((sh, i) => { sh.style.zoom = String(Math.min(1, (paper.clientWidth - 72) / widths[i])); });
+    measureSheets();
     fit();
     window.addEventListener('resize', fit);
+  }
+  if (paper && typeof window.paginateRenopsSheets === 'function') {
+    const refreshPages = () => setTimeout(() => {
+      window.paginateRenopsSheets();
+      measureSheets();
+      if (sheets.length) fit();
+    }, 20);
+    paper.addEventListener('focusout', refreshPages);
+    paper.addEventListener('click', (ev) => {
+      if (ev.target && ev.target.closest && ev.target.closest('.sec-add, .li-del, .tr-del')) {
+        refreshPages();
+      }
+    });
   }
   window.addEventListener('beforeunload', (ev) => { if (dirty.size) { ev.preventDefault(); ev.returnValue = ''; } });
 })();

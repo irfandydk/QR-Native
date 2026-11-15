@@ -513,9 +513,15 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
 
           <!-- Icon Preset Selector (Diverse presets + Alphabet A-Z + Custom Upload) -->
           <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Pilih Desain Logo / Pin Peta:</label>
-              <span class="text-[11px] text-slate-400 italic">Visual saja, terpisah dari kategori</span>
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Pilih Desain Logo / Pin Peta:</label>
+                <span class="text-[10px] text-slate-400 italic block">Penanda visual di peta saja (terpisah dari kategori)</span>
+              </div>
+              <span id="pcSelectedIconBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-500/15 border border-orange-500/40 text-[11px] font-bold text-orange-600 dark:text-orange-400 shrink-0">
+                <span>📍</span>
+                <span>Pin Lokasi Standar</span>
+              </span>
             </div>
             
             <div class="grid grid-cols-3 gap-1 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-center">
@@ -530,6 +536,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
               <div class="flex items-center gap-1 overflow-x-auto pb-1 gis-scrollbar text-[11px] font-bold">
                 <button type="button" data-group="all" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-orange-500 text-white shrink-0 cursor-pointer transition">Semua</button>
                 <button type="button" data-group="kejadian" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition">Kejadian</button>
+                <button type="button" data-group="korban" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition">Korban</button>
                 <button type="button" data-group="tempat" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition">Tempat</button>
                 <button type="button" data-group="alut" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition">Armada & Alut</button>
                 <button type="button" data-group="taktis" class="preset-filter-btn px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 shrink-0 cursor-pointer transition">Taktis</button>

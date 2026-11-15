@@ -190,6 +190,11 @@ $peng = $doc['pengesahan'] ?? [];
     .page-sheet.renops-smeac .h3 { font-size: 10.5pt !important; color: #000000; padding: 7pt 0 0 8mm; margin-bottom: 3pt; }
     .renops-smeac .no { display: inline-block; width: 8mm; margin-left: -8mm; }
     .renops-smeac .ind { padding-left: 8mm; }
+.renops-smeac .ind2 { padding-left: 16mm; }
+.renops-smeac .ind3 { padding-left: 24mm; }
+.renops-smeac .sheet-hdr { position: absolute; top: 8mm; left: 20mm; right: 20mm; font-family: "Times New Roman", Times, serif; font-size: 8pt; line-height: 1.2; color: #000; text-align: right; border-bottom: 0.5pt solid #000; padding-bottom: 1.5mm; pointer-events: none; user-select: none; }
+.renops-smeac .sheet-ftr { position: absolute; bottom: 8mm; left: 20mm; right: 20mm; font-family: "Times New Roman", Times, serif; font-size: 8pt; line-height: 1.2; color: #000; text-align: center; pointer-events: none; user-select: none; }
+@media print { .renops-smeac .sheet-hdr, .renops-smeac .sheet-ftr { display: none !important; } }
     .renops-smeac .sec { position: relative; }
     .renops-smeac .sec-kronologi .sec-body > p:first-child::before { content: "Kronologi kejadian: "; font-weight: bold; }
     .renops-smeac .lbl { font-weight: bold; }
@@ -248,7 +253,8 @@ $peng = $doc['pengesahan'] ?? [];
     .renops-smeac .doc-aksi .aksi-foto:disabled { opacity: 0.6; cursor: default; }
     .renops-smeac .doc-aksi small { display: block; font-size: 7.5pt !important; color: #64748b; margin-top: 2pt; }
     /* Jaring komunikasi: halaman sendiri; diagram dibatasi tinggi agar utuh dalam satu halaman A4 portrait. */
-    .page-sheet.renops-smeac.hal-jaring { break-before: page; page-break-before: always; }
+    .page-sheet.renops-smeac.renops-cont { break-before: page; page-break-before: always; }
+.page-sheet.renops-smeac.hal-jaring { break-before: page; page-break-before: always; }
     .renops-smeac figure.jaring .jaring-svg { width: auto !important; height: 205mm !important; max-width: 100% !important; }
     /* Halaman lampiran foto dokumentasi (portrait) setelah tanda tangan SMC */
     .hal-lampiran-foto {
@@ -349,11 +355,18 @@ $peng = $doc['pengesahan'] ?? [];
     <h2 class="h1"><span class="no">A.</span>SITUATION (SITUASI)</h2>
     <div class="ind">
         <h3 class="h2"><span class="no">1.</span>Awareness Stage (Tahap Menyadari)</h3>
-        <div class="ind">
-            <?= $text('awareness') ?>
-            <?= $text('kronologi', 'sec-kronologi') ?>
-            <p class="sec"<?= $sec('jenis_operasi', 'text') ?>><?= $badge('jenis_operasi') ?><span class="lbl">Jenis Operasi: </span><span class="sec-body"><?= e($jenisOps) ?></span></p>
-            <div class="sec"<?= $sec('data_kejadian', 'table') ?>>
+    </div>
+    <div class="ind2">
+        <?= $text('awareness') ?>
+    </div>
+    <div class="ind2">
+        <?= $text('kronologi', 'sec-kronologi') ?>
+    </div>
+    <div class="ind2">
+        <p class="sec"<?= $sec('jenis_operasi', 'text') ?>><?= $badge('jenis_operasi') ?><span class="lbl">Jenis Operasi: </span><span class="sec-body"><?= e($jenisOps) ?></span></p>
+    </div>
+    <div class="ind2">
+        <div class="sec"<?= $sec('data_kejadian', 'table') ?>>
                 <?= $badge('data_kejadian') ?>
                 <?= $tabel('Data Kejadian') ?>
                 <div class="tw t-kejadian"><table class="table-dinas">
@@ -361,55 +374,68 @@ $peng = $doc['pengesahan'] ?? [];
                     <tbody><?= $rows($S['data_kejadian'] ?? [], ['label' => 'lb', 'value' => '']) ?></tbody>
                 </table></div>
             </div>
-            <?php if ($petaPath !== ''): ?>
-                <h4 class="h3"><span class="no">a.</span><?= e($petaJudul) ?></h4>
-                <figure class="peta">
-                    <img src="<?= $img($petaPath) ?>" alt="<?= e($petaJudul) ?>">
-                    <?= $gambar($petaJudul) ?>
-                </figure>
-                <?php if ($draft): ?>
-                    <div class="doc-aksi no-print"><a class="aksi-peta" id="btnCapturePeta" href="<?= e($capturePetaUrl) ?>">Perbarui Capture Peta LKP (1x per operasi)</a></div>
-                <?php endif; ?>
-            <?php elseif ($draft): ?>
-                <div class="peta-kosong no-print">
-                    Peta Lokasi (LKP) operasi ini belum di-capture (cukup 1x, dipakai semua hari RENOPS).
-                    <div class="doc-aksi"><a class="aksi-peta" id="btnCapturePeta" href="<?= e($capturePetaUrl) ?>">Capture Peta LKP 16:9</a></div>
-                </div>
-            <?php endif; ?>
-            <?php if ($petaRencanaPath !== ''): ?>
-                <h4 class="h3"><span class="no"><?= $hurufPetaRencana ?>.</span>Peta Rencana Operasi</h4>
-                <figure class="peta">
-                    <img src="<?= $img($petaRencanaPath) ?>" alt="Peta Rencana Operasi">
-                    <?= $gambar('Peta Rencana Operasi SAR Hari ke-' . $hariLabel) ?>
-                </figure>
-                <?php if ($draft): ?>
-                    <div class="doc-aksi no-print"><a class="aksi-peta" id="btnCapturePetaRencana" href="<?= e($capturePetaRencanaUrl) ?>">Perbarui Capture Peta Rencana Operasi</a></div>
-                <?php endif; ?>
-            <?php elseif ($draft): ?>
-                <div class="peta-kosong no-print">
-                    Peta Rencana Operasi (area pencarian, SRU &amp; pola) belum di-capture.
-                    <div class="doc-aksi"><a class="aksi-peta" id="btnCapturePetaRencana" href="<?= e($capturePetaRencanaUrl) ?>">Capture Peta Rencana Operasi 16:9</a></div>
-                </div>
+    </div>
+    <?php if ($petaPath !== ''): ?>
+        <div class="ind2">
+            <h4 class="h3"><span class="no">a.</span><?= e($petaJudul) ?></h4>
+            <figure class="peta">
+                <img src="<?= $img($petaPath) ?>" alt="<?= e($petaJudul) ?>">
+                <?= $gambar($petaJudul) ?>
+            </figure>
+            <?php if ($draft): ?>
+                <div class="doc-aksi no-print"><a class="aksi-peta" id="btnCapturePeta" href="<?= e($capturePetaUrl) ?>">Perbarui Capture Peta LKP (1x per operasi)</a></div>
             <?php endif; ?>
         </div>
+    <?php elseif ($draft): ?>
+        <div class="ind2">
+            <div class="peta-kosong no-print">
+                Peta Lokasi (LKP) operasi ini belum di-capture (cukup 1x, dipakai semua hari RENOPS).
+                <div class="doc-aksi"><a class="aksi-peta" id="btnCapturePeta" href="<?= e($capturePetaUrl) ?>">Capture Peta LKP 16:9</a></div>
+            </div>
+        </div>
+    <?php endif; ?>
+    <?php if ($petaRencanaPath !== ''): ?>
+        <div class="ind2">
+            <h4 class="h3"><span class="no"><?= $hurufPetaRencana ?>.</span>Peta Rencana Operasi</h4>
+            <figure class="peta">
+                <img src="<?= $img($petaRencanaPath) ?>" alt="Peta Rencana Operasi">
+                <?= $gambar('Peta Rencana Operasi SAR Hari ke-' . $hariLabel) ?>
+            </figure>
+            <?php if ($draft): ?>
+                <div class="doc-aksi no-print"><a class="aksi-peta" id="btnCapturePetaRencana" href="<?= e($capturePetaRencanaUrl) ?>">Perbarui Capture Peta Rencana Operasi</a></div>
+            <?php endif; ?>
+        </div>
+    <?php elseif ($draft): ?>
+        <div class="ind2">
+            <div class="peta-kosong no-print">
+                Peta Rencana Operasi (area pencarian, SRU &amp; pola) belum di-capture.
+                <div class="doc-aksi"><a class="aksi-peta" id="btnCapturePetaRencana" href="<?= e($capturePetaRencanaUrl) ?>">Capture Peta Rencana Operasi 16:9</a></div>
+            </div>
+        </div>
+    <?php endif; ?>
 
+    <div class="ind">
         <h3 class="h2"><span class="no">2.</span>Initial Action Stage (Tahap Tindakan Awal)</h3>
+    </div>
+    <div class="ind2">
+        <h4 class="h3"><span class="no">a.</span>Upaya Sebelumnya</h4>
+        <div class="ind"><?= $text('upaya_sebelumnya') ?></div>
+    </div>
+    <div class="ind2">
+        <h4 class="h3"><span class="no">b.</span>Koordinasi</h4>
         <div class="ind">
-            <h4 class="h3"><span class="no">a.</span>Upaya Sebelumnya</h4>
-            <div class="ind"><?= $text('upaya_sebelumnya') ?></div>
-            <h4 class="h3"><span class="no">b.</span>Koordinasi</h4>
-            <div class="ind">
-                <?= $list('koordinasi', 'lst-num') ?>
-                <div class="sub"><?= $list('koordinasi_instansi', 'lst-dash') ?></div>
-            </div>
-            <h4 class="h3"><span class="no">c.</span>Persiapan</h4>
-            <div class="ind">
-                <ol class="lst lst-num">
-                    <li><span class="lbl">Personel Rescuer</span><?= $list('persiapan_personel', 'lst-dash') ?></li>
-                    <li><span class="lbl">Sarana</span><?= $list('sarana', 'lst-dash') ?></li>
-                    <li><span class="lbl">Peralatan</span><?= $list('peralatan', 'lst-dash') ?></li>
-                </ol>
-            </div>
+            <?= $list('koordinasi', 'lst-num') ?>
+            <div class="sub"><?= $list('koordinasi_instansi', 'lst-dash') ?></div>
+        </div>
+    </div>
+    <div class="ind2">
+        <h4 class="h3"><span class="no">c.</span>Persiapan</h4>
+        <div class="ind">
+            <ol class="lst lst-num">
+                <li><span class="lbl">Personel Rescuer</span><?= $list('persiapan_personel', 'lst-dash') ?></li>
+                <li><span class="lbl">Sarana</span><?= $list('sarana', 'lst-dash') ?></li>
+                <li><span class="lbl">Peralatan</span><?= $list('peralatan', 'lst-dash') ?></li>
+            </ol>
         </div>
     </div>
 
@@ -419,47 +445,57 @@ $peng = $doc['pengesahan'] ?? [];
     <h2 class="h1"><span class="no">C.</span>IMPLEMENTATION (PELAKSANAAN)</h2>
     <div class="ind">
         <h3 class="h2"><span class="no">1.</span>Planning Stage (Tahap Perencanaan)</h3>
+    </div>
+    <div class="ind2">
+        <h4 class="h3"><span class="no">a.</span>Waktu</h4>
+        <div class="ind"><?= $text('waktu') ?></div>
+    </div>
+    <div class="ind2">
+        <h4 class="h3"><span class="no">b.</span>Area Pencarian</h4>
+        <div class="ind"><?= $text('area_pencarian') ?></div>
+    </div>
+    <div class="ind2">
+        <h4 class="h3"><span class="no">c.</span>Alokasi Unsur Pencarian dan Pertolongan</h4>
         <div class="ind">
-            <h4 class="h3"><span class="no">a.</span>Waktu</h4>
-            <div class="ind"><?= $text('waktu') ?></div>
-            <h4 class="h3"><span class="no">b.</span>Area Pencarian</h4>
-            <div class="ind"><?= $text('area_pencarian') ?></div>
-            <h4 class="h3"><span class="no">c.</span>Alokasi Unsur Pencarian dan Pertolongan</h4>
-            <div class="ind">
-                <div class="sec"<?= $sec('aset', 'table') ?>>
-                    <?= $badge('aset') ?>
-                    <ol class="lst lst-num">
-                        <?php foreach ($asetGrup as $grup => $asetRows): $label = trim('Aset ' . $grup); ?>
-                            <li class="aset-grup">
-                                <span class="lbl"><?= e($label) ?></span>
-                                <?= $tabel('Alokasi ' . $label) ?>
-                                <div class="tw t-aset"><table class="table-dinas">
-                                    <colgroup><col style="width:57%"><col></colgroup>
-                                    <thead><tr><th>Aset</th><th>Jumlah</th></tr></thead>
-                                    <tbody><?= $rows($asetRows, ['grup' => 'hidden', 'aset' => '', 'jumlah' => 'c']) ?></tbody>
-                                </table></div>
-                            </li>
-                        <?php endforeach; ?>
-                    </ol>
-                </div>
+            <div class="sec"<?= $sec('aset', 'table') ?>>
+                <?= $badge('aset') ?>
+                <ol class="lst lst-num">
+                    <?php foreach ($asetGrup as $grup => $asetRows): $label = trim('Aset ' . $grup); ?>
+                        <li class="aset-grup">
+                            <span class="lbl"><?= e($label) ?></span>
+                            <?= $tabel('Alokasi ' . $label) ?>
+                            <div class="tw t-aset"><table class="table-dinas">
+                                <colgroup><col style="width:57%"><col></colgroup>
+                                <thead><tr><th>Aset</th><th>Jumlah</th></tr></thead>
+                                <tbody><?= $rows($asetRows, ['grup' => 'hidden', 'aset' => '', 'jumlah' => 'c']) ?></tbody>
+                            </table></div>
+                        </li>
+                    <?php endforeach; ?>
+                </ol>
             </div>
-            <h4 class="h3"><span class="no">d.</span>Penugasan SRU</h4>
-            <div class="ind">
-                <div class="sec"<?= $sec('sru', 'table') ?>>
-                    <?= $badge('sru') ?>
-                    <?= $tabel('Penugasan Search and Rescue Unit (SRU)') ?>
-                    <div class="tw t-sru"><table class="table-dinas">
-                        <colgroup><col style="width:6.9%"><col style="width:18.5%"><col style="width:18%"><col style="width:29.7%"><col style="width:14.5%"><col></colgroup>
-                        <thead><tr><th>No</th><th>Unsur</th><th>Tugas</th><th>Area</th><th>Pola Pencarian</th><th>Track Spacing</th></tr></thead>
-                        <tbody><?= $rows($S['sru'] ?? [], ['unsur' => '', 'tugas' => '', 'area' => '', 'pola' => 'c', 'track_spacing' => 'c'], true) ?></tbody>
-                    </table></div>
-                </div>
-            </div>
-            <h4 class="h3"><span class="no">e.</span>Rencana Penyelamatan (Rescue Plan)</h4>
-            <div class="ind"><?= $text('rescue_plan') ?></div>
-            <h4 class="h3"><span class="no">f.</span>Briefing dan Debriefing</h4>
-            <div class="ind"><?= $text('briefing') ?></div>
         </div>
+    </div>
+    <div class="ind2">
+        <h4 class="h3"><span class="no">d.</span>Penugasan SRU</h4>
+        <div class="ind">
+            <div class="sec"<?= $sec('sru', 'table') ?>>
+                <?= $badge('sru') ?>
+                <?= $tabel('Penugasan Search and Rescue Unit (SRU)') ?>
+                <div class="tw t-sru"><table class="table-dinas">
+                    <colgroup><col style="width:6.9%"><col style="width:18.5%"><col style="width:18%"><col style="width:29.7%"><col style="width:14.5%"><col></colgroup>
+                    <thead><tr><th>No</th><th>Unsur</th><th>Tugas</th><th>Area</th><th>Pola Pencarian</th><th>Track Spacing</th></tr></thead>
+                    <tbody><?= $rows($S['sru'] ?? [], ['unsur' => '', 'tugas' => '', 'area' => '', 'pola' => 'c', 'track_spacing' => 'c'], true) ?></tbody>
+                </table></div>
+            </div>
+        </div>
+    </div>
+    <div class="ind2">
+        <h4 class="h3"><span class="no">e.</span>Rencana Penyelamatan (Rescue Plan)</h4>
+        <div class="ind"><?= $text('rescue_plan') ?></div>
+    </div>
+    <div class="ind2">
+        <h4 class="h3"><span class="no">f.</span>Briefing dan Debriefing</h4>
+        <div class="ind"><?= $text('briefing') ?></div>
     </div>
 
     <h2 class="h1"><span class="no">D.</span>OPERATION STAGE (TAHAP OPERASI)</h2>
@@ -474,6 +510,8 @@ $peng = $doc['pengesahan'] ?? [];
     <div class="ind">
         <h3 class="h2"><span class="no">1.</span>Administrasi</h3>
         <div class="ind"><?= $list('administrasi', 'lst-alpha') ?></div>
+    </div>
+    <div class="ind">
         <h3 class="h2"><span class="no">2.</span>Logistik</h3>
         <div class="ind"><?= $list('logistik', 'lst-alpha') ?></div>
     </div>
@@ -580,5 +618,163 @@ foreach ($fotoPages as $pageIdx => $fotoChunk):
 </article>
 <?php endforeach; ?>
 <?php endif; ?>
+<script>
+(function () {
+    function isHeadingBlock(el) {
+        if (!el || !el.tagName) return false;
+        if (el.tagName === 'H2' || el.tagName === 'H3' || el.tagName === 'H4') return true;
+        if (el.children && el.children.length === 1) {
+            var ch = el.children[0].tagName;
+            if (ch === 'H2' || ch === 'H3' || ch === 'H4') return true;
+        }
+        return false;
+    }
+
+    function stampHeadersAndFooters(parent, defaultHeader) {
+        var allSheets = parent.querySelectorAll('.page-sheet.renops-smeac');
+        var total = allSheets.length;
+        for (var i = 0; i < total; i++) {
+            var sh = allSheets[i];
+            var hdrText = sh.getAttribute('data-pdf-header') || defaultHeader || '';
+            var hdr = sh.querySelector(':scope > .sheet-hdr');
+            if (!hdr) {
+                hdr = document.createElement('div');
+                hdr.className = 'sheet-hdr no-print';
+                sh.insertBefore(hdr, sh.firstChild);
+            }
+            hdr.textContent = hdrText;
+
+            var ftr = sh.querySelector(':scope > .sheet-ftr');
+            if (!ftr) {
+                ftr = document.createElement('div');
+                ftr.className = 'sheet-ftr no-print';
+                sh.appendChild(ftr);
+            }
+            ftr.textContent = 'Halaman ' + (i + 1) + ' dari ' + total;
+        }
+    }
+
+    window.paginateRenopsSheets = function () {
+        var doc = document.getElementById('renopsSmeacDoc');
+        if (!doc || !doc.parentNode) return;
+        var parent = doc.parentNode;
+
+        var ae = document.activeElement;
+        if (ae && ae.isContentEditable && (doc.contains(ae) || (ae.closest && ae.closest('.renops-cont')))) {
+            stampHeadersAndFooters(parent, doc.getAttribute('data-pdf-header'));
+            return;
+        }
+
+        var oldConts = parent.querySelectorAll('.page-sheet.renops-smeac.renops-cont');
+        for (var c = 0; c < oldConts.length; c++) {
+            var cont = oldConts[c];
+            while (cont.firstChild) {
+                var node = cont.firstChild;
+                if (node.nodeType === 1 && (node.classList.contains('sheet-hdr') || node.classList.contains('sheet-ftr'))) {
+                    cont.removeChild(node);
+                } else {
+                    doc.appendChild(node);
+                }
+            }
+            if (cont.parentNode) cont.parentNode.removeChild(cont);
+        }
+
+        var prevZoom = doc.style.zoom;
+        doc.style.zoom = '1';
+
+        var mmPx = (doc.offsetWidth || 793.7) / 210;
+        var maxContentH = Math.floor(259 * mmPx);
+
+        var items = [];
+        for (var i = 0; i < doc.children.length; i++) {
+            var el = doc.children[i];
+            if (el.classList.contains('renops-watermark') || el.classList.contains('sheet-hdr') || el.classList.contains('sheet-ftr')) {
+                continue;
+            }
+            items.push({
+                el: el,
+                top: el.offsetTop,
+                bottom: el.offsetTop + el.offsetHeight,
+                isHead: isHeadingBlock(el)
+            });
+        }
+
+        if (items.length > 0) {
+            var groups = [];
+            var currentGroup = [];
+            var sheetStartTop = items[0].top;
+
+            for (var j = 0; j < items.length; j++) {
+                var it = items[j];
+                var checkBottom = it.bottom;
+                if (it.isHead && j + 1 < items.length) {
+                    var nextBottom = items[j + 1].bottom;
+                    if (nextBottom - it.top <= maxContentH) {
+                        checkBottom = nextBottom;
+                    }
+                }
+                if (currentGroup.length > 0 && (checkBottom - sheetStartTop > maxContentH)) {
+                    groups.push(currentGroup);
+                    currentGroup = [it.el];
+                    sheetStartTop = it.top;
+                } else {
+                    currentGroup.push(it.el);
+                }
+            }
+            if (currentGroup.length > 0) {
+                groups.push(currentGroup);
+            }
+
+            var refSheet = doc;
+            var isDraft = doc.classList.contains('is-draft');
+            var pdfHeader = doc.getAttribute('data-pdf-header') || '';
+
+            for (var g = 1; g < groups.length; g++) {
+                var newSheet = document.createElement('article');
+                newSheet.className = 'page-sheet renops-smeac renops-cont' + (isDraft ? ' is-draft' : '');
+                newSheet.setAttribute('data-pdf-orientation', 'portrait');
+                newSheet.setAttribute('data-pdf-header', pdfHeader);
+                for (var k = 0; k < groups[g].length; k++) {
+                    newSheet.appendChild(groups[g][k]);
+                }
+                if (refSheet.nextSibling) {
+                    parent.insertBefore(newSheet, refSheet.nextSibling);
+                } else {
+                    parent.appendChild(newSheet);
+                }
+                refSheet = newSheet;
+            }
+        }
+
+        doc.style.zoom = prevZoom;
+        var contSheets = parent.querySelectorAll('.page-sheet.renops-smeac.renops-cont');
+        for (var m = 0; m < contSheets.length; m++) {
+            contSheets[m].style.zoom = prevZoom;
+        }
+
+        stampHeadersAndFooters(parent, doc.getAttribute('data-pdf-header'));
+    };
+
+    function initPagination() {
+        window.paginateRenopsSheets();
+        var parent = document.getElementById('renopsSmeacDoc');
+        parent = parent ? parent.parentNode : document;
+        var imgs = parent.querySelectorAll('.page-sheet.renops-smeac img');
+        for (var i = 0; i < imgs.length; i++) {
+            if (!imgs[i].complete) {
+                imgs[i].addEventListener('load', function () {
+                    window.paginateRenopsSheets();
+                });
+            }
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPagination);
+    } else {
+        initPagination();
+    }
+})();
+</script>
 <?php
 })($doc, $mode ?? 'final', $qrUrl ?? null, $versiLabel ?? '');

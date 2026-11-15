@@ -24,7 +24,10 @@
       if (idx !== -1) {
         return base + u.substring(idx);
       }
-      if (u.startsWith('/uploads/')) {
+      if (u.startsWith('uploads/icons/') || u.startsWith('uploads/') || u.startsWith('assets/')) {
+        return (base ? base + '/' : '/') + u;
+      }
+      if (u.startsWith('/uploads/') || u.startsWith('/assets/')) {
         return base + u;
       }
       return u;

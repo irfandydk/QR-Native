@@ -701,42 +701,37 @@ class TacticalGisMap {
                 const safeAlpha = this.escapeHtml(String(pt.alphabetChar || 'A').slice(0, 3));
                 const safeIconUrl = this.sanitizeIconUrl(pt.customIconUrl);
 
-                // Warna pin taktis
-                let markerColor = '#ea580c';
-                if (pType === 'lkp' || cat.includes('LKP')) markerColor = '#dc2626';
-                else if (pType.includes('kapal') || pType === 'pelabuhan' || cat.includes('DERMAGA') || cat.includes('PELABUHAN')) markerColor = '#0284c7';
-                else if (pType.includes('medis') || pType === 'rumah_sakit' || cat.includes('MEDIS')) markerColor = '#e11d48';
-                else if (pType.includes('helipad') || pType === 'bandara' || cat.includes('BANDARA')) markerColor = '#ca8a04';
-                else if (pType === 'posko_sar' || cat.includes('POSKO')) markerColor = '#059669';
-                else if (cat.includes('POS SAR') || cat.includes('KANSAR')) markerColor = '#f97316';
-                else if (pType === 'orang_hilang' || pType === 'tenggelam') markerColor = '#ef4444';
+                // Warna & visual pin taktis berdasarkan preset icon (tidak ditimpa oleh kategori)
+                const matchedPreset = (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.getPreset === 'function')
+                    ? window.QrSarGis.Markers.getPreset(pType)
+                    : null;
+                let markerColor = pt.customColor || (matchedPreset ? matchedPreset.color : '#ea580c');
+                if (!matchedPreset && !pt.customColor) {
+                    if (pType === 'lkp') markerColor = '#dc2626';
+                    else if (pType.includes('kapal') || pType === 'pelabuhan') markerColor = '#0284c7';
+                    else if (pType.includes('medis') || pType === 'rumah_sakit') markerColor = '#e11d48';
+                    else if (pType.includes('helipad') || pType === 'bandara') markerColor = '#ca8a04';
+                    else if (pType === 'posko_sar') markerColor = '#059669';
+                    else if (pType === 'orang_hilang' || pType === 'tenggelam') markerColor = '#ef4444';
+                }
 
                 // Emoji / visual icon
-                let innerVisual = '📍';
+                let innerVisual = matchedPreset ? matchedPreset.emoji : '📍';
                 if (safeIconUrl) {
                     innerVisual = `<img src="${safeIconUrl}" style="width:20px;height:20px;object-fit:contain;border-radius:4px;" alt="icon">`;
                 } else if (pType === 'alphabet') {
                     innerVisual = `<span style="font-weight:900;font-size:12px;color:${markerColor};">${safeAlpha}</span>`;
-                } else if (pType === 'lkp' || cat.includes('LKP')) {
-                    innerVisual = '🚨';
-                } else if (pType.includes('kapal')) {
-                    innerVisual = '🚢';
-                } else if (pType.includes('perahu') || pType === 'rib') {
-                    innerVisual = '🚤';
-                } else if (pType === 'pelabuhan') {
-                    innerVisual = '⚓';
-                } else if (pType === 'posko_sar') {
-                    innerVisual = '🏕️';
-                } else if (pType === 'pos_sar' || cat.includes('POS')) {
-                    innerVisual = '📻';
-                } else if (pType === 'rumah_sakit' || cat.includes('MEDIS')) {
-                    innerVisual = '🏥';
-                } else if (pType === 'helipad' || pType === 'bandara') {
-                    innerVisual = '🚁';
-                } else if (pType === 'orang_hilang') {
-                    innerVisual = '👤';
-                } else if (pType === 'tenggelam') {
-                    innerVisual = '🏊';
+                } else if (!matchedPreset) {
+                    if (pType === 'lkp') innerVisual = '🚨';
+                    else if (pType.includes('kapal')) innerVisual = '🚢';
+                    else if (pType.includes('perahu') || pType === 'rib') innerVisual = '🚤';
+                    else if (pType === 'pelabuhan') innerVisual = '⚓';
+                    else if (pType === 'posko_sar') innerVisual = '🏕️';
+                    else if (pType === 'pos_sar') innerVisual = '📻';
+                    else if (pType === 'rumah_sakit') innerVisual = '🏥';
+                    else if (pType === 'helipad' || pType === 'bandara') innerVisual = '🚁';
+                    else if (pType === 'orang_hilang') innerVisual = '👤';
+                    else if (pType === 'tenggelam') innerVisual = '🏊';
                 }
 
                 const labelBadge = safeLabel ? `
@@ -749,7 +744,7 @@ class TacticalGisMap {
                 if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createMarkerHtml === 'function') {
                     markerHtml = window.QrSarGis.Markers.createMarkerHtml({
                         pointType: pType,
-                        customColor: markerColor,
+                        customColor: pt.customColor || '',
                         label: safeLabel,
                         customIconUrl: safeIconUrl,
                         alphabetChar: safeAlpha

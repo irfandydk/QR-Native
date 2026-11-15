@@ -130,6 +130,11 @@ try {
     assertCondition($posJaring !== false && $posJaring < $posLanskap && strpos($html, 'KOORDINASI, PENGENDALIAN, DAN KOMUNIKASI') > $posJaring
         && strpos($html, 'Jaring Komunikasi</h3>') > $posJaring && strpos($html, 'ADMINISTRATION AND LOGISTICS') < $posJaring
         && str_contains($html, '.page-sheet.renops-smeac.hal-jaring { break-before: page;'), 'Jaring komunikasi di halaman sendiri (lembar portrait terpisah)');
+    assertCondition(str_contains($html, '.page-sheet.renops-smeac.renops-cont { break-before: page;')
+        && str_contains($html, '.renops-smeac .ind2 { padding-left: 16mm; }')
+        && str_contains($html, '.renops-smeac .sheet-hdr')
+        && str_contains($html, '.renops-smeac .sheet-ftr')
+        && str_contains($html, 'window.paginateRenopsSheets = function'), 'Batang tubuh A-E memiliki paginator lembar A4 fisik terpisah (.renops-cont, .sheet-hdr, .sheet-ftr)');
     assertCondition(str_contains($html, 'figure.jaring .jaring-svg { width: auto !important; height: 205mm !important;'), 'Diagram jaring dibatasi tinggi agar utuh satu halaman');
     assertCondition(str_contains($html, 'size: A4 portrait') && str_contains($html, '@page lanskap {') && str_contains($html, 'size: A4 landscape')
         && str_contains($html, 'page: lanskap; break-before: page;') && str_contains($html, 'margin: 20mm 20mm 18mm 20mm')

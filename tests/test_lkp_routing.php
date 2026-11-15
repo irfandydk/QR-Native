@@ -138,6 +138,7 @@ assertTest($routeId === "route-op-{$testOpsId}", "syncOperasiRoute generates det
 $routes = GisModel::getRoutes($testOpsId, false);
 assertTest(count($routes) >= 1, "GisModel::getRoutes retrieves saved route for operation {$testOpsId}");
 $foundRoute = $routes[0] ?? [];
+assertTest(($foundRoute['name'] ?? '') === 'Rute ke LKP', "Saved route uses clean default name 'Rute ke LKP'");
 assertTest((float)($foundRoute['vesselSpeedKnots'] ?? 0) === 20.0, "Saved route records vessel speed 20.0 Knots");
 assertTest(count($foundRoute['points'] ?? []) === 3, "Saved route contains 3 sequential navigation points");
 
@@ -184,6 +185,7 @@ assertTest(abs((float)($createdGisPoints[0]['lat'] ?? 0) - (-3.9700)) < 0.001, "
 // Verify automatic GIS route creation
 $createdGisRoutes = GisModel::getRoutes($createdId, false);
 assertTest(count($createdGisRoutes) === 1, "OperasiModel::create automatically created exactly 1 GIS Route");
+assertTest(($createdGisRoutes[0]['name'] ?? '') === 'Rute ke LKP', "Created GIS route default name is 'Rute ke LKP'");
 assertTest(count($createdGisRoutes[0]['points'] ?? []) === 3, "Created GIS route has 3 waypoints");
 assertTest((float)($createdGisRoutes[0]['vesselSpeedKnots'] ?? 0) === 25.0, "Created GIS route speed is 25.0 Knots");
 

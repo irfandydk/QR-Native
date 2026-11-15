@@ -75,6 +75,11 @@ assertCondition(
     && str_contains($js, "$$('#btnCapturePeta, #btnCapturePetaRencana', app)"),
     'JS: auto-save suntingan draf sebelum upload/hapus foto atau capture peta agar input struktur/teks tidak ter-reset saat reload'
 );
+assertCondition(
+    str_contains($js, 'window.paginateRenopsSheets()')
+    && str_contains($js, "paper.addEventListener('focusout', refreshPages)"),
+    'JS: re-paginasi lembar kertas A4 saat inisialisasi dan setelah penyuntingan bagian'
+);
 
 echo "\nHasil: {$ok}/{$total} lulus.\n";
 exit($ok === $total ? 0 : 1);
