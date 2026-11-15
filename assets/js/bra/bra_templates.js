@@ -8,12 +8,56 @@
 
   const TRANSPORT_RE = /\b(RESCUE CAR|RIB|RUBBER BOAT|LCR|KN|RB|MOBIL|TRUK|LONGBOAT|KAPAL|HELI(?:KOPTER)?)\b/;
   const LIST_LINE_RE = /^\s*(\d+|[A-Z])\.\s/;
-  const BULAN = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'];
+  const MONTH_MAP = {
+    JANUARI: '01', JANUARY: '01', JAN: '01',
+    FEBRUARI: '02', FEBRUARY: '02', FEB: '02', PEBRUARI: '02',
+    MARET: '03', MARCH: '03', MAR: '03', MRT: '03',
+    APRIL: '04', APR: '04',
+    MEI: '05', MAY: '05',
+    JUNI: '06', JUNE: '06', JUN: '06',
+    JULI: '07', JULY: '07', JUL: '07',
+    AGUSTUS: '08', AUGUST: '08', AGU: '08', AGT: '08', AGUST: '08', AUG: '08',
+    SEPTEMBER: '09', SEP: '09', SEPT: '09',
+    OKTOBER: '10', OCTOBER: '10', OKT: '10', OCT: '10',
+    NOVEMBER: '11', NOPEMBER: '11', NOV: '11', NOP: '11',
+    DESEMBER: '12', DECEMBER: '12', DES: '12', DEC: '12'
+  };
+  const FULL_MONTHS = 'JANUARI|FEBRUARI|PEBRUARI|MARET|APRIL|MEI|JUNI|JULI|AGUSTUS|SEPTEMBER|OKTOBER|NOVEMBER|NOPEMBER|DESEMBER';
+  const ALL_MONTHS = Object.keys(MONTH_MAP).join('|');
   const HARI = '(?:SENIN|SELASA|RABU|KAMIS|JUMAT|JUM\'AT|SABTU|MINGGU)';
-  const LONG_DATE_TIME_RE = new RegExp(`(?:${HARI},?\\s+)?(\\d{1,2})\\s+(${BULAN.join('|')})\\s+\\d{4},?\\s+(?:PUKUL|PKL|JAM)\\s+(\\d{1,2})[.:](\\d{2})(?:\\s*(WITA|WIB|WIT))?`, 'gi');
+  const DATE_PREFIX = `(?:\\bTW\\s+)?(?:\\b(?:TANGGAL|TGL\\.?)\\s+)?(?:\\bHARI\\s+)?(?:\\b${HARI},?\\s+)?`;
+  const TIME_TAIL = '(?:,?\\s*(?:PUKUL|PKL\\.?|JAM)\\s+(\\d{1,2})[.:](\\d{2})(?:\\s*(WITA|WIB|WIT)\\b)?|,?\\s+(\\d{1,2}):(\\d{2})(?:\\s*(WITA|WIB|WIT)\\b)?|\\s+(\\d{1,2})\\.(\\d{2})\\s*(WITA|WIB|WIT)\\b|(?:\\s*,)?\\s*(WITA|WIB|WIT)\\b)?';
+  const LONG_DATE_RE = new RegExp(`${DATE_PREFIX}\\b(\\d{1,2})\\s+(${ALL_MONTHS})\\s+((?:19|20)\\d{2})${TIME_TAIL}`, 'gi');
+  const SHORT_DATE_RE = new RegExp(`${DATE_PREFIX}\\b(\\d{1,2})\\s+(${FULL_MONTHS})(?!\\s+\\d{4}\\b)${TIME_TAIL}`, 'gi');
+  const DMY_DATE_RE = new RegExp(`${DATE_PREFIX}\\b(\\d{1,2})[\\/-](\\d{1,2})[\\/-]((?:19|20)\\d{2})${TIME_TAIL}`, 'gi');
   const TIME_RE = /\b(PUKUL|PKL|JAM)\s+(\d{1,2})[.:](\d{2})(?:\s*(WITA|WIB|WIT)\b)?/gi;
   // Sandi zona waktu militer: WIB = G, WITA = H (bawaan), WIT = I
   const zone = (z) => ({ WIB: 'G', WIT: 'I' })[String(z || '').toUpperCase()] || 'H';
+  const pad2 = (n) => String(n).padStart(2, '0');
+
+  function formatTwDate(mo, d, h, mi, z) {
+    const day = Number(d), mon = Number(mo);
+    if (day < 1 || day > 31 || mon < 1 || mon > 12) return null;
+    const zCode = zone(z);
+    if (h !== undefined && mi !== undefined) {
+      return `TW ${pad2(mon)}${pad2(day)} ${pad2(h)}${pad2(mi)} ${zCode}`;
+    }
+    return `TW ${pad2(mon)}${pad2(day)} ${zCode}`;
+  }
+
+  function convertDatesToTw(text) {
+    let str = String(text === null || text === undefined ? '' : text);
+    str = str.replace(/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::\d{2})?(?:\s*(WITA|WIB|WIT)\b)?/gi,
+      (m, y, mo, d, h, mi, z) => formatTwDate(mo, d, h, mi, z) || m);
+    str = str.replace(/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})\b/gi,
+      (m, y, mo, d) => formatTwDate(mo, d) || m);
+    const replaceTail = (m, mo, d, h1, mi1, z1, h2, mi2, z2, h3, mi3, z3, z4) =>
+      formatTwDate(mo, d, h1 ?? h2 ?? h3, mi1 ?? mi2 ?? mi3, z1 ?? z2 ?? z3 ?? z4) || m;
+    str = str.replace(LONG_DATE_RE, (m, d, bln, _y, ...rest) => replaceTail(m, MONTH_MAP[bln.toUpperCase()], d, ...rest));
+    str = str.replace(DMY_DATE_RE, (m, d, mo, _y, ...rest) => replaceTail(m, mo, d, ...rest));
+    str = str.replace(SHORT_DATE_RE, (m, d, bln, ...rest) => replaceTail(m, MONTH_MAP[bln.toUpperCase()], d, ...rest));
+    return str.replace(/\bTW\s+TW\b/gi, 'TW');
+  }
 
   function upper(v) {
     return String(v === null || v === undefined ? '' : v).trim().toUpperCase();
@@ -34,12 +78,9 @@
   function toSentence(text, verbatim) {
     let str = String(text === null || text === undefined ? '' : text).trim();
     if (!str) return '';
-    str = str.replace(/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::\d{2})?/gi, (m, y, mo, d, h, mi) => `TW ${mo}${d} ${h}${mi} H`);
-    const pad = (n) => String(n).padStart(2, '0');
-    // '23 OKTOBER 2026 PUKUL 06.30 WITA' -> 'TW 1023 0630 H'; 'PUKUL 09.00 WITA' -> 'PUKUL 0900 H'
-    str = str.replace(LONG_DATE_TIME_RE, (m, d, bln, h, mi, z) => `TW ${pad(BULAN.indexOf(bln.toUpperCase()) + 1)}${pad(d)} ${pad(h)}${mi} ${zone(z)}`);
-    str = str.replace(TIME_RE, (m, kata, h, mi, z) => `${kata} ${pad(h)}${mi} ${zone(z)}`);
-    str = str.replace(/\b(\d{1,2}):(\d{2})\b/g, (m, h, mi) => `${pad(h)}${mi}`);
+    str = convertDatesToTw(str);
+    str = str.replace(TIME_RE, (m, kata, h, mi, z) => `${kata} ${pad2(h)}${mi} ${zone(z)}`);
+    str = str.replace(/\b(\d{1,2}):(\d{2})\b/g, (m, h, mi) => `${pad2(h)}${mi}`);
     str = str.replace(/\bH[.\-+](\d+)\b/gi, 'HARI KE $1');
     str = str.replace(/[*_~]/g, '');
     str = reduplication(str);
@@ -55,11 +96,11 @@
     return str.replace(/\bTW\s+TW\b/gi, 'TW').replace(/\s+/g, ' ').trim().toUpperCase();
   }
 
-  /** Teks bagian: baris daftar/judul daftar cukup kapital, baris lain diformat sebagai kalimat. */
+  /** Teks bagian: baris daftar/judul daftar cukup kapital (+ konversi tanggal), baris lain diformat sebagai kalimat. */
   function formatSectionText(text) {
     return String(text || '').split(/\r?\n/).map((line) => {
       if (!line.trim()) return '';
-      if (LIST_LINE_RE.test(line) || /TTK DUA\s*$/i.test(line)) return upper(line);
+      if (LIST_LINE_RE.test(line) || /TTK DUA\s*$/i.test(line)) return upper(convertDatesToTw(line));
       return toSentence(line);
     }).join('\n');
   }
@@ -158,11 +199,6 @@
     return { perihal: toSentence(perihal), aksi, info, kind, sections: isiList.map((isi, i) => ({ kode: CODES[i], isi })) };
   }
 
-  // Isi laporan bebas jadi satu klausa: tanpa baris baru dan tanpa titik penutup (titik ditambah template)
-  function clause(text) {
-    return String(text || '').replace(/\s*\n+\s*/g, ' ').replace(/[\s.]+$/, '');
-  }
-
   // Nama kejadian dari nama_operasi tanpa awalan 'OPERASI SAR (TERHADAP)' agar tidak dobel di kalimat/perihal
   const kejadianOf = (op) => upper(op.nama_operasi).replace(/^OPERASI SAR\s+(?:TERHADAP\s+)?/, '').replace(/[\s.]+$/, '');
   const rowsOr = (docRows, opRows) => (Array.isArray(docRows) && docRows.length ? docRows : (opRows || []));
@@ -170,13 +206,22 @@
 
   // Teks bebas operasi lama ("• RESCUER : 6 ORG") jadi butir daftar tanpa simbol/nomor bawaan
   const textItems = (text) => String(text || '').split(/\r?\n/).map((l) => upper(l.replace(/^[\s•*\-–]+|^\s*\d+[.)]\s*/g, ''))).filter(Boolean);
+  const hasilItems = (isi) => String(isi || '').split(/\r?\n/).map((l) => toSentence(l.replace(/^[\s•*\-–]+|^\s*\d+[.)]\s*/g, ''))).filter(Boolean);
   const orText = (items, text) => (items.length ? items : textItems(text));
   const unsurOf = (doc, op) => orText(unsurItems(rowsOr(doc.detail_unsur, op.detail_unsur)), doc.unsur_text || op.unsur_terlibat);
   const alutOf = (doc, op) => orText(alutItems(rowsOr(doc.detail_alut, op.detail_alut)), doc.alut_text || op.alut_palsar);
 
-  // Unsur SAR, alut SAR dan cuaca selalu satu bagian dengan judul yang sama dari Laporan Awal sampai Penutupan
+  function weatherOf(doc, op) {
+    const pick = (k) => {
+      const v = doc && doc[k] !== undefined && doc[k] !== null ? String(doc[k]).trim() : '';
+      return v || (op && op[k] !== undefined && op[k] !== null ? String(op[k]).trim() : '');
+    };
+    return { cuaca: pick('cuaca'), angin: pick('angin'), gelombang: pick('gelombang') };
+  }
+
+  // Unsur SAR, alut dan palsar, serta cuaca selalu satu bagian dengan judul yang sama dari Laporan Awal sampai Penutupan
   function listsCcc(doc, op, cuaca) {
-    return [numberedList('UNSUR SAR TERLIBAT', unsurOf(doc, op)), numberedList('ALUT SAR', alutOf(doc, op)), numberedList('KONDISI CUACA', cuacaItems(cuaca))]
+    return [numberedList('UNSUR SAR TERLIBAT', unsurOf(doc, op)), numberedList('ALUT DAN PALSAR', alutOf(doc, op)), numberedList('KONDISI CUACA', cuacaItems(cuaca))]
       .filter(Boolean).join('\n\n');
   }
 
@@ -203,7 +248,7 @@
     return draft(`LAPORAN AWAL OPERASI SAR TERHADAP ${kejadianOf(op)}.`, KABASARNAS, '', 'LAPORAN_AWAL', [
       toSentence(terimaInfoText(op), { k: op.koordinat }),
       toSentence(bbb),
-      listsCcc(op, op, { cuaca: op.cuaca, angin: op.angin, gelombang: op.gelombang }),
+      listsCcc(op, op, weatherOf(op, op)),
       'LAPORAN PERKEMBANGAN MENYUSUL KMA KA KPP KENDARI KRM TTK HBS'
     ]);
   }
@@ -223,18 +268,25 @@
     return draft(`RENCANA OPERASI SAR HARI KE ${x} TERHADAP ${nama}.`, KABASARNAS, '', 'LANJUTAN', [
       toSentence(`PD TW ${militaryTime(renops.waktu_briefing)} TIM SAR GABUNGAN MELAKSANAKAN BRIEFING RENCANA OPERASI SAR HARI KE ${x} TERHADAP ${nama} DENGAN WAKTU MULAI PERGERAKAN TW ${militaryTime(renops.waktu_mulai_ops)}.`),
       srus.length ? 'PEMBAGIAN SRU TTK DUA\n' + srus.map((s, i) => sruBlock(s, i + 1)).join('\n') : '',
-      listsCcc(renops, op, { cuaca: renops.cuaca }),
+      listsCcc(renops, op, weatherOf(renops, op)),
       'LAPORAN PERKEMBANGAN MENYUSUL KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS'
     ]);
   }
 
   function buildLapbang(op, lap) {
     const x = hariNumber(lap.hari_ke), nama = kejadianOf(op), tw = militaryTime(lap.waktu_laporan);
-    const henti = toSentence(`PADA TW ${tw} PENCARIAN HARI KE ${x} DIHENTIKAN SEMENTARA DAN AKAN DILANJUTKAN KEMBALI PADA HARI KE ${x + 1}.`);
+    const items = hasilItems(lap.isi_laporan);
+    let aaa;
+    if (items.length > 1) {
+      aaa = items.map((r, i) => `${i + 1}. ${r}`).join('\n');
+    } else if (items.length === 1) {
+      aaa = items[0];
+    } else {
+      aaa = toSentence((tw ? `PD TW ${tw} ` : '') + 'NIHIL.');
+    }
     return draft(`LAPORAN PERKEMBANGAN HARI KE ${x} OPERASI SAR TERHADAP ${nama}.`, KABASARNAS, '', 'LANJUTAN', [
-      toSentence(`PD TW ${tw} TERIMA INFO DARI OSC TIM SAR GABUNGAN BAHWA ${clause(lap.isi_laporan)}.`),
-      listsCcc(lap, op, { cuaca: lap.cuaca }),
-      henti,
+      aaa,
+      listsCcc(lap, op, weatherOf(lap, op)),
       `DMKN SBG LAPORAN PERKEMBANGAN HARI KE ${x} KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS`
     ]);
   }
@@ -257,11 +309,19 @@
   }
 
   function buildPenutupan(op, lap) {
-    const nama = kejadianOf(op);
+    const nama = kejadianOf(op), x = hariNumber(lap.hari_ke);
     const k = victimStats(op);
+    const items = hasilItems(lap.isi_laporan);
+    const twDebrief = militaryTime(lap.waktu_debrief || lap.waktu_laporan);
+    if (!/debriefing/i.test(String(lap.isi_laporan || ''))) {
+      items.push(toSentence(`${twDebrief ? `PD TW ${twDebrief} ` : ''}TIM SAR GABUNGAN MELAKSANAKAN DEBRIEFING PENUTUPAN OPERASI SAR TERHADAP ${nama}.`));
+    }
+    const aaa = items.length
+      ? numberedList(`HASIL OPS SAR HARI KE ${x} DAN PENUTUPAN`, items)
+      : toSentence(`PD TW ${twDebrief} TIM SAR GABUNGAN MELAKSANAKAN DEBRIEFING PENUTUPAN OPERASI SAR TERHADAP ${nama}.`);
     return draft(`LAPORAN PERKEMBANGAN DAN PENUTUPAN OPERASI SAR TERHADAP ${nama}.`, KABASARNAS, '', 'LANJUTAN', [
-      toSentence(`PD TW ${militaryTime(lap.waktu_debrief || lap.waktu_laporan)} TIM SAR GABUNGAN MELAKSANAKAN DEBRIEFING PENUTUPAN OPERASI SAR TERHADAP ${nama} DENGAN HASIL ${clause(lap.isi_laporan)}.`),
-      listsCcc(lap, op, { cuaca: lap.cuaca }),
+      aaa,
+      listsCcc(lap, op, weatherOf(lap, op)),
       numberedList('DATA KORBAN', [`SELAMAT : ${k.s} ORANG`, `MENINGGAL DUNIA : ${k.md} ORANG`, `DALAM PENCARIAN : ${k.dp} ORANG`]
         .concat(k.h ? [`HILANG : ${k.h} ORANG`] : [], [`TOTAL POB : ${k.total} ORANG`])),
       toSentence(`DENGAN DEMIKIAN OPERASI SAR TERHADAP ${nama} DINYATAKAN DITUTUP. ATAS KERJASAMA SELURUH UNSUR SAR TERLIBAT DIUCAPKAN TERIMA KASIH.`),

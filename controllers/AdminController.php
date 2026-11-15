@@ -401,7 +401,17 @@ class AdminController extends BaseController {
                         }
                     }
                 } elseif (!empty($_POST[$urlField])) {
-                    $data[$urlField] = trim((string)$_POST[$urlField]);
+                    $rawUrlInput = trim((string)$_POST[$urlField]);
+                    if ($rawUrlInput !== '') {
+                        $safeLogoUrl = qrsar_sanitize_asset_url($rawUrlInput, '');
+                        if ($safeLogoUrl === '') {
+                            $this->setFlash('error', 'URL logo tidak valid atau menggunakan skema yang tidak diizinkan.');
+                            $this->redirect('/admin.php?tab=satker');
+                        }
+                        $data[$urlField] = $safeLogoUrl;
+                    } else {
+                        $data[$urlField] = '';
+                    }
                 }
     }
 }

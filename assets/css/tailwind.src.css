@@ -105,3 +105,29 @@
 @media print {
   .page-body { animation: none; }
 }
+
+/* Native <dialog> modal layers for GIS Export / Import (Top Layer + Scroll Containment) */
+dialog.gis-modal-dialog:not([open]) {
+  display: none;
+}
+dialog.gis-modal-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+}
+dialog.gis-modal-dialog::backdrop {
+  background-color: rgba(2, 6, 23, 0.72);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+.gis-choice-card:has(input:checked) {
+  border-color: rgba(234, 88, 12, 0.75);
+  background-color: rgba(249, 115, 22, 0.08);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.25);
+}
+.dark .gis-choice-card:has(input:checked) {
+  border-color: rgba(251, 146, 60, 0.65);
+  background-color: rgba(234, 88, 12, 0.14);
+}

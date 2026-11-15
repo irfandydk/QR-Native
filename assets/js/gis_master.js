@@ -6630,6 +6630,64 @@
     });
   }
 
+  /**
+   * Shared native <dialog> helper for GIS Top-Layer modals with Safari closedby fallback.
+   */
+  function wireGisModalDialog(modal, { canDismiss = () => true, onBeforeOpen = null } = {}) {
+    if (!modal) {
+      return { open: () => {}, close: () => {} };
+    }
+
+    function open() {
+      if (typeof onBeforeOpen === 'function') onBeforeOpen();
+      if (typeof modal.showModal === 'function') {
+        if (!modal.open) modal.showModal();
+      } else {
+        modal.setAttribute('open', '');
+      }
+    }
+
+    function close() {
+      if (!canDismiss()) return;
+      modal.returnValue = '';
+      if (typeof modal.close === 'function') {
+        if (modal.open) modal.close();
+      } else {
+        modal.removeAttribute('open');
+      }
+    }
+
+    modal.addEventListener('cancel', (e) => {
+      if (!canDismiss()) {
+        e.preventDefault();
+      }
+    });
+
+    modal.addEventListener('close', () => {
+      modal.returnValue = '';
+    });
+
+    // Fallback for browsers without declarative <dialog closedby="any">
+    if (!('closedBy' in HTMLDialogElement.prototype)) {
+      const outside = (e) => {
+        const r = modal.getBoundingClientRect();
+        return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+      };
+      let pressedOutside = false;
+      modal.addEventListener('pointerdown', (e) => {
+        pressedOutside = (e.target === modal) && outside(e);
+      });
+      modal.addEventListener('pointerup', (e) => {
+        if (pressedOutside && e.target === modal && outside(e)) {
+          close();
+        }
+        pressedOutside = false;
+      });
+    }
+
+    return { open, close };
+  }
+
   function initExportDropdown() {
     const toggleBtn = document.getElementById('btnToggleExportMenu');
     const modal = document.getElementById('exportSpatialModal');
@@ -6638,43 +6696,42 @@
     const executeBtn = document.getElementById('btnExecuteSpatialExport');
     const scopeRadios = document.querySelectorAll('input[name="exportScope"]');
     const includeHiddenCheck = document.getElementById('exportIncludeHiddenCheck');
+    const includeBaseCheck = document.getElementById('exportIncludeBaseCheck');
     const operasiSelect = document.getElementById('exportOperasiSelect');
 
     if (!modal) return;
 
-    function openModal() {
-      if (currentOperasiId && operasiSelect) {
-        operasiSelect.value = String(currentOperasiId);
-      }
-      modal.classList.remove('hidden');
+    function syncScopeControls() {
+      const scope = document.querySelector('input[name="exportScope"]:checked')?.value || 'current';
+      const isOperasiScope = scope === 'operasi';
+      if (operasiSelect) operasiSelect.disabled = !isOperasiScope;
+      if (includeBaseCheck) includeBaseCheck.disabled = !isOperasiScope;
     }
 
-    function closeModal() {
-      modal.classList.add('hidden');
-    }
+    const dialogCtl = wireGisModalDialog(modal, {
+      onBeforeOpen: () => {
+        if (currentOperasiId && operasiSelect) {
+          operasiSelect.value = String(currentOperasiId);
+        }
+        syncScopeControls();
+      }
+    });
 
     if (toggleBtn) {
       toggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        openModal();
+        dialogCtl.open();
       });
     }
 
-    if (closeBtn) closeBtn.addEventListener('click', closeModal);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeModal();
-    });
+    if (closeBtn) closeBtn.addEventListener('click', dialogCtl.close);
+    if (cancelBtn) cancelBtn.addEventListener('click', dialogCtl.close);
 
     scopeRadios.forEach((radio) => {
       radio.addEventListener('change', () => {
+        syncScopeControls();
         if (!includeHiddenCheck) return;
-        if (radio.value === 'current') {
-          includeHiddenCheck.checked = false;
-        } else {
-          includeHiddenCheck.checked = true;
-        }
+        includeHiddenCheck.checked = radio.value !== 'current';
       });
     });
 
@@ -6683,7 +6740,7 @@
         const scope = document.querySelector('input[name="exportScope"]:checked')?.value || 'current';
         const format = document.querySelector('input[name="exportFormat"]:checked')?.value || 'kmz';
         const includeHidden = !!includeHiddenCheck?.checked;
-        const includeBase = !!document.getElementById('exportIncludeBaseCheck')?.checked;
+        const includeBase = !!includeBaseCheck?.checked;
         const targetOpId = operasiSelect ? operasiSelect.value : '';
 
         const payload = buildExportPayload(scope, {
@@ -6694,7 +6751,7 @@
 
         const fullFilename = `${payload.filename}.${format}`;
 
-        closeModal();
+        dialogCtl.close();
 
         try {
           if (format === 'kmz') {
@@ -6751,6 +6808,8 @@
     const deselectAllBtn = document.getElementById('importDeselectAllBtn');
     const setAllRouteBtn = document.getElementById('importSetAllLinesRoute');
     const setAllPatternBtn = document.getElementById('importSetAllLinesPattern');
+    const inlineErrorBox = document.getElementById('importInlineError');
+    const inlineErrorText = document.getElementById('importInlineErrorText');
 
     if (!modal) return;
 
@@ -6758,34 +6817,57 @@
     let parsedItems = [];
     let isImporting = false;
 
+    function showInlineError(msg) {
+      if (inlineErrorBox && inlineErrorText) {
+        inlineErrorText.textContent = String(msg || 'Terjadi kesalahan.');
+        inlineErrorBox.classList.remove('hidden');
+      } else if (typeof showToast === 'function') {
+        showToast(msg, 'error');
+      }
+    }
+
+    function clearInlineError() {
+      if (inlineErrorBox) inlineErrorBox.classList.add('hidden');
+      if (inlineErrorText) inlineErrorText.textContent = '';
+    }
+
+    function syncTargetControls() {
+      const targetType = document.querySelector('input[name="importTargetType"]:checked')?.value || 'operasi';
+      if (targetOperasiSelect) {
+        targetOperasiSelect.disabled = targetType !== 'operasi';
+      }
+    }
+
     // RBAC check on target radio
     if (targetBasemapRadio && !isAdmin) {
       targetBasemapRadio.disabled = true;
       if (targetOperasiRadio) targetOperasiRadio.checked = true;
     }
 
-    function openModal() {
-      if (currentOperasiId && targetOperasiSelect) {
-        targetOperasiSelect.value = String(currentOperasiId);
+    const dialogCtl = wireGisModalDialog(modal, {
+      canDismiss: () => !isImporting,
+      onBeforeOpen: () => {
+        clearInlineError();
+        if (currentOperasiId && targetOperasiSelect) {
+          targetOperasiSelect.value = String(currentOperasiId);
+        }
+        syncTargetControls();
       }
-      modal.classList.remove('hidden');
-    }
-
-    function closeModal() {
-      if (isImporting) return;
-      modal.classList.add('hidden');
-    }
-
-    if (openBtn) openBtn.addEventListener('click', openModal);
-    if (closeBtn) closeBtn.addEventListener('click', closeModal);
-    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) closeModal();
     });
+
+    if (openBtn) openBtn.addEventListener('click', dialogCtl.open);
+    if (closeBtn) closeBtn.addEventListener('click', dialogCtl.close);
+    if (cancelBtn) cancelBtn.addEventListener('click', dialogCtl.close);
 
     // Drag and Drop Zone
     if (dropZone && fileInput) {
       dropZone.addEventListener('click', () => fileInput.click());
+      dropZone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          fileInput.click();
+        }
+      });
 
       ['dragenter', 'dragover'].forEach((eventName) => {
         dropZone.addEventListener(eventName, (e) => {
@@ -6820,11 +6902,10 @@
 
     async function handleFile(file) {
       if (!file) return;
+      clearInlineError();
       const lower = file.name.toLowerCase();
       if (!lower.endsWith('.kml') && !lower.endsWith('.kmz')) {
-        if (typeof showToast === 'function') {
-          showToast('Format berkas tidak didukung. Harap pilih berkas .kml atau .kmz', 'error');
-        }
+        showInlineError('Format berkas tidak didukung. Harap pilih berkas .kml atau .kmz');
         return;
       }
 
@@ -6861,9 +6942,7 @@
             </div>
           `;
         }
-        if (typeof showToast === 'function') {
-          showToast(`Gagal membedah berkas: ${err.message || err}`, 'error');
-        }
+        showInlineError(`Gagal membedah berkas: ${err.message || err}`);
         updateValidationState();
       }
     }
@@ -6952,16 +7031,17 @@
         return;
       }
 
-      const presetIcons = (window.QrSarGis && window.QrSarGis.Markers && Array.isArray(window.QrSarGis.Markers.PRESET_ICONS))
-        ? window.QrSarGis.Markers.PRESET_ICONS
-        : [
-            { type: 'pos_sar', label: 'Pos / Pangkalan SAR' },
-            { type: 'lkp', label: 'LKP / Titik Kejadian' },
-            { type: 'orang_hilang', label: 'Korban / Survivor' },
-            { type: 'posko_sar', label: 'Posko Lapangan' },
-            { type: 'kapal_sar', label: 'Kapal / Alut Air' },
-            { type: 'heli_sar', label: 'Helikopter / Pesawat' }
-          ];
+      const presetIcons = (typeof PRESET_ICONS !== 'undefined' && Array.isArray(PRESET_ICONS) && PRESET_ICONS.length > 0)
+        ? PRESET_ICONS
+        : ((window.QrSarGis && window.QrSarGis.Markers && Array.isArray(window.QrSarGis.Markers.PRESET_ICONS))
+          ? window.QrSarGis.Markers.PRESET_ICONS
+          : [
+              { type: 'pin_umum', label: 'Pin Marker Default', emoji: '📍' },
+              { type: 'pos_sar', label: 'Pos / Stasiun SAR', emoji: '📻' },
+              { type: 'lkp', label: 'LKP / Titik Kejadian', emoji: '🚨' },
+              { type: 'orang_hilang', label: 'Orang Hilang / Survivor', emoji: '👤' },
+              { type: 'posko_sar', label: 'Posko Taktis Lapangan', emoji: '🏕️' }
+            ]);
 
       const html = parsedItems.map((item, idx) => {
         const isChecked = item.checked ? 'checked' : '';
@@ -6971,12 +7051,15 @@
 
         if (item.entityType === 'point') {
           badgeHtml = `<span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold border border-rose-500/20 shrink-0">Titik</span>`;
-          metaHtml = `<span class="font-mono text-slate-400">${item.original.lat.toFixed(5)}, ${item.original.lng.toFixed(5)}</span>`;
+          metaHtml = `<span class="font-mono text-slate-500 dark:text-slate-400 tabular-nums">${item.original.lat.toFixed(5)}, ${item.original.lng.toFixed(5)}</span>`;
 
           let customOpt = '';
+          const hasMatchingPreset = presetIcons.some((ic) => ic.type === item.pointType);
           if (item.pointType === 'custom_upload' || (item.original && item.original.customIconUrl)) {
             const isCustomSel = item.pointType === 'custom_upload' ? 'selected' : '';
             customOpt = `<option value="custom_upload" ${isCustomSel}>🖼️ Ikon Lokal Basarnas</option>`;
+          } else if (item.pointType && !hasMatchingPreset) {
+            customOpt = `<option value="${escapeHtml(item.pointType)}" selected>${escapeHtml(item.pointType)}</option>`;
           }
 
           const optionsHtml = customOpt + presetIcons
@@ -6987,14 +7070,14 @@
             .join('');
 
           configHtml = `
-            <select data-idx="${idx}" class="import-point-type-select px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200">
+            <select data-idx="${idx}" class="import-point-type-select max-w-[180px] truncate px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500">
               ${optionsHtml}
             </select>
           `;
         } else if (item.entityType === 'polygon') {
           badgeHtml = `<span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold border border-blue-500/20 shrink-0">Poligon</span>`;
           const ptCount = Array.isArray(item.original.points) ? item.original.points.length : (item.original.type === 'circle' ? 36 : 0);
-          metaHtml = `<span class="font-mono text-slate-400">${ptCount} Titik Vertex ${item.original.areaNm2 ? `• ${parseFloat(item.original.areaNm2).toFixed(2)} NM²` : ''}</span>`;
+          metaHtml = `<span class="font-mono text-slate-500 dark:text-slate-400 tabular-nums">${ptCount} Vertex${item.original.areaNm2 ? ` • ${parseFloat(item.original.areaNm2).toFixed(2)} NM²` : ''}</span>`;
         } else if (item.entityType === 'line') {
           const isRoute = item.sarType === 'route';
           badgeHtml = isRoute
@@ -7002,10 +7085,10 @@
             : `<span class="px-2 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/20 shrink-0">Pola SAR</span>`;
 
           const coords = item.original.waypoints || item.original.points || [];
-          metaHtml = `<span class="font-mono text-slate-400">${coords.length} Koordinat</span>`;
+          metaHtml = `<span class="font-mono text-slate-500 dark:text-slate-400 tabular-nums">${coords.length} Titik</span>`;
 
           configHtml = `
-            <select data-idx="${idx}" class="import-line-type-select px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200">
+            <select data-idx="${idx}" class="import-line-type-select max-w-[160px] truncate px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500">
               <option value="route" ${isRoute ? 'selected' : ''}>Jalur (Navigasi)</option>
               <option value="pattern" ${!isRoute ? 'selected' : ''}>Pola SAR (Search)</option>
             </select>
@@ -7013,12 +7096,12 @@
         }
 
         return `
-          <div class="flex items-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition">
-            <input type="checkbox" data-idx="${idx}" class="import-item-check rounded text-orange-600 focus:ring-orange-500" ${isChecked}>
+          <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600 transition">
+            <input type="checkbox" data-idx="${idx}" class="import-item-check rounded text-orange-600 focus:ring-orange-500 shrink-0" ${isChecked}>
             ${badgeHtml}
-            <input type="text" data-idx="${idx}" value="${escapeHtml(item.name)}" class="import-item-name flex-1 min-w-[140px] px-2 py-1 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500">
+            <input type="text" data-idx="${idx}" value="${escapeHtml(item.name)}" class="import-item-name flex-1 min-w-0 sm:min-w-[140px] basis-full sm:basis-auto px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:border-orange-500">
             ${configHtml}
-            <div class="text-[11px] shrink-0 text-right">${metaHtml}</div>
+            <div class="text-[11px] shrink-0 text-right ml-auto sm:ml-0">${metaHtml}</div>
           </div>
         `;
       }).join('');
@@ -7156,7 +7239,10 @@
     // Target scope radio switches
     [targetOperasiRadio, targetBasemapRadio].forEach((rad) => {
       if (rad) {
-        rad.addEventListener('change', updateValidationState);
+        rad.addEventListener('change', () => {
+          syncTargetControls();
+          updateValidationState();
+        });
       }
     });
 
@@ -7168,24 +7254,21 @@
     if (confirmBtn) {
       confirmBtn.addEventListener('click', async () => {
         if (isImporting) return;
+        clearInlineError();
 
         const targetType = document.querySelector('input[name="importTargetType"]:checked')?.value || 'operasi';
         let id_operasi = null;
 
         if (targetType === 'basemap') {
           if (!isAdmin) {
-            if (typeof showToast === 'function') {
-              showToast('Khusus Administrator: Anda tidak memiliki izin mengimpor ke Base Map', 'error');
-            }
+            showInlineError('Khusus Administrator: Anda tidak memiliki izin mengimpor ke Base Map');
             return;
           }
           id_operasi = null;
         } else {
           const opId = targetOperasiSelect ? parseInt(targetOperasiSelect.value, 10) : 0;
           if (!opId || isNaN(opId) || opId <= 0) {
-            if (typeof showToast === 'function') {
-              showToast('Pilih operasi SAR aktif tujuan impor', 'error');
-            }
+            showInlineError('Pilih operasi SAR aktif tujuan impor');
             return;
           }
           id_operasi = opId;
@@ -7193,9 +7276,7 @@
 
         const checkedItems = parsedItems.filter((i) => i.checked);
         if (checkedItems.length === 0) {
-          if (typeof showToast === 'function') {
-            showToast('Tidak ada entitas yang dipilih untuk diimpor', 'error');
-          }
+          showInlineError('Tidak ada entitas yang dipilih untuk diimpor');
           return;
         }
 
@@ -7364,6 +7445,9 @@
           const counts = data.counts || {};
           const totalSaved = (counts.points || 0) + (counts.polygons || 0) + (counts.patterns || 0) + (counts.routes || 0);
 
+          isImporting = false;
+          dialogCtl.close();
+
           if (id_operasi === null) {
             if (typeof showToast === 'function') {
               showToast(`Berhasil mengimpor ${totalSaved} entitas ke Base Map Global`, 'success');
@@ -7378,25 +7462,22 @@
             }
           }
 
-          closeModal();
-
           // Reset input and parsed state
           parsedItems = [];
+          clearInlineError();
           if (fileInput) fileInput.value = '';
           if (fileInfo) fileInfo.classList.add('hidden');
           if (previewList) {
-            previewList.innerHTML = '<div class="p-6 text-center text-slate-400">Pilih atau seret berkas KML / KMZ untuk memuat daftar entitas geospasial</div>';
+            previewList.innerHTML = '<div class="p-6 text-center text-slate-400 dark:text-slate-500">Pilih atau seret berkas KML / KMZ untuk memuat daftar entitas geospasial</div>';
           }
           if (warningsBox) warningsBox.classList.add('hidden');
+          if (countWarnEl) countWarnEl.textContent = '0';
           updateCounters();
         } catch (err) {
           console.error('[Import Error]', err);
-          if (typeof showToast === 'function') {
-            showToast(`Gagal mengimpor data: ${err.message || err}`, 'error');
-          }
+          showInlineError(`Gagal mengimpor data: ${err.message || err}`);
         } finally {
           isImporting = false;
-          confirmBtn.disabled = false;
           confirmBtn.innerHTML = origBtnHtml;
           updateValidationState();
         }

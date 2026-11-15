@@ -67,8 +67,12 @@ class SettingsModel {
 
         foreach ($fields as $f) {
             if (array_key_exists($f, $data) && isset($existing[$f])) {
+                $val = $data[$f];
+                if (($f === 'logo_url' || $f === 'logo_url_2') && is_string($val)) {
+                    $val = trim($val) === '' ? '' : qrsar_sanitize_asset_url($val, '');
+                }
                 $sets[] = "{$f} = :{$f}";
-                $params[":{$f}"] = $data[$f];
+                $params[":{$f}"] = $val;
             }
         }
 
@@ -274,6 +278,9 @@ class SettingsModel {
     public static function changePassword(string $role, string $oldPass, string $newPass, ?string $userId = null): array {
         $db = getDB();
         $roleUpper = strtoupper($role);
+
+        $oldPass = trim($oldPass);
+        $newPass = trim($newPass);
 
         // Cari user pada tabel Users
         $targetUser = null;

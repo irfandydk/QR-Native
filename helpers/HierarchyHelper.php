@@ -198,8 +198,24 @@ class HierarchyHelper {
 
         $inheritedUnsur = $ops['detail_unsur'] ?? [];
         $inheritedAlut = $ops['detail_alut'] ?? [];
-        $inheritedCuaca = !empty($ops['cuaca']) ? $ops['cuaca'] : 'Cerah Berawan, Angin Barat 5-15 Kts, Gelombang 0.5 - 1.25 M';
+        $inheritedCuaca = !empty($ops['cuaca']) ? (string)$ops['cuaca'] : 'Cerah Berawan';
+        $inheritedGelombang = (string)($ops['gelombang'] ?? '');
+        $inheritedAngin = (string)($ops['angin'] ?? '');
         $predecessorLabel = 'Laporan Awal (File Aktif)';
+
+        $applySource = static function (array $src) use (&$inheritedUnsur, &$inheritedAlut, &$inheritedCuaca, &$inheritedGelombang, &$inheritedAngin): void {
+            if (!empty($src['detail_unsur']) && is_array($src['detail_unsur'])) {
+                $inheritedUnsur = $src['detail_unsur'];
+            }
+            if (!empty($src['detail_alut']) && is_array($src['detail_alut'])) {
+                $inheritedAlut = $src['detail_alut'];
+            }
+            foreach (['cuaca' => &$inheritedCuaca, 'gelombang' => &$inheritedGelombang, 'angin' => &$inheritedAngin] as $k => &$target) {
+                if (!empty($src[$k])) {
+                    $target = (string)$src[$k];
+                }
+            }
+        };
 
         $refLapbang = $latestLapbang ?? $latestAnyLapbang;
         $refRenops = $latestRenops ?? $latestAnyRenops;
@@ -207,51 +223,19 @@ class HierarchyHelper {
         if ($maxLapbangDay >= 1 && $latestLapbang) {
             $lapDate = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($maxLapbangDay - 1) . " days", $t1)) : $todayYmd;
             $predecessorLabel = "Lapbang " . TemplateHelper::hitungHariKe($ops, $lapDate);
-            if (!empty($latestLapbang['detail_unsur']) && is_array($latestLapbang['detail_unsur'])) {
-                $inheritedUnsur = $latestLapbang['detail_unsur'];
-            }
-            if (!empty($latestLapbang['detail_alut']) && is_array($latestLapbang['detail_alut'])) {
-                $inheritedAlut = $latestLapbang['detail_alut'];
-            }
-            if (!empty($latestLapbang['cuaca'])) {
-                $inheritedCuaca = $latestLapbang['cuaca'];
-            }
+            $applySource($latestLapbang);
         } elseif ($maxRenopsDay >= 1 && $latestRenops) {
             $renDate = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($maxRenopsDay - 1) . " days", $t1)) : $todayYmd;
             $predecessorLabel = "Renops " . TemplateHelper::hitungHariKe($ops, $renDate);
-            if (!empty($latestRenops['detail_unsur']) && is_array($latestRenops['detail_unsur'])) {
-                $inheritedUnsur = $latestRenops['detail_unsur'];
-            }
-            if (!empty($latestRenops['detail_alut']) && is_array($latestRenops['detail_alut'])) {
-                $inheritedAlut = $latestRenops['detail_alut'];
-            }
-            if (!empty($latestRenops['cuaca'])) {
-                $inheritedCuaca = $latestRenops['cuaca'];
-            }
+            $applySource($latestRenops);
         } elseif ($refLapbang) {
             $refHari = TemplateHelper::hitungHariKe($ops, $latestAnyLapbangYmd, $refLapbang['hari_ke'] ?? null);
             $predecessorLabel = "Lapbang {$refHari}";
-            if (!empty($refLapbang['detail_unsur']) && is_array($refLapbang['detail_unsur'])) {
-                $inheritedUnsur = $refLapbang['detail_unsur'];
-            }
-            if (!empty($refLapbang['detail_alut']) && is_array($refLapbang['detail_alut'])) {
-                $inheritedAlut = $refLapbang['detail_alut'];
-            }
-            if (!empty($refLapbang['cuaca'])) {
-                $inheritedCuaca = $refLapbang['cuaca'];
-            }
+            $applySource($refLapbang);
         } elseif ($refRenops) {
             $refHari = TemplateHelper::hitungHariKe($ops, $latestAnyRenopsYmd, $refRenops['hari_ke'] ?? null);
             $predecessorLabel = "Renops {$refHari}";
-            if (!empty($refRenops['detail_unsur']) && is_array($refRenops['detail_unsur'])) {
-                $inheritedUnsur = $refRenops['detail_unsur'];
-            }
-            if (!empty($refRenops['detail_alut']) && is_array($refRenops['detail_alut'])) {
-                $inheritedAlut = $refRenops['detail_alut'];
-            }
-            if (!empty($refRenops['cuaca'])) {
-                $inheritedCuaca = $refRenops['cuaca'];
-            }
+            $applySource($refRenops);
         }
 
         // Hitung hari operasional kalender aktif hari ini (relatif terhadap waktu mulai aktual)
@@ -303,6 +287,8 @@ class HierarchyHelper {
             'inherited_unsur' => $inheritedUnsur,
             'inherited_alut' => $inheritedAlut,
             'inherited_cuaca' => $inheritedCuaca,
+            'inherited_gelombang' => $inheritedGelombang,
+            'inherited_angin' => $inheritedAngin,
             'default_srus' => $defaultSrus,
             'predecessor_label' => $predecessorLabel,
             'is_max_day' => $isMaxDay
@@ -418,6 +404,12 @@ class HierarchyHelper {
             if (!empty($matchingRenops['cuaca'])) {
                 $inheritedCuaca = (string)$matchingRenops['cuaca'];
             }
+            if (!empty($matchingRenops['gelombang'])) {
+                $inheritedGelombang = (string)$matchingRenops['gelombang'];
+            }
+            if (!empty($matchingRenops['angin'])) {
+                $inheritedAngin = (string)$matchingRenops['angin'];
+            }
         } elseif ($latestLapbang) {
             $lapDate = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($maxLapbangDay - 1) . " days", $t1)) : $todayYmd;
             $predecessorLabel = "Lapbang " . TemplateHelper::hitungHariKe($ops, $lapDate);
@@ -492,7 +484,13 @@ class HierarchyHelper {
         }
 
         $sumber = 'LAPORAN_AWAL';
-        $pred = ['unsur' => $arr($ops['detail_unsur'] ?? []), 'alut' => $arr($ops['detail_alut'] ?? []), 'cuaca' => (string)($ops['cuaca'] ?? '')];
+        $pred = [
+            'unsur' => $arr($ops['detail_unsur'] ?? []),
+            'alut' => $arr($ops['detail_alut'] ?? []),
+            'cuaca' => (string)($ops['cuaca'] ?? ''),
+            'gelombang' => (string)($ops['gelombang'] ?? ''),
+            'angin' => (string)($ops['angin'] ?? ''),
+        ];
         $src = null;
         if ($n >= 2 && $lapbang) {
             $sumber = 'LAPBANG';
@@ -514,13 +512,17 @@ class HierarchyHelper {
                 $v = $arr($src[$col] ?? []);
                 if ($v) $pred[$k] = $v;
             }
-            if (!empty($src['cuaca'])) $pred['cuaca'] = (string)$src['cuaca'];
+            foreach (['cuaca', 'gelombang', 'angin'] as $wk) {
+                if (!empty($src[$wk])) $pred[$wk] = (string)$src[$wk];
+            }
         }
         foreach (['unsur' => 'detail_unsur', 'alut' => 'detail_alut'] as $k => $col) {
             $own = $arr($renops[$col] ?? []);
             if ($own) $pred[$k] = $own;
         }
-        if (!empty($renops['cuaca'])) $pred['cuaca'] = (string)$renops['cuaca'];
+        foreach (['cuaca', 'gelombang', 'angin'] as $wk) {
+            if (!empty($renops[$wk])) $pred[$wk] = (string)$renops[$wk];
+        }
 
         return [
             'hari_num' => $n,
@@ -530,6 +532,8 @@ class HierarchyHelper {
             'unsur' => $pred['unsur'],
             'alut' => $pred['alut'],
             'cuaca' => $pred['cuaca'],
+            'gelombang' => $pred['gelombang'],
+            'angin' => $pred['angin'],
         ];
     }
 }

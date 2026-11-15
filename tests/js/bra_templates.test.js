@@ -108,7 +108,7 @@ test('LA AAA keeps pelapor parentheses and DMS', () => {
 });
 test('LA CCC has 3 lists', () => {
   const ccc = T.buildLaporanAwal(op).sections[2].isi;
-  ['UNSUR SAR TERLIBAT TTK DUA', 'ALUT SAR TTK DUA', 'KONDISI CUACA TTK DUA'].forEach(h => assert.ok(ccc.includes(h)));
+  ['UNSUR SAR TERLIBAT TTK DUA', 'ALUT DAN PALSAR TTK DUA', 'KONDISI CUACA TTK DUA'].forEach(h => assert.ok(ccc.includes(h)));
 });
 test('no slash or comma in narrative', () => {
   [T.buildLaporanAwal(op), T.buildRenops(op, op.renops[0]), T.buildLapbang(op, op.laporan_harian[0])].forEach(d =>
@@ -235,13 +235,13 @@ const sectionWith = (d, re) => d.sections.filter(s => re.test(s.isi)).map(s => s
 test('lapbang: unsur, alut and cuaca in one section', () => {
   const d = T.buildLapbang(op, op.laporan_harian[0]);
   assert.deepEqual(sectionWith(d, /UNSUR SAR TERLIBAT TTK DUA/), ['BBB']);
-  assert.deepEqual(sectionWith(d, /ALUT SAR TTK DUA/), ['BBB']);
-  assert.equal(d.sections.length, 4);
+  assert.deepEqual(sectionWith(d, /ALUT DAN PALSAR TTK DUA/), ['BBB']);
+  assert.equal(d.sections.length, 3);
 });
 test('penutupan: unsur and alut in one section with the same titles as laporan awal', () => {
   const d = T.buildPenutupan(op, op.laporan_harian[1]);
   assert.deepEqual(sectionWith(d, /UNSUR SAR TERLIBAT TTK DUA/), ['BBB']);
-  assert.deepEqual(sectionWith(d, /ALUT SAR TTK DUA/), ['BBB']);
+  assert.deepEqual(sectionWith(d, /ALUT DAN PALSAR TTK DUA/), ['BBB']);
   assert.doesNotMatch(d.sections.map(s => s.isi).join('\n'), /DIKEMBALIKAN/);
   assert.match(d.sections[2].isi, /^DATA KORBAN TTK DUA/);
 });
@@ -262,7 +262,7 @@ test('free-text unsur/alut used when detail rows are empty', () => {
   const o = { ...op, detail_unsur: [], detail_alut: [], unsur_terlibat: '• Rescuer Kendari : 6 org\n* Polairud : 3 org', alut_palsar: '- Rescue Car : 1 unit' };
   const ccc = T.buildLaporanAwal(o).sections[2].isi;
   assert.match(ccc, /UNSUR SAR TERLIBAT TTK DUA\n1\. RESCUER KENDARI : 6 ORG\n2\. POLAIRUD : 3 ORG/);
-  assert.match(ccc, /ALUT SAR TTK DUA\n1\. RESCUE CAR : 1 UNIT/);
+  assert.match(ccc, /ALUT DAN PALSAR TTK DUA\n1\. RESCUE CAR : 1 UNIT/);
 });
 test('radial without distance reads with DENGAN', () => {
   const bbb = T.buildLaporanAwal({ ...op, jarak: '', radial: '135', eta_lokasi: '' }).sections[1].isi;
@@ -324,4 +324,48 @@ test('kategori alut: kalimat MENGGUNAKAN tanpa drone dan palsar', () => {
   assert.match(txt, /MENGGUNAKAN 1 UNIT RESCUE CAR/);
   assert.doesNotMatch(txt, /MENGGUNAKAN[^.]*DRONE/);
   assert.doesNotMatch(txt, /MENGGUNAKAN[^.]*PALSAR/);
+});
+
+test('lapbang BRA follows full isi_laporan points without AAA heading/OSC/henti boilerplate and includes full weather', () => {
+  const d = T.buildLapbang(op, {
+    ...op.laporan_harian[0],
+    isi_laporan: '- Pukul 08.00 WITA, tim SAR gabungan bergerak ke LKP.\n- Pada tanggal 15 November 2026 di koordinat 03° 57\' S - 122° 30\' E ditemukan serpihan, pencarian dilanjutkan.',
+    cuaca: 'Hujan Ringan',
+    angin: 'Barat 7 Knot',
+    gelombang: '1.0 M',
+  });
+  assert.equal(d.sections.length, 3);
+  assert.equal(d.sections[0].isi,
+    "1. PUKUL 0800 H KMA TIM SAR GABUNGAN BERGERAK KE LKP TTK\n2. PADA TW 1115 H DI KOORDINAT 03° 57' S - 122° 30' E DITEMUKAN SERPIHAN KMA PENCARIAN DILANJUTKAN TTK");
+  assert.doesNotMatch(d.sections[0].isi, /HASIL OPS SAR HARI KE/);
+  assert.doesNotMatch(d.sections.map(s => s.isi).join('\n'), /TERIMA INFO DARI OSC|DIHENTIKAN SEMENTARA/);
+  assert.match(d.sections[1].isi, /KONDISI CUACA TTK DUA\n1\. CUACA : HUJAN RINGAN\n2\. ANGIN : BARAT 7 KNOT\n3\. GELOMBANG : 1\.0 M/);
+  assert.match(d.sections[2].isi, /^DMKN SBG LAPORAN PERKEMBANGAN HARI KE 2/);
+
+  const single = T.buildLapbang(op, op.laporan_harian[0]);
+  assert.equal(single.sections[0].isi, 'PENCARIAN NIHIL KMA KORBAN BELUM DITEMUKAN TTK');
+  const empty = T.buildLapbang(op, { ...op.laporan_harian[0], isi_laporan: '' });
+  assert.equal(empty.sections[0].isi, 'PD TW 1029 1800 H NIHIL TTK');
+});
+
+test('date-only and various indonesian date formats convert to TW XXXX H', () => {
+  assert.equal(T.toSentence('Pada 15 November 2026 tim melaksanakan pencarian.'), 'PADA TW 1115 H TIM MELAKSANAKAN PENCARIAN TTK');
+  assert.equal(T.toSentence('Evaluasi lapangan (15 November 2026).'), 'EVALUASI LAPANGAN (TW 1115 H) TTK');
+  assert.equal(T.toSentence('Pada tanggal 15 Nov 2026 pukul 17.00 WITA, tim bergerak.'), 'PADA TW 1115 1700 H KMA TIM BERGERAK TTK');
+  assert.equal(T.toSentence('Operasi sejak 15/11/2026 hingga 16 November.'), 'OPERASI SEJAK TW 1115 H HINGGA TW 1116 H TTK');
+  assert.equal(T.formatSectionText('1. Pada 15 November 2026 pencarian dilanjutkan TTK'), '1. PADA TW 1115 H PENCARIAN DILANJUTKAN TTK');
+});
+
+test('renops and penutupan BRA propagate angin/gelombang and penutupan deduplicates debriefing', () => {
+  const dr = T.buildRenops(op, { ...op.renops[0], angin: 'Selatan 6 Knot', gelombang: '0.8 M' });
+  assert.match(dr.sections[2].isi, /1\. CUACA : BERAWAN\n2\. ANGIN : SELATAN 6 KNOT\n3\. GELOMBANG : 0\.8 M/);
+  const drFallback = T.buildRenops(op, op.renops[0]);
+  assert.match(drFallback.sections[2].isi, /1\. CUACA : BERAWAN\n2\. ANGIN : TIMUR 5 KNOT\n3\. GELOMBANG : 0\.5 M/);
+  const dp = T.buildPenutupan(op, {
+    ...op.laporan_harian[1],
+    isi_laporan: '- Korban dievakuasi ke posko.\n- Pukul 16.30 WITA dilaksanakan debriefing penutupan operasi SAR.',
+  });
+  assert.match(dp.sections[0].isi, /^HASIL OPS SAR HARI KE 3 DAN PENUTUPAN TTK DUA\n1\. KORBAN DIEVAKUASI KE POSKO TTK\n2\. PUKUL 1630 H DILAKSANAKAN DEBRIEFING/);
+  assert.equal((dp.sections[0].isi.match(/DEBRIEFING/g) || []).length, 1);
+  assert.match(dp.sections[1].isi, /1\. CUACA : CERAH\n2\. ANGIN : TIMUR 5 KNOT\n3\. GELOMBANG : 0\.5 M/);
 });

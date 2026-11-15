@@ -37,10 +37,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
 $path = parse_url($uri, PHP_URL_PATH) ?? '/';
 
-// Strip script directory and /api prefix
-$scriptDir = dirname($_SERVER['SCRIPT_NAME'] ?? '');
-if ($scriptDir !== '/' && str_starts_with($path, $scriptDir)) {
-    $path = substr($path, strlen($scriptDir));
+// Strip app base path (subfolder install / APP_URL) and /api prefix
+$basePath = defined('BASE_URL') ? (parse_url(BASE_URL, PHP_URL_PATH) ?: '') : '';
+if ($basePath === '' && function_exists('qrsar_detect_base_path')) {
+    $basePath = qrsar_detect_base_path($_SERVER, dirname(__DIR__));
+}
+$basePath = rtrim((string)$basePath, '/');
+if ($basePath !== '' && $basePath !== '/' && str_starts_with($path, $basePath)) {
+    $path = substr($path, strlen($basePath));
 }
 $path = preg_replace('#^/api#', '', $path);
 $path = '/' . trim($path, '/');

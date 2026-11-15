@@ -229,8 +229,10 @@
   }
 
   async function reset(key) {
-    if (dirty.size && !(await swalConfirm('Reset Bagian Dokumen?', 'Ada suntingan yang belum disimpan dan akan hilang. Lanjutkan reset?', 'Ya, Reset', true))) return;
+    if (!(await swalConfirm('Reset Bagian Dokumen?', 'Kembalikan bagian ini ke nilai otomatis?', 'Ya, Reset', true))) return;
     try {
+      dirty.delete(key);
+      await save();
       const res = await api('PUT', '/dokumen', { sections: { [key]: null }, rev });
       if (!Number.isInteger(res.rev)) throw new Error('Respons server tidak valid. Muat ulang halaman.');
       rev = res.rev; dirty.clear();
@@ -243,7 +245,7 @@
     try { await save(); window.location.reload(); } catch (e) { fail(e); b.disabled = false; }
   });
 
-  // Cetak draf: suntingan yang belum disimpan disimpan dulu agar ikut tercetak.
+  // Cetak draf & capture peta: suntingan yang belum disimpan disimpan dulu agar tidak hilang / memicu beforeunload.
   const btnCetakDraf = $('#btnCetakDraf');
   if (btnCetakDraf) {
     btnCetakDraf.addEventListener('click', async (ev) => {
@@ -256,6 +258,13 @@
       } catch (e) { if (w) w.close(); fail(e); }
     });
   }
+  $$('#btnCapturePeta, #btnCapturePetaRencana', app).forEach((a) => {
+    a.addEventListener('click', async (ev) => {
+      if (!dirty.size) return;
+      ev.preventDefault();
+      try { await save(); window.location.href = a.href; } catch (e) { fail(e); }
+    });
+  });
 
   $('#btnTerbitkan').addEventListener('click', async (ev) => {
     const b = ev.currentTarget;
@@ -403,6 +412,7 @@
     fileInput.value = '';
 
     try {
+      await save();
       const prepText = `Menyiapkan ${files.length} foto...`;
       if (b) b.textContent = prepText;
       msg(prepText, false);
@@ -438,6 +448,7 @@
       if (b) b.textContent = 'Memproses foto di server...';
       msg('Memproses foto di server...', false);
 
+      await save();
       msg(`Berhasil mengunggah ${files.length} foto dokumentasi!`, false);
       if (typeof showToast === 'function') showToast(`Berhasil mengunggah ${files.length} foto dokumentasi!`, 'success');
       window.location.reload();
@@ -445,6 +456,7 @@
       fail(e);
       // 422 + daftar foto = sebagian berkas sudah tersimpan: muat ulang agar tampil
       if (e.data && e.data.foto) {
+        try { await save(); } catch (_) {}
         window.location.reload();
       } else if (b) {
         b.disabled = false;
@@ -532,6 +544,7 @@
       if (!(await swalConfirm('Hapus Foto Terpilih?', `Apakah Anda yakin ingin menghapus ${ids.length} foto dokumentasi yang dipilih? Tindakan ini tidak dapat dibatalkan.`, 'Ya, Hapus Foto', true))) return;
       btnHapusFotoTerpilih.disabled = true;
       try {
+        await save();
         await api('POST', '/foto/bulk-delete', { ids });
         if (typeof showToast === 'function') showToast(`${ids.length} foto dokumentasi berhasil dihapus.`, 'success');
         window.location.reload();
@@ -568,7 +581,7 @@
     const hapus = $('[data-foto-hapus]', fig);
     if (hapus) hapus.addEventListener('click', async () => {
       if (!(await swalConfirm('Hapus Foto Dokumentasi?', 'Apakah Anda yakin ingin menghapus foto dokumentasi ini?', 'Ya, Hapus Foto', true))) return;
-      try { await api('DELETE', `/foto/${idFoto}`); window.location.reload(); } catch (e) { fail(e); }
+      try { await save(); await api('DELETE', `/foto/${idFoto}`); window.location.reload(); } catch (e) { fail(e); }
     });
   });
 

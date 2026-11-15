@@ -41,7 +41,11 @@ $wa1 = WhatsAppTemplateService::generateLaporanAwalWA(['jumlah_pob' => 1] + $ops
 assertCondition(str_contains($wa1, '• DP : 1 orang') && str_contains($wa1, '• S : -') && str_contains($wa1, 'Data Korban: 1 orang'), 'Laporan Awal 1 korban DP: angka & "-"');
 foreach (['LAPBANG' => false, 'Penutupan' => true] as $nama => $tutup) {
     $w = WhatsAppTemplateService::generateLapbangWA($ops, ['hari_ke' => 'H.1'], [], [], [], $tutup);
-    assertCondition(str_contains($w, 'Data Korban: -') && str_contains($w, '- MD : -') && !str_contains($w, '0 ORANG') && !str_contains($w, '0 Orang'), "{$nama} tanpa korban: \"-\"");
+    if ($tutup) {
+        assertCondition(str_contains($w, 'Data Korban: -') && str_contains($w, '- MD : -') && !str_contains($w, '0 ORANG') && !str_contains($w, '0 Orang'), "{$nama} tanpa korban: \"-\"");
+    } else {
+        assertCondition(!str_contains($w, 'Data Korban:') && !str_contains($w, 'Identitas Korban:') && !str_contains($w, '- MD :'), "{$nama} rutin tanpa Data Korban & Identitas Korban");
+    }
 }
 
 echo "\nTotal: {$testTotal}, Lolos: {$testPassed}\n";

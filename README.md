@@ -8,7 +8,7 @@ Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari — Badan Nasional Pencar
 
 ## 🌟 Ringkasan Aplikasi
 
-Aplikasi **QR-SAR PHP Native** adalah sistem manajemen pelaporan operasi pencarian dan pertolongan (Search and Rescue) berstandar kedinasan Basarnas yang dibangun menggunakan **PHP Native murni (PHP 8.0+)** dengan basis data **MySQL / MariaDB**. 
+Aplikasi **QR-SAR PHP Native** adalah sistem manajemen pelaporan operasi pencarian dan pertolongan (Search and Rescue) berstandar kedinasan Basarnas yang dibangun menggunakan **PHP Native murni (PHP 8.2+)** dengan basis data **MySQL / MariaDB**. 
 
 Sistem ini mengadopsi arsitektur **Modular MVC (Model-View-Controller) dengan Service Layer terpisah**, mereplikasi 100% alur kerja resmi FILE AKTIF Basarnas, naskah Berita Radio SAR (BRA), pemetaan taktikal maritim GIS, serta pengesahan dokumen digital:
 
@@ -162,7 +162,7 @@ QR-SAR/
 
 ### 1. Prasyarat Sistem
 
-- **PHP** versi 8.0, 8.1, 8.2, 8.3, atau 8.4+ (Ekstensi `pdo_mysql`, `json`, `mbstring`, `openssl` wajib aktif).
+- **PHP** versi 8.2, 8.3, atau 8.4+ (Ekstensi `pdo_mysql`, `json`, `mbstring`, `openssl` wajib aktif).
 - **MySQL** versi 5.7/8.0+ atau **MariaDB** 10.4+.
 - Web Server: Built-in PHP Server, Apache (XAMPP/Laragon/MAMP), atau Nginx/LiteSpeed.
 

@@ -42,6 +42,17 @@ server {
         fastcgi_read_timeout 300;
     }
 
+    # Blokade skrip internal dev router dan direktori inti bila dipakai di luar mode public/
+    location = /router.php {
+        deny all;
+        return 403;
+    }
+
+    location ~* ^/(?:config|controllers|models|services|helpers|views|database|storage|tests|vendor)/ {
+        deny all;
+        return 403;
+    }
+
     # Keamanan Direktori Uploads (Cegah Eksekusi Skrip PHP & skrip SVG pada File Unggahan)
     location ^~ /uploads/ {
         add_header X-Content-Type-Options "nosniff" always;

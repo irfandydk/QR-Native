@@ -158,13 +158,25 @@ $totalGisItems = count($gisBundle['polygons'] ?? []) + count($gisBundle['searchP
         </div>
       </div>
 
-      <!-- Cuaca BMKG -->
-      <div>
+      <!-- Cuaca BMKG Terpisah -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="field">
-          <label class="field-label">Prakiraan Cuaca Lapangan (BMKG)</label>
+          <label class="field-label">Kondisi Cuaca (BMKG)</label>
           <input class="field-input w-full" type="text" name="cuaca" id="renops_cuaca"
-          placeholder="Contoh: Cerah Berawan, Angin Barat Daya 5-15 Knots, Gelombang 0.5 - 1.25 M"
-          value="<?= e($cuaca) ?>"  />
+          placeholder="Contoh: Cerah / Cerah Berawan"
+          value="<?= e($cuaca) ?>" />
+        </div>
+        <div class="field">
+          <label class="field-label">Tinggi Gelombang</label>
+          <input class="field-input w-full" type="text" name="gelombang" id="renops_gelombang"
+          placeholder="Contoh: 0,2 Mtr"
+          value="<?= e($gelombang ?? '') ?>" />
+        </div>
+        <div class="field">
+          <label class="field-label">Arah &amp; Kecepatan Angin</label>
+          <input class="field-input w-full" type="text" name="angin" id="renops_angin"
+          placeholder="Contoh: 3,1km/jam dari Utara"
+          value="<?= e($angin ?? '') ?>" />
         </div>
       </div>
     </div>

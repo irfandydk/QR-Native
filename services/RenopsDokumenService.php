@@ -124,8 +124,6 @@ class RenopsDokumenService {
         $personel = array_sum(array_map(fn($u) => max(0, (int)($u['jumlah_personil'] ?? 0)), $unsur));
         $korban = array_values(array_filter($ops['korban'] ?? [], 'is_array'));
         $stats = TemplateHelper::hitungStatistikKorban($korban, (int)($ops['jumlah_pob'] ?? 0));
-        $isiLapbang = trim(str_replace(["\r\n", "\r"], "\n", (string)($sumber['lapbang']['isi_laporan'] ?? '')));
-        $hn = $n >= 2 && $isiLapbang !== '';
 
         // 1.a Awareness
         $ketPelapor = array_filter([$v('hubungan_pelapor'), $v('no_telp_pelapor') !== '' ? 'telepon ' . $v('no_telp_pelapor') : '']);
@@ -153,7 +151,16 @@ class RenopsDokumenService {
             $identitas[] = 'Alamat: ' . (trim((string)($k['alamat'] ?? '')) ?: '-');
         }
 
-        $upaya = $hn ? $isiLapbang : "{$satker} telah berkoordinasi dengan " . self::daftar(['BCC', ...$unsurNama, 'keluarga korban']) . '.';
+        $upaya = "{$satker} telah berkoordinasi dengan " . self::daftar(['BCC', ...$unsurNama, 'keluarga korban']) . '.';
+        if ($n >= 2) {
+            if (preg_match('/^(\d+)\s*\+\s*(\d+)$/', $label, $m)) {
+                $prevRef = (int)$m[2] > 1 ? ($m[1] . ' + ' . ((int)$m[2] - 1)) : $m[1];
+            } else {
+                $prevRef = (string)($n - 1);
+            }
+            $renopsRange = $n === 2 ? 'Hari ke-1' : "Hari ke-1 sampai dengan Hari ke-{$prevRef}";
+            $upaya .= " Selain itu, Tim SAR Gabungan telah melaksanakan Operasi SAR sesuai Rencana Operasi SAR {$renopsRange}.";
+        }
         $dataKejadian = [
             ['label' => 'Jenis Musibah', 'value' => $jenis ?: '-'],
             ['label' => 'Lokasi Duga Kejadian', 'value' => $v('koordinat') ?: ($v('lokasi_kejadian') ?: '-')],

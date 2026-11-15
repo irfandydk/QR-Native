@@ -169,7 +169,10 @@ $checkKorban1 = $db->query("SELECT status_korban FROM Korban WHERE id_korban = {
 $checkKorban2 = $db->query("SELECT status_korban FROM Korban WHERE id_korban = {$korbanId2}")->fetchColumn();
 assertAudit("Status Korban #{$korbanId1} di database telah terbarui menjadi 'S' (Selamat)", $checkKorban1 === 'S');
 assertAudit("Status Korban #{$korbanId2} di database tetap 'DP' (Dalam Pencarian)", $checkKorban2 === 'DP');
-assertAudit("Teks WA SITREP memuat angka '- S : 1 Orang'", str_contains($fetchedSitrep1['full_text_wa'] ?? '', '- S : 1 Orang'));
+assertAudit(
+    "Teks WA SITREP rutin tidak menyertakan Data Korban maupun Identitas Korban",
+    !str_contains($fetchedSitrep1['full_text_wa'] ?? '', 'Data Korban:') && !str_contains($fetchedSitrep1['full_text_wa'] ?? '', 'Identitas Korban:')
+);
 
 
 // ---------------------------------------------------------------------
@@ -192,6 +195,11 @@ $sitrep2Data = [
 
 $sitrep2Id = LaporanModel::create($sitrep2Data);
 assertAudit("SITREP H.2 (Penutupan) berhasil diterbitkan dengan ID #{$sitrep2Id}", $sitrep2Id > 0);
+$fetchedSitrep2 = LaporanModel::getById($sitrep2Id);
+assertAudit(
+    "Teks WA Penutupan tetap memuat Data Korban ('- S : 2 Orang') dan Identitas Korban",
+    str_contains($fetchedSitrep2['full_text_wa'] ?? '', '- S : 2 Orang') && str_contains($fetchedSitrep2['full_text_wa'] ?? '', 'Identitas Korban:')
+);
 
 // Eksekusi penutupan operasi
 $closedOk = OperasiModel::closeOperation($opId, '2026-10-19 12:00:00');

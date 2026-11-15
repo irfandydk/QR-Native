@@ -235,7 +235,7 @@ class BraModel {
                 ':sistem' => strtoupper(trim((string)($data['sistem'] ?? ''))),
                 ':paraf' => strtoupper(trim((string)($data['paraf'] ?? ''))),
                 ':barcode_data' => $data['barcode_data'] ?? '',
-                ':logo_url' => $data['logo_url'] ?? '',
+                ':logo_url' => qrsar_sanitize_asset_url((string)($data['logo_url'] ?? ''), ''),
                 ':created_at' => $now
             ]);
 

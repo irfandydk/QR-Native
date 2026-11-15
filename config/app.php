@@ -154,6 +154,87 @@ function qrsar_resolve_app_key(string $envKey, string $keyFile): string {
 }
 define('APP_KEY', qrsar_resolve_app_key((string)(getenv('APP_KEY') ?: ($_ENV['APP_KEY'] ?? '')), dirname(__DIR__) . '/storage/app.key'));
 
+/**
+ * Mendeteksi prefix subfolder aplikasi (mis. '/QR-SAR' di Laragon, '' di docroot / php -S).
+ * Tidak memakai dirname(SCRIPT_NAME) langsung di cli-server karena PHP built-in server mengisi
+ * SCRIPT_NAME dengan URI permintaan (mis. '/uploads/logo.png' -> '/uploads').
+ */
+function qrsar_detect_base_path(array $server, string $projectRoot, string $sapi = PHP_SAPI): string {
+    if ($sapi === 'cli') {
+        return '';
+    }
+
+    $realRoot = rtrim(str_replace('\\', '/', realpath($projectRoot) ?: $projectRoot), '/');
+    $realPublic = $realRoot . '/public';
+
+    if ($sapi === 'cli-server') {
+        $rawDocRoot = (string)($server['DOCUMENT_ROOT'] ?? '');
+        $docRoot = $rawDocRoot !== '' ? rtrim(str_replace('\\', '/', realpath($rawDocRoot) ?: $rawDocRoot), '/') : '';
+        if ($docRoot !== '' && str_starts_with($realRoot, $docRoot . '/')) {
+            return substr($realRoot, strlen($docRoot));
+        }
+        return '';
+    }
+
+    $scriptName = str_replace('\\', '/', (string)($server['SCRIPT_NAME'] ?? ''));
+    $scriptFile = (string)($server['SCRIPT_FILENAME'] ?? '');
+    if ($scriptFile !== '' && $scriptName !== '') {
+        $realScript = str_replace('\\', '/', realpath($scriptFile) ?: $scriptFile);
+        $normScript = '/' . ltrim($scriptName, '/');
+        $icase = DIRECTORY_SEPARATOR === '\\';
+        foreach ([$realPublic, $realRoot] as $baseDir) {
+            if (!str_starts_with($realScript, $baseDir . '/')) {
+                continue;
+            }
+            $rel = substr($realScript, strlen($baseDir));
+            $matches = $icase
+                ? str_ends_with(strtolower($normScript), strtolower($rel))
+                : str_ends_with($normScript, $rel);
+            if ($matches) {
+                $prefix = substr($normScript, 0, -strlen($rel));
+                return ($prefix === '' || $prefix === '/' || $prefix === '.') ? '' : rtrim($prefix, '/');
+            }
+        }
+    }
+
+    $scriptDir = str_replace('\\', '/', dirname($scriptName));
+    $scriptDir = preg_replace('#/api$#', '', (string)$scriptDir);
+    if ($scriptDir === '/' || $scriptDir === '.' || $scriptDir === '\\') {
+        return '';
+    }
+    return rtrim((string)$scriptDir, '/');
+}
+
+/**
+ * Memvalidasi HTTP_HOST / SERVER_NAME terhadap format host yang sah dan daftar opsional ALLOWED_HOSTS (koma).
+ * Jika ALLOWED_HOSTS diisi dan Host permintaan tidak cocok, jatuh ke entri pertama pada ALLOWED_HOSTS.
+ */
+function qrsar_resolve_host(array $server, ?string $allowedHostsEnv = null): string {
+    $hostPattern = '/^[a-zA-Z0-9.\-]+(:[0-9]{1,5})?$/';
+    $rawHost = trim((string)($server['HTTP_HOST'] ?? ($server['SERVER_NAME'] ?? '127.0.0.1:8000')));
+    $serverName = trim((string)($server['SERVER_NAME'] ?? ''));
+
+    $allowedRaw = $allowedHostsEnv ?? (string)(getenv('ALLOWED_HOSTS') ?: ($_ENV['ALLOWED_HOSTS'] ?? ''));
+    $allowed = array_values(array_filter(
+        array_map('trim', explode(',', $allowedRaw)),
+        fn(string $h): bool => $h !== '' && (bool)preg_match($hostPattern, $h)
+    ));
+
+    if (!empty($allowed)) {
+        foreach ($allowed as $entry) {
+            if (strcasecmp($rawHost, $entry) === 0) {
+                return $entry;
+            }
+        }
+        return $allowed[0];
+    }
+
+    if (preg_match($hostPattern, $rawHost)) {
+        return $rawHost;
+    }
+    return preg_match($hostPattern, $serverName) ? $serverName : '127.0.0.1:8000';
+}
+
 // Base URL detection with Host Header sanitization & optional APP_URL override
 $appUrlEnv = getenv('APP_URL') ?: (getenv('BASE_URL') ?: null);
 if ($appUrlEnv) {
@@ -164,19 +245,9 @@ if ($appUrlEnv) {
                 (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')
                 ? 'https://' : 'http://';
 
-    $rawHost = $_SERVER['HTTP_HOST'] ?? ($_SERVER['SERVER_NAME'] ?? '127.0.0.1:8000');
-    // Strictly allow valid hostnames, domains, IPs, and optional port
-    if (preg_match('/^[a-zA-Z0-9.\-]+(:[0-9]{1,5})?$/', $rawHost)) {
-        $host = $rawHost;
-    } else {
-        $host = $_SERVER['SERVER_NAME'] ?? '127.0.0.1:8000';
-    }
+    $host = qrsar_resolve_host($_SERVER);
 
-    $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
-    $scriptDir = preg_replace('#/api$#', '', (string)$scriptDir);
-    if ($scriptDir === '/' || $scriptDir === '.') {
-        $scriptDir = '';
-    }
+    $scriptDir = qrsar_detect_base_path($_SERVER, dirname(__DIR__));
     $baseUrl = rtrim($protocol . $host . ($scriptDir ? '/' . ltrim($scriptDir, '/') : ''), '/');
 }
 define('BASE_URL', $baseUrl);
@@ -333,6 +404,31 @@ function assetUrl(string $path): string {
 defined('DEFAULT_RESET_PASSWORD') || define('DEFAULT_RESET_PASSWORD', getenv('DEFAULT_RESET_PASSWORD') ?: 'Kendari304');
 
 /**
+ * Memastikan URL aset/logo/ikon memakai skema yang aman (http/https, jalur lokal /uploads|assets, atau data:image raster).
+ * Mengembalikan $fallback bila mengandung skema berbahaya (javascript:, data:text/html, data:image/svg+xml, dll.).
+ */
+function qrsar_sanitize_asset_url(?string $rawUrl, string $fallback = ''): string {
+    $url = trim((string)($rawUrl ?? ''));
+    if ($url === '' || preg_match('/[\x00-\x1F\x7F"\'<>]/', $url) || str_contains($url, '..') || str_contains($url, '\\')) {
+        return $fallback;
+    }
+    if (preg_match('#^data:image/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$#i', $url)) {
+        return $url;
+    }
+    if (preg_match('#^/?(?:uploads|assets)/[A-Za-z0-9_.\-/]+(\?[A-Za-z0-9_=&.\-]+)?$#', $url)) {
+        return $url;
+    }
+    if (preg_match('#^https?://#i', $url) && filter_var($url, FILTER_VALIDATE_URL)) {
+        $parsed = parse_url($url);
+        $scheme = strtolower((string)($parsed['scheme'] ?? ''));
+        if (in_array($scheme, ['http', 'https'], true) && !empty($parsed['host']) && empty($parsed['user']) && empty($parsed['pass'])) {
+            return $url;
+        }
+    }
+    return $fallback;
+}
+
+/**
  * Global App Logo Helper (Resolves from AppSettings.logo_url)
  * Normalized to current domain/origin to prevent CORS & broken links
  */
@@ -344,7 +440,7 @@ function getAppLogoUrl(): string {
 
     try {
         $settings = SettingsModel::getSettings();
-        $rawLogo = trim((string)($settings['logo_url'] ?? ''));
+        $rawLogo = qrsar_sanitize_asset_url((string)($settings['logo_url'] ?? ''), '');
 
         if (!empty($rawLogo)) {
             if (str_starts_with($rawLogo, 'data:image/')) {
@@ -407,7 +503,7 @@ function qrsar_logo_data_uri(string $settingKey, string $defaultPath): string {
         default => 'image/png'
     };
     try {
-        $rawLogo = trim((string)(SettingsModel::getSettings()[$settingKey] ?? ''));
+        $rawLogo = qrsar_sanitize_asset_url((string)(SettingsModel::getSettings()[$settingKey] ?? ''), '');
         if (str_starts_with($rawLogo, 'data:image/')) {
             return $rawLogo;
         }

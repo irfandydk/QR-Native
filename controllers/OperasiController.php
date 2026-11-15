@@ -532,7 +532,7 @@ class OperasiController extends BaseController {
             'operasi' => $operasi,
             'gisBundle' => $gisBundle
         ], [
-            'title' => 'Operasi: ' . htmlspecialchars($operasi['nama_operasi']),
+            'title' => 'Operasi: ' . ($operasi['nama_operasi'] ?? ''),
             'route' => 'operasi_detail',
             'useGis' => true,
             'navbarTitle' => 'PUSAT KENDALI OPERASI SAR',
@@ -631,6 +631,8 @@ class OperasiController extends BaseController {
             $waktuBriefing = !empty($renops['waktu_briefing']) ? date('Y-m-d\TH:i', strtotime($renops['waktu_briefing'])) : date('Y-m-d\T07:00');
             $waktuMulaiOps = !empty($renops['waktu_mulai_ops']) ? date('Y-m-d\TH:i', strtotime($renops['waktu_mulai_ops'])) : date('Y-m-d\T07:30');
             $cuaca = $renops['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
+            $gelombang = $renops['gelombang'] ?? ($operasi['gelombang'] ?? '');
+            $angin = $renops['angin'] ?? ($operasi['angin'] ?? '');
             $initialUnsurData = !empty($renops['detail_unsur']) ? $renops['detail_unsur'] : ($operasi['detail_unsur'] ?? []);
             $initialAlutData = !empty($renops['detail_alut']) ? $renops['detail_alut'] : ($operasi['detail_alut'] ?? []);
             $initialSrus = $renops['srus'] ?? [];
@@ -640,7 +642,9 @@ class OperasiController extends BaseController {
             $hariKe = $nextRenops['hari_ke'] ?? TemplateHelper::hitungHariKe($operasi, $tanggalLaporan);
             $waktuBriefing = $tanggalLaporan . 'T07:00';
             $waktuMulaiOps = $tanggalLaporan . 'T07:30';
-            $cuaca = $nextRenops['inherited_cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
+            $cuaca = ($nextRenops['inherited_cuaca'] ?? '') !== '' ? $nextRenops['inherited_cuaca'] : ($operasi['cuaca'] ?: 'Cerah Berawan');
+            $gelombang = ($nextRenops['inherited_gelombang'] ?? '') !== '' ? $nextRenops['inherited_gelombang'] : ($operasi['gelombang'] ?? '');
+            $angin = ($nextRenops['inherited_angin'] ?? '') !== '' ? $nextRenops['inherited_angin'] : ($operasi['angin'] ?? '');
             $initialUnsurData = !empty($nextRenops['inherited_unsur']) ? $nextRenops['inherited_unsur'] : (!empty($operasi['detail_unsur']) ? $operasi['detail_unsur'] : []);
             $initialAlutData = !empty($nextRenops['inherited_alut']) ? $nextRenops['inherited_alut'] : (!empty($operasi['detail_alut']) ? $operasi['detail_alut'] : []);
 
@@ -768,6 +772,8 @@ class OperasiController extends BaseController {
             'waktuBriefing' => $waktuBriefing,
             'waktuMulaiOps' => $waktuMulaiOps,
             'cuaca' => $cuaca,
+            'gelombang' => $gelombang,
+            'angin' => $angin,
             'initialUnsurData' => $initialUnsurData,
             'initialAlutData' => $initialAlutData,
             'initialSrus' => $initialSrus,

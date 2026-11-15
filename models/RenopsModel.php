@@ -7,14 +7,15 @@
 declare(strict_types=1);
 
 class RenopsModel {
-    private static bool $schemaChecked = false;
+    private static ?bool $weatherColsAvailable = null;
 
     public static function ensureSchemaUpdated(bool $force = false): void {
         if (!$force) return;
-        if (self::$schemaChecked) return;
-        self::$schemaChecked = true;
+        self::$weatherColsAvailable = null;
         try {
             $db = getDB();
+            if ($db->inTransaction()) return;
+
             $cols = $db->query("SHOW COLUMNS FROM RenopsSRU LIKE 'total_sapuan'")->fetchAll();
             if (empty($cols)) {
                 $db->exec("ALTER TABLE RenopsSRU ADD COLUMN total_sapuan VARCHAR(191) NULL DEFAULT NULL");
@@ -27,8 +28,33 @@ class RenopsModel {
             if (empty($colsSj)) {
                 $db->exec("ALTER TABLE Renops ADD COLUMN satuan_jarak VARCHAR(20) NULL DEFAULT 'NM'");
             }
+            $weatherCols = [
+                'gelombang' => "ALTER TABLE Renops ADD COLUMN gelombang VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL AFTER cuaca",
+                'angin' => "ALTER TABLE Renops ADD COLUMN angin VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL AFTER gelombang",
+            ];
+            foreach ($weatherCols as $colName => $alterSql) {
+                $colCheck = $db->query("SHOW COLUMNS FROM Renops LIKE '{$colName}'")->fetchAll();
+                if (empty($colCheck)) {
+                    $db->exec($alterSql);
+                }
+            }
+            self::$weatherColsAvailable = true;
         } catch (Throwable $e) {
             error_log("[RenopsModel Schema Check] " . $e->getMessage());
+        }
+    }
+
+    private static function hasWeatherColumns(PDO $db): bool {
+        if (self::$weatherColsAvailable !== null) {
+            return self::$weatherColsAvailable;
+        }
+        try {
+            $g = !empty($db->query("SHOW COLUMNS FROM Renops LIKE 'gelombang'")->fetchAll());
+            $a = !empty($db->query("SHOW COLUMNS FROM Renops LIKE 'angin'")->fetchAll());
+            self::$weatherColsAvailable = ($g && $a);
+            return self::$weatherColsAvailable;
+        } catch (Throwable) {
+            return false;
         }
     }
 
@@ -148,8 +174,14 @@ class RenopsModel {
      */
     public static function buildPreviewWa(array $ops, array $data, ?array $existing = null): string {
         [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $existing);
+        [$cuaca, $gelombang, $angin] = OperasiModel::resolveWeatherFields($ops, $data, $existing);
+        $dataForWa = array_merge($data, [
+            'cuaca' => $cuaca,
+            'gelombang' => $gelombang,
+            'angin' => $angin,
+        ]);
         $srus = $data['srus'] ?? ($existing['srus'] ?? []);
-        return TemplateHelper::generateRenopsWA($ops, $data, $srus, $ops['korban'] ?? [], $unsur, $alut);
+        return TemplateHelper::generateRenopsWA($ops, $dataForWa, $srus, $ops['korban'] ?? [], $unsur, $alut);
     }
 
     public static function create(array $data): int {
@@ -165,12 +197,18 @@ class RenopsModel {
 
             $srus = $data['srus'] ?? [];
             [$unsur, $alut] = self::resolveUnsurAlut($ops, $data);
-            
+            [$cuaca, $gelombang, $angin] = OperasiModel::resolveWeatherFields($ops, $data);
+            $dataForWa = array_merge($data, [
+                'cuaca' => $cuaca,
+                'gelombang' => $gelombang,
+                'angin' => $angin,
+            ]);
+
             // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
             $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($ops['unsur_terlibat'] ?? ''));
             $alutText = OperasiModel::formatAlutText($alut, $data['alut_text'] ?? ($ops['alut_palsar'] ?? ''));
 
-            $fullTextWa = TemplateHelper::generateRenopsWA($ops, $data, $srus, $ops['korban'], $unsur, $alut);
+            $fullTextWa = TemplateHelper::generateRenopsWA($ops, $dataForWa, $srus, $ops['korban'], $unsur, $alut);
 
             $satuanRaw = strtoupper(trim((string)($data['satuan_jarak'] ?? 'NM')));
             $satuanJarak = in_array($satuanRaw, ['KM', 'M', 'NM']) ? $satuanRaw : 'NM';
@@ -178,32 +216,23 @@ class RenopsModel {
             try {
                 $hasSatuanCol = !empty($db->query("SHOW COLUMNS FROM Renops LIKE 'satuan_jarak'")->fetchAll());
             } catch (Throwable $e) {}
+            $hasWeatherCols = self::hasWeatherColumns($db);
 
-            if ($hasSatuanCol) {
-                $stmt = $db->prepare("INSERT INTO Renops (
-                    id_operasi, hari_ke, tanggal_laporan, waktu_briefing,
-                    waktu_mulai_ops, cuaca, satuan_jarak, unsur_text, alut_text,
-                    detail_unsur, detail_alut,
-                    full_text_wa, created_at
-                ) VALUES (
-                    :id_operasi, :hari_ke, :tanggal_laporan, :waktu_briefing,
-                    :waktu_mulai_ops, :cuaca, :satuan_jarak, :unsur_text, :alut_text,
-                    :detail_unsur, :detail_alut,
-                    :full_text_wa, :created_at
-                )");
-            } else {
-                $stmt = $db->prepare("INSERT INTO Renops (
-                    id_operasi, hari_ke, tanggal_laporan, waktu_briefing,
-                    waktu_mulai_ops, cuaca, unsur_text, alut_text,
-                    detail_unsur, detail_alut,
-                    full_text_wa, created_at
-                ) VALUES (
-                    :id_operasi, :hari_ke, :tanggal_laporan, :waktu_briefing,
-                    :waktu_mulai_ops, :cuaca, :unsur_text, :alut_text,
-                    :detail_unsur, :detail_alut,
-                    :full_text_wa, :created_at
-                )");
+            $cols = [
+                'id_operasi', 'hari_ke', 'tanggal_laporan', 'waktu_briefing',
+                'waktu_mulai_ops', 'cuaca',
+            ];
+            if ($hasWeatherCols) {
+                $cols[] = 'gelombang';
+                $cols[] = 'angin';
             }
+            if ($hasSatuanCol) {
+                $cols[] = 'satuan_jarak';
+            }
+            array_push($cols, 'unsur_text', 'alut_text', 'detail_unsur', 'detail_alut', 'full_text_wa', 'created_at');
+
+            $placeholders = array_map(static fn(string $col): string => ':' . $col, $cols);
+            $stmt = $db->prepare('INSERT INTO Renops (' . implode(', ', $cols) . ') VALUES (' . implode(', ', $placeholders) . ')');
 
             $now = date('Y-m-d H:i:s');
             // ISSUE-RENOPS-04: Normalisasi format tanggal dan waktu
@@ -220,7 +249,7 @@ class RenopsModel {
                 ':tanggal_laporan' => $tglLaporan,
                 ':waktu_briefing' => $waktuBriefing,
                 ':waktu_mulai_ops' => $waktuMulaiOps,
-                ':cuaca' => $data['cuaca'] ?? ($ops['cuaca'] ?? ''),
+                ':cuaca' => $cuaca,
                 ':unsur_text' => $unsurText,
                 ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
@@ -228,6 +257,10 @@ class RenopsModel {
                 ':full_text_wa' => $fullTextWa,
                 ':created_at' => $now
             ];
+            if ($hasWeatherCols) {
+                $params[':gelombang'] = $gelombang;
+                $params[':angin'] = $angin;
+            }
             if ($hasSatuanCol) {
                 $params[':satuan_jarak'] = $satuanJarak;
             }
@@ -245,7 +278,7 @@ class RenopsModel {
                         ':nama' => $s['nama_sru'],
                         ':koor' => $s['koordinat_area'] ?? '',
                         ':luas' => $s['luas_area'] ?? '',
-                        ':pola' => $s['pola_pencarian'] ?? 'Parallel Track Search',
+                        ':pola' => $s['pola_pencarian'] ?? '',
                         ':sapuan' => $s['total_sapuan'] ?? '',
                         ':track' => !empty($s['track_spacing']) ? $s['track_spacing'] : null
                     ]);
@@ -271,7 +304,10 @@ class RenopsModel {
 
         try {
             $renops = self::getById($id);
-            if (!$renops) return false;
+            if (!$renops) {
+                if ($db->inTransaction()) $db->rollBack();
+                return false;
+            }
 
             $ops = OperasiModel::getById((int)$renops['id_operasi']);
             if ($ops && $ops['status'] === 'CLOSED') {
@@ -279,12 +315,18 @@ class RenopsModel {
             }
             $srus = $data['srus'] ?? $renops['srus'];
             [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $renops);
+            [$cuaca, $gelombang, $angin] = OperasiModel::resolveWeatherFields($ops, $data, $renops);
+            $dataForWa = array_merge($data, [
+                'cuaca' => $cuaca,
+                'gelombang' => $gelombang,
+                'angin' => $angin,
+            ]);
 
             // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
             $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($renops['unsur_text'] ?: ($ops['unsur_terlibat'] ?? '')));
             $alutText = OperasiModel::formatAlutText($alut, $data['alut_text'] ?? ($renops['alut_text'] ?: ($ops['alut_palsar'] ?? '')));
 
-            $fullTextWa = TemplateHelper::generateRenopsWA($ops, $data, $srus, $ops['korban'], $unsur, $alut);
+            $fullTextWa = TemplateHelper::generateRenopsWA($ops, $dataForWa, $srus, $ops['korban'], $unsur, $alut);
 
             // ISSUE-RENOPS-04: Normalisasi format tanggal dan waktu
             $tglLaporan = !empty($data['tanggal_laporan']) ? substr($data['tanggal_laporan'], 0, 10) : ($renops['tanggal_laporan'] ?? date('Y-m-d'));
@@ -296,35 +338,24 @@ class RenopsModel {
             try {
                 $hasSatuanCol = !empty($db->query("SHOW COLUMNS FROM Renops LIKE 'satuan_jarak'")->fetchAll());
             } catch (Throwable $e) {}
+            $hasWeatherCols = self::hasWeatherColumns($db);
 
-            if ($hasSatuanCol) {
-                $stmt = $db->prepare("UPDATE Renops SET
-                    hari_ke = :hari_ke,
-                    tanggal_laporan = :tanggal_laporan,
-                    waktu_briefing = :waktu_briefing,
-                    waktu_mulai_ops = :waktu_mulai_ops,
-                    cuaca = :cuaca,
-                    satuan_jarak = :satuan_jarak,
-                    unsur_text = :unsur_text,
-                    alut_text = :alut_text,
-                    detail_unsur = :detail_unsur,
-                    detail_alut = :detail_alut,
-                    full_text_wa = :full_text_wa
-                    WHERE id_renops = :id");
-            } else {
-                $stmt = $db->prepare("UPDATE Renops SET
-                    hari_ke = :hari_ke,
-                    tanggal_laporan = :tanggal_laporan,
-                    waktu_briefing = :waktu_briefing,
-                    waktu_mulai_ops = :waktu_mulai_ops,
-                    cuaca = :cuaca,
-                    unsur_text = :unsur_text,
-                    alut_text = :alut_text,
-                    detail_unsur = :detail_unsur,
-                    detail_alut = :detail_alut,
-                    full_text_wa = :full_text_wa
-                    WHERE id_renops = :id");
+            $sets = [
+                'hari_ke = :hari_ke',
+                'tanggal_laporan = :tanggal_laporan',
+                'waktu_briefing = :waktu_briefing',
+                'waktu_mulai_ops = :waktu_mulai_ops',
+                'cuaca = :cuaca',
+            ];
+            if ($hasWeatherCols) {
+                $sets[] = 'gelombang = :gelombang';
+                $sets[] = 'angin = :angin';
             }
+            if ($hasSatuanCol) {
+                $sets[] = 'satuan_jarak = :satuan_jarak';
+            }
+            array_push($sets, 'unsur_text = :unsur_text', 'alut_text = :alut_text', 'detail_unsur = :detail_unsur', 'detail_alut = :detail_alut', 'full_text_wa = :full_text_wa');
+            $stmt = $db->prepare('UPDATE Renops SET ' . implode(', ', $sets) . ' WHERE id_renops = :id');
 
             $rawHari = trim((string)($data['hari_ke'] ?? $renops['hari_ke']));
             $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
@@ -335,13 +366,17 @@ class RenopsModel {
                 ':tanggal_laporan' => $tglLaporan,
                 ':waktu_briefing' => $waktuBriefing,
                 ':waktu_mulai_ops' => $waktuMulaiOps,
-                ':cuaca' => $data['cuaca'] ?? $renops['cuaca'],
+                ':cuaca' => $cuaca,
                 ':unsur_text' => $unsurText,
                 ':alut_text' => $alutText,
                 ':detail_unsur' => json_encode($unsur, JSON_UNESCAPED_UNICODE),
                 ':detail_alut' => json_encode($alut, JSON_UNESCAPED_UNICODE),
                 ':full_text_wa' => $fullTextWa
             ];
+            if ($hasWeatherCols) {
+                $updateParams[':gelombang'] = $gelombang;
+                $updateParams[':angin'] = $angin;
+            }
             if ($hasSatuanCol) {
                 $updateParams[':satuan_jarak'] = $satuanJarak;
             }
@@ -366,7 +401,7 @@ class RenopsModel {
                     $nama = trim((string)$s['nama_sru']);
                     $koor = $s['koordinat_area'] ?? '';
                     $luas = $s['luas_area'] ?? '';
-                    $pola = $s['pola_pencarian'] ?? 'Parallel Track Search';
+                    $pola = $s['pola_pencarian'] ?? '';
                     $sapuan = $s['total_sapuan'] ?? '';
                     $track = !empty($s['track_spacing']) ? $s['track_spacing'] : null;
 

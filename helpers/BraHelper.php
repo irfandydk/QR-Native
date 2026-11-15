@@ -75,15 +75,92 @@ class BraHelper {
         $out = array_map(static function (string $line): string {
             if (trim($line) === '') return '';
             $upper = trim(mb_strtoupper($line, 'UTF-8'));
-            if (preg_match('/^(\d+|[A-Z])\.\s/u', $upper) || preg_match('/TTK DUA\s*$/u', $upper)) return $upper;
+            if (preg_match('/^(\d+|[A-Z])\.\s/u', $upper) || preg_match('/TTK DUA\s*$/u', $upper)) {
+                return trim(self::convertDatesToTw($upper));
+            }
             return self::sanitizeTelegramLine($line);
         }, $lines);
         return trim(preg_replace('/\n{3,}/', "\n\n", implode("\n", $out)));
     }
 
+    private static function convertDatesToTw(string $text): string {
+        static $monthMap = [
+            'JANUARI' => '01', 'JANUARY' => '01', 'JAN' => '01',
+            'FEBRUARI' => '02', 'FEBRUARY' => '02', 'FEB' => '02', 'PEBRUARI' => '02',
+            'MARET' => '03', 'MARCH' => '03', 'MAR' => '03', 'MRT' => '03',
+            'APRIL' => '04', 'APR' => '04',
+            'MEI' => '05', 'MAY' => '05',
+            'JUNI' => '06', 'JUNE' => '06', 'JUN' => '06',
+            'JULI' => '07', 'JULY' => '07', 'JUL' => '07',
+            'AGUSTUS' => '08', 'AUGUST' => '08', 'AGU' => '08', 'AGT' => '08', 'AGUST' => '08', 'AUG' => '08',
+            'SEPTEMBER' => '09', 'SEP' => '09', 'SEPT' => '09',
+            'OKTOBER' => '10', 'OCTOBER' => '10', 'OKT' => '10', 'OCT' => '10',
+            'NOVEMBER' => '11', 'NOPEMBER' => '11', 'NOV' => '11', 'NOP' => '11',
+            'DESEMBER' => '12', 'DECEMBER' => '12', 'DES' => '12', 'DEC' => '12',
+        ];
+        $zoneCode = static fn(?string $z): string => ['WIB' => 'G', 'WIT' => 'I'][strtoupper((string)$z)] ?? 'H';
+        $fmtDate = static function (int $mo, int $d, ?int $h = null, ?int $mi = null, ?string $z = null) use ($zoneCode): ?string {
+            if ($d < 1 || $d > 31 || $mo < 1 || $mo > 12) return null;
+            $mmdd = sprintf('%02d%02d', $mo, $d);
+            $zc = $zoneCode($z);
+            return ($h !== null && $mi !== null) ? sprintf('TW %s %02d%02d %s', $mmdd, $h, $mi, $zc) : "TW {$mmdd} {$zc}";
+        };
+
+        // 1. ISO YYYY-MM-DD HH:ii(:ss) dan YYYY-MM-DD (kompatibel 0000 H untuk ISO tanpa jam)
+        $formatted = preg_replace_callback(
+            '/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?(?:\s*(WITA|WIB|WIT)\b)?/i',
+            static fn($m) => $fmtDate((int)$m[2], (int)$m[3], (int)$m[4], (int)$m[5], $m[7] ?? null) ?? $m[0],
+            $text
+        );
+        $formatted = preg_replace_callback(
+            '/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})\b/i',
+            static fn($m) => "TW {$m[2]}{$m[3]} 0000 H",
+            $formatted
+        );
+
+        // 2. Format tanggal Indonesia: "15 November 2026", "15 Nov 2026 pukul 08.00 WITA", "15/11/2026", "15 November"
+        $hariRe = '(?:SENIN|SELASA|RABU|KAMIS|JUMAT|JUM\'AT|SABTU|MINGGU)';
+        $prefix = '(?:\bTW\s+)?(?:\b(?:TANGGAL|TGL\.?)\s+)?(?:\bHARI\s+)?(?:\b' . $hariRe . ',?\s+)?';
+        $tail = '(?:,?\s*(?:PUKUL|PKL\.?|JAM)\s+(\d{1,2})[.:](\d{2})(?:\s*(WITA|WIB|WIT)\b)?|,?\s+(\d{1,2}):(\d{2})(?:\s*(WITA|WIB|WIT)\b)?|\s+(\d{1,2})\.(\d{2})\s*(WITA|WIB|WIT)\b|(?:\s*,)?\s*(WITA|WIB|WIT)\b)?';
+        $allMonths = implode('|', array_keys($monthMap));
+        $fullMonths = 'JANUARI|FEBRUARI|PEBRUARI|MARET|APRIL|MEI|JUNI|JULI|AGUSTUS|SEPTEMBER|OKTOBER|NOVEMBER|NOPEMBER|DESEMBER';
+
+        $applyTail = static function (int $mo, int $d, array $m, int $offset) use ($fmtDate): string {
+            $h = null; $mi = null; $z = null;
+            if (($m[$offset] ?? '') !== '') {
+                $h = (int)$m[$offset]; $mi = (int)$m[$offset + 1]; $z = $m[$offset + 2] ?? null;
+            } elseif (($m[$offset + 3] ?? '') !== '') {
+                $h = (int)$m[$offset + 3]; $mi = (int)$m[$offset + 4]; $z = $m[$offset + 5] ?? null;
+            } elseif (($m[$offset + 6] ?? '') !== '') {
+                $h = (int)$m[$offset + 6]; $mi = (int)$m[$offset + 7]; $z = $m[$offset + 8] ?? null;
+            } elseif (($m[$offset + 9] ?? '') !== '') {
+                $z = $m[$offset + 9];
+            }
+            return $fmtDate($mo, $d, $h, $mi, $z) ?? $m[0];
+        };
+
+        $formatted = preg_replace_callback(
+            '/' . $prefix . '\b(\d{1,2})\s+(' . $allMonths . ')\s+((?:19|20)\d{2})' . $tail . '/iu',
+            static fn($m) => $applyTail((int)$monthMap[strtoupper($m[2])], (int)$m[1], $m, 4),
+            $formatted
+        );
+        $formatted = preg_replace_callback(
+            '/' . $prefix . '\b(\d{1,2})[\/\-](\d{1,2})[\/\-]((?:19|20)\d{2})' . $tail . '/iu',
+            static fn($m) => $applyTail((int)$m[2], (int)$m[1], $m, 4),
+            $formatted
+        );
+        $formatted = preg_replace_callback(
+            '/' . $prefix . '\b(\d{1,2})\s+(' . $fullMonths . ')(?!\s+\d{4}\b)' . $tail . '/iu',
+            static fn($m) => $applyTail((int)$monthMap[strtoupper($m[2])], (int)$m[1], $m, 3),
+            $formatted
+        );
+
+        return preg_replace('/\bTW\s+TW\b/i', 'TW', $formatted);
+    }
+
     private static function sanitizeTelegramLine(string $text): string {
-        // 1. Ubah ke Uppercase
-        $formatted = mb_strtoupper($text, 'UTF-8');
+        // 1. Konversi tanggal (termasuk yang berada di dalam tanda kurung) & ubah ke Uppercase
+        $formatted = self::convertDatesToTw(mb_strtoupper($text, 'UTF-8'));
 
         // Keterangan dalam kurung (mis. pelapor/HP) dipertahankan apa adanya
         $kurung = [];
@@ -91,23 +168,6 @@ class BraHelper {
             $kurung[] = $m[0];
             return '__KURUNG_' . (count($kurung) - 1) . '__';
         }, $formatted);
-
-        // 1.5. Konversi kebocoran format tanggal ISO YYYY-MM-DD HH:ii:ss atau YYYY-MM-DD ke sandi militer MMDD HHMM H
-        $formatted = preg_replace_callback(
-            '/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})(?::(\d{2}))?/i',
-            function($m) {
-                return "TW {$m[2]}{$m[3]} {$m[4]}{$m[5]} H";
-            },
-            $formatted
-        );
-        $formatted = preg_replace_callback(
-            '/(?:TW\s+)?(\d{4})-(\d{2})-(\d{2})\b/i',
-            function($m) {
-                return "TW {$m[2]}{$m[3]} 0000 H";
-            },
-            $formatted
-        );
-        $formatted = preg_replace('/\bTW\s+TW\b/i', 'TW', $formatted);
 
         // 2. Proteksi desimal angka koordinat (misal 03° 58' 30.0" S - 122° 35' 12.5" T)
         $formatted = preg_replace_callback('/(\d+)\.(\d+)/', function($m) {

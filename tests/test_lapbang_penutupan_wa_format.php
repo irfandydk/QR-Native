@@ -356,8 +356,9 @@ assertCase(
     && !str_contains($waHarian, 'DAN PENUTUPAN')
     && str_contains($waHarian, 'Dengan hormat, mohon izin melaporkan Perkembangan Operasi SAR Kecelakaan Kapal')
     && !str_contains($waHarian, 'debriefing penutupan')
-    && str_contains($waHarian, '- DP : 1 Orang'),
-    "LAPBANG Harian memakai judul & pembuka Perkembangan serta tanpa klausul penutupan"
+    && !str_contains($waHarian, 'Data Korban:')
+    && !str_contains($waHarian, 'Identitas Korban:'),
+    "LAPBANG Harian memakai judul & pembuka Perkembangan tanpa klausul penutupan maupun blok Data/Identitas Korban"
 );
 
 $waNihilTutup = WhatsAppTemplateService::generateLapbangWA(
@@ -613,6 +614,27 @@ assertCase(
 assertCase(
     !str_contains($jsSrc, '1. Tim SAR Gabungan telah melaksanakan') && str_contains($jsSrc, '- Tim SAR Gabungan telah melaksanakan'),
     "Template cepat H.7 pada sitrep_form.js menggunakan bullet '-' selaras format WA"
+);
+
+// 4. RENOPS Cuaca Terpisah (cuaca, gelombang, angin) + HierarchyHelper + Backup Recovery
+echo "\n--- 4. RENOPS Cuaca Terpisah (DB, HierarchyHelper, WA) ---\n";
+$waRenopsWeather = WhatsAppTemplateService::generateRenopsWA(
+    ['nama_operasi' => 'Uji Renops Cuaca', 'cuaca' => 'Cerah', 'gelombang' => '0,5 M', 'angin' => '5 Kts'],
+    ['hari_ke' => 'H.2', 'tanggal_laporan' => '2026-11-15', 'cuaca' => 'Berawan', 'gelombang' => '1,2 M', 'angin' => '12 Kts dari Timur'],
+    [], [], [], []
+);
+assertCase(
+    str_contains($waRenopsWeather, "• cuaca : Berawan\n• Gelombang : 1,2 M\n• Angin: 12 Kts dari Timur (Sumber BMKG)"),
+    "RENOPS WA menghasilkan 3 baris cuaca terpisah + Sumber BMKG"
+);
+$renopsPreview = RenopsModel::buildPreviewWa(
+    ['nama_operasi' => 'Uji Renops Preview', 'cuaca' => 'Cerah', 'gelombang' => '0,3 M', 'angin' => '4 Kts'],
+    ['hari_ke' => 'H.2', 'gelombang' => '1,5 M'],
+    null
+);
+assertCase(
+    str_contains($renopsPreview, "• cuaca : Cerah\n• Gelombang : 1,5 M\n• Angin: 4 Kts (Sumber BMKG)"),
+    "RenopsModel::buildPreviewWa mewarisi fallback cuaca Operasi secara parsial"
 );
 
 echo "\nRingkasan: Lulus {$passed}, Gagal {$failed}\n";

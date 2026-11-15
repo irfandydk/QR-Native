@@ -82,7 +82,7 @@ abstract class BaseApiController {
      */
     public static function requireCsrf(array $input = []): void {
         if (AuthHelper::isLoggedIn()) {
-            $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($input['csrf_token'] ?? ($_POST['csrf_token'] ?? ($_GET['csrf_token'] ?? null)));
+            $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($input['csrf_token'] ?? ($_POST['csrf_token'] ?? null));
             if (!validateCsrf($csrfToken)) {
                 self::error('Validasi CSRF gagal: Token keamanan tidak valid atau sesi Anda telah kedaluwarsa.', 403, 'CSRF_INVALID');
             }

@@ -182,7 +182,7 @@ class Router {
         } else {
             echo '404 - Halaman Tidak Ditemukan';
         }
-        return false;
+        return true;
     }
 
     /**
@@ -213,9 +213,10 @@ class Router {
      * Serves static assets securely with appropriate MIME types, caching headers, and ETag/304 support
      */
     public static function serveStaticFile(string $filePath): bool {
+        $rootDir = defined('ROOT_DIR') ? ROOT_DIR : dirname(__DIR__);
         $realPath = realpath($filePath);
-        $realRoot = realpath(ROOT_DIR);
-        if (!$realPath || !$realRoot || !str_starts_with($realPath, $realRoot)) {
+        $realRoot = realpath($rootDir);
+        if (!$realPath || !$realRoot || !str_starts_with($realPath, $realRoot . DIRECTORY_SEPARATOR)) {
             http_response_code(403);
             header('Content-Type: text/plain; charset=UTF-8');
             echo 'Akses Ditolak';
@@ -263,7 +264,9 @@ class Router {
         $etag = '"' . md5($lastModified . filesize($realPath)) . '"';
 
         header('Content-Type: ' . $mimeType);
-        $realUploads = realpath(UPLOADS_DIR);
+        header('X-Content-Type-Options: nosniff');
+        $uploadsDir = defined('UPLOADS_DIR') ? UPLOADS_DIR : ($rootDir . '/uploads');
+        $realUploads = realpath($uploadsDir);
         if ($realUploads && str_starts_with($realPath, $realUploads . DIRECTORY_SEPARATOR)) {
             // Cegah skrip di SVG unggahan berjalan bila berkas dibuka langsung (stored XSS)
             header("Content-Security-Policy: default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");

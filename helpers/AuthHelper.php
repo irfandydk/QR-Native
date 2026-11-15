@@ -429,6 +429,7 @@ class AuthHelper {
         if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
             @session_regenerate_id(true);
         }
+        unset($_SESSION['csrf_token']);
         $_SESSION['user_id'] = $user['id'] ?? null;
         $_SESSION['username'] = $user['username'] ?? 'system';
         $_SESSION['nama'] = $user['nama'] ?? 'Petugas SAR';

@@ -146,11 +146,21 @@ $waOutput = TemplateHelper::generateLapbangWA($opsMock, [
     'hari_ke' => 'H.1',
     'isi_laporan' => 'Korban ditemukan selamat.',
     'waktu_debrief' => '2026-10-18 17:00:00'
-], $opsMock['korban'], $sampleUnsur, $sampleAlut, false);
+], $opsMock['korban'], $sampleUnsur, $sampleAlut, true);
 
 assertTest(
     str_contains($waOutput, 'Selamat') || str_contains($waOutput, 'SELAMAT'),
-    "Teks WA yang dihasilkan oleh TemplateHelper::generateLapbangWA memuat status terkini 'Selamat'"
+    "Teks WA Penutupan yang dihasilkan oleh TemplateHelper::generateLapbangWA memuat status terkini 'Selamat'"
+);
+
+$waHarianOnly = TemplateHelper::generateLapbangWA($opsMock, [
+    'hari_ke' => 'H.1',
+    'isi_laporan' => 'Korban masih dalam pencarian.'
+], $opsMock['korban'], $sampleUnsur, $sampleAlut, false);
+
+assertTest(
+    !str_contains($waHarianOnly, 'Data Korban:') && !str_contains($waHarianOnly, 'Identitas Korban:'),
+    "Teks WA LAPBANG rutin tidak menyertakan Data Korban maupun Identitas Korban"
 );
 
 // -------------------------------------------------------------

@@ -265,6 +265,9 @@ class BackupService {
             if (class_exists('LaporanModel')) {
                 LaporanModel::ensureSchemaUpdated(true);
             }
+            if (class_exists('RenopsModel')) {
+                RenopsModel::ensureSchemaUpdated(true);
+            }
             // Cadangan sebelum fitur kategori alut: isi ulang master & item laporan.
             AlutKategori::pulihkan($db, AlutKategori::cadanganTanpaKategori($data));
             if (class_exists('SettingsModel')) {
@@ -632,6 +635,9 @@ class BackupService {
             OperasiModel::ensureSchemaUpdated(true);
             if (class_exists('LaporanModel')) {
                 LaporanModel::ensureSchemaUpdated(true);
+            }
+            if (class_exists('RenopsModel')) {
+                RenopsModel::ensureSchemaUpdated(true);
             }
             AlutKategori::pulihkan($db);
             if (class_exists('SettingsModel')) {

@@ -40,11 +40,15 @@
         </IfModule>
     </Directory>
 
-    # Keamanan Direktori Uploads (Cegah Eksekusi Skrip PHP)
+    # Keamanan Direktori Uploads (Cegah Eksekusi Skrip PHP & skrip SVG pada File Unggahan)
     <Directory "/var/www/html/QR-SAR/uploads">
         <FilesMatch "\.php$">
             Require all denied
         </FilesMatch>
+        <IfModule mod_headers.c>
+            Header set X-Content-Type-Options "nosniff"
+            Header set Content-Security-Policy "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox"
+        </IfModule>
     </Directory>
 
     # Log Server

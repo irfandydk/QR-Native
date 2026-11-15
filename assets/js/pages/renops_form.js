@@ -263,11 +263,13 @@ function renderSruList() {
   }
 
   currentSrus.forEach((s, idx) => {
-    // Auto-detect and sync area, pattern, and sweep from GIS plotting if missing or legacy placeholder
-    if (!s.luas_area || s.luas_area === '10 Nm²' || s.luas_area === '10 NM²' || s.luas_area.trim() === '') {
-      const matchedPoly = (SAR_GIS_BUNDLE.polygons || []).find((p, pIdx) => {
-        if (s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())) return true;
-        if (idx === pIdx && (SAR_GIS_BUNDLE.polygons || []).length === currentSrus.length) return true;
+    const isManualMode = s.id_polygon === 'manual';
+
+    // Auto-detect and sync area, pattern, and sweep from GIS plotting if explicitly linked or matching named sector
+    if (!isManualMode && (!s.luas_area || s.luas_area === '10 Nm²' || s.luas_area === '10 NM²' || s.luas_area.trim() === '')) {
+      const matchedPoly = (SAR_GIS_BUNDLE.polygons || []).find((p) => {
+        if (s.id_polygon && String(p.id) === String(s.id_polygon)) return true;
+        if (!s.id_polygon && s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())) return true;
         return false;
       });
       if (matchedPoly) {
@@ -278,14 +280,14 @@ function renderSruList() {
       }
     }
 
-    if (!s.total_sapuan) {
-      const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find((p, pIdx) => {
-        if (s.nama_sru && p.polygonName && s.nama_sru.toLowerCase().includes(p.polygonName.toLowerCase())) return true;
-        if (s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())) return true;
-        if (idx === pIdx && (SAR_GIS_BUNDLE.searchPatterns || []).length === currentSrus.length) return true;
+    if (!isManualMode && !s.total_sapuan) {
+      const matchedPattern = (SAR_GIS_BUNDLE.searchPatterns || []).find((p) => {
+        if (s.id_polygon && p.polygonId && String(p.polygonId) === String(s.id_polygon)) return true;
+        if (!s.id_polygon && s.nama_sru && p.polygonName && s.nama_sru.toLowerCase().includes(p.polygonName.toLowerCase())) return true;
+        if (!s.id_polygon && s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())) return true;
         return false;
       });
-      if (matchedPattern) {
+      if (matchedPattern && (s.id_polygon || (s.nama_sru && matchedPattern.polygonName && s.nama_sru.toLowerCase().includes(matchedPattern.polygonName.toLowerCase())))) {
         const isEsar = (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search');
         const legs = matchedPattern.legsCount || (matchedPattern.waypoints ? Math.max(1, Math.floor(matchedPattern.waypoints.length / 2)) : 6);
         const spacing = formatRenopsSpacingShort(matchedPattern.trackSpacingNm || 1.0);
@@ -294,10 +296,12 @@ function renderSruList() {
           ? `${legs} Personel E-SAR (Spasi: ${spacing}, Total: ${dist})`
           : `${legs} Sapuan (Spasi: ${spacing}, Total: ${dist})`;
         s.track_spacing = spacing;
-        if (matchedPattern.patternType === 'creeping_line') s.pola_pencarian = 'Creeping Line Search';
-        else if (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search') s.pola_pencarian = 'Pola Pencarian E-SAR';
-        else if (matchedPattern.patternType === 'track_line') s.pola_pencarian = 'Track Line Search';
-        else s.pola_pencarian = 'Parallel Track Search';
+        if (!s.pola_pencarian) {
+          if (matchedPattern.patternType === 'creeping_line') s.pola_pencarian = 'Creeping Line Search';
+          else if (matchedPattern.patternType === 'e_sar' || matchedPattern.patternType === 'sector_search') s.pola_pencarian = 'Pola Pencarian E-SAR';
+          else if (matchedPattern.patternType === 'track_line') s.pola_pencarian = 'Track Line Search';
+          else s.pola_pencarian = 'Parallel Track Search';
+        }
       }
     }
 
@@ -309,16 +313,22 @@ function renderSruList() {
     const sapuanVal = s.total_sapuan || '';
 
     const polygonsList = SAR_GIS_BUNDLE.polygons || [];
-    const polyOptionsHtml = polygonsList.length > 0
-      ? `<option value="">-- Pilih Sektor dari Plotting GIS (${polygonsList.length} Sektor Tersedia) --</option>` +
-        polygonsList.map(p => {
-          const aNum = calculatePolygonAreaNm2(p);
-          const areaDisplay = formatRenopsAreaShort(aNum);
-          const isMatched = (s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase()));
-          const shapeIcon = p.shapeType === 'circle' ? '⭕' : (p.shapeType === 'rectangle' ? '⏹️' : '📐');
-          return `<option value="${escapeHtml(p.id)}" ${isMatched ? 'selected' : ''}>${shapeIcon} ${escapeHtml(p.name)} (${areaDisplay})</option>`;
-        }).join('')
-      : `<option value="">(Belum ada search area di plotting GIS)</option>`;
+    const isLinkedGis = !isManualMode && (
+      (s.id_polygon && polygonsList.some(p => String(p.id) === String(s.id_polygon))) ||
+      (!s.id_polygon && polygonsList.some(p => s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())))
+    );
+
+    const polyOptionsHtml = `<option value="" ${!isLinkedGis ? 'selected' : ''}>-- Tanpa Sektor GIS (Mode Input Manual) --</option>` +
+      polygonsList.map(p => {
+        const aNum = calculatePolygonAreaNm2(p);
+        const areaDisplay = formatRenopsAreaShort(aNum);
+        const isMatched = !isManualMode && (
+          (s.id_polygon && String(s.id_polygon) === String(p.id)) ||
+          (!s.id_polygon && s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase()))
+        );
+        const shapeIcon = p.shapeType === 'circle' ? '⭕' : (p.shapeType === 'rectangle' ? '⏹️' : '📐');
+        return `<option value="${escapeHtml(p.id)}" ${isMatched ? 'selected' : ''}>${shapeIcon} ${escapeHtml(p.name)} (${areaDisplay})</option>`;
+      }).join('');
 
     card.innerHTML = `
       <div class="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-800">
@@ -348,17 +358,21 @@ function renderSruList() {
         </select>
       </div>
 
-      <!-- Ringkasan Data Otomatis Taktis (Luas Area, Pola Pencarian & Total Sapuan) -->
+      <!-- Ringkasan Data Taktis (Luas Area, Pola Pencarian & Total Sapuan) -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-xs">
         <div class="flex items-center gap-2.5">
           <div class="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 text-sm">
             📐
           </div>
-          <div class="min-w-0">
-            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Luas Area Pencarian</span>
-            <span class="font-mono font-bold text-xs ${luasVal ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 italic'}">
-              ${luasVal ? `✓ ${escapeHtml(luasVal)}` : 'Belum Terdeteksi'}
-            </span>
+          <div class="min-w-0 flex-1">
+            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">${isLinkedGis ? 'Luas Area Pencarian' : 'Luas Area (Manual)'}</span>
+            ${isLinkedGis ? `
+              <span class="font-mono font-bold text-xs ${luasVal ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 italic'}">
+                ${luasVal ? `✓ ${escapeHtml(luasVal)}` : 'Belum Terdeteksi'}
+              </span>
+            ` : `
+              <input type="text" placeholder="Contoh: 10 NM² (opsional)" value="${escapeHtml(s.luas_area || '')}" class="control control-xs w-full text-xs font-mono mt-0.5" oninput="setSruManualLuas(${idx}, this.value)">
+            `}
           </div>
         </div>
 
@@ -366,11 +380,23 @@ function renderSruList() {
           <div class="w-7 h-7 rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 text-sm">
             ⚡
           </div>
-          <div class="min-w-0">
-            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Pola Pencarian</span>
-            <span class="font-bold text-xs ${polaVal ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400 italic'} truncate block">
-              ${polaVal ? `✓ ${escapeHtml(polaVal)}` : '- (Belum ditentukan / Pilih dari Peta Plotting)'}
-            </span>
+          <div class="min-w-0 flex-1">
+            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">${isLinkedGis ? 'Pola Pencarian' : 'Pola Pencarian (Manual)'}</span>
+            ${isLinkedGis ? `
+              <span class="font-bold text-xs ${polaVal ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400 italic'} truncate block">
+                ${polaVal ? `✓ ${escapeHtml(polaVal)}` : '- (Belum ditentukan / Pilih dari Peta Plotting)'}
+              </span>
+            ` : `
+              <select onchange="setSruManualPola(${idx}, this.value)" class="control control-xs w-full text-xs font-medium cursor-pointer mt-0.5">
+                <option value="" ${!polaVal ? 'selected' : ''}>- (Belum ditentukan / Pilih dari Peta Plotting)</option>
+                <option value="Parallel Track Search" ${polaVal === 'Parallel Track Search' ? 'selected' : ''}>Parallel Track Search</option>
+                <option value="Creeping Line Search" ${polaVal === 'Creeping Line Search' ? 'selected' : ''}>Creeping Line Search</option>
+                <option value="Expanding Square Search" ${polaVal === 'Expanding Square Search' ? 'selected' : ''}>Expanding Square Search</option>
+                <option value="Sector Search" ${polaVal === 'Sector Search' ? 'selected' : ''}>Sector Search</option>
+                <option value="Track Line Search" ${polaVal === 'Track Line Search' ? 'selected' : ''}>Track Line Search</option>
+                <option value="Pola Pencarian E-SAR" ${polaVal === 'Pola Pencarian E-SAR' ? 'selected' : ''}>Pola Pencarian E-SAR</option>
+              </select>
+            `}
           </div>
         </div>
 
@@ -378,11 +404,15 @@ function renderSruList() {
           <div class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 text-sm">
             🔁
           </div>
-          <div class="min-w-0">
-            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Sapuan / Lintasan</span>
-            <span class="font-mono font-semibold text-[11px] ${sapuanVal ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 italic'} truncate block" title="${escapeHtml(sapuanVal)}">
-              ${sapuanVal ? `✓ ${escapeHtml(sapuanVal)}` : 'Otomatis dari Pola SAR'}
-            </span>
+          <div class="min-w-0 flex-1">
+            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">${isLinkedGis ? 'Total Sapuan / Lintasan' : 'Total Sapuan (Manual)'}</span>
+            ${isLinkedGis ? `
+              <span class="font-mono font-semibold text-[11px] ${sapuanVal ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 italic'} truncate block" title="${escapeHtml(sapuanVal)}">
+                ${sapuanVal ? `✓ ${escapeHtml(sapuanVal)}` : 'Otomatis dari Pola SAR'}
+              </span>
+            ` : `
+              <input type="text" placeholder="Contoh: 6 Sapuan (opsional)" value="${escapeHtml(s.total_sapuan || '')}" class="control control-xs w-full text-xs font-mono mt-0.5" oninput="setSruManualSapuan(${idx}, this.value)">
+            `}
           </div>
         </div>
       </div>
@@ -410,7 +440,19 @@ function renderSruList() {
 
 function applySektorToPlotting(targetIdx, polyId) {
   if (targetIdx < 0 || targetIdx >= currentSrus.length) return;
-  if (!polyId) return;
+  if (!polyId) {
+    // Mode Input Manual: Lepas sektor GIS dari SRU ini
+    currentSrus[targetIdx].id_polygon = 'manual';
+    currentSrus[targetIdx].luas_area = '';
+    currentSrus[targetIdx].pola_pencarian = '';
+    currentSrus[targetIdx].total_sapuan = '';
+    currentSrus[targetIdx].track_spacing = '';
+    renderSruList();
+    if (typeof showToast === 'function') {
+      showToast(`Sektor GIS dilepas dari SRU ${targetIdx + 1}. Beralih ke Mode Input Manual.`, 'info');
+    }
+    return;
+  }
 
   const poly = (SAR_GIS_BUNDLE.polygons || []).find(p => String(p.id) === String(polyId));
   if (!poly) return;
@@ -419,6 +461,7 @@ function applySektorToPlotting(targetIdx, polyId) {
   const coordsText = getPolygonCoordsText(poly);
   const areaFormatted = formatRenopsAreaShort(areaNum);
 
+  currentSrus[targetIdx].id_polygon = String(poly.id);
   currentSrus[targetIdx].nama_sru = `SRU ${targetIdx + 1} - ${poly.name}`;
   currentSrus[targetIdx].luas_area = areaFormatted;
   currentSrus[targetIdx].koordinat_area = `Sektor: ${poly.name} (${areaFormatted})\n${coordsText}`;
@@ -454,6 +497,31 @@ function applySektorToPlotting(targetIdx, polyId) {
   }
 }
 
+function setSruManualPola(targetIdx, val) {
+  if (targetIdx < 0 || targetIdx >= currentSrus.length) return;
+  currentSrus[targetIdx].pola_pencarian = val;
+  const h = typeof document.querySelector === 'function' ? document.querySelector(`input[name="srus[${targetIdx}][pola_pencarian]"]`) : null;
+  if (h) h.value = val;
+  renderSruList();
+}
+window.setSruManualPola = setSruManualPola;
+
+function setSruManualLuas(targetIdx, val) {
+  if (targetIdx < 0 || targetIdx >= currentSrus.length) return;
+  currentSrus[targetIdx].luas_area = val;
+  const h = typeof document.querySelector === 'function' ? document.querySelector(`input[name="srus[${targetIdx}][luas_area]"]`) : null;
+  if (h) h.value = val;
+}
+window.setSruManualLuas = setSruManualLuas;
+
+function setSruManualSapuan(targetIdx, val) {
+  if (targetIdx < 0 || targetIdx >= currentSrus.length) return;
+  currentSrus[targetIdx].total_sapuan = val;
+  const h = typeof document.querySelector === 'function' ? document.querySelector(`input[name="srus[${targetIdx}][total_sapuan]"]`) : null;
+  if (h) h.value = val;
+}
+window.setSruManualSapuan = setSruManualSapuan;
+
 // Tombol "Sinkronkan Sektor Plotting ke SRU": alur yang sama dengan "Impor per SRU" (menggabung, SRU manual tetap).
 async function syncAllPlottingSectorsToSru() {
   if ((SAR_GIS_BUNDLE.polygons || []).length === 0) {
@@ -471,7 +539,8 @@ function addSruRow() {
     koordinat_area: '',
     luas_area: '',
     pola_pencarian: '',
-    total_sapuan: ''
+    total_sapuan: '',
+    id_polygon: 'manual'
   });
   renderSruList();
 }
@@ -1471,7 +1540,7 @@ function describeAreaForSru(item) {
     tugas += `\nRute: ${r.name} (Panjang: ${dist}, Kecepatan: ${speed})`;
   }
   if (coordsText) tugas += `\nBatas Koordinat:\n${coordsText}`;
-  const fields = { nama_sru: name, koordinat_area: tugas, luas_area: area };
+  const fields = { nama_sru: name, koordinat_area: tugas, luas_area: area, id_polygon: String(item.id) };
   if (item.pattern) {
     const patInfo = getPatternDetails(item.pattern);
     fields.pola_pencarian = patInfo.pola;
@@ -1689,10 +1758,12 @@ function importPointToSru(ptId, targetIdx) {
 function saveRenopsDraft() {
   if (isRenopsEditMode) return;
   const draft = {
-    tanggal: document.getElementById('input-tanggal')?.value,
-    waktu_briefing: document.getElementById('input-waktu-briefing')?.value,
-    waktu_mulai: document.getElementById('input-waktu-mulai')?.value,
-    cuaca: document.getElementById('input-cuaca')?.value,
+    tanggal: document.getElementById('renops_tanggal_laporan')?.value,
+    waktu_briefing: document.getElementById('renops_waktu_briefing')?.value,
+    waktu_mulai: document.getElementById('renops_waktu_mulai_ops')?.value,
+    cuaca: document.getElementById('renops_cuaca')?.value,
+    gelombang: document.getElementById('renops_gelombang')?.value,
+    angin: document.getElementById('renops_angin')?.value,
     komunikasi: document.getElementById('input-komunikasi')?.value,
     catatan: document.getElementById('input-catatan')?.value,
     srus: currentSrus,
@@ -1710,9 +1781,15 @@ function restoreRenopsDraft() {
   try {
     const d = JSON.parse(raw);
     if (!d) return;
-    if (d.cuaca) document.getElementById('input-cuaca').value = d.cuaca;
-    if (d.komunikasi) document.getElementById('input-komunikasi').value = d.komunikasi;
-    if (d.catatan) document.getElementById('input-catatan').value = d.catatan;
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val) el.value = val;
+    };
+    setVal('renops_cuaca', d.cuaca);
+    setVal('renops_gelombang', d.gelombang);
+    setVal('renops_angin', d.angin);
+    setVal('input-komunikasi', d.komunikasi);
+    setVal('input-catatan', d.catatan);
     if (Array.isArray(d.srus) && d.srus.length > 0) { currentSrus = d.srus; renderSruList(); }
     if (Array.isArray(d.unsur) && d.unsur.length > 0) { currentUnsurList = d.unsur; renderUnsurList(); }
     if (Array.isArray(d.alut) && d.alut.length > 0) { currentAlutList = d.alut; renderAlutList(); }
@@ -1814,7 +1891,8 @@ window.RENOPS_FORM = {
   formatDistance: formatRenopsDistance,
   formatDistanceShort: formatRenopsDistanceShort,
   formatSpacingShort: formatRenopsSpacingShort,
-  formatSpeed: formatRenopsSpeed
+  formatSpeed: formatRenopsSpeed,
+  getCurrentSrus: () => currentSrus
 };
 
 // Cross-tab auto-sync when plotting data is saved/updated/deleted in GIS map tab

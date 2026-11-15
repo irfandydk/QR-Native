@@ -675,19 +675,22 @@ class GisApiController extends BaseApiController {
             self::error('Akses ditolak: Hanya Administrator yang berwenang menghapus aset logo/ikon kustom.', 403);
         }
         $filename = trim((string)($input['filename'] ?? ''));
-        if (empty($filename) || !preg_match('/^[a-zA-Z0-9_\-\.]+$/', $filename)) {
+        if ($filename === '' || !preg_match('/^icon_\d+_[0-9a-f]{8}\.(png|jpe?g|svg|webp)$/i', $filename)) {
             self::error('Nama berkas ikon tidak valid.', 400);
         }
-        $targetDir = ROOT_DIR . '/uploads/icons';
-        $filePath = $targetDir . '/' . $filename;
-        if (file_exists($filePath)) {
-            @unlink($filePath);
+        $baseDir = realpath(ROOT_DIR . '/uploads/icons');
+        if ($baseDir !== false) {
+            $filePath = realpath($baseDir . '/' . $filename);
+            if ($filePath !== false && str_starts_with($filePath, $baseDir . DIRECTORY_SEPARATOR) && is_file($filePath)) {
+                @unlink($filePath);
+            }
         }
 
         try {
             $db = getDB();
-            $stmt = $db->prepare("UPDATE GisPoint SET customIconUrl = NULL, pointType = 'pin_umum' WHERE customIconUrl LIKE :pattern");
-            $stmt->execute([':pattern' => '%' . $filename . '%']);
+            $escapedFilename = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $filename);
+            $stmt = $db->prepare("UPDATE GisPoint SET customIconUrl = NULL, pointType = 'pin_umum' WHERE customIconUrl LIKE :pattern ESCAPE '!'");
+            $stmt->execute([':pattern' => '%uploads/icons/' . $escapedFilename]);
         } catch (Throwable) {}
 
         self::json(['success' => true, 'message' => 'Logo kustom berhasil dihapus dari galeri dan dilepas dari titik peta.']);
@@ -792,14 +795,7 @@ class GisApiController extends BaseApiController {
                 session_write_close();
             }
             $tileUrl = trim((string)($_GET['url'] ?? ''));
-            $parsed = parse_url($tileUrl);
-            $host = strtolower((string)($parsed['host'] ?? ''));
-            $allowedHosts = [
-                'mt0.google.com', 'mt1.google.com', 'mt2.google.com', 'mt3.google.com',
-                'tile.openstreetmap.org', 'a.tile.openstreetmap.org', 'b.tile.openstreetmap.org', 'c.tile.openstreetmap.org',
-                'server.arcgisonline.com'
-            ];
-            if (!in_array($host, $allowedHosts, true) || !in_array(strtolower((string)($parsed['scheme'] ?? '')), ['http', 'https'], true)) {
+            if (!self::isAllowedTileUrl($tileUrl)) {
                 http_response_code(400);
                 exit;
             }
@@ -811,19 +807,24 @@ class GisApiController extends BaseApiController {
 
             if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < 604800)) {
                 $imgBytes = @file_get_contents($cacheFile);
-                if ($imgBytes !== false && strlen($imgBytes) >= 32) {
-                    header('Content-Type: image/png');
+                $cachedMime = $imgBytes !== false ? self::detectValidTileMime($imgBytes) : null;
+                if ($cachedMime !== null) {
+                    header('Content-Type: ' . $cachedMime);
+                    header('X-Content-Type-Options: nosniff');
                     header('Cache-Control: public, max-age=604800, immutable');
                     header('Access-Control-Allow-Origin: *');
                     echo $imgBytes;
                     exit;
                 }
+                @unlink($cacheFile);
             }
 
             $ctx = stream_context_create([
                 'http' => [
                     'method' => 'GET',
                     'timeout' => 5,
+                    'follow_location' => 0,
+                    'max_redirects' => 0,
                     'header' => "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) QR-SAR-GIS/2.5\r\n"
                 ],
                 'ssl' => [
@@ -832,7 +833,8 @@ class GisApiController extends BaseApiController {
                 ]
             ]);
             $imgBytes = @file_get_contents($tileUrl, false, $ctx);
-            if ($imgBytes === false || strlen($imgBytes) < 32) {
+            $mime = $imgBytes !== false ? self::detectValidTileMime($imgBytes) : null;
+            if ($mime === null) {
                 http_response_code(404);
                 exit;
             }
@@ -842,7 +844,8 @@ class GisApiController extends BaseApiController {
             }
             @file_put_contents($cacheFile, $imgBytes);
 
-            header('Content-Type: image/png');
+            header('Content-Type: ' . $mime);
+            header('X-Content-Type-Options: nosniff');
             header('Cache-Control: public, max-age=604800, immutable');
             header('Access-Control-Allow-Origin: *');
             echo $imgBytes;
@@ -850,6 +853,46 @@ class GisApiController extends BaseApiController {
         }
 
         return false;
+    }
+
+    public static function isAllowedTileUrl(string $tileUrl): bool {
+        if ($tileUrl === '' || preg_match('/[\x00-\x1F\x7F\s]/', $tileUrl)) {
+            return false;
+        }
+        $parsed = parse_url($tileUrl);
+        if (!is_array($parsed)) {
+            return false;
+        }
+        if (strtolower((string)($parsed['scheme'] ?? '')) !== 'https') {
+            return false;
+        }
+        if (isset($parsed['user']) || isset($parsed['pass']) || isset($parsed['fragment'])) {
+            return false;
+        }
+        if (isset($parsed['port']) && (int)$parsed['port'] !== 443) {
+            return false;
+        }
+        $host = strtolower((string)($parsed['host'] ?? ''));
+        $allowedHosts = [
+            'mt0.google.com', 'mt1.google.com', 'mt2.google.com', 'mt3.google.com',
+            'tile.openstreetmap.org', 'a.tile.openstreetmap.org', 'b.tile.openstreetmap.org', 'c.tile.openstreetmap.org',
+            'server.arcgisonline.com'
+        ];
+        if (!in_array($host, $allowedHosts, true)) {
+            return false;
+        }
+        $urlPath = (string)($parsed['path'] ?? '');
+        return $urlPath !== '' && str_starts_with($urlPath, '/') && !str_contains($urlPath, '..');
+    }
+
+    public static function detectValidTileMime(string $bytes): ?string {
+        $len = strlen($bytes);
+        if ($len < 32 || $len > 2097152) {
+            return null;
+        }
+        $info = @getimagesizefromstring($bytes);
+        $mime = is_array($info) ? strtolower((string)($info['mime'] ?? '')) : '';
+        return in_array($mime, ['image/png', 'image/jpeg', 'image/webp'], true) ? $mime : null;
     }
 
     /**

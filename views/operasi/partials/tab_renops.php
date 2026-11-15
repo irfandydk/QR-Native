@@ -64,7 +64,7 @@ $renopsDocStatus = RenopsDokumenModel::statusByOperasi((int)$id);
         $renForWa['hari_ke'] = $dynamicHariKe;
 
         $renWa = $ren['full_text_wa'] ?? '';
-        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false || strpos($renWa, 'Data Korban:') !== false) {
+        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false || strpos($renWa, 'Data Korban:') !== false || strpos($renWa, '• Gelombang :') === false) {
             $renWa = TemplateHelper::generateRenopsWA($operasi, $renForWa, $ren['srus'] ?? [], $operasi['korban'] ?? [], $snapUnsur, $snapAlut);
         } elseif (!empty($ren['hari_ke']) && $ren['hari_ke'] !== $dynamicHariKe) {
             // PHP-05: Pertahankan snapshot historis full_text_wa; hanya sesuaikan label H.x pada header jika berbeda
@@ -135,7 +135,16 @@ $renopsDocStatus = RenopsDokumenModel::statusByOperasi((int)$id);
                 </div>
                 <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/70 dark:border-slate-800">
                     <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">Prakiraan Cuaca BMKG</span>
-                    <span class="font-bold text-slate-800 dark:text-slate-200 truncate block"><?= e($ren['cuaca']) ?></span>
+                    <span class="font-bold text-slate-800 dark:text-slate-200 truncate block"><?= e(($ren['cuaca'] ?? '') !== '' ? $ren['cuaca'] : ($operasi['cuaca'] ?: '-')) ?></span>
+                    <?php
+                        $renGel = trim((string)(($ren['gelombang'] ?? '') !== '' ? $ren['gelombang'] : ($operasi['gelombang'] ?? '')));
+                        $renAng = trim((string)(($ren['angin'] ?? '') !== '' ? $ren['angin'] : ($operasi['angin'] ?? '')));
+                    ?>
+                    <?php if ($renGel !== '' || $renAng !== ''): ?>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400 truncate block mt-0.5">
+                        Gel: <?= e($renGel !== '' ? $renGel : '-') ?> &bull; Angin: <?= e($renAng !== '' ? $renAng : '-') ?>
+                    </span>
+                    <?php endif; ?>
                 </div>
             </div>
 

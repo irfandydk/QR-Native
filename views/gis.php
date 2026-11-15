@@ -323,9 +323,9 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
     </div>
 
     <!-- Right Section: Master Unit Switcher, Basemap Pills, Ekspor & Fullscreen -->
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
       <!-- Master Satuan Switcher (Dinamis: NM | KM | M) -->
-      <div id="gisGlobalUnitSwitcher" class="bg-slate-100 dark:bg-slate-950/90 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center text-[11px] font-bold" title="Satuan Pengukuran Dinamis Peta Taktis">
+      <div id="gisGlobalUnitSwitcher" class="bg-slate-100 dark:bg-slate-950/90 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center text-[11px] font-bold shrink-0" title="Satuan Pengukuran Dinamis Peta Taktis">
         <span class="text-[11px] text-slate-400 font-mono px-1.5 uppercase hidden lg:inline">Unit:</span>
         <button type="button" data-global-unit="NM" class="btn-tactile global-unit-pill-btn px-2 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition font-bold cursor-pointer">
           NM
@@ -339,7 +339,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       </div>
 
       <!-- 4-Pill Basemap Switcher -->
-      <div class="bg-slate-100 dark:bg-slate-950/90 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center text-[11px] font-bold">
+      <div class="bg-slate-100 dark:bg-slate-950/90 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center text-[11px] font-bold shrink-0">
         <button type="button" data-layer="hybrid" class="btn-tactile basemap-pill-btn px-2.5 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition cursor-pointer">
           Hybrid
         </button>
@@ -355,27 +355,27 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       </div>
 
       <!-- Capture Peta Cetak 16:9 Button -->
-      <button type="button" id="btnToggleCaptureMode" class="btn-tactile flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer" title="Capture / Screenshot Area Peta 16:9 untuk Dokumen Cetak Resmi (Laporan Awal, RENOPS, LAPBANG, Penutupan)">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <button type="button" id="btnToggleCaptureMode" class="btn-tactile shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer" title="Capture / Screenshot Area Peta 16:9 untuk Dokumen Cetak Resmi (Laporan Awal, RENOPS, LAPBANG, Penutupan)">
+        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         <span class="hidden sm:inline">Capture Peta Cetak</span>
       </button>
 
       <!-- Ekspor Data Spasial Button (Opens Scope-Aware Export Modal) -->
-      <div class="relative" id="exportMenuWrapper">
-        <button type="button" id="btnToggleExportMenu" class="btn-tactile flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-xs cursor-pointer" title="Ekspor Data Spasial (KMZ, KML, GeoJSON)">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      <div class="relative shrink-0" id="exportMenuWrapper">
+        <button type="button" id="btnToggleExportMenu" class="btn-tactile shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-xs cursor-pointer" title="Ekspor Data Spasial (KMZ, KML, GeoJSON)">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
           <span class="hidden sm:inline">Ekspor Spasial</span>
         </button>
       </div>
 
       <!-- Impor KML/KMZ Button (Opens Interactive Import Modal) -->
-      <button type="button" id="btnOpenImportKmlModal" class="btn-tactile flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 hover:text-white border border-slate-700 text-xs font-bold transition shadow-xs cursor-pointer" title="Impor Berkas KML / KMZ">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      <button type="button" id="btnOpenImportKmlModal" class="btn-tactile shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white border border-sky-500/30 text-xs font-bold transition shadow-xs cursor-pointer" title="Impor Berkas KML / KMZ">
+        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
         <span class="hidden sm:inline">Impor KML/KMZ</span>
       </button>
 
       <!-- Fullscreen Toggle -->
-      <button type="button" id="btnToggleFullscreen" class="btn-tactile p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 transition cursor-pointer" title="Layar Penuh">
+      <button type="button" id="btnToggleFullscreen" class="btn-tactile shrink-0 p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 transition cursor-pointer" title="Layar Penuh">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
       </button>
     </div>
@@ -384,7 +384,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
   <!-- ========================================== -->
   <!-- 2. MAIN WORKSPACE CONTAINER                -->
   <!-- ========================================== -->
-  <div class="flex-1 flex overflow-hidden relative" style="height: calc(100% - 48px);">
+  <div class="flex-1 min-h-0 flex overflow-hidden relative">
 
     <!-- LEFT TOOLS PLOTTING PANEL (COLLAPSIBLE) -->
     <div id="gisSidebarPanel" class="w-[390px] max-w-full cockpit-glass border-r border-slate-200/80 dark:border-slate-800/80 flex flex-col z-10 transition-all duration-300 shadow-xl relative select-none shrink-0">
@@ -796,6 +796,13 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
               <div class="flex items-center gap-1.5 flex-wrap" id="polyStrokeColorSwatches">
                 <!-- Color dots -->
               </div>
+              <div class="flex items-center justify-between text-[11px] pt-1.5 mt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                <span class="text-slate-600 dark:text-slate-400 font-medium">Warna Garis Kustom:</span>
+                <div class="flex items-center gap-2">
+                  <input type="color" id="polyCustomStrokeColorInput" value="#ea580c" class="w-7 h-7 p-0 border border-slate-300 dark:border-slate-700 rounded-lg cursor-pointer bg-transparent">
+                  <span id="polyCustomStrokeColorHex" class="font-mono text-xs font-bold text-slate-700 dark:text-slate-300">#EA580C</span>
+                </div>
+              </div>
             </div>
 
             <!-- Stroke Weight Slider -->
@@ -824,6 +831,13 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
               </div>
               <div class="flex items-center gap-1.5 flex-wrap" id="polyFillColorSwatches">
                 <!-- Color dots -->
+              </div>
+              <div class="flex items-center justify-between text-[11px] pt-1.5 mt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                <span class="text-slate-600 dark:text-slate-400 font-medium">Warna Isi Kustom:</span>
+                <div class="flex items-center gap-2">
+                  <input type="color" id="polyCustomFillColorInput" value="#ea580c" class="w-7 h-7 p-0 border border-slate-300 dark:border-slate-700 rounded-lg cursor-pointer bg-transparent">
+                  <span id="polyCustomFillColorHex" class="font-mono text-xs font-bold text-slate-700 dark:text-slate-300">#EA580C</span>
+                </div>
               </div>
             </div>
 
@@ -1022,32 +1036,32 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             <!-- Kustomisasi Warna, Transparansi & Gaya Garis Pola SAR -->
             <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 space-y-2.5">
               <div class="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                <span>Kustomisasi Garis Pola SAR</span>
-                <span id="patternOpacityValDisplay" class="font-mono text-sky-600 dark:text-sky-400 font-bold">90%</span>
+                <span>Garis & Warna Pola SAR</span>
+                <span id="labelPatternLineColor" class="font-mono text-sky-600 dark:text-sky-400 font-bold text-[11px]">#0284C7</span>
               </div>
 
               <!-- Color Palette & Custom Picker -->
               <div class="space-y-1.5">
-                <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400">Warna Garis Lintasan:</label>
+                <label class="block text-[11px] font-bold text-slate-500 dark:text-slate-400">Palet Warna Cepat:</label>
+                <div class="flex items-center gap-1.5 flex-wrap" id="patternColorSwatches">
+                  <!-- Rendered via JS -->
+                </div>
+              </div>
+
+              <!-- Custom Color Picker Row -->
+              <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+                <span class="text-slate-600 dark:text-slate-400 font-medium">Warna Kustom:</span>
                 <div class="flex items-center gap-2">
-                  <input type="color" id="patternLineColor" value="#0284c7" class="w-8 h-8 rounded-lg cursor-pointer border border-slate-300 dark:border-slate-700 bg-transparent p-0.5" title="Pilih warna bebas">
-                  <div class="flex items-center gap-1.5 flex-1 flex-wrap">
-                    <button type="button" class="w-6 h-6 rounded-md bg-[#0284c7] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#0284c7" title="Biru Taktis"></button>
-                    <button type="button" class="w-6 h-6 rounded-md bg-[#f97316] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#f97316" title="Oranye Basarnas"></button>
-                    <button type="button" class="w-6 h-6 rounded-md bg-[#ef4444] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#ef4444" title="Merah"></button>
-                    <button type="button" class="w-6 h-6 rounded-md bg-[#eab308] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#eab308" title="Kuning"></button>
-                    <button type="button" class="w-6 h-6 rounded-md bg-[#10b981] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#10b981" title="Hijau"></button>
-                    <button type="button" class="w-6 h-6 rounded-md bg-[#a855f7] border border-white/20 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#a855f7" title="Ungu"></button>
-                    <button type="button" class="w-6 h-6 rounded-md bg-[#ffffff] border border-slate-400 shadow-xs cursor-pointer hover:scale-110 transition pat-color-preset" data-color="#ffffff" title="Putih"></button>
-                  </div>
+                  <input type="color" id="patternLineColor" value="#0284c7" class="w-7 h-7 p-0 border border-slate-300 dark:border-slate-700 rounded-lg cursor-pointer bg-transparent" title="Pilih warna bebas">
+                  <span id="patternCustomColorHex" class="font-mono text-xs font-bold text-slate-700 dark:text-slate-300">#0284C7</span>
                 </div>
               </div>
 
               <!-- Opacity Slider -->
               <div class="space-y-1">
                 <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                  <span class="font-bold">Transparansi / Opasitas Garis:</span>
-                  <span class="text-[11px] text-slate-400">10% - 100%</span>
+                  <span class="font-bold">Transparansi Garis:</span>
+                  <span id="patternOpacityValDisplay" class="font-mono text-slate-900 dark:text-white font-bold">90%</span>
                 </div>
                 <input type="range" id="patternLineOpacity" min="0.1" max="1" step="0.05" value="0.9" class="w-full accent-sky-600 dark:accent-sky-500 cursor-pointer">
               </div>
@@ -1157,10 +1171,6 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
               placeholder="Rute 1" 
               class="control control-sm w-full font-medium"
             >
-            <label for="measureRouteTargetArea" class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mt-2 mb-1">Area Tujuan (opsional — untuk nama otomatis &amp; impor RENOPS):</label>
-            <select id="measureRouteTargetArea" class="control control-sm w-full">
-              <option value="">— Tanpa Area Tujuan —</option>
-            </select>
           </div>
 
           <!-- Pilihan Mode Pengukuran / Rute: Jarak Lurus & Jalur Manual -->
@@ -1180,23 +1190,54 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             </div>
           </div>
 
+          <!-- Penyesuaian Garis & Warna Rute -->
+          <div class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block">Garis & Warna Rute:</span>
+              <span id="labelRouteStrokeColor" class="font-mono text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">#10B981</span>
+            </div>
+
+            <!-- Preset Color Swatches -->
+            <div class="flex items-center gap-1.5 flex-wrap" id="routeColorSwatches">
+              <!-- Rendered via JS -->
+            </div>
+
+            <!-- Custom Color Picker Row -->
+            <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-200/60 dark:border-slate-800">
+              <span class="text-slate-600 dark:text-slate-400 font-medium">Warna Kustom:</span>
+              <div class="flex items-center gap-2">
+                <input type="color" id="routeCustomColorInput" value="#10b981" class="w-7 h-7 p-0 border border-slate-300 dark:border-slate-700 rounded-lg cursor-pointer bg-transparent">
+                <span id="routeCustomColorHex" class="font-mono text-xs font-bold text-slate-700 dark:text-slate-300">#10b981</span>
+              </div>
+            </div>
+
+            <!-- Stroke Weight Slider -->
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-0.5">
+                <span class="text-slate-600 dark:text-slate-400 font-medium">Ketebalan Garis:</span>
+                <span id="labelRouteStrokeWeight" class="font-mono text-slate-900 dark:text-white font-bold">3.5 px</span>
+              </div>
+              <input type="range" id="routeStrokeWeightSlider" min="1.5" max="8" step="0.5" value="3.5" class="w-full accent-emerald-500">
+            </div>
+
+            <!-- Stroke Opacity Slider -->
+            <div>
+              <div class="flex items-center justify-between text-[11px] mb-0.5">
+                <span class="text-slate-600 dark:text-slate-400 font-medium">Transparansi Garis:</span>
+                <span id="labelRouteStrokeOpacity" class="font-mono text-slate-900 dark:text-white font-bold">90%</span>
+              </div>
+              <input type="range" id="routeStrokeOpacitySlider" min="0.2" max="1" step="0.05" value="0.9" class="w-full accent-emerald-500">
+            </div>
+          </div>
+
           <!-- Petunjuk & Counter Plotting Manual -->
           <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-700 dark:text-emerald-300 space-y-1.5">
             <div class="font-bold flex items-center justify-between">
-              <span class="flex items-center gap-1.5 font-bold"><span></span> Plotting Titik Pada Peta</span>
-              <div class="flex items-center gap-1.5">
-                <button type="button" id="btnResetMeasureLine" onclick="window.SAR_GIS && window.SAR_GIS.resetMeasureLine()" class="px-2 py-0.5 text-[11px] font-bold rounded-lg bg-slate-500/15 hover:bg-slate-500/25 text-slate-700 dark:text-slate-300 border border-slate-500/30 transition cursor-pointer" title="Kosongkan titik garis untuk membuat ulang">
-                  <span>Reset Garis</span>
-                </button>
-                <button type="button" id="btnUndoMeasureRouteWaypoint" onclick="window.SAR_GIS && window.SAR_GIS.undoRoutePoint()" class="px-2 py-0.5 text-[11px] font-bold rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 border border-amber-500/30 transition cursor-pointer flex items-center gap-1" title="Batalkan / hapus titik waypoint terakhir">
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7v6h6M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-                  <span>Undo Titik</span>
-                </button>
-                <span id="manualPointsCounter" class="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">0 Titik</span>
-              </div>
+              <span class="flex items-center gap-1.5 font-bold">Plotting Titik Pada Peta</span>
+              <span id="manualPointsCounter" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">0 Titik</span>
             </div>
             <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-tight">
-              Klik pada peta untuk menambah titik rute. Pin waypoint dapat digeser pada peta untuk koreksi posisi, atau gunakan <b>Undo Titik</b> untuk membatalkan titik terakhir.
+              Klik pada peta untuk menambah titik rute. Pin waypoint dapat digeser pada peta untuk koreksi posisi, atau gunakan tombol <b>Undo</b> di bawah untuk membatalkan titik terakhir.
             </p>
           </div>
 
@@ -1264,12 +1305,14 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
           <!-- Feedback Alert Banner -->
           <div id="routeSaveFeedbackBanner" class="hidden text-xs p-2.5 rounded-xl transition"></div>
 
-          <!-- Action Buttons (Batal / Bersihkan, Undo & Simpan Rute) -->
+          <!-- Action Buttons (Bersihkan Garis, Undo Titik & Simpan Rute) -->
           <div class="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <button type="button" id="btnClearMeasureRoute" onclick="window.SAR_GIS && window.SAR_GIS.clearRoute()" class="px-3 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer" title="Bersihkan seluruh jalur">
+            <button type="button" id="btnClearMeasureRoute" onclick="window.SAR_GIS && window.SAR_GIS.clearRoute()" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer" title="Kosongkan seluruh titik garis rute (reset garis)">
               Bersihkan
             </button>
-            <button type="button" id="btnBottomUndoRoute" onclick="window.SAR_GIS && window.SAR_GIS.undoRoutePoint()" class="px-3 py-2 text-xs font-bold rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition cursor-pointer flex items-center gap-1" title="Undo titik rute terakhir">
+            <button type="button" id="btnResetMeasureLine" class="hidden" onclick="window.SAR_GIS && window.SAR_GIS.resetMeasureLine()"></button>
+            <button type="button" id="btnUndoMeasureRouteWaypoint" class="hidden" onclick="window.SAR_GIS && window.SAR_GIS.undoRoutePoint()"></button>
+            <button type="button" id="btnBottomUndoRoute" onclick="window.SAR_GIS && window.SAR_GIS.undoRoutePoint()" class="px-3.5 py-2 text-xs font-bold rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition cursor-pointer flex items-center gap-1.5" title="Batalkan titik rute terakhir (1 per 1)">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7v6h6M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
               <span>Undo</span>
             </button>
@@ -1508,272 +1551,6 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
         </div>
       </div>
 
-      <!-- ======================================================== -->
-      <!-- MODAL EKSPOR DATA SPASIAL (KML / KMZ / GEOJSON)           -->
-      <!-- ======================================================== -->
-      <div id="exportSpatialModal" class="fixed inset-0 z-[1050] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden" role="dialog" aria-modal="true" aria-labelledby="exportModalTitle">
-        <div class="cockpit-glass bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto flex flex-col p-6 text-slate-800 dark:text-slate-100 transition-all">
-          <!-- Modal Header -->
-          <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-            <div class="flex items-center gap-2.5">
-              <div class="w-8 h-8 rounded-xl bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-              </div>
-              <div>
-                <h3 id="exportModalTitle" class="text-sm font-extrabold text-slate-900 dark:text-white">Ekspor Data Spasial SAR</h3>
-                <p class="text-[11px] text-slate-500 dark:text-slate-400">Unduh data plotting untuk Google Earth, QGIS, atau ATAK</p>
-              </div>
-            </div>
-            <button type="button" id="btnCloseExportModal" class="btn-tactile p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer" title="Tutup Dialog">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-          </div>
-
-          <!-- Modal Body -->
-          <div class="py-4 space-y-4 text-xs">
-            <!-- 1. Pilihan Lingkup / Cakupan Data (Scope) -->
-            <div>
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-2">1. Cakupan Data Ekspor (Scope)</label>
-              <div class="space-y-2">
-                <!-- Option A: Tampilan Saat Ini -->
-                <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/50 dark:bg-slate-800/40 cursor-pointer transition">
-                  <input type="radio" name="exportScope" value="current" checked class="mt-0.5 text-orange-600 focus:ring-orange-500">
-                  <div class="flex-1">
-                    <div class="font-bold text-slate-900 dark:text-white">Tampilan Peta Saat Ini</div>
-                    <div class="text-[11px] text-slate-500 dark:text-slate-400">Mengekspor layer yang sedang aktif sesuai filter saat ini</div>
-                  </div>
-                </label>
-
-                <!-- Option B: Operasi SAR Tertentu -->
-                <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/50 dark:bg-slate-800/40 cursor-pointer transition">
-                  <input type="radio" name="exportScope" value="operasi" class="mt-0.5 text-orange-600 focus:ring-orange-500">
-                  <div class="flex-1 space-y-2">
-                    <div class="font-bold text-slate-900 dark:text-white">Operasi SAR Aktif</div>
-                    <select id="exportOperasiSelect" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500">
-                      <?php if (empty($activeOperasiList)): ?>
-                        <option value="">(Tidak ada operasi SAR aktif)</option>
-                      <?php else: ?>
-                        <?php foreach ($activeOperasiList as $op): ?>
-                          <option value="<?= (int)$op['id_operasi'] ?>" <?= ($selectedOperasiId === (int)$op['id_operasi']) ? 'selected' : '' ?>>
-                            #<?= (int)$op['id_operasi'] ?> - <?= htmlspecialchars($op['nama_operasi']) ?>
-                          </option>
-                        <?php endforeach; ?>
-                      <?php endif; ?>
-                    </select>
-                    <label class="flex items-center gap-2 pt-0.5 cursor-pointer">
-                      <input type="checkbox" id="exportIncludeBaseCheck" checked class="rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500">
-                      <span class="text-[11px] text-slate-600 dark:text-slate-400">Sertakan Base Map Global (Potensi, Kansar, Pos SAR)</span>
-                    </label>
-                  </div>
-                </label>
-
-                <!-- Option C: Base Map Global -->
-                <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/50 dark:bg-slate-800/40 cursor-pointer transition">
-                  <input type="radio" name="exportScope" value="basemap" class="mt-0.5 text-orange-600 focus:ring-orange-500">
-                  <div class="flex-1">
-                    <div class="font-bold text-slate-900 dark:text-white">Base Map Global</div>
-                    <div class="text-[11px] text-slate-500 dark:text-slate-400">Komponen permanen pangkalan dan sarana pendukung (tanpa ID operasi)</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <!-- Opsi Layer Tersembunyi -->
-            <div class="pt-1">
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" id="exportIncludeHiddenCheck" class="rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500">
-                <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Sertakan Layer yang Sedang Disembunyikan (Ikon Mata Tertutup)</span>
-              </label>
-            </div>
-
-            <!-- 2. Pilihan Format Berkas -->
-            <div class="pt-2">
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-2">2. Format Berkas</label>
-              <div class="grid grid-cols-3 gap-2">
-                <label class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/50 dark:bg-slate-800/40 cursor-pointer transition text-center">
-                  <input type="radio" name="exportFormat" value="kmz" checked class="mb-1 text-orange-600 focus:ring-orange-500">
-                  <span class="font-black text-slate-900 dark:text-white text-xs">KMZ</span>
-                  <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Direkomendasikan</span>
-                  <span class="text-[10px] text-slate-400">Google Earth + Ikon</span>
-                </label>
-                <label class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/50 dark:bg-slate-800/40 cursor-pointer transition text-center">
-                  <input type="radio" name="exportFormat" value="kml" class="mb-1 text-orange-600 focus:ring-orange-500">
-                  <span class="font-black text-slate-900 dark:text-white text-xs">KML</span>
-                  <span class="text-[10px] text-slate-400">OGC Standar</span>
-                  <span class="text-[10px] text-slate-400">XML Dokumen</span>
-                </label>
-                <label class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/50 dark:bg-slate-800/40 cursor-pointer transition text-center">
-                  <input type="radio" name="exportFormat" value="geojson" class="mb-1 text-orange-600 focus:ring-orange-500">
-                  <span class="font-black text-slate-900 dark:text-white text-xs">GeoJSON</span>
-                  <span class="text-[10px] text-slate-400">Universal GIS</span>
-                  <span class="text-[10px] text-slate-400">QGIS / ATAK</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal Footer -->
-          <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
-            <button type="button" id="btnCancelExportModal" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer">
-              Batal
-            </button>
-            <button type="button" id="btnExecuteSpatialExport" class="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-              <span>Unduh Berkas</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ======================================================== -->
-      <!-- MODAL IMPOR DATA GEOSPASIAL (KML / KMZ)                   -->
-      <!-- ======================================================== -->
-      <div id="importKmlModal" class="fixed inset-0 z-[1050] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
-        <div class="cockpit-glass bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto flex flex-col p-6 text-slate-800 dark:text-slate-100 transition-all">
-          <!-- Modal Header -->
-          <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-            <div class="flex items-center gap-2.5">
-              <div class="w-8 h-8 rounded-xl bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 flex items-center justify-center">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-              </div>
-              <div>
-                <h3 id="importModalTitle" class="text-sm font-extrabold text-slate-900 dark:text-white">Impor Data Geospasial (KML / KMZ)</h3>
-                <p class="text-[11px] text-slate-500 dark:text-slate-400">Unggah berkas Google Earth KML / KMZ untuk dikurasi dan disimpan ke sistem QR-SAR</p>
-              </div>
-            </div>
-            <button type="button" id="btnCloseImportModal" class="btn-tactile p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer" title="Tutup Dialog">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-            </button>
-          </div>
-
-          <!-- Modal Body -->
-          <div class="py-4 space-y-5 text-xs">
-            <!-- Step 1: Berkas KML / KMZ -->
-            <div>
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">Langkah 1: Pilih Berkas KML / KMZ</label>
-              <div id="importDropZone" class="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-orange-500 dark:hover:border-orange-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center bg-slate-50/50 dark:bg-slate-800/30 transition cursor-pointer">
-                <input type="file" id="importKmlFileInput" accept=".kml,.kmz" class="hidden">
-                <div class="w-12 h-12 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center mb-2">
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M7 16a4 4 0 0 1-.88-7.903A5 5 0 1 1 15.9 6L16 6a5 5 0 0 1 1 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                </div>
-                <div class="font-bold text-slate-800 dark:text-slate-200 text-sm">Tarik &amp; lepas berkas di sini, atau <span class="text-orange-600 dark:text-orange-400 underline">pilih dari perangkat</span></div>
-                <div class="text-[11px] text-slate-400 mt-1">Mendukung berkas OGC KML 2.2 (.kml) dan Google Earth Terkompresi (.kmz)</div>
-                <div id="importFileInfo" class="mt-3 hidden inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-mono text-[11px]">
-                  <span id="importFileName" class="font-bold"></span>
-                  <span id="importFileSize" class="text-slate-500 dark:text-slate-400"></span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Step 2: Target Scope Selector -->
-            <div>
-              <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">Langkah 2: Target Penyimpanan Data</label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <!-- Target A: Operasi SAR Aktif -->
-                <label class="flex flex-col p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/50 dark:bg-slate-800/40 cursor-pointer transition">
-                  <div class="flex items-center gap-2">
-                    <input type="radio" id="importTargetTypeOperasi" name="importTargetType" value="operasi" checked class="text-orange-600 focus:ring-orange-500">
-                    <span class="font-bold text-slate-900 dark:text-white">Operasi SAR Aktif</span>
-                  </div>
-                  <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 mb-2">Tautkan seluruh entitas ke misi operasi pencarian aktif</div>
-                  <select id="importTargetOperasiSelect" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500">
-                    <?php if (empty($activeOperasiList)): ?>
-                      <option value="">(Tidak ada operasi SAR aktif)</option>
-                    <?php else: ?>
-                      <?php foreach ($activeOperasiList as $op): ?>
-                        <option value="<?= (int)$op['id_operasi'] ?>" <?= ($selectedOperasiId === (int)$op['id_operasi']) ? 'selected' : '' ?>>
-                          #<?= (int)$op['id_operasi'] ?> - <?= htmlspecialchars($op['nama_operasi']) ?>
-                        </option>
-                      <?php endforeach; ?>
-                    <?php endif; ?>
-                  </select>
-                </label>
-
-                <!-- Target B: Base Map Global -->
-                <label class="flex flex-col p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/50 dark:bg-slate-800/40 cursor-pointer transition <?= !$isAdmin ? 'opacity-60 cursor-not-allowed' : '' ?>">
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                      <input type="radio" id="importTargetTypeBasemap" name="importTargetType" value="basemap" <?= !$isAdmin ? 'disabled' : '' ?> class="text-orange-600 focus:ring-orange-500">
-                      <span class="font-bold text-slate-900 dark:text-white">Base Map Global</span>
-                    </div>
-                    <?php if (!$isAdmin): ?>
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30">Khusus Administrator</span>
-                    <?php endif; ?>
-                  </div>
-                  <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Data permanen pangkalan Basarnas, pos SAR, dan fasilitas potensi tanpa ID Operasi</div>
-                </label>
-              </div>
-              <?php if (!$isAdmin && empty($activeOperasiList)): ?>
-                <div class="mt-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[11px]">
-                  ⚠️ Tidak ada operasi SAR yang berstatus OPEN. Pengguna non-administrator hanya dapat mengimpor data ke operasi SAR aktif.
-                </div>
-              <?php endif; ?>
-            </div>
-
-            <!-- Step 3: Pratinjau & Kurasi Entitas -->
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <label class="font-bold text-slate-700 dark:text-slate-300">Langkah 3: Pratinjau &amp; Kurasi Entitas</label>
-                <!-- Counters Badges -->
-                <div class="flex items-center gap-1.5 text-[11px] font-mono">
-                  <span class="px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-bold" title="Titik Plotting">Titik: <span id="importCountPoints">0</span></span>
-                  <span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-bold" title="Sektor Poligon">Poligon: <span id="importCountPolygons">0</span></span>
-                  <span class="px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-bold" title="Pola Pencarian SAR">Pola SAR: <span id="importCountPatterns">0</span></span>
-                  <span class="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold" title="Jalur Navigasi">Jalur: <span id="importCountRoutes">0</span></span>
-                  <span class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold" title="Peringatan Validasi">Peringatan: <span id="importCountWarnings">0</span></span>
-                </div>
-              </div>
-
-              <!-- Warnings Alert Box -->
-              <div id="importWarningsBox" class="mb-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-300 hidden">
-                <div class="font-bold text-xs flex items-center gap-1.5 mb-1">
-                  <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                  <span>Peringatan Normalisasi Geospasial</span>
-                </div>
-                <ul id="importWarningsList" class="list-disc list-inside text-[11px] space-y-0.5 max-h-24 overflow-y-auto"></ul>
-              </div>
-
-              <!-- Bulk Toolbar -->
-              <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-[11px] mb-2 flex-wrap">
-                <div class="flex items-center gap-1.5">
-                  <button type="button" id="importSelectAllBtn" class="px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:text-orange-500 font-bold transition cursor-pointer">Pilih Semua</button>
-                  <button type="button" id="importDeselectAllBtn" class="px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:text-red-500 font-bold transition cursor-pointer">Kosongkan</button>
-                </div>
-                <div class="flex items-center gap-1.5">
-                  <span class="text-slate-400">Ubah Garis:</span>
-                  <button type="button" id="importSetAllLinesRoute" class="px-2 py-1 rounded bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white font-bold transition cursor-pointer">Semua Garis → Jalur</button>
-                  <button type="button" id="importSetAllLinesPattern" class="px-2 py-1 rounded bg-orange-600/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 hover:bg-orange-600 hover:text-white font-bold transition cursor-pointer">Semua Garis → Pola SAR</button>
-                </div>
-              </div>
-
-              <!-- Entity Preview List -->
-              <div id="importPreviewList" class="max-h-64 overflow-y-auto space-y-1.5 border border-slate-200 dark:border-slate-800 rounded-xl p-2 bg-slate-50/50 dark:bg-slate-900/50">
-                <div class="p-6 text-center text-slate-400 dark:text-slate-500">
-                  Pilih atau seret berkas KML / KMZ untuk memuat daftar entitas geospasial
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Modal Footer -->
-          <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <label class="flex items-center gap-2 cursor-pointer text-xs">
-              <input type="checkbox" id="importAutoZoomCheck" checked class="rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500">
-              <span class="font-medium text-slate-700 dark:text-slate-300">Fokuskan Peta ke Area Impor Otomatis</span>
-            </label>
-            <div class="flex items-center gap-2">
-              <button type="button" id="btnCancelImportKml" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer">
-                Batal
-              </button>
-              <button type="button" id="btnConfirmImportKml" disabled class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-                <span>Impor ke Database</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- Bottom Crosshair Coordinate HUD Bar (High-End Tactile Glass Pill) -->
       <div class="cockpit-glass absolute bottom-3 left-3 z-[400] px-4 py-2 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 text-[11px] font-mono shadow-2xl flex items-center gap-3 select-none backdrop-blur-md">
         <div class="flex items-center gap-1.5">
@@ -1793,6 +1570,278 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       </div>
     </div>
   </div>
+
+  <!-- ======================================================== -->
+  <!-- MODAL EKSPOR DATA SPASIAL (KML / KMZ / GEOJSON)          -->
+  <!-- Direct child of #gisRootContainer + Top Layer <dialog>   -->
+  <!-- ======================================================== -->
+  <dialog id="exportSpatialModal" closedby="any" aria-labelledby="exportModalTitle" class="gis-modal-dialog m-auto p-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-lg w-[calc(100%-2rem)] max-h-[90dvh] overflow-hidden text-slate-800 dark:text-slate-100">
+    <!-- Modal Header (Pinned) -->
+    <div class="shrink-0 flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 rounded-xl bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        </div>
+        <div class="min-w-0">
+          <h3 id="exportModalTitle" class="text-sm font-extrabold text-slate-900 dark:text-white truncate">Ekspor Data Spasial SAR</h3>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Unduh data plotting untuk Google Earth, QGIS, atau ATAK</p>
+        </div>
+      </div>
+      <button type="button" id="btnCloseExportModal" class="btn-tactile shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition cursor-pointer" title="Tutup Dialog" aria-label="Tutup Dialog">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Modal Body (Scrollable) -->
+    <div class="flex-1 min-h-0 overflow-y-auto gis-scrollbar px-5 sm:px-6 py-4 space-y-4 text-xs">
+      <!-- 1. Pilihan Lingkup / Cakupan Data (Scope) -->
+      <div>
+        <label class="block font-bold text-slate-700 dark:text-slate-300 mb-2">1. Cakupan Data Ekspor (Scope)</label>
+        <div class="space-y-2">
+          <!-- Option A: Tampilan Saat Ini -->
+          <label class="gis-choice-card flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer transition">
+            <input type="radio" name="exportScope" value="current" checked autofocus class="mt-0.5 text-orange-600 focus:ring-orange-500 shrink-0">
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-slate-900 dark:text-white">Tampilan Peta Saat Ini</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400">Mengekspor layer yang sedang aktif sesuai filter saat ini</div>
+            </div>
+          </label>
+
+          <!-- Option B: Operasi SAR Tertentu -->
+          <label class="gis-choice-card flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer transition">
+            <input type="radio" name="exportScope" value="operasi" class="mt-0.5 text-orange-600 focus:ring-orange-500 shrink-0">
+            <div class="flex-1 min-w-0 space-y-2">
+              <div class="font-bold text-slate-900 dark:text-white">Operasi SAR Aktif</div>
+              <select id="exportOperasiSelect" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 disabled:opacity-50">
+                <?php if (empty($activeOperasiList)): ?>
+                  <option value="">(Tidak ada operasi SAR aktif)</option>
+                <?php else: ?>
+                  <?php foreach ($activeOperasiList as $op): ?>
+                    <option value="<?= (int)$op['id_operasi'] ?>" <?= ($selectedOperasiId === (int)$op['id_operasi']) ? 'selected' : '' ?>>
+                      #<?= (int)$op['id_operasi'] ?> - <?= htmlspecialchars($op['nama_operasi']) ?>
+                    </option>
+                  <?php endforeach; ?>
+                <?php endif; ?>
+              </select>
+              <label class="flex items-center gap-2 pt-0.5 cursor-pointer">
+                <input type="checkbox" id="exportIncludeBaseCheck" checked class="rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500">
+                <span class="text-[11px] text-slate-600 dark:text-slate-400">Sertakan Base Map Global (Potensi, Kansar, Pos SAR)</span>
+              </label>
+            </div>
+          </label>
+
+          <!-- Option C: Base Map Global -->
+          <label class="gis-choice-card flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer transition">
+            <input type="radio" name="exportScope" value="basemap" class="mt-0.5 text-orange-600 focus:ring-orange-500 shrink-0">
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-slate-900 dark:text-white">Base Map Global</div>
+              <div class="text-[11px] text-slate-500 dark:text-slate-400">Komponen permanen pangkalan dan sarana pendukung (tanpa ID operasi)</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Opsi Layer Tersembunyi -->
+      <div class="pt-1">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" id="exportIncludeHiddenCheck" class="rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500 shrink-0">
+          <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Sertakan Layer yang Sedang Disembunyikan (Ikon Mata Tertutup)</span>
+        </label>
+      </div>
+
+      <!-- 2. Pilihan Format Berkas -->
+      <div class="pt-1">
+        <label class="block font-bold text-slate-700 dark:text-slate-300 mb-2">2. Format Berkas</label>
+        <div class="grid grid-cols-3 gap-2">
+          <label class="gis-choice-card flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer transition text-center">
+            <input type="radio" name="exportFormat" value="kmz" checked class="mb-1 text-orange-600 focus:ring-orange-500">
+            <span class="font-black text-slate-900 dark:text-white text-xs">KMZ</span>
+            <span class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Direkomendasikan</span>
+            <span class="text-[10px] text-slate-500 dark:text-slate-400">Google Earth + Ikon</span>
+          </label>
+          <label class="gis-choice-card flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer transition text-center">
+            <input type="radio" name="exportFormat" value="kml" class="mb-1 text-orange-600 focus:ring-orange-500">
+            <span class="font-black text-slate-900 dark:text-white text-xs">KML</span>
+            <span class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">OGC Standar</span>
+            <span class="text-[10px] text-slate-500 dark:text-slate-400">XML Dokumen</span>
+          </label>
+          <label class="gis-choice-card flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer transition text-center">
+            <input type="radio" name="exportFormat" value="geojson" class="mb-1 text-orange-600 focus:ring-orange-500">
+            <span class="font-black text-slate-900 dark:text-white text-xs">GeoJSON</span>
+            <span class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Universal GIS</span>
+            <span class="text-[10px] text-slate-500 dark:text-slate-400">QGIS / ATAK</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer (Pinned) -->
+    <div class="shrink-0 px-5 sm:px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900 flex items-center justify-end gap-2">
+      <button type="button" id="btnCancelExportModal" class="px-4 py-2 rounded-xl bg-slate-200/80 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer">
+        Batal
+      </button>
+      <button type="button" id="btnExecuteSpatialExport" class="px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
+        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <span>Unduh Berkas</span>
+      </button>
+    </div>
+  </dialog>
+
+  <!-- ======================================================== -->
+  <!-- MODAL IMPOR DATA GEOSPASIAL (KML / KMZ)                  -->
+  <!-- Direct child of #gisRootContainer + Top Layer <dialog>   -->
+  <!-- ======================================================== -->
+  <dialog id="importKmlModal" closedby="any" aria-labelledby="importModalTitle" class="gis-modal-dialog m-auto p-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl max-w-3xl w-[calc(100%-2rem)] max-h-[90dvh] overflow-hidden text-slate-800 dark:text-slate-100">
+    <!-- Modal Header (Pinned) -->
+    <div class="shrink-0 flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-8 h-8 rounded-xl bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        </div>
+        <div class="min-w-0">
+          <h3 id="importModalTitle" class="text-sm font-extrabold text-slate-900 dark:text-white truncate">Impor Data Geospasial (KML / KMZ)</h3>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">Unggah berkas Google Earth KML / KMZ untuk dikurasi dan disimpan ke sistem QR-SAR</p>
+        </div>
+      </div>
+      <button type="button" id="btnCloseImportModal" class="btn-tactile shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition cursor-pointer" title="Tutup Dialog" aria-label="Tutup Dialog">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Modal Body (Scrollable) -->
+    <div class="flex-1 min-h-0 overflow-y-auto gis-scrollbar px-5 sm:px-6 py-4 space-y-5 text-xs">
+      <!-- Inline Top-Layer Error Banner -->
+      <div id="importInlineError" role="alert" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300 flex items-start justify-between gap-2 text-xs">
+        <div class="flex items-start gap-2 min-w-0">
+          <svg class="w-4 h-4 text-rose-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+          <span id="importInlineErrorText" class="font-semibold break-words"></span>
+        </div>
+      </div>
+
+      <!-- Step 1: Berkas KML / KMZ -->
+      <div>
+        <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">Langkah 1: Pilih Berkas KML / KMZ</label>
+        <div id="importDropZone" role="button" tabindex="0" autofocus class="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-orange-500 dark:hover:border-orange-500 focus:outline-none focus:border-orange-500 rounded-2xl p-5 flex flex-col items-center justify-center text-center bg-slate-50/70 dark:bg-slate-800/40 transition cursor-pointer">
+          <input type="file" id="importKmlFileInput" accept=".kml,.kmz" class="hidden">
+          <div class="w-11 h-11 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center mb-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M7 16a4 4 0 0 1-.88-7.903A5 5 0 1 1 15.9 6L16 6a5 5 0 0 1 1 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          </div>
+          <div class="font-bold text-slate-800 dark:text-slate-200 text-sm">Tarik &amp; lepas berkas di sini, atau <span class="text-orange-600 dark:text-orange-400 underline">pilih dari perangkat</span></div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Mendukung berkas OGC KML 2.2 (.kml) dan Google Earth Terkompresi (.kmz)</div>
+          <div id="importFileInfo" class="mt-3 hidden inline-flex flex-wrap items-center justify-center gap-2 px-3 py-1.5 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-mono text-[11px] max-w-full">
+            <span id="importFileName" class="font-bold truncate max-w-[260px]"></span>
+            <span id="importFileSize" class="text-slate-500 dark:text-slate-400 shrink-0"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Target Scope Selector -->
+      <div>
+        <label class="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">Langkah 2: Target Penyimpanan Data</label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <!-- Target A: Operasi SAR Aktif -->
+          <label class="gis-choice-card flex flex-col p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer transition">
+            <div class="flex items-center gap-2">
+              <input type="radio" id="importTargetTypeOperasi" name="importTargetType" value="operasi" checked class="text-orange-600 focus:ring-orange-500 shrink-0">
+              <span class="font-bold text-slate-900 dark:text-white">Operasi SAR Aktif</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1 mb-2">Tautkan seluruh entitas ke misi operasi pencarian aktif</div>
+            <select id="importTargetOperasiSelect" class="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 disabled:opacity-50">
+              <?php if (empty($activeOperasiList)): ?>
+                <option value="">(Tidak ada operasi SAR aktif)</option>
+              <?php else: ?>
+                <?php foreach ($activeOperasiList as $op): ?>
+                  <option value="<?= (int)$op['id_operasi'] ?>" <?= ($selectedOperasiId === (int)$op['id_operasi']) ? 'selected' : '' ?>>
+                    #<?= (int)$op['id_operasi'] ?> - <?= htmlspecialchars($op['nama_operasi']) ?>
+                  </option>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </select>
+          </label>
+
+          <!-- Target B: Base Map Global -->
+          <label class="gis-choice-card flex flex-col p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-orange-500/50 bg-slate-50/60 dark:bg-slate-800/40 transition <?= !$isAdmin ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer' ?>">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2">
+                <input type="radio" id="importTargetTypeBasemap" name="importTargetType" value="basemap" <?= !$isAdmin ? 'disabled' : '' ?> class="text-orange-600 focus:ring-orange-500 shrink-0">
+                <span class="font-bold text-slate-900 dark:text-white">Base Map Global</span>
+              </div>
+              <?php if (!$isAdmin): ?>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/30 shrink-0">Khusus Administrator</span>
+              <?php endif; ?>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Data permanen pangkalan Basarnas, pos SAR, dan fasilitas potensi tanpa ID Operasi</div>
+          </label>
+        </div>
+        <?php if (!$isAdmin && empty($activeOperasiList)): ?>
+          <div class="mt-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-[11px]">
+            ⚠️ Tidak ada operasi SAR yang berstatus OPEN. Pengguna non-administrator hanya dapat mengimpor data ke operasi SAR aktif.
+          </div>
+        <?php endif; ?>
+      </div>
+
+      <!-- Step 3: Pratinjau & Kurasi Entitas -->
+      <div>
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <label class="font-bold text-slate-700 dark:text-slate-300">Langkah 3: Pratinjau &amp; Kurasi Entitas</label>
+          <!-- Counters Badges -->
+          <div class="flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
+            <span class="px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-bold" title="Titik Plotting">Titik: <span id="importCountPoints">0</span></span>
+            <span class="px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-bold" title="Sektor Poligon">Poligon: <span id="importCountPolygons">0</span></span>
+            <span class="px-2 py-0.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-bold" title="Pola Pencarian SAR">Pola SAR: <span id="importCountPatterns">0</span></span>
+            <span class="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold" title="Jalur Navigasi">Jalur: <span id="importCountRoutes">0</span></span>
+            <span class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 font-bold" title="Peringatan Validasi">Peringatan: <span id="importCountWarnings">0</span></span>
+          </div>
+        </div>
+
+        <!-- Warnings Alert Box -->
+        <div id="importWarningsBox" class="mb-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-700 dark:text-amber-300 hidden">
+          <div class="font-bold text-xs flex items-center gap-1.5 mb-1">
+            <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <span>Peringatan Normalisasi Geospasial</span>
+          </div>
+          <ul id="importWarningsList" class="list-disc list-inside text-[11px] space-y-0.5 max-h-24 overflow-y-auto gis-scrollbar"></ul>
+        </div>
+
+        <!-- Bulk Toolbar -->
+        <div class="flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl bg-slate-100 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-800 text-[11px] mb-2">
+          <div class="flex items-center gap-1.5">
+            <button type="button" id="importSelectAllBtn" class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-orange-500 hover:text-orange-600 dark:hover:text-orange-400 font-bold transition cursor-pointer">Pilih Semua</button>
+            <button type="button" id="importDeselectAllBtn" class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-rose-500 hover:text-rose-600 dark:hover:text-rose-400 font-bold transition cursor-pointer">Kosongkan</button>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="text-slate-500 dark:text-slate-400 font-medium">Ubah Garis:</span>
+            <button type="button" id="importSetAllLinesRoute" class="px-2.5 py-1 rounded-lg bg-emerald-600/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white font-bold transition cursor-pointer">Semua Garis → Jalur</button>
+            <button type="button" id="importSetAllLinesPattern" class="px-2.5 py-1 rounded-lg bg-orange-600/10 text-orange-700 dark:text-orange-400 border border-orange-500/30 hover:bg-orange-600 hover:text-white font-bold transition cursor-pointer">Semua Garis → Pola SAR</button>
+          </div>
+        </div>
+
+        <!-- Entity Preview List -->
+        <div id="importPreviewList" class="max-h-64 overflow-y-auto gis-scrollbar space-y-1.5 border border-slate-200 dark:border-slate-800 rounded-xl p-2 bg-slate-50/70 dark:bg-slate-950/40">
+          <div class="p-6 text-center text-slate-400 dark:text-slate-500">
+            Pilih atau seret berkas KML / KMZ untuk memuat daftar entitas geospasial
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer (Pinned) -->
+    <div class="shrink-0 px-5 sm:px-6 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900 flex flex-wrap items-center justify-between gap-3">
+      <label class="flex items-center gap-2 cursor-pointer text-xs">
+        <input type="checkbox" id="importAutoZoomCheck" checked class="rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500">
+        <span class="font-medium text-slate-700 dark:text-slate-300">Fokuskan Peta ke Area Impor Otomatis</span>
+      </label>
+      <div class="flex items-center gap-2 ml-auto">
+        <button type="button" id="btnCancelImportKml" class="px-4 py-2 rounded-xl bg-slate-200/80 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition cursor-pointer">
+          Batal
+        </button>
+        <button type="button" id="btnConfirmImportKml" disabled class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+          <span>Impor ke Database</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
 </div>
 
 <!-- ========================================== -->

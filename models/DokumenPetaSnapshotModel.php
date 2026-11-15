@@ -394,7 +394,7 @@ class DokumenPetaSnapshotModel {
      * Menghapus file fisik gambar dari direktori uploads.
      */
     public static function removeImageFile(string $relativePath): void {
-        if ($relativePath === '') {
+        if ($relativePath === '' || str_contains($relativePath, "\0") || str_contains($relativePath, '\\') || str_contains($relativePath, '..')) {
             return;
         }
         $rootDir = defined('ROOT_DIR') ? ROOT_DIR : dirname(__DIR__);
@@ -402,10 +402,12 @@ class DokumenPetaSnapshotModel {
         if (!str_starts_with($cleanRel, 'uploads/map_snapshots/')) {
             return;
         }
-        $fullPath = $rootDir . '/' . $cleanRel;
-        if (file_exists($fullPath) && is_file($fullPath)) {
-            @unlink($fullPath);
+        $baseDir = realpath($rootDir . '/uploads/map_snapshots');
+        $fullPath = realpath($rootDir . '/' . $cleanRel);
+        if ($baseDir === false || $fullPath === false || !str_starts_with($fullPath, $baseDir . DIRECTORY_SEPARATOR) || !is_file($fullPath)) {
+            return;
         }
+        @unlink($fullPath);
     }
 
     /**

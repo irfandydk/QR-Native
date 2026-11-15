@@ -675,6 +675,24 @@ class OperasiModel {
     }
 
     /**
+     * Resolve cuaca, gelombang, angin secara konsisten antara pratinjau WA dan simpan/perbarui DB.
+     * @return array{0:string,1:string,2:string}
+     */
+    public static function resolveWeatherFields(array $ops, array $data, ?array $existing = null): array {
+        $resolve = static function (string $key) use ($ops, $data, $existing): string {
+            if (array_key_exists($key, $data) && $data[$key] !== null) {
+                $val = trim((string)$data[$key]);
+            } elseif ($existing !== null && array_key_exists($key, $existing) && $existing[$key] !== null) {
+                $val = trim((string)$existing[$key]);
+            } else {
+                $val = trim((string)($ops[$key] ?? ''));
+            }
+            return mb_substr($val, 0, 191, 'UTF-8');
+        };
+        return [$resolve('cuaca'), $resolve('gelombang'), $resolve('angin')];
+    }
+
+    /**
      * Satu sumber data Laporan Awal untuk simpan (create/update) dan pratinjau WA di form.
      * $ops = data operasi tersimpan (mode edit) atau null (operasi baru).
      *

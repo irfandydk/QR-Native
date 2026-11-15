@@ -120,6 +120,70 @@ assertCondition("url('master', ['tab' => 'alut', 'q' => 'rib']) menghasilkan tau
 $url3 = url('/bra');
 assertCondition("url('/bra') menangani leading slash dengan bersih tanpa double slash", !str_contains($url3, '//bra'));
 
+// --- 5. REGRESI DETEKSI BASE PATH & ROUTING STATIS /uploads/ ---
+echo "\n--- 5. MENGUJI DETEKSI BASE PATH (CLI-SERVER & APACHE SUBFOLDER) ---\n";
+
+assertCondition(
+    "Fungsi qrsar_detect_base_path() tersedia",
+    function_exists('qrsar_detect_base_path')
+);
+assertCondition(
+    "cli-server di /uploads/logo.png tidak menghasilkan prefix '/uploads'",
+    qrsar_detect_base_path([
+        'DOCUMENT_ROOT' => $rootDir,
+        'SCRIPT_NAME' => '/uploads/satker_logo_1791763778.png',
+        'SCRIPT_FILENAME' => $rootDir . '/router.php',
+    ], $rootDir, 'cli-server') === ''
+);
+assertCondition(
+    "cli-server di clean route bertingkat (/operasi/detail) mengembalikan prefix kosong",
+    qrsar_detect_base_path([
+        'DOCUMENT_ROOT' => $rootDir,
+        'SCRIPT_NAME' => '/operasi/detail',
+        'SCRIPT_FILENAME' => $rootDir . '/router.php',
+    ], $rootDir, 'cli-server') === ''
+);
+assertCondition(
+    "cli-server dengan docroot -t public mengembalikan prefix kosong",
+    qrsar_detect_base_path([
+        'DOCUMENT_ROOT' => $rootDir . '/public',
+        'SCRIPT_NAME' => '/uploads/icons/marker.png',
+        'SCRIPT_FILENAME' => $rootDir . '/public/router.php',
+    ], $rootDir, 'cli-server') === ''
+);
+assertCondition(
+    "cli-server dari direktori induk mendeteksi subfolder proyek",
+    qrsar_detect_base_path([
+        'DOCUMENT_ROOT' => dirname($rootDir),
+        'SCRIPT_NAME' => '/' . basename($rootDir) . '/uploads/logo.png',
+    ], $rootDir, 'cli-server') === '/' . basename($rootDir)
+);
+assertCondition(
+    "Apache/Laragon subfolder lewat router.php mendeteksi '/QR-SAR'",
+    qrsar_detect_base_path([
+        'SCRIPT_NAME' => '/QR-SAR/router.php',
+        'SCRIPT_FILENAME' => $rootDir . '/router.php',
+    ], $rootDir, 'apache2handler') === '/QR-SAR'
+);
+assertCondition(
+    "Apache/Laragon subfolder lewat api/index.php mendeteksi '/QR-SAR'",
+    qrsar_detect_base_path([
+        'SCRIPT_NAME' => '/QR-SAR/api/index.php',
+        'SCRIPT_FILENAME' => $rootDir . '/api/index.php',
+    ], $rootDir, 'apache2handler') === '/QR-SAR'
+);
+assertCondition(
+    "Apache VirtualHost dengan DocumentRoot=public mendeteksi prefix kosong",
+    qrsar_detect_base_path([
+        'SCRIPT_NAME' => '/index.php',
+        'SCRIPT_FILENAME' => $rootDir . '/public/index.php',
+    ], $rootDir, 'apache2handler') === ''
+);
+assertCondition(
+    "router.php menyajikan /uploads/ lewat Router::serveStaticFile sebelum bootstrap app",
+    str_contains($routerRoot, "str_starts_with(\$uri, '/uploads/')") && str_contains($routerRoot, 'Router::serveStaticFile($filePath)')
+);
+
 echo "\n====================================================================\n";
 echo "  Total Pemeriksaan Asersi : {$totalAssertions}\n";
 echo "  Lulus (PASS)             : {$passedAssertions}\n";

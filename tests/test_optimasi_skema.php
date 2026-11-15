@@ -26,7 +26,15 @@ echo "=== TEST SKEMA OPTIMASI LAPORAN AWAL & GIS ===\n\n";
 
 $db = getDB();
 $ada = fn(string $t, string $c) => !empty($db->query("SHOW COLUMNS FROM `{$t}` LIKE '{$c}'")->fetchAll());
-$kolom = [['Operasi', 'asal_berangkat'], ['GisPolygon', 'strokeOpacity'], ['GisSearchPattern', 'flipH'], ['GisSearchPattern', 'flipV'], ['GisRoute', 'polygonId']];
+$kolom = [
+    ['Operasi', 'asal_berangkat'],
+    ['Renops', 'gelombang'],
+    ['Renops', 'angin'],
+    ['GisPolygon', 'strokeOpacity'],
+    ['GisSearchPattern', 'flipH'],
+    ['GisSearchPattern', 'flipV'],
+    ['GisRoute', 'polygonId'],
+];
 foreach ($kolom as [$t, $c]) {
     assertCondition($ada($t, $c), "Kolom {$t}.{$c} ada");
 }
@@ -60,16 +68,57 @@ try {
     $route = array_values(array_filter(GisModel::getRoutes($idOps, false), fn($r) => $r['id'] === $ids['route']))[0] ?? [];
     assertCondition(array_key_exists('polygonId', $route) && $route['polygonId'] === null, 'Rute tanpa area: polygonId null');
 
+    // Renops cuaca 3 field + pewarisan HierarchyHelper + fallback parsial
+    OperasiModel::update($idOps, ['cuaca' => 'Cerah', 'gelombang' => '0,4 Mtr', 'angin' => '5 km/jam Timur']);
+    $opsFresh = OperasiModel::getById($idOps);
+    $nextRen = HierarchyHelper::getNextRenopsDefaults($opsFresh);
+    assertCondition(
+        ($nextRen['inherited_cuaca'] ?? '') === 'Cerah' && ($nextRen['inherited_gelombang'] ?? '') === '0,4 Mtr' && ($nextRen['inherited_angin'] ?? '') === '5 km/jam Timur',
+        'HierarchyHelper::getNextRenopsDefaults mewarisi cuaca, gelombang, angin'
+    );
+    $idRen = RenopsModel::create([
+        'id_operasi' => $idOps,
+        'hari_ke' => $nextRen['hari_ke'] ?? 'H.2',
+        'tanggal_laporan' => $nextRen['target_date_str'] ?? date('Y-m-d'),
+        'cuaca' => 'Berawan', 'gelombang' => '1,1 Mtr', 'angin' => '9 km/jam Selatan',
+    ]);
+    $renRow = RenopsModel::getById($idRen);
+    assertCondition(
+        ($renRow['cuaca'] ?? '') === 'Berawan' && ($renRow['gelombang'] ?? '') === '1,1 Mtr' && ($renRow['angin'] ?? '') === '9 km/jam Selatan',
+        'RenopsModel::create menyimpan cuaca, gelombang, angin terpisah'
+    );
+    RenopsModel::update($idRen, ['cuaca' => 'Hujan Ringan']);
+    $renUpdated = RenopsModel::getById($idRen);
+    assertCondition(
+        ($renUpdated['cuaca'] ?? '') === 'Hujan Ringan' && ($renUpdated['gelombang'] ?? '') === '1,1 Mtr' && ($renUpdated['angin'] ?? '') === '9 km/jam Selatan',
+        'RenopsModel::update parsial mempertahankan gelombang dan angin tersimpan'
+    );
+    $opsWithRen = OperasiModel::getById($idOps);
+    $nextLap = HierarchyHelper::getNextLapbangDefaults($opsWithRen);
+    assertCondition(
+        ($nextLap['inherited_cuaca'] ?? '') === 'Hujan Ringan' && ($nextLap['inherited_gelombang'] ?? '') === '1,1 Mtr' && ($nextLap['inherited_angin'] ?? '') === '9 km/jam Selatan',
+        'HierarchyHelper::getNextLapbangDefaults mewarisi cuaca, gelombang, angin dari RENOPS hari sama'
+    );
+    $renSrc = HierarchyHelper::resolveRenopsSources($opsWithRen, $renUpdated);
+    assertCondition(
+        ($renSrc['cuaca'] ?? '') === 'Hujan Ringan' && ($renSrc['gelombang'] ?? '') === '1,1 Mtr' && ($renSrc['angin'] ?? '') === '9 km/jam Selatan',
+        'HierarchyHelper::resolveRenopsSources meneruskan cuaca, gelombang, angin'
+    );
+
     // Review Focus 2: restore backup lama menghapus kolom → ensureSchemaUpdated(true) memulihkan.
     $db->exec('ALTER TABLE GisPolygon DROP COLUMN strokeOpacity');
-    $script = 'require ' . var_export(__DIR__ . '/bootstrap.php', true) . '; GisModel::ensureSchemaUpdated(true); OperasiModel::ensureSchemaUpdated(true);';
+    $db->exec('ALTER TABLE Renops DROP COLUMN gelombang');
+    $script = 'require ' . var_export(__DIR__ . '/bootstrap.php', true) . '; GisModel::ensureSchemaUpdated(true); OperasiModel::ensureSchemaUpdated(true); RenopsModel::ensureSchemaUpdated(true);';
     shell_exec('DB_DATABASE=' . escapeshellarg((string)getenv('DB_DATABASE')) . ' ' . escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($script) . ' 2>&1');
-    assertCondition($ada('GisPolygon', 'strokeOpacity'), 'Kolom yang hilang dibuat ulang oleh ensureSchemaUpdated(true)');
+    assertCondition($ada('GisPolygon', 'strokeOpacity') && $ada('Renops', 'gelombang'), 'Kolom yang hilang dibuat ulang oleh ensureSchemaUpdated(true)');
 } catch (Throwable $e) {
     assertCondition(false, 'Tanpa exception: ' . get_class($e) . ': ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
 } finally {
     if (!$ada('GisPolygon', 'strokeOpacity')) {
         $db->exec('ALTER TABLE GisPolygon ADD COLUMN strokeOpacity DOUBLE NOT NULL DEFAULT 1');
+    }
+    if (!$ada('Renops', 'gelombang')) {
+        $db->exec('ALTER TABLE Renops ADD COLUMN gelombang VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL AFTER cuaca');
     }
     foreach (['GisSearchPatternWaypoint' => 'searchPatternId', 'GisSearchPattern' => 'id'] as $t => $c) {
         $db->prepare("DELETE FROM {$t} WHERE {$c} = ?")->execute([$ids['pat']]);
@@ -86,8 +135,12 @@ try {
 }
 
 $bak = (string)file_get_contents(ROOT_DIR . '/services/BackupService.php');
-assertCondition(substr_count($bak, 'GisModel::ensureSchemaUpdated(true)') === 2 && substr_count($bak, 'OperasiModel::ensureSchemaUpdated(true)') === 2,
-    'Restore JSON & SQL memulihkan skema (GisModel & OperasiModel)');
+assertCondition(
+    substr_count($bak, 'GisModel::ensureSchemaUpdated(true)') === 2
+    && substr_count($bak, 'OperasiModel::ensureSchemaUpdated(true)') === 2
+    && substr_count($bak, 'RenopsModel::ensureSchemaUpdated(true)') === 2,
+    'Restore JSON & SQL memulihkan skema (GisModel, OperasiModel, RenopsModel)'
+);
 
 echo "\nTotal: {$testTotal}, Lolos: {$testPassed}\n";
 exit($testPassed === $testTotal ? 0 : 1);

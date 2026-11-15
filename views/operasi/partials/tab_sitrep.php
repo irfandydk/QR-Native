@@ -73,7 +73,7 @@
             $lapForWa['hari_ke'] = $dynamicHariKeLap;
 
             $lapWa = $lap['full_text_wa'] ?? '';
-            if (empty($lapWa) || strpos($lapWa, 'FILE AKTIF') === false) {
+            if (empty($lapWa) || strpos($lapWa, 'FILE AKTIF') === false || (!$isPenutupan && strpos($lapWa, 'Data Korban:') !== false)) {
                 $lapWa = TemplateHelper::generateLapbangWA($operasi, $lapForWa, $operasi['korban'] ?? [], $snapUnsur, $snapAlut, $isPenutupan);
             } elseif (!empty($lap['hari_ke']) && $lap['hari_ke'] !== $dynamicHariKeLap) {
                 // PHP-05: Pertahankan snapshot historis full_text_wa; hanya sesuaikan label H.x pada header jika berbeda

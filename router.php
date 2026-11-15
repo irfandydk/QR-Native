@@ -22,7 +22,10 @@ if (
 
 // Serve existing static assets (css, js, images, icons, uploads)
 $filePath = __DIR__ . $uri;
-// /uploads/ lewat Router::serveStaticFile agar header CSP anti-XSS SVG ikut terkirim
+// /uploads/ lewat Router::serveStaticFile agar header CSP anti-XSS SVG ikut terkirim tanpa memulai sesi PHP
+if (str_starts_with($uri, '/uploads/') && file_exists($filePath) && !is_dir($filePath)) {
+    return Router::serveStaticFile($filePath);
+}
 // Hanya assets/ dan favicon yang disajikan langsung; berkas lain di root tidak pernah disajikan
 $isPublicStatic = str_starts_with($uri, '/assets/') || in_array($uri, ['/favicon.ico', '/favicon.png'], true);
 if ($isPublicStatic && file_exists($filePath) && !is_dir($filePath) && !str_ends_with($filePath, '.php')) {

@@ -951,6 +951,54 @@ try {
         str_contains($gisMasterSrc, 'value="custom_upload"')
     );
 
+    assertCondition(
+        "assets/js/gis_master.js mengutamakan PRESET_ICONS lokal (termasuk pin_umum) pada renderPreviewList",
+        str_contains($gisMasterSrc, "typeof PRESET_ICONS !== 'undefined'") && str_contains($gisMasterSrc, "'pin_umum'")
+    );
+
+    assertCondition(
+        "assets/js/gis_master.js memakai native <dialog>.showModal() lewat wireGisModalDialog dengan fallback light-dismiss",
+        str_contains($gisMasterSrc, 'function wireGisModalDialog') &&
+        str_contains($gisMasterSrc, 'modal.showModal') &&
+        str_contains($gisMasterSrc, "'closedBy' in HTMLDialogElement.prototype")
+    );
+
+    assertCondition(
+        "views/gis.php menggunakan workspace flex responsif tanpa hardcoded height: calc(100% - 48px)",
+        !str_contains($viewGisSrc, 'height: calc(100% - 48px)') &&
+        str_contains($viewGisSrc, 'class="flex-1 min-h-0 flex overflow-hidden relative"')
+    );
+
+    $mapWrapperPos = strpos($viewGisSrc, 'id="gisMapWrapper"');
+    $exportDialogPos = strpos($viewGisSrc, '<dialog id="exportSpatialModal"');
+    $importDialogPos = strpos($viewGisSrc, '<dialog id="importKmlModal"');
+    $scriptPos = strpos($viewGisSrc, 'window.SAR_INITIAL_GIS_DATA');
+    $afterMapHudPos = strpos($viewGisSrc, 'id="hudZoomLevel"');
+
+    assertCondition(
+        "views/gis.php menempatkan <dialog> Export & Import di luar #gisMapWrapper (di bawah #hudZoomLevel & langsung di #gisRootContainer)",
+        $mapWrapperPos !== false &&
+        $afterMapHudPos !== false &&
+        $exportDialogPos !== false &&
+        $importDialogPos !== false &&
+        $scriptPos !== false &&
+        $exportDialogPos > $afterMapHudPos &&
+        $importDialogPos > $exportDialogPos &&
+        $importDialogPos < $scriptPos
+    );
+
+    $tailwindPath = $rootDir . '/assets/css/tailwind.css';
+    $tailwindSrc = file_exists($tailwindPath) ? file_get_contents($tailwindPath) : '';
+    assertCondition(
+        "assets/css/tailwind.css terkompilasi dengan kelas utilitas modal Export/Import GIS (gis-modal-dialog, max-h-64, max-h-[90dvh], disabled:opacity-50)",
+        str_contains($tailwindSrc, 'dialog.gis-modal-dialog[open]') &&
+        str_contains($tailwindSrc, '.max-h-64') &&
+        str_contains($tailwindSrc, '.max-h-\[90dvh\]') &&
+        str_contains($tailwindSrc, '.disabled\:opacity-50:disabled') &&
+        str_contains($tailwindSrc, '.bg-emerald-600\/10') &&
+        str_contains($tailwindSrc, '.bg-orange-600\/10')
+    );
+
     // Jalankan pengujian unit roundtrip KML / KMZ di Node.js
     echo PHP_EOL . "--- MENJALANKAN NODE.JS TEST: tests/js/kml_roundtrip.test.js ---" . PHP_EOL;
     $nodeCmd = 'node --test ' . escapeshellarg($rootDir . '/tests/js/kml_roundtrip.test.js') . ' 2>&1';

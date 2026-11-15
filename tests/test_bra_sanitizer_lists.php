@@ -45,5 +45,12 @@ assertCondition(BraHelper::sanitizeTelegramPunctuation($naratif) === "TIM BERGER
 $kurung = 'PD TW 1028 1705 H TERIMA INFO DARI ANDI (KELUARGA KORBAN/ HP. 0812) BAHWA';
 assertCondition(str_contains(BraHelper::sanitizeTelegramPunctuation($kurung), '(KELUARGA KORBAN/ HP. 0812)'), 'Isi dalam kurung (keterangan pelapor) tidak disandikan');
 
+$tglIndo = "Pada tanggal 15 November 2026 (15 November 2026), operasi sejak 15/11/2026 pukul 08.00 WITA.\n1. Pada 16 November tim bersiaga TTK";
+$outIndo = BraHelper::sanitizeTelegramPunctuation($tglIndo);
+assertCondition(
+    $outIndo === "PADA TW 1115 H (TW 1115 H) KMA OPERASI SEJAK TW 1115 0800 H TTK\n1. PADA TW 1116 H TIM BERSIAGA TTK",
+    'Tanggal Indonesia (dengan/tanpa jam, kurung, DD/MM/YYYY, dan baris daftar) dikonversi ke TW MMDD H'
+);
+
 echo "\nTotal: {$testTotal}, Lolos: {$testPassed}\n";
 exit($testPassed === $testTotal ? 0 : 1);

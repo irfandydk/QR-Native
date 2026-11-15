@@ -47,23 +47,6 @@ class LaporanModel {
     }
 
     /**
-     * Resolve cuaca, gelombang, angin secara konsisten antara pratinjau WA dan simpan/perbarui DB.
-     */
-    private static function resolveWeatherFields(array $ops, array $data, ?array $existing = null): array {
-        $resolve = static function (string $key) use ($ops, $data, $existing): string {
-            if (array_key_exists($key, $data) && $data[$key] !== null) {
-                $val = trim((string)$data[$key]);
-            } elseif ($existing !== null && array_key_exists($key, $existing) && $existing[$key] !== null) {
-                $val = trim((string)$existing[$key]);
-            } else {
-                $val = trim((string)($ops[$key] ?? ''));
-            }
-            return mb_substr($val, 0, 191, 'UTF-8');
-        };
-        return [$resolve('cuaca'), $resolve('gelombang'), $resolve('angin')];
-    }
-
-    /**
      * Resolve hari_ke SITREP secara konsisten untuk simpan & pratinjau WA:
      * mempertahankan hari_ke tersimpan saat tanggal edit tidak berubah (mencegah mutasi H+X).
      */
@@ -161,7 +144,7 @@ class LaporanModel {
             }
         }
         [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $existing);
-        [$cuaca, $gelombang, $angin] = self::resolveWeatherFields($ops, $data, $existing);
+        [$cuaca, $gelombang, $angin] = OperasiModel::resolveWeatherFields($ops, $data, $existing);
         $waData = array_merge($existing ?? [], $data, ['cuaca' => $cuaca, 'gelombang' => $gelombang, 'angin' => $angin]);
         $isPenutupan = strtoupper($data['jenis_laporan'] ?? ($existing['jenis_laporan'] ?? '')) === 'PENUTUPAN';
         return TemplateHelper::generateLapbangWA($ops, $waData, $ops['korban'] ?? [], $unsur, $alut, $isPenutupan);
@@ -203,7 +186,7 @@ class LaporanModel {
 
             $isPenutupan = strtoupper($data['jenis_laporan'] ?? '') === 'PENUTUPAN';
             [$unsur, $alut] = self::resolveUnsurAlut($ops, $data);
-            [$cuaca, $gelombang, $angin] = self::resolveWeatherFields($ops, $data);
+            [$cuaca, $gelombang, $angin] = OperasiModel::resolveWeatherFields($ops, $data);
             
             // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
             $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($ops['unsur_terlibat'] ?? ''));
@@ -283,7 +266,9 @@ class LaporanModel {
             $db->commit();
             return $idLaporan;
         } catch (Throwable $e) {
-            $db->rollBack();
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
             throw $e;
         }
     }
@@ -294,7 +279,10 @@ class LaporanModel {
 
         try {
             $lap = self::getById($id);
-            if (!$lap) return false;
+            if (!$lap) {
+                if ($db->inTransaction()) $db->rollBack();
+                return false;
+            }
 
             $ops = OperasiModel::getById((int)$lap['id_operasi']);
             $isExistingPenutupan = ($lap['jenis_laporan'] === 'PENUTUPAN');
@@ -329,7 +317,7 @@ class LaporanModel {
             }
 
             [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $lap);
-            [$cuaca, $gelombang, $angin] = self::resolveWeatherFields($ops, $data, $lap);
+            [$cuaca, $gelombang, $angin] = OperasiModel::resolveWeatherFields($ops, $data, $lap);
 
             // ISSUE-RENOPS-03: Format teks Unsur & Alut secara SSOT dari array snapshot
             $unsurText = OperasiModel::formatUnsurText($unsur, $data['unsur_text'] ?? ($lap['unsur_text'] ?: ($ops['unsur_terlibat'] ?? '')));

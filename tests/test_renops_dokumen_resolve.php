@@ -142,7 +142,7 @@ try {
     $d = RenopsDokumenService::resolve($idR);
     assertCondition($d['foto'] === [['id_foto' => (int)$foto['id_foto'], 'path' => $foto['path'], 'keterangan' => 'Pemberangkatan tim']] && $d['meta']['source_hash'] !== $hashSebelum, 'Foto masuk dokumen & mengubah source_hash');
 
-    // HN: LAPBANG H1 menjadi sumber upaya sebelumnya & hasil hari sebelumnya.
+    // HN: Upaya Sebelumnya mempertahankan kalimat koordinasi + pelaksanaan RENOPS hari sebelumnya (isi LAPBANG masuk Operation Stage).
     LaporanModel::create(['id_operasi' => $idOps, 'waktu_laporan' => '2026-10-21 21:00:00', 'isi_laporan' => 'Pencarian hari pertama belum menemukan korban.']);
     $idR2 = RenopsModel::create([
         'id_operasi' => $idOps, 'hari_ke' => 'H.2', 'tanggal_laporan' => '2026-10-22',
@@ -151,10 +151,34 @@ try {
     $doc3 = RenopsDokumenService::resolve($idR2);
     $s3 = $doc3['sections'];
     assertCondition($s3['struktur']['osc'] === 'Haeruddin, S.H.' && $s3['struktur']['smc'] === $defaultSmcNama && $s3['struktur']['sru'] === [], 'Struktur H2 disalin dari draf H1, SRU dari hari N');
-    assertCondition($doc3['meta']['hari_label'] === '2' && $s3['upaya_sebelumnya'] === 'Pencarian hari pertama belum menemukan korban.', 'H2: upaya sebelumnya dari LAPBANG pendahulu');
+    $expectedKoordH2 = "{$satker} telah berkoordinasi dengan BCC, Polres Buton, Polsek Sampabalo, dan keluarga korban.";
+    assertCondition(
+        $doc3['meta']['hari_label'] === '2'
+        && $s3['upaya_sebelumnya'] === "{$expectedKoordH2} Selain itu, Tim SAR Gabungan telah melaksanakan Operasi SAR sesuai Rencana Operasi SAR Hari ke-1.",
+        'H2: upaya sebelumnya tetap koordinasi + pelaksanaan RENOPS Hari ke-1'
+    );
     assertCondition(str_contains($s3['operation_stage'], 'Hari Pertama (') && str_contains($s3['operation_stage'], 'Pencarian hari pertama belum menemukan korban.') && str_contains($s3['operation_stage'], 'Hari Kedua (') && str_contains($s3['operation_stage'], 'Operasi SAR Hari ke-2 dilanjutkan dengan 8 (delapan) orang personel.'), 'H2: operation stage = riwayat Hari Pertama + pelaksanaan Hari Kedua');
     $r3 = array_column($s3['data_kejadian'], 'value', 'label');
     assertCondition($r3['Upaya yang Telah Dilakukan'] === 'Berkoordinasi dengan Basarnas Command Center (BCC), Polres Buton, dan Polsek Sampabalo', 'H2: Tabel 1 upaya tetap kalimat koordinasi');
+
+    $idR3 = RenopsModel::create([
+        'id_operasi' => $idOps, 'hari_ke' => 'H.3', 'tanggal_laporan' => '2026-10-23',
+        'waktu_mulai_ops' => '2026-10-23 07:30:00', 'srus' => [],
+    ]);
+    $doc4 = RenopsDokumenService::resolve($idR3);
+    assertCondition(
+        $doc4['meta']['hari_label'] === '3'
+        && $doc4['sections']['upaya_sebelumnya'] === "{$expectedKoordH2} Selain itu, Tim SAR Gabungan telah melaksanakan Operasi SAR sesuai Rencana Operasi SAR Hari ke-1 sampai dengan Hari ke-2.",
+        'H3: upaya sebelumnya merujuk dinamis Hari ke-1 sampai dengan Hari ke-2'
+    );
+    $opsReopenMock = OperasiModel::getById($idOps);
+    $reopenSec = RenopsDokumenService::defaultSections($opsReopenMock, ['id_renops' => 0, 'tanggal_laporan' => '2026-10-28'], [
+        'hari_num' => 8, 'hari_label' => '7 + 1', 'unsur' => $unsur, 'alut' => $alut, 'lapbang' => null,
+    ]);
+    assertCondition(
+        $reopenSec['upaya_sebelumnya'] === "{$expectedKoordH2} Selain itu, Tim SAR Gabungan telah melaksanakan Operasi SAR sesuai Rencana Operasi SAR Hari ke-1 sampai dengan Hari ke-7.",
+        'Reopen H7+1: upaya sebelumnya merujuk Hari ke-1 sampai dengan Hari ke-7'
+    );
 
     // TERBIT hari sebelumnya diutamakan atas DRAF-nya.
     $terbit = function (int $rid, string $osc, string $issuedAt) use ($db, $idOps) {

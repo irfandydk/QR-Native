@@ -320,13 +320,13 @@ class GisModel {
     }
 
     /** Referensi ke objek GIS lain: kosongkan bila bukan ID yang sah */
-    private static function refId($id): string {
+    private static function refId(mixed $id): string {
         $id = (string)$id;
         return preg_match('/^[A-Za-z0-9_.:-]{0,100}$/', $id) ? $id : '';
     }
 
     /** Warna masuk ke style/atribut SVG: hanya hex, rgb(a), hsl(a) atau nama warna */
-    private static function safeColor($color, string $default): string {
+    private static function safeColor(mixed $color, string $default): string {
         $color = trim((string)$color);
         return preg_match('/^(#[0-9a-fA-F]{3,8}|(rgb|hsl)a?\([0-9.,%\/ ]+\)|[a-zA-Z]{3,20})$/', $color) ? $color : $default;
     }
@@ -343,10 +343,11 @@ class GisModel {
 
         $customIcon = $data['customIconUrl'] ?? ($data['custom_icon_url'] ?? null);
         if ($customIcon !== null) {
-            $customIcon = trim((string)$customIcon);
+            $customIcon = qrsar_sanitize_asset_url((string)$customIcon, '');
             if ($customIcon === '') $customIcon = null;
         }
-        $type = !empty($customIcon) ? 'custom_upload' : ($data['pointType'] ?? ($data['point_type'] ?? 'pin_umum'));
+        $rawType = (string)($data['pointType'] ?? ($data['point_type'] ?? 'pin_umum'));
+        $type = !empty($customIcon) ? 'custom_upload' : ($rawType === 'custom_upload' ? 'pin_umum' : $rawType);
 
         $stmt = $db->prepare("INSERT INTO GisPoint (
             id, id_operasi, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar

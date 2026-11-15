@@ -52,7 +52,7 @@ class AuthController extends BaseController {
      * Invalidate user session and redirect to login page.
      */
     public function logout(): void {
-        $token = $_POST['csrf_token'] ?? ($_GET['csrf_token'] ?? null);
+        $token = $_POST['csrf_token'] ?? null;
 
         if (!$this->validateCsrf($token)) {
             $this->setFlash('error', 'Permintaan keluar tidak valid atau token keamanan kedaluwarsa. Silakan gunakan tombol keluar resmi.');
@@ -92,9 +92,9 @@ class AuthController extends BaseController {
 
             $action = $_POST['action'] ?? '';
             if ($action === 'change_password') {
-                $oldPass = (string)($_POST['old_password'] ?? '');
-                $newPass = (string)($_POST['new_password'] ?? '');
-                $confirmPass = (string)($_POST['confirm_password'] ?? '');
+                $oldPass = trim((string)($_POST['old_password'] ?? ''));
+                $newPass = trim((string)($_POST['new_password'] ?? ''));
+                $confirmPass = trim((string)($_POST['confirm_password'] ?? ''));
 
                 if ($oldPass === '') {
                     $this->setFlash('error', 'Silakan masukkan kata sandi saat ini / sandi lama.');

@@ -277,6 +277,24 @@ BODY;
         return $header . "\n\n" . $body . "\n\n" . self::getFooterWA();
     }
 
+    private static function formatWeatherLines(array $doc, array $ops): string {
+        $pick = static function (string $key) use ($doc, $ops): string {
+            if (array_key_exists($key, $doc) && $doc[$key] !== null) {
+                $v = trim((string)$doc[$key]);
+                return $v !== '' ? $v : '-';
+            }
+            $opVal = trim((string)($ops[$key] ?? ''));
+            return $opVal !== '' ? $opVal : '-';
+        };
+        $cuacaVal = $pick('cuaca');
+        $gelombangVal = $pick('gelombang');
+        $anginVal = $pick('angin');
+        $hasBmkg = stripos("{$cuacaVal} {$gelombangVal} {$anginVal}", 'BMKG') !== false;
+        $anginLine = ($anginVal !== '-' && !$hasBmkg) ? "{$anginVal} (Sumber BMKG)" : $anginVal;
+
+        return "• cuaca : {$cuacaVal}\n• Gelombang : {$gelombangVal}\n• Angin: {$anginLine}";
+    }
+
     /**
      * Generate WhatsApp message for Rencana Operasi SAR (RENOPS).
      */
@@ -346,7 +364,7 @@ BODY;
 
         $alutText = self::formatAlutLines($alut);
 
-        $cuaca = !empty($renops['cuaca']) ? $renops['cuaca'] : (!empty($ops['cuaca']) ? $ops['cuaca'] : '-');
+        $weatherLines = self::formatWeatherLines($renops, $ops);
         $sruCount = count($srus);
 
         $body = <<<BODY
@@ -365,8 +383,7 @@ Dengan Tim dibagi {$sruCount} SRU dengan area pencarian sbb :
 {$alutText}
 
 3. Kondisi Cuaca :
-• Cuaca: {$cuaca}
-(Sumber BMKG)
+{$weatherLines}
 BODY;
 
         return $header . "\n\n" . $body . "\n\n" . self::getFooterWA();
@@ -385,28 +402,26 @@ BODY;
 
         $header = self::getHeaderWA($judul, $subjectHeader, $waktuLap);
 
-        $pobTotal = max((int)($ops['jumlah_pob'] ?? 0), count($korban));
-        $stats = SarCalculationService::hitungStatistikKorban($korban, $pobTotal);
-
         $isiRaw = (string)($laporan['isi_laporan'] ?? '');
         $isiFormatted = self::formatHasilOpsLines($isiRaw);
+        $korbanSection = '';
         $klausulPenutupan = '';
-        if ($isPenutupan && !preg_match('/debriefing/i', $isiRaw)) {
-            $waktuDebrief = ($laporan['waktu_debrief'] ?? '') ?: (($laporan['waktu_laporan'] ?? '') ?: date('Y-m-d H:i:s'));
-            $tglDebrief = SarCalculationService::formatTanggalSimple($waktuDebrief);
-            $jamDebrief = str_replace(':', '.', SarCalculationService::formatJamWITA($waktuDebrief));
-            $ditemukanSemua = ($stats['dp'] === 0 && $stats['h'] === 0 && ($stats['s'] > 0 || $stats['md'] > 0));
-            $alasanTutup = $ditemukanSemua
-                ? 'Dengan ditemukannya korban serta selesainya proses evakuasi dan penyerahan'
-                : 'Dengan selesainya seluruh rangkaian pencarian';
-            $klausulPenutupan = "- Pada tanggal {$tglDebrief} pukul {$jamDebrief} WITA, Tim SAR Gabungan tiba di posko dan melaksanakan debriefing penutupan terhadap {$opsSubject}. {$alasanTutup}, Operasi SAR dinyatakan ditutup dan unsur SAR yang terlibat kembali ke kesatuannya masing-masing dengan ucapan terima kasih.";
-        }
-        $hasilBody = $klausulPenutupan !== ''
-            ? ($isiFormatted === '-' ? $klausulPenutupan : ($isiFormatted . "\n" . $klausulPenutupan))
-            : $isiFormatted;
+        if ($isPenutupan) {
+            $pobTotal = max((int)($ops['jumlah_pob'] ?? 0), count($korban));
+            $stats = SarCalculationService::hitungStatistikKorban($korban, $pobTotal);
 
-        $kList = [];
-        if (!empty($korban)) {
+            if (!preg_match('/debriefing/i', $isiRaw)) {
+                $waktuDebrief = ($laporan['waktu_debrief'] ?? '') ?: (($laporan['waktu_laporan'] ?? '') ?: date('Y-m-d H:i:s'));
+                $tglDebrief = SarCalculationService::formatTanggalSimple($waktuDebrief);
+                $jamDebrief = str_replace(':', '.', SarCalculationService::formatJamWITA($waktuDebrief));
+                $ditemukanSemua = ($stats['dp'] === 0 && $stats['h'] === 0 && ($stats['s'] > 0 || $stats['md'] > 0));
+                $alasanTutup = $ditemukanSemua
+                    ? 'Dengan ditemukannya korban serta selesainya proses evakuasi dan penyerahan'
+                    : 'Dengan selesainya seluruh rangkaian pencarian';
+                $klausulPenutupan = "- Pada tanggal {$tglDebrief} pukul {$jamDebrief} WITA, Tim SAR Gabungan tiba di posko dan melaksanakan debriefing penutupan terhadap {$opsSubject}. {$alasanTutup}, Operasi SAR dinyatakan ditutup dan unsur SAR yang terlibat kembali ke kesatuannya masing-masing dengan ucapan terima kasih.";
+            }
+
+            $kList = [];
             foreach ($korban as $idx => $k) {
                 $num = $idx + 1;
                 $label = SarCalculationService::getLabelStatusKorban($k['status_korban'] ?? '');
@@ -416,18 +431,25 @@ BODY;
                 $alamatK = !empty($k['alamat']) ? (string)$k['alamat'] : '-';
                 $kList[] = "{$num}. Nama : {$namaK} [Status: {$label}]\n   Umur : {$umurK}\n   Jenis Kelamin : {$jkK}\n   Alamat : {$alamatK}";
             }
-        }
+            if ($stats['unrecorded_dp'] > 0) {
+                $nextNum = count($kList) + 1;
+                $kList[] = "{$nextNum}. {$stats['unrecorded_dp']} Orang Dalam Pencarian (Identitas Belum Terdata / Belum Diketahui)";
+            }
+            $identitasText = empty($kList)
+                ? "1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -"
+                : implode("\n\n", $kList);
 
-        if ($stats['unrecorded_dp'] > 0) {
-            $nextNum = count($kList) + 1;
-            $kList[] = "{$nextNum}. {$stats['unrecorded_dp']} Orang Dalam Pencarian (Identitas Belum Terdata / Belum Diketahui)";
-        }
+            $dataKorbanHeader = 'Data Korban: ' . self::jumlahOrang((int)$stats['total'], 'Orang');
+            $jml = array_map(fn($n) => self::jumlahOrang((int)$n, 'Orang'), ['s' => $stats['s'], 'md' => $stats['md'], 'dp' => $stats['dp'], 'h' => $stats['h']]);
+            if ($stats['unrecorded_dp'] > 0) {
+                $dataKorbanHeader .= " (POB: {$stats['total']} Org, Teridentifikasi: {$stats['identified']} Org, Belum Terdata: {$stats['unrecorded_dp']} Org)";
+            }
 
-        if (empty($kList)) {
-            $identitasText = "1. Nama : -\n   Umur : -\n   Jenis Kelamin : -\n   Alamat : -";
-        } else {
-            $identitasText = implode("\n\n", $kList);
+            $korbanSection = "\n\n{$dataKorbanHeader}\n- S : {$jml['s']}\n- MD : {$jml['md']}\n- DP : {$jml['dp']}\n- H : {$jml['h']}\n\nIdentitas Korban:\n{$identitasText}";
         }
+        $hasilBody = $klausulPenutupan !== ''
+            ? ($isiFormatted === '-' ? $klausulPenutupan : ($isiFormatted . "\n" . $klausulPenutupan))
+            : $isiFormatted;
 
         if (empty($unsur)) {
             $unsurText = "- Belum ada data unsur SAR";
@@ -440,40 +462,12 @@ BODY;
         }
 
         $alutText = self::formatAlutLines($alut, '-');
-
-        $dataKorbanHeader = 'Data Korban: ' . self::jumlahOrang((int)$stats['total'], 'Orang');
-        $jml = array_map(fn($n) => self::jumlahOrang((int)$n, 'Orang'), ['s' => $stats['s'], 'md' => $stats['md'], 'dp' => $stats['dp'], 'h' => $stats['h']]);
-        if ($stats['unrecorded_dp'] > 0) {
-            $dataKorbanHeader .= " (POB: {$stats['total']} Org, Teridentifikasi: {$stats['identified']} Org, Belum Terdata: {$stats['unrecorded_dp']} Org)";
-        }
-
-        $pickWeather = static function (string $key) use ($laporan, $ops): string {
-            if (array_key_exists($key, $laporan) && $laporan[$key] !== null) {
-                $v = trim((string)$laporan[$key]);
-                return $v !== '' ? $v : '-';
-            }
-            $opVal = trim((string)($ops[$key] ?? ''));
-            return $opVal !== '' ? $opVal : '-';
-        };
-        $cuacaVal = $pickWeather('cuaca');
-        $gelombangVal = $pickWeather('gelombang');
-        $anginVal = $pickWeather('angin');
-        $hasBmkg = stripos("{$cuacaVal} {$gelombangVal} {$anginVal}", 'BMKG') !== false;
-        $anginLine = ($anginVal !== '-' && !$hasBmkg) ? "{$anginVal} (Sumber BMKG)" : $anginVal;
+        $weatherLines = self::formatWeatherLines($laporan, $ops);
 
         $body = <<<BODY
 Hasil Ops SAR {$hariKe}:
 
-{$hasilBody}
-
-{$dataKorbanHeader}
-- S : {$jml['s']}
-- MD : {$jml['md']}
-- DP : {$jml['dp']}
-- H : {$jml['h']}
-
-Identitas Korban:
-{$identitasText}
+{$hasilBody}{$korbanSection}
 
 Unsur SAR Terlibat:
 {$unsurText}
@@ -482,9 +476,7 @@ Alut dan Palsar:
 {$alutText}
 
 Kondisi Cuaca:
-• cuaca : {$cuacaVal}
-• Gelombang : {$gelombangVal}
-• Angin: {$anginLine}
+{$weatherLines}
 BODY;
 
         return $header . "\n\n" . $body . "\n\n" . self::getFooterWA();

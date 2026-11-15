@@ -68,6 +68,13 @@ assertCondition(str_contains($exp, "zoom: '1'") && str_contains($exp, "STYLE_KEY
 assertCondition(str_contains($exp, "breakBefore: 'auto',") && str_contains($exp, "pageBreakBefore: 'auto'"), 'exporter PDF: break-before lembar landscape tidak jadi halaman kosong');
 assertCondition(str_contains($js, "k !== 'grup' && v !== ''"), 'JS: baris kosong abaikan kolom grup tersembunyi');
 assertCondition(str_contains($js, "fileInput.value = ''") && str_contains($js, 'e.data && e.data.foto'), 'JS: unggah parsial (422 + foto) muat ulang, input file direset');
+assertCondition(
+    (bool)preg_match('/fileInput\.addEventListener\(\'change\'[\s\S]*?try\s*\{\s*await save\(\);[\s\S]*?uploadFotoWithProgress/', $js)
+    && (bool)preg_match('/await save\(\);\s*await api\(\'POST\',\s*\'\/foto\/bulk-delete\'/', $js)
+    && str_contains($js, "try { await save(); await api('DELETE', `/foto/\${idFoto}`); window.location.reload(); }")
+    && str_contains($js, "$$('#btnCapturePeta, #btnCapturePetaRencana', app)"),
+    'JS: auto-save suntingan draf sebelum upload/hapus foto atau capture peta agar input struktur/teks tidak ter-reset saat reload'
+);
 
 echo "\nHasil: {$ok}/{$total} lulus.\n";
 exit($ok === $total ? 0 : 1);
