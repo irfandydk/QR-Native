@@ -372,6 +372,7 @@
   let polyCircleRadiusUnit = activeGlobalUnit; // 'NM' | 'KM' | 'M'
   let polyRectWidthNm = 2.0;
   let polyRectHeightNm = 2.0;
+  let polyRectRotationDeg = 0;
   let polyRectDimUnit = activeGlobalUnit; // 'NM' | 'KM' | 'M'
   let polyShapeCenter = null;
   let activePolygonPoints = [];
@@ -384,9 +385,13 @@
   // Search Pattern state (Default: Parallel Track)
   let activePatternType = 'parallel_track';
   let activeEsarOrientation = 'horizontal'; // 'horizontal' | 'vertical'
-  // Flip pola Parallel Track / Creeping Line (titik awal): cermin timur-barat & utara-selatan.
+  // Flip & Orientasi pola Parallel Track / Creeping Line / E-SAR (titik awal, cermin & rotasi 0-359°).
   let activePatternFlipH = false;
   let activePatternFlipV = false;
+  let activePatternRotationDeg = 0;
+  let activePatternPresetDir = 'N_S';
+  let activePatternAutoMode = false;
+  let activePatternAutoLabel = '';
   let activeEsarDirection = 'west_to_east'; // 'west_to_east' | 'east_to_west' | 'north_to_south' | 'south_to_north'
   let activeEsarArrowMarkers = [];
   let activeGeneratedWaypoints = [];
@@ -3030,6 +3035,22 @@
       });
     }
 
+    // Slide Bar Arah Orientasi Persegi (0° - 359°)
+    const rectRotSlider = document.getElementById('polyRectRotationSlider');
+    const rectRotLabel = document.getElementById('polyRectRotationLabel');
+    if (rectRotSlider) {
+      rectRotSlider.addEventListener('input', (e) => {
+        polyRectRotationDeg = ((Math.round(parseFloat(e.target.value) || 0)) % 360 + 360) % 360;
+        if (rectRotLabel) rectRotLabel.textContent = `${polyRectRotationDeg}°`;
+        if (activeSearchAreaShape === 'rectangle' && (polyShapeCenter || activePolygonPoints.length > 0)) {
+          const c = polyShapeCenter || getPolygonCentroid(activePolygonPoints);
+          polyShapeCenter = c;
+          activePolygonPoints = generateRectangleVertices(c.lat, c.lng, polyRectWidthNm, polyRectHeightNm);
+          updateLivePolygonVisual();
+        }
+      });
+    }
+
     // New Polygon Button
     const btnNew = document.getElementById('btnStartNewPolygon');
     if (btnNew) {
@@ -3058,9 +3079,9 @@
     document.querySelectorAll('.poly-shape-btn').forEach((b) => {
       const isCur = b.getAttribute('data-shape') === shape;
       if (isCur) {
-        b.className = 'poly-shape-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-left transition font-bold shadow-xs cursor-pointer';
+        b.className = 'poly-shape-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-center transition font-bold shadow-xs cursor-pointer';
       } else {
-        b.className = 'poly-shape-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-left hover:border-orange-500 transition cursor-pointer';
+        b.className = 'poly-shape-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-center hover:border-orange-500 transition cursor-pointer';
       }
     });
 
@@ -3129,12 +3150,36 @@
     const dLat = halfHeightKm / latKmPerDeg;
     const dLng = halfWidthKm / lngKmPerDeg;
 
-    return [
+    const baseVertices = [
       { lat: centerLat + dLat, lng: centerLng - dLng, label: 'Titik A (NW)' },
       { lat: centerLat + dLat, lng: centerLng + dLng, label: 'Titik B (NE)' },
       { lat: centerLat - dLat, lng: centerLng + dLng, label: 'Titik C (SE)' },
       { lat: centerLat - dLat, lng: centerLng - dLng, label: 'Titik D (SW)' }
     ];
+
+    const rotDeg = arguments.length >= 5 && arguments[4] !== undefined
+      ? Number(arguments[4]) || 0
+      : (Number(polyRectRotationDeg) || 0);
+    const normRot = ((Math.round(rotDeg)) % 360 + 360) % 360;
+    if (normRot === 0) {
+      return baseVertices;
+    }
+    if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.rotatePointsConformal === 'function') {
+      return window.QrSarGis.Patterns.rotatePointsConformal(baseVertices, normRot, { lat: centerLat, lng: centerLng });
+    }
+    const rad = (normRot * Math.PI) / 180;
+    const cosA = Math.cos(rad);
+    const sinA = Math.sin(rad);
+    const cosLat = Math.max(0.1, Math.cos((centerLat * Math.PI) / 180));
+    return baseVertices.map((p) => {
+      const dx = (p.lng - centerLng) * cosLat;
+      const dy = p.lat - centerLat;
+      return {
+        ...p,
+        lat: centerLat + (-dx * sinA + dy * cosA),
+        lng: centerLng + (dx * cosA + dy * sinA) / cosLat
+      };
+    });
   }
 
   function handleSearchAreaMapClick(lat, lng) {
@@ -3214,6 +3259,7 @@
       polyShapeCenter = (existingData.centerLat && existingData.centerLng)
         ? { lat: parseFloat(existingData.centerLat), lng: parseFloat(existingData.centerLng) }
         : (activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : null);
+      polyRectRotationDeg = 0;
     } else if (existingData && existingData.shapeType === 'rectangle') {
       polyRectWidthNm = parseFloat(existingData.boxWidthNm) || 2.0;
       polyRectHeightNm = parseFloat(existingData.boxHeightNm) || 2.0;
@@ -3224,9 +3270,26 @@
       polyShapeCenter = (existingData.centerLat && existingData.centerLng)
         ? { lat: parseFloat(existingData.centerLat), lng: parseFloat(existingData.centerLng) }
         : (activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : null);
+      if (existingData.rotationDeg !== undefined && existingData.rotationDeg !== null) {
+        polyRectRotationDeg = ((Math.round(Number(existingData.rotationDeg) || 0)) % 360 + 360) % 360;
+      } else if (activePolygonPoints.length >= 2) {
+        const p0 = activePolygonPoints[0];
+        const p1 = activePolygonPoints[1];
+        const cosLat = Math.max(0.1, Math.cos(((parseFloat(p0.lat) || -4.0) * Math.PI) / 180));
+        const dx = (parseFloat(p1.lng) - parseFloat(p0.lng)) * cosLat;
+        const dy = parseFloat(p1.lat) - parseFloat(p0.lat);
+        polyRectRotationDeg = ((Math.round((Math.atan2(-dy, dx) * 180) / Math.PI)) % 360 + 360) % 360;
+      } else {
+        polyRectRotationDeg = 0;
+      }
     } else {
       polyShapeCenter = activePolygonPoints.length ? getPolygonCentroid(activePolygonPoints) : null;
+      polyRectRotationDeg = 0;
     }
+    const rectRotSlider = document.getElementById('polyRectRotationSlider');
+    const rectRotLabel = document.getElementById('polyRectRotationLabel');
+    if (rectRotSlider) rectRotSlider.value = String(polyRectRotationDeg);
+    if (rectRotLabel) rectRotLabel.textContent = `${polyRectRotationDeg}°`;
 
     setSearchAreaShape(shape);
 
@@ -3249,6 +3312,11 @@
     editingPolygonId = null;
     activePolygonPoints = [];
     polyShapeCenter = null;
+    polyRectRotationDeg = 0;
+    const rectRotSlider = document.getElementById('polyRectRotationSlider');
+    const rectRotLabel = document.getElementById('polyRectRotationLabel');
+    if (rectRotSlider) rectRotSlider.value = '0';
+    if (rectRotLabel) rectRotLabel.textContent = '0°';
     activeSearchAreaShape = 'polygon';
     setSearchAreaShape('polygon');
 
@@ -3891,9 +3959,9 @@
       btn.addEventListener('click', () => {
         activePatternType = btn.getAttribute('data-ptype');
         document.querySelectorAll('.pat-type-btn').forEach((b) => {
-          b.className = 'pat-type-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-left hover:border-orange-500 transition';
+          b.className = 'pat-type-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-center hover:border-orange-500 transition cursor-pointer';
         });
-        btn.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-left transition font-bold shadow-xs';
+        btn.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-center transition font-bold shadow-xs cursor-pointer';
         refreshPatternAutoName();
         const statusMsg = document.getElementById('patternStatusMsg');
         if (statusMsg) statusMsg.classList.add('hidden');
@@ -3996,27 +4064,123 @@
       btn.addEventListener('click', () => {
         if (axis === 'H') activePatternFlipH = !activePatternFlipH;
         else activePatternFlipV = !activePatternFlipV;
+        activePatternAutoMode = false;
+        activePatternPresetDir = '';
         updatePatternFlipButtonsUI();
         updatePatternAutoCalculation({ source: 'auto' });
         generateSearchPatternRoute();
       });
     });
+
+    // Mode Auto-Orientasi mengikuti bentuk area & titik LKP/rute
+    const btnAutoOrient = document.getElementById('btnPatternAutoOrient');
+    if (btnAutoOrient) {
+      btnAutoOrient.addEventListener('click', () => {
+        applyAutoPatternOrientation(true);
+      });
+    }
+
+    // Reset Utara Default (0°)
+    const btnResetNorth = document.getElementById('btnPatternResetNorth');
+    if (btnResetNorth) {
+      btnResetNorth.addEventListener('click', () => {
+        activePatternRotationDeg = 0;
+        activePatternFlipH = false;
+        activePatternFlipV = false;
+        activePatternAutoMode = false;
+        activePatternPresetDir = 'N_S';
+        activePatternAutoLabel = '';
+        updatePatternFlipButtonsUI();
+        updatePatternAutoCalculation({ source: 'auto' });
+        generateSearchPatternRoute();
+      });
+    }
+
+    // 8-Compass Preset Arah Penerapan Pola
+    document.querySelectorAll('.pat-dir-preset-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const dirCode = btn.getAttribute('data-pat-dir') || 'N_S';
+        activePatternAutoMode = false;
+        activePatternPresetDir = dirCode;
+        activePatternAutoLabel = '';
+        if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.directionPresetToConfig === 'function') {
+          const cfg = window.QrSarGis.Patterns.directionPresetToConfig(activePatternType, dirCode);
+          activePatternRotationDeg = cfg.rotationDeg;
+          activePatternFlipH = !!cfg.flipH;
+          activePatternFlipV = !!cfg.flipV;
+        }
+        if (activePatternType === 'e_sar' || activePatternType === 'sector_search') {
+          if (dirCode === 'W_E') { activeEsarOrientation = 'horizontal'; activeEsarDirection = 'west_to_east'; }
+          else if (dirCode === 'E_W') { activeEsarOrientation = 'horizontal'; activeEsarDirection = 'east_to_west'; }
+          else if (dirCode === 'N_S') { activeEsarOrientation = 'vertical'; activeEsarDirection = 'north_to_south'; }
+          else if (dirCode === 'S_N') { activeEsarOrientation = 'vertical'; activeEsarDirection = 'south_to_north'; }
+          updateEsarDirectionButtonsUI();
+        }
+        updatePatternFlipButtonsUI();
+        updatePatternAutoCalculation({ source: 'auto' });
+        generateSearchPatternRoute();
+      });
+    });
+
+    // Slider & Input Sudut Rotasi Bebas (0° - 359°)
+    const rotSlider = document.getElementById('patternRotationSlider');
+    const rotInput = document.getElementById('patternRotationInput');
+    const applyManualRotationDeg = (rawDeg) => {
+      const deg = ((Math.round(parseFloat(rawDeg) || 0)) % 360 + 360) % 360;
+      activePatternRotationDeg = deg;
+      activePatternAutoMode = false;
+      activePatternPresetDir = '';
+      activePatternAutoLabel = '';
+      updatePatternFlipButtonsUI();
+      updatePatternAutoCalculation({ source: 'auto' });
+      generateSearchPatternRoute();
+    };
+    if (rotSlider) {
+      rotSlider.addEventListener('input', (e) => {
+        applyManualRotationDeg(e.target.value);
+      });
+    }
+    if (rotInput) {
+      rotInput.addEventListener('change', (e) => {
+        applyManualRotationDeg(e.target.value);
+      });
+      rotInput.addEventListener('input', (e) => {
+        if (e.target.value !== '') {
+          applyManualRotationDeg(e.target.value);
+        }
+      });
+    }
+
+    // Tombol Step Rotasi Cepat (-15°, +15°, +90°)
+    [
+      ['btnPatternRotateCCW', -15],
+      ['btnPatternRotateCW', 15],
+      ['btnPatternRotate90', 90]
+    ].forEach(([btnId, deltaDeg]) => {
+      const stepBtn = document.getElementById(btnId);
+      if (stepBtn) {
+        stepBtn.addEventListener('click', () => {
+          applyManualRotationDeg((Number(activePatternRotationDeg) || 0) + deltaDeg);
+        });
+      }
+    });
+
     updatePatternFlipButtonsUI();
 
     // Activate default parallel_track button style
     const defaultPatBtn = document.querySelector('.pat-type-btn[data-ptype="parallel_track"]');
     if (defaultPatBtn) {
-      defaultPatBtn.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-left transition font-bold shadow-xs';
+      defaultPatBtn.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-center transition font-bold shadow-xs cursor-pointer';
     }
 
     // Target polygon select listener
     const targetPolySel = document.getElementById('patternTargetPolygon');
     if (targetPolySel) {
       targetPolySel.addEventListener('change', () => {
-        updatePatternAutoCalculation({ source: 'auto' });
-        refreshPatternAutoName();
         const selectedId = targetPolySel.value;
         const resolvedPts = resolveTargetPolygonPoints(selectedId);
+        updatePatternAutoCalculation({ source: 'auto' });
+        refreshPatternAutoName();
         if (resolvedPts && resolvedPts.length >= 3 && map) {
           const validPts = resolvedPts.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]).filter((p) => !isNaN(p[0]) && !isNaN(p[1]));
           if (validPts.length >= 3) {
@@ -4275,8 +4439,13 @@
       lng: parseFloat(p.lng)
     })).filter((p) => !isNaN(p.lat) && !isNaN(p.lng));
 
+    const normRot = ((Math.round(Number(activePatternRotationDeg) || 0)) % 360 + 360) % 360;
+    const calcCoords = (normRot !== 0 && window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.rotatePointsConformal === 'function')
+      ? window.QrSarGis.Patterns.rotatePointsConformal(coords, -normRot)
+      : coords;
+
     let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-    coords.forEach((p) => {
+    calcCoords.forEach((p) => {
       if (p.lat < minLat) minLat = p.lat;
       if (p.lat > maxLat) maxLat = p.lat;
       if (p.lng < minLng) minLng = p.lng;
@@ -4300,7 +4469,7 @@
 
     const isEsar = (activePatternType === 'sector_search' || activePatternType === 'e_sar');
     const flipWrapper = document.getElementById('patternFlipWrapper');
-    if (flipWrapper) flipWrapper.classList.toggle('hidden', !(activePatternType === 'parallel_track' || activePatternType === 'creeping_line'));
+    if (flipWrapper) flipWrapper.classList.remove('hidden');
     const esarWrapper = document.getElementById('esarOrientationWrapper');
     const esarPersonnelInfo = document.getElementById('patternEsarPersonnelInfo');
     const personnelReadout = document.getElementById('patternPersonnelCalcReadout');
@@ -4370,7 +4539,7 @@
       }
       if (marginInfoEl) {
         const marginVal = effectiveSpacingNm / 2;
-        marginInfoEl.textContent = `${formatDynamicDistance(marginVal, marginVal * 1.852)} (S/2 Jarak Pandang Personil)`;
+        marginInfoEl.textContent = `${formatDynamicDistance(marginVal, marginVal * 1.852)}`;
       }
     } else {
       if (esarWrapper) esarWrapper.classList.add('hidden');
@@ -4400,18 +4569,98 @@
       if (marginInfoEl) {
         const marginVal = rawSpacing / 2;
         const marginNmVal = (unit === 'KM') ? (marginVal / 1.852) : ((unit === 'M') ? (marginVal / 1852) : marginVal);
-        marginInfoEl.textContent = `${formatDynamicDistance(marginNmVal, marginNmVal * 1.852)} (S/2 Jarak Pandang)`;
+        marginInfoEl.textContent = `${formatDynamicDistance(marginNmVal, marginNmVal * 1.852)}`;
       }
     }
 
     if (dimInfoEl) {
       if (activeGlobalUnit === 'KM') {
-        dimInfoEl.textContent = `P: ${widthKm.toFixed(1)} km (${widthNm.toFixed(1)} NM) • L: ${heightKm.toFixed(1)} km (${heightNm.toFixed(1)} NM)`;
+        dimInfoEl.textContent = `P: ${widthKm.toFixed(1)} km • L: ${heightKm.toFixed(1)} km`;
       } else if (activeGlobalUnit === 'M') {
         dimInfoEl.textContent = `P: ${Math.round(widthKm * 1000)} m • L: ${Math.round(heightKm * 1000)} m`;
       } else {
-        dimInfoEl.textContent = `P: ${widthNm.toFixed(1)} NM (${widthKm.toFixed(1)} km) • L: ${heightNm.toFixed(1)} NM (${heightKm.toFixed(1)} km)`;
+        dimInfoEl.textContent = `P: ${widthNm.toFixed(1)} NM • L: ${heightNm.toFixed(1)} NM`;
       }
+    }
+  }
+
+  /**
+   * Mencari titik acuan terdekat (LKP / ujung Rute ke LKP / Pangkalan) untuk penentuan Entry (S) otomatis
+   */
+  function resolvePatternReferencePoint() {
+    if (Array.isArray(savedPoints) && savedPoints.length > 0) {
+      const lkpPt = savedPoints.find((p) => {
+        const icon = String(p.iconType || p.icon_type || '').toLowerCase();
+        const cat = String(p.category || '').toLowerCase();
+        const nm = String(p.name || '').toLowerCase();
+        return icon.includes('lkp') || cat.includes('lkp') || nm.includes('lkp') || nm.includes('datum');
+      });
+      if (lkpPt && !isNaN(parseFloat(lkpPt.lat)) && !isNaN(parseFloat(lkpPt.lng))) {
+        return { lat: parseFloat(lkpPt.lat), lng: parseFloat(lkpPt.lng) };
+      }
+    }
+    if (Array.isArray(savedRoutes) && savedRoutes.length > 0) {
+      const opRoute = savedRoutes.find((r) => Array.isArray(r.points) && r.points.length >= 2);
+      if (opRoute) {
+        const firstPt = opRoute.points[0];
+        if (firstPt && !isNaN(parseFloat(firstPt.lat)) && !isNaN(parseFloat(firstPt.lng))) {
+          return { lat: parseFloat(firstPt.lat), lng: parseFloat(firstPt.lng) };
+        }
+      }
+    }
+    if (Array.isArray(savedPoints) && savedPoints.length > 0) {
+      const basePt = savedPoints[0];
+      if (basePt && !isNaN(parseFloat(basePt.lat)) && !isNaN(parseFloat(basePt.lng))) {
+        return { lat: parseFloat(basePt.lat), lng: parseFloat(basePt.lng) };
+      }
+    }
+    return { lat: -4.0167, lng: 122.5167 };
+  }
+
+  /**
+   * Menerapkan orientasi pola otomatis berdasarkan geometri poligon & titik acuan LKP/Rute
+   */
+  function applyAutoPatternOrientation(shouldRegenerate = true) {
+    if (!window.QrSarGis || !window.QrSarGis.Patterns || typeof window.QrSarGis.Patterns.computeOptimalPatternConfig !== 'function') {
+      return;
+    }
+    const polySel = document.getElementById('patternTargetPolygon');
+    const targetPolyId = polySel ? polySel.value : 'datum_kansar';
+    const resolvedPoints = resolveTargetPolygonPoints(targetPolyId) || [
+      { lat: -3.98, lng: 122.50 },
+      { lat: -3.98, lng: 122.62 },
+      { lat: -4.08, lng: 122.62 },
+      { lat: -4.08, lng: 122.50 }
+    ];
+    const spacingInput = document.getElementById('patternTrackSpacing');
+    const unitSel = document.getElementById('patternSpacingUnit');
+    const unit = unitSel ? unitSel.value : 'NM';
+    const rawSpacing = parseFloat(spacingInput ? spacingInput.value : '1.0') || 1.0;
+    let spacingNm = rawSpacing;
+    if (unit === 'KM') spacingNm = rawSpacing / 1.852;
+    else if (unit === 'M') spacingNm = rawSpacing / 1852;
+    const legsInput = document.getElementById('patternLegsCount');
+    const legs = parseInt(legsInput ? legsInput.value : '6', 10) || 6;
+
+    const refPt = resolvePatternReferencePoint();
+    const opt = window.QrSarGis.Patterns.computeOptimalPatternConfig(activePatternType, resolvedPoints, refPt, spacingNm, legs);
+    activePatternRotationDeg = ((Math.round(Number(opt.rotationDeg) || 0)) % 360 + 360) % 360;
+    activePatternFlipH = !!opt.flipH;
+    activePatternFlipV = !!opt.flipV;
+    activePatternAutoMode = true;
+    activePatternPresetDir = 'AUTO';
+    const ratioStr = opt.aspectRatio ? `${Number(opt.aspectRatio).toFixed(1)}:1` : 'Optimal';
+    activePatternAutoLabel = `Sumbu ${Math.round(Number(opt.majorAxisBearingDeg) || 0)}° (${ratioStr})`;
+
+    if (activePatternType === 'e_sar' || activePatternType === 'sector_search') {
+      activeEsarOrientation = opt.orientation || 'horizontal';
+      activeEsarDirection = opt.direction || 'west_to_east';
+    }
+
+    updatePatternFlipButtonsUI();
+    updatePatternAutoCalculation({ source: 'auto' });
+    if (shouldRegenerate) {
+      generateSearchPatternRoute();
     }
   }
 
@@ -4424,6 +4673,44 @@
       btn.classList.toggle('bg-orange-500/10', on);
       btn.classList.toggle('text-orange-600', on);
     });
+
+    const normRot = ((Math.round(Number(activePatternRotationDeg) || 0)) % 360 + 360) % 360;
+    const rotSlider = document.getElementById('patternRotationSlider');
+    if (rotSlider && String(rotSlider.value) !== String(normRot)) {
+      rotSlider.value = String(normRot);
+    }
+    const rotInput = document.getElementById('patternRotationInput');
+    if (rotInput && String(rotInput.value) !== String(normRot)) {
+      rotInput.value = String(normRot);
+    }
+
+    const btnAuto = document.getElementById('btnPatternAutoOrient');
+    if (btnAuto) {
+      btnAuto.setAttribute('aria-pressed', activePatternAutoMode ? 'true' : 'false');
+      btnAuto.classList.toggle('ring-2', activePatternAutoMode);
+      btnAuto.classList.toggle('ring-orange-400', activePatternAutoMode);
+    }
+
+    document.querySelectorAll('.pat-dir-preset-btn').forEach((btn) => {
+      const code = btn.getAttribute('data-pat-dir');
+      const isPresetActive = !activePatternAutoMode && activePatternPresetDir === code;
+      btn.setAttribute('aria-pressed', isPresetActive ? 'true' : 'false');
+      btn.classList.toggle('border-orange-500', isPresetActive);
+      btn.classList.toggle('bg-orange-500/15', isPresetActive);
+      btn.classList.toggle('text-orange-600', isPresetActive);
+      btn.classList.toggle('dark:text-orange-400', isPresetActive);
+      btn.classList.toggle('border-slate-200', !isPresetActive);
+      btn.classList.toggle('dark:border-slate-800', !isPresetActive);
+      btn.classList.toggle('bg-white', !isPresetActive);
+      btn.classList.toggle('dark:bg-slate-900', !isPresetActive);
+      btn.classList.toggle('text-slate-600', !isPresetActive);
+      btn.classList.toggle('dark:text-slate-300', !isPresetActive);
+    });
+
+    const badgeEl = document.getElementById('patternOrientationBadge');
+    if (badgeEl) {
+      badgeEl.textContent = `${normRot}°`;
+    }
   }
 
   function generateSearchPatternRoute() {
@@ -4451,7 +4738,8 @@
       orientation: activeEsarOrientation,
       direction: activeEsarDirection,
       flipH: activePatternFlipH,
-      flipV: activePatternFlipV
+      flipV: activePatternFlipV,
+      rotationDeg: activePatternRotationDeg
     };
 
     if (resolvedPoints && resolvedPoints.length >= 3) {
@@ -5144,14 +5432,20 @@
   function clearCurrentPatternVisual() {
     activePatternFlipH = false;
     activePatternFlipV = false;
+    activePatternRotationDeg = 0;
+    activePatternPresetDir = 'N_S';
+    activePatternAutoMode = false;
+    activePatternAutoLabel = '';
     updatePatternFlipButtonsUI();
     const wasEditing = !!editingPatternId;
     editingPatternId = null;
     removeActivePatternLayers();
     activeGeneratedWaypoints = [];
     activeGeneratedDistanceNm = 0;
-    const resCard = document.getElementById('patternResultsCard');
-    if (resCard) resCard.classList.add('hidden');
+    const elDist = document.getElementById('resPatternDistNm');
+    if (elDist) elDist.textContent = '0.00 NM';
+    const elAreaSwept = document.getElementById('resPatternAreaSwept');
+    if (elAreaSwept) elAreaSwept.textContent = '0.00 NM²';
     const statusMsg = document.getElementById('patternStatusMsg');
     if (statusMsg) {
       statusMsg.innerHTML = '';
@@ -5230,6 +5524,7 @@
       legsCount: legsVal,
       flipH: activePatternFlipH,
       flipV: activePatternFlipV,
+      rotationDeg: activePatternRotationDeg,
       color: lineColor,
       opacity: lineOpacity,
       strokeWeight: lineWeight,
@@ -5465,13 +5760,16 @@
     activePatternType = pat.patternType || 'parallel_track';
     activePatternFlipH = !!pat.flipH;
     activePatternFlipV = !!pat.flipV;
+    activePatternRotationDeg = Number(pat.rotationDeg) || 0;
+    activePatternAutoMode = false;
+    activePatternPresetDir = (activePatternRotationDeg === 0 && !activePatternFlipH && !activePatternFlipV) ? 'N_S' : '';
     updatePatternFlipButtonsUI();
     document.querySelectorAll('.pat-type-btn').forEach((b) => {
       const ptype = b.getAttribute('data-ptype');
       if (ptype === activePatternType) {
-        b.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-left transition font-bold shadow-xs';
+        b.className = 'pat-type-btn p-2 rounded-xl border border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400 text-center transition font-bold shadow-xs cursor-pointer';
       } else {
-        b.className = 'pat-type-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-left hover:border-orange-500 transition';
+        b.className = 'pat-type-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-center hover:border-orange-500 transition cursor-pointer';
       }
     });
 

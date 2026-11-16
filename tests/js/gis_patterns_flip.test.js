@@ -48,5 +48,55 @@ test('E-SAR tidak terpengaruh flip', () => {
   assert.deepEqual(b, a);
 });
 
+test('Rotasi bebas 0..345 derajat (step 15) pada poligon cekung (L): semua waypoint tetap 100% di dalam poligon', () => {
+  const L = [
+    { lat: -4.0, lng: 122.0 }, { lat: -4.0, lng: 122.1 }, { lat: -4.1, lng: 122.1 },
+    { lat: -4.1, lng: 122.2 }, { lat: -4.2, lng: 122.2 }, { lat: -4.2, lng: 122.0 },
+  ];
+  for (let deg = 0; deg < 360; deg += 15) {
+    for (const type of ['parallel_track', 'creeping_line']) {
+      const wps = P.generateFittedPatternInsidePolygon(type, L, 0.8, 5, { rotationDeg: deg });
+      assert.ok(wps.length >= 2, `${type} rot=${deg} menghasilkan minimal 2 titik`);
+      wps.forEach((w, i) => {
+        assert.ok(P.isPointInPolygon(w.lat, w.lng, L), `${type} rot=${deg} titik ${i} keluar poligon`);
+      });
+    }
+  }
+});
+
+test('Auto-Orientasi (Minimum-Area OBB + Reference Point LKP): menyelaraskan sumbu memanjang & memilih sudut Entry terdekat', () => {
+  const nsCorridor = [
+    { lat: -4.00, lng: 122.00 },
+    { lat: -4.00, lng: 122.04 },
+    { lat: -4.20, lng: 122.04 },
+    { lat: -4.20, lng: 122.00 }
+  ];
+  const southLkp = { lat: -4.25, lng: 122.00 };
+  const optPs = P.computeOptimalPatternConfig('parallel_track', nsCorridor, southLkp, 0.5, 4);
+  assert.ok(optPs.rotationDeg === 90 || optPs.rotationDeg === 270, `Parallel track pada koridor U-S harus berotasi 90/270, dapat ${optPs.rotationDeg}`);
+  assert.ok(optPs.aspectRatio > 4, `Aspect ratio koridor harus > 4, dapat ${optPs.aspectRatio}`);
+
+  const wpsAuto = P.generateFittedPatternInsidePolygon('parallel_track', nsCorridor, 0.5, 4, {
+    autoAlign: true,
+    referencePoint: southLkp
+  });
+  assert.ok(wpsAuto.length >= 4);
+  // Titik awal (Start S) harus berada di sisi Selatan (dekat southLkp lat -4.20) dibanding sisi Utara (-4.00)
+  assert.ok(wpsAuto[0].lat < -4.15, `Entry (S) harus di ujung selatan dekat LKP, dapat lat=${wpsAuto[0].lat}`);
+});
+
+test('8-Compass Quick Direction Presets menghasilkan konfigurasi valid dan titik di dalam poligon', () => {
+  const dirs = ['N_S', 'S_N', 'W_E', 'E_W', 'NW_SE', 'NE_SW', 'SW_NE', 'SE_NW'];
+  for (const dir of dirs) {
+    for (const type of ['parallel_track', 'creeping_line']) {
+      const wps = P.generateFittedPatternInsidePolygon(type, persegi, 1.5, 5, { startPreset: dir });
+      assert.ok(wps.length >= 4, `Preset ${dir} (${type}) harus menghasilkan >= 4 titik`);
+      wps.forEach((w, i) => {
+        assert.ok(P.isPointInPolygon(w.lat, w.lng, persegi), `Preset ${dir} (${type}) titik ${i} keluar poligon`);
+      });
+    }
+  }
+});
+
 console.log(failed ? `${failed} FAIL` : 'ALL PASS');
 process.exit(failed ? 1 : 0);
