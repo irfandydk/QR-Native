@@ -37,20 +37,6 @@ class RenopsDokumenModel {
         return self::fetchOne("token = :t", [':t' => $token]);
     }
 
-    /**
-     * Struktur organisasi versi terbit (TERBIT/DIGANTIKAN) terbaru di sistem yang diterbitkan paling lambat
-     * $sebelum, selain milik $excludeRenops. Batas waktu membuat default tetap: terbitan baru di operasi lain
-     * tidak mengubah isi (dan source_hash) dokumen yang lebih lama.
-     */
-    public static function latestStruktur(int $excludeRenops, string $sebelum): ?array {
-        $stmt = getDB()->prepare("SELECT konten_json FROM RenopsDokumen
-            WHERE id_renops <> :r AND status IN ('TERBIT','DIGANTIKAN') AND issued_at <= :t
-            ORDER BY issued_at DESC, id_dokumen DESC LIMIT 1");
-        $stmt->execute([':r' => $excludeRenops, ':t' => $sebelum]);
-        $s = json_decode((string)$stmt->fetchColumn(), true)['sections']['struktur'] ?? null;
-        return is_array($s) ? $s : null;
-    }
-
     /** @return array<int, array{terbit_versi: ?int}> */
     public static function statusByOperasi(int $idOperasi): array {
         try {

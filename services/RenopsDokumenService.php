@@ -423,8 +423,8 @@ class RenopsDokumenService {
     }
 
     /**
-     * Jabatan disalin dari dokumen RENOPS hari terdekat sebelumnya (TERBIT lalu DRAF), lalu versi terbit
-     * terbaru di sistem sebelum RENOPS ini dibuat (R11). SMC = pejabat SMC default bila ada. SRU selalu dari SRU hari N.
+     * Jabatan disalin dari dokumen RENOPS hari terdekat sebelumnya dalam operasi yang sama (TERBIT lalu DRAF).
+     * Operasi SAR baru (H1 / tanpa pendahulu) memulai dengan OSC & staf kosong, SMC default, SC default, dan SRU hari N.
      */
     private static function defaultStruktur(array $ops, array $renops, int $n, array $sruStruktur): array {
         $idRenops = (int)$renops['id_renops'];
@@ -436,16 +436,14 @@ class RenopsDokumenService {
             }
         }
         arsort($calon);
-        $src = null;
+        $src = [];
         foreach (array_keys($calon) as $id) {
-            $src = RenopsDokumenModel::getLatestTerbit($id)['konten']['sections']['struktur']
+            $kandidat = RenopsDokumenModel::getLatestTerbit($id)['konten']['sections']['struktur']
                 ?? RenopsDokumenModel::getDraft($id)['konten']['sections']['struktur'] ?? null;
-            if (is_array($src)) {
+            if (is_array($kandidat)) {
+                $src = $kandidat;
                 break;
             }
-        }
-        if (!is_array($src)) {
-            $src = RenopsDokumenModel::latestStruktur($idRenops, (string)($renops['created_at'] ?? '')) ?? [];
         }
 
         $out = [];

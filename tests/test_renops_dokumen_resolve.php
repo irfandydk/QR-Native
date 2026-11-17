@@ -180,18 +180,18 @@ try {
         'Reopen H7+1: upaya sebelumnya merujuk Hari ke-1 sampai dengan Hari ke-7'
     );
 
-    // TERBIT hari sebelumnya diutamakan atas DRAF-nya.
+    // TERBIT hari sebelumnya diutamakan atas DRAF-nya (dalam operasi yang sama).
     $terbit = function (int $rid, string $osc, string $issuedAt) use ($db, $idOps) {
         $db->prepare("INSERT INTO RenopsDokumen (id_renops, id_operasi, versi, status, rev, konten_json, token, issued_at) VALUES (?, ?, 1, 'TERBIT', 0, ?, ?, ?)")
-            ->execute([$rid, $idOps, json_encode(['sections' => ['struktur' => ['sc' => 'SC Uji', 'osc' => $osc]]]), strtoupper(bin2hex(random_bytes(8))), $issuedAt]);
+            ->execute([$rid, $idOps, json_encode(['sections' => ['struktur' => ['sc' => 'SC Uji', 'osc' => $osc, 'staf_operasi' => 'Staf Ops A']]]), strtoupper(bin2hex(random_bytes(8))), $issuedAt]);
     };
     $terbit($idR, 'OSC Terbit', '2001-01-01 08:00:00');
-    assertCondition(RenopsDokumenService::resolve($idR2)['sections']['struktur']['osc'] === 'OSC Terbit', 'Struktur H2: TERBIT H1 diutamakan atas DRAF H1');
+    $dH2 = RenopsDokumenService::resolve($idR2);
+    assertCondition($dH2['sections']['struktur']['osc'] === 'OSC Terbit' && $dH2['sections']['struktur']['staf_operasi'] === 'Staf Ops A', 'Struktur H2: TERBIT H1 diutamakan atas DRAF H1 dalam operasi yang sama');
 
-    // Review Focus 2: operasi tanpa korban, SRU, alut, maupun snapshot.
+    // Review Focus 2: operasi baru tanpa korban, SRU, alut, maupun snapshot (isolasi struktur antar operasi).
     $idOpsKosong = OperasiModel::create(['nama_operasi' => 'Operasi Uji Kosong']);
     $idRk = RenopsModel::create(['id_operasi' => $idOpsKosong, 'srus' => []]);
-    // R11: hanya versi terbit yang diterbitkan sebelum RENOPS ini dibuat (09:00) yang dipakai.
     $db->prepare("UPDATE Renops SET created_at = '2001-01-01 09:00:00' WHERE id_renops = ?")->execute([$idRk]);
     $warnings = [];
     set_error_handler(function (int $no, string $msg, string $file, int $line) use (&$warnings) {
@@ -209,10 +209,16 @@ try {
     $rk = array_column($sk['data_kejadian'], 'value', 'label');
     assertCondition($sk['aset'] === [] && $sk['sru'] === [] && $sk['sarana'] === [] && $rk['Objek yang Dicari'] === '-' && $rk['Catatan'] === '-' && $rk['Penyebab'] === '-', 'Data kosong: tabel kosong & "-"');
     assertCondition(!str_contains($sk['awareness'] . $sk['mission'] . $sk['operation_stage'], ' - '), 'Data kosong: kalimat tanpa sisipan "-"');
-    assertCondition($sk['struktur']['osc'] === 'OSC Terbit' && $sk['struktur']['sc'] === 'SC Uji', 'H1 tanpa pendahulu: struktur dari versi terbit terakhir sebelum RENOPS dibuat (bukan DRAF, bukan terbitan sesudahnya)');
-    $terbit($idR2, 'OSC Nanti', '2001-01-01 10:00:00'); // terbit di tempat lain SESUDAH RENOPS kosong dibuat
+    assertCondition(
+        $sk['struktur']['osc'] === ''
+        && $sk['struktur']['staf_operasi'] === ''
+        && $sk['struktur']['sc'] === RenopsDokumenService::SC_DEFAULT
+        && $sk['struktur']['smc'] === $defaultSmcNama,
+        'Operasi SAR baru (H1): struktur organisasi bersih (OSC & staf kosong, SC & SMC default) dan tidak menyalin dari operasi SAR lain'
+    );
+    $terbit($idR2, 'OSC Nanti', '2001-01-01 10:00:00');
     $dk2 = RenopsDokumenService::resolve($idRk);
-    assertCondition($dk2['sections']['struktur']['osc'] === 'OSC Terbit' && $dk2['meta']['source_hash'] === $dk['meta']['source_hash'], 'Terbitan sesudahnya tidak mengubah struktur/source_hash dokumen lama');
+    assertCondition($dk2['sections']['struktur']['osc'] === '' && $dk2['meta']['source_hash'] === $dk['meta']['source_hash'], 'Terbitan di operasi lain tidak mengubah struktur/source_hash operasi ini');
 
 } finally {
     foreach ([$idOps, $idOpsKosong] as $id) {
