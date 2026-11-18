@@ -225,6 +225,64 @@ try {
     $readme = (string)file_get_contents(ROOT_DIR . '/README.md');
     assertCond(str_contains($envExample, 'ALLOWED_HOSTS='), '#12 .env.example mendokumentasikan ALLOWED_HOSTS');
     assertCond(str_contains($readme, 'PHP 8.2+') && !str_contains($readme, 'PHP 8.0+'), '#19 README.md memperbarui syarat minimum ke PHP 8.2+');
+
+    // ------------------------------------------------------------------
+    // 9. Gelombang 2 Safe Hardening (Cookie Secure, SVG regex, PDF timeout,
+    //    BackupService DROP/TRUNCATE & flock, LogService IP, Offline Fonts)
+    // ------------------------------------------------------------------
+    $appConfigSrc = (string)file_get_contents(ROOT_DIR . '/config/app.php');
+    assertCond(
+        (bool)preg_match('/\$isSecure\s*=[^;]+HTTP_X_FORWARDED_PROTO/s', $appConfigSrc),
+        'G2-1 config/app.php menyertakan HTTP_X_FORWARDED_PROTO pada $isSecure session cookie'
+    );
+
+    $adminCtrlSrc = (string)file_get_contents(CONTROLLERS_DIR . '/AdminController.php');
+    $gisApiSrc = (string)file_get_contents(API_CONTROLLERS_DIR . '/GisApiController.php');
+    assertCond(
+        str_contains($adminCtrlSrc, '\bon[a-z]+\s*=') && str_contains($gisApiSrc, '\bon[a-z]+\s*='),
+        'G2-2 AdminController & GisApiController menolak seluruh event handler SVG (\bon[a-z]+\s*=)'
+    );
+    assertCond(
+        str_contains($adminCtrlSrc, "\$tab === 'backup' ? BackupService::getDbStats() : []")
+        && str_contains($adminCtrlSrc, 'LogService::cleanOldLogs('),
+        'G2-6 AdminController memuat getDbStats() hanya di tab backup & memanggil cleanOldLogs saat prune_audit'
+    );
+
+    $renopsPdfSrc = (string)file_get_contents(ROOT_DIR . '/services/RenopsPdfService.php');
+    $braPdfSrc = (string)file_get_contents(ROOT_DIR . '/services/BraPdfService.php');
+    assertCond(
+        str_contains($renopsPdfSrc, 'proc_open') && str_contains($renopsPdfSrc, 'proc_terminate')
+        && str_contains($braPdfSrc, 'proc_open') && str_contains($braPdfSrc, 'proc_terminate'),
+        'G2-3 RenopsPdfService & BraPdfService menggunakan proc_open berbatas waktu (timeout + proc_terminate)'
+    );
+
+    $rejectedMultiDrop = false;
+    try {
+        $refNorm = new ReflectionMethod(BackupService::class, 'normalizeAndValidateSqlStatement');
+        $refNorm->invoke(null, "DROP TABLE IF EXISTS `Users`, `Operasi`");
+    } catch (InvalidArgumentException) {
+        $rejectedMultiDrop = true;
+    }
+    $backupSrc = (string)file_get_contents(ROOT_DIR . '/services/BackupService.php');
+    assertCond(
+        $rejectedMultiDrop && str_contains($backupSrc, 'flock('),
+        'G2-4 BackupService menolak ekor tambahan pada DROP/TRUNCATE dan memasang flock() saat restoreFromSQL'
+    );
+
+    $logSvcSrc = (string)file_get_contents(ROOT_DIR . '/services/LogService.php');
+    $gisMasterSrc = (string)file_get_contents(ROOT_DIR . '/assets/js/gis_master.js');
+    assertCond(
+        !str_contains($logSvcSrc, 'HTTP_X_FORWARDED_FOR') && str_contains($logSvcSrc, 'AuthHelper::getClientIp()')
+        && str_contains($gisMasterSrc, '${escapeHtml(msg)}'),
+        'G2-5 LogService memakai AuthHelper::getClientIp() & showRouteSaveFeedback meng-escape msg'
+    );
+
+    $loginViewSrc = (string)file_get_contents(ROOT_DIR . '/views/auth/login.php');
+    $pubHeaderSrc = (string)file_get_contents(ROOT_DIR . '/views/layout/public_header.php');
+    assertCond(
+        !str_contains($loginViewSrc, 'fonts.googleapis.com') && !str_contains($pubHeaderSrc, 'fonts.googleapis.com'),
+        'G2-7 views/auth/login.php & views/layout/public_header.php bebas dari CDN Google Fonts'
+    );
 } catch (Throwable $e) {
     assertCond(false, 'Pengecualian uji: ' . $e->getMessage());
 } finally {

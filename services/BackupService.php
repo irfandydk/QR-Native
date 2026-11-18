@@ -304,6 +304,16 @@ class BackupService {
         }
         self::writeSQLDump($fp);
         fclose($fp);
+
+        // Retensi maksimal 5 berkas snapshot pre-restore terbaru
+        $snaps = glob($dir . '/pre-restore-*.sql') ?: [];
+        if (count($snaps) > 5) {
+            sort($snaps);
+            foreach (array_slice($snaps, 0, count($snaps) - 5) as $oldSnap) {
+                @unlink($oldSnap);
+            }
+        }
+
         return $path;
     }
 
@@ -579,6 +589,12 @@ class BackupService {
                     throw new InvalidArgumentException("Pemulihan ditolak: tabel '{$rawTable}' bukan bagian dari skema terkelola QR-SAR.");
                 }
                 $canonical = $tableMap[$lower];
+                if (str_starts_with(ltrim($rest), '.')) {
+                    throw new InvalidArgumentException("Pemulihan ditolak: referensi lintas database tidak diizinkan.");
+                }
+                if ((stripos($prefix, 'DROP') === 0 || stripos($prefix, 'TRUNCATE') === 0) && trim($rest) !== '') {
+                    throw new InvalidArgumentException("Pemulihan ditolak: pernyataan DROP/TRUNCATE tidak boleh memuat argumen atau tabel tambahan.");
+                }
                 if (stripos($prefix, 'CREATE') === 0 || stripos($prefix, 'ALTER') === 0) {
                     $rest = (string)preg_replace_callback(
                         '/\b(REFERENCES\s+)`?([A-Za-z0-9_]+)`?/i',
@@ -617,11 +633,24 @@ class BackupService {
             throw new InvalidArgumentException('Berkas SQL tidak memuat pernyataan pemulihan tabel yang valid.');
         }
 
-        $snapshotPath = self::snapshotBeforeRestore();
+        $lockDir = STORAGE_DIR . '/backups';
+        if (!is_dir($lockDir)) {
+            @mkdir($lockDir, 0755, true);
+        }
+        $lockFp = @fopen($lockDir . '/restore.lock', 'cb');
+        if ($lockFp === false || !@flock($lockFp, LOCK_EX | LOCK_NB)) {
+            if (is_resource($lockFp)) {
+                @fclose($lockFp);
+            }
+            throw new RuntimeException('Proses pemulihan basis data lain sedang berlangsung. Silakan tunggu beberapa saat.');
+        }
+
+        $snapshotPath = '';
         $db = getDB();
         $ddlStarted = false;
 
         try {
+            $snapshotPath = self::snapshotBeforeRestore();
             $db->exec("SET FOREIGN_KEY_CHECKS = 0");
 
             foreach ($validatedStatements as $stmtText) {
@@ -670,6 +699,11 @@ class BackupService {
             }
             error_log("[QR-SAR Restore Error] " . $e->getMessage());
             throw $e;
+        } finally {
+            if (isset($lockFp) && is_resource($lockFp)) {
+                @flock($lockFp, LOCK_UN);
+                @fclose($lockFp);
+            }
         }
     }
 }

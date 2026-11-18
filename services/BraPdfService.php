@@ -109,9 +109,7 @@ class BraPdfService {
                 . ' ' . escapeshellarg($fileUrl)
                 . ' 2>/dev/null';
 
-            $out = [];
-            $exitCode = 1;
-            @exec($cmd, $out, $exitCode);
+            self::runWithTimeout($cmd, 15);
 
             if (!is_file($tmpPdf) || filesize($tmpPdf) < 500) {
                 return null;
@@ -129,6 +127,40 @@ class BraPdfService {
                 @unlink($tmpPdf);
             }
         }
+    }
+
+    private static function runWithTimeout(string $cmd, int $timeoutSeconds = 15): void {
+        if (!function_exists('proc_open')) {
+            $out = [];
+            $exitCode = 1;
+            @exec($cmd, $out, $exitCode);
+            return;
+        }
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['file', '/dev/null', 'w'],
+            2 => ['file', '/dev/null', 'w'],
+        ];
+        $proc = @proc_open($cmd, $descriptors, $pipes);
+        if (!is_resource($proc)) {
+            return;
+        }
+        if (isset($pipes[0]) && is_resource($pipes[0])) {
+            @fclose($pipes[0]);
+        }
+        $deadline = microtime(true) + $timeoutSeconds;
+        while (true) {
+            $status = @proc_get_status($proc);
+            if (!is_array($status) || empty($status['running'])) {
+                break;
+            }
+            if (microtime(true) >= $deadline) {
+                @proc_terminate($proc, 9);
+                break;
+            }
+            usleep(50000);
+        }
+        @proc_close($proc);
     }
 }
 

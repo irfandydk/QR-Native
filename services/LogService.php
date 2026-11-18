@@ -52,12 +52,10 @@ class LogService {
             $timestamp = date('Y-m-d H:i:s');
             $levelUpper = strtoupper($level);
             
-            // Client IP
-            $ip = $_SERVER['REMOTE_ADDR'] ?? (php_sapi_name() === 'cli' ? 'CLI' : '127.0.0.1');
-            if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                $forwarded = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-                $ip = trim($forwarded[0]);
-            }
+            // Client IP (selaras dengan AuthHelper::getClientIp() agar tidak bisa dipalsukan via X-Forwarded-For)
+            $ip = (php_sapi_name() === 'cli')
+                ? 'CLI'
+                : (class_exists('AuthHelper') ? AuthHelper::getClientIp() : ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'));
 
             // Authenticated user resolution
             $user = 'GUEST';

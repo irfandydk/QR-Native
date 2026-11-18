@@ -484,8 +484,6 @@ class BraModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            if (!empty($toDelete)) {
-            }
             AuditHelper::log('BRA_UPDATE', "Memperbarui Naskah BRA No. {$noBra} (ID: {$id})", 'BraSar', (string)$id);
             return true;
         } catch (Throwable $e) {

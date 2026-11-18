@@ -481,66 +481,32 @@ class GisApiController extends BaseApiController {
             }
         } catch (Throwable $e) {}
 
-        // 3. ArcGIS World Geocoding
-        try {
-            $url = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?" . http_build_query([
-                'f' => 'json',
-                'singleLine' => $q,
-                'countryCode' => 'IDN',
-                'maxLocations' => 8,
-                'outFields' => 'Match_addr,Addr_type,Type,City,Subregion,Region'
-            ]);
-            $ctx = stream_context_create([
-                'http' => [
-                    'timeout' => 3,
-                    'header' => "User-Agent: QRSAR-Basarnas/2.0\r\nAccept: application/json\r\n"
-                ]
-            ]);
-            $json = @file_get_contents($url, false, $ctx);
-            if ($json) {
-                $res = json_decode($json, true);
-                if (!empty($res['candidates'])) {
-                    foreach ($res['candidates'] as $c) {
-                        $lat = (float)($c['location']['y'] ?? 0);
-                        $lng = (float)($c['location']['x'] ?? 0);
-                        if ($lat == 0 && $lng == 0) continue;
+        // 3 & 4. External Geocoding (ArcGIS + Photon fallback) with 7-day local disk cache
+        $geoCacheDir = (defined('STORAGE_DIR') ? STORAGE_DIR : (ROOT_DIR . '/storage')) . '/cache/geocode';
+        $geoCacheFile = $geoCacheDir . '/' . md5(mb_strtolower($q, 'UTF-8')) . '.json';
+        $extItems = null;
 
-                        $addr = $c['address'] ?? '';
-                        $parts = explode(',', $addr);
-                        $name = trim($parts[0]);
-                        $sub = trim(implode(', ', array_slice($parts, 1))) ?: $addr;
-
-                        $isDup = false;
-                        foreach ($results as $r) {
-                            if (abs($r['lat'] - $lat) < 0.0005 && abs($r['lng'] - $lng) < 0.0005) {
-                                $isDup = true;
-                                break;
-                            }
-                        }
-                        if ($isDup) continue;
-
-                        $type = $c['attributes']['Type'] ?? $c['attributes']['Addr_type'] ?? 'Lokasi';
-                        $results[] = [
-                            'name' => $name,
-                            'address' => $sub,
-                            'lat' => $lat,
-                            'lng' => $lng,
-                            'type' => $type,
-                            'badge' => 'MAPS',
-                            'icon' => 'map-pin',
-                            'dms' => $toDms($lat, $lng)
-                        ];
-                    }
+        if (is_file($geoCacheFile) && (time() - (int)@filemtime($geoCacheFile) < 604800)) {
+            $cachedJson = @file_get_contents($geoCacheFile);
+            if (is_string($cachedJson) && $cachedJson !== '') {
+                $decoded = json_decode($cachedJson, true);
+                if (is_array($decoded)) {
+                    $extItems = $decoded;
                 }
             }
-        } catch (Throwable $e) {}
+        }
 
-        // 4. Photon OSM API fallback
-        if (count($results) < 5) {
+        if ($extItems === null) {
+            $extItems = [];
+
+            // 3. ArcGIS World Geocoding
             try {
-                $url = "https://photon.komoot.io/api/?" . http_build_query([
-                    'q' => $q,
-                    'limit' => 6
+                $url = "https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?" . http_build_query([
+                    'f' => 'json',
+                    'singleLine' => $q,
+                    'countryCode' => 'IDN',
+                    'maxLocations' => 8,
+                    'outFields' => 'Match_addr,Addr_type,Type,City,Subregion,Region'
                 ]);
                 $ctx = stream_context_create([
                     'http' => [
@@ -551,48 +517,105 @@ class GisApiController extends BaseApiController {
                 $json = @file_get_contents($url, false, $ctx);
                 if ($json) {
                     $res = json_decode($json, true);
-                    if (!empty($res['features'])) {
-                        foreach ($res['features'] as $f) {
-                            $props = $f['properties'] ?? [];
-                            $coords = $f['geometry']['coordinates'] ?? [];
-                            if (empty($coords) || count($coords) < 2) continue;
-                            $lng = (float)$coords[0];
-                            $lat = (float)$coords[1];
+                    if (!empty($res['candidates'])) {
+                        foreach ($res['candidates'] as $c) {
+                            $lat = (float)($c['location']['y'] ?? 0);
+                            $lng = (float)($c['location']['x'] ?? 0);
+                            if ($lat == 0 && $lng == 0) continue;
 
-                            $name = $props['name'] ?? '';
-                            if (!$name) continue;
+                            $addr = $c['address'] ?? '';
+                            $parts = explode(',', $addr);
+                            $name = trim($parts[0]);
+                            $sub = trim(implode(', ', array_slice($parts, 1))) ?: $addr;
 
-                            $isDup = false;
-                            foreach ($results as $r) {
-                                if (abs($r['lat'] - $lat) < 0.0005 && abs($r['lng'] - $lng) < 0.0005) {
-                                    $isDup = true;
-                                    break;
-                                }
-                            }
-                            if ($isDup) continue;
-
-                            $addrParts = array_filter([
-                                $props['district'] ?? null,
-                                $props['city'] ?? $props['county'] ?? null,
-                                $props['state'] ?? null,
-                                $props['country'] ?? null
-                            ]);
-                            $sub = implode(', ', $addrParts) ?: 'Indonesia';
-
-                            $results[] = [
+                            $type = $c['attributes']['Type'] ?? $c['attributes']['Addr_type'] ?? 'Lokasi';
+                            $extItems[] = [
                                 'name' => $name,
                                 'address' => $sub,
                                 'lat' => $lat,
                                 'lng' => $lng,
-                                'type' => $props['type'] ?? 'Wilayah',
-                                'badge' => 'GEODATA',
-                                'icon' => 'navigation',
+                                'type' => $type,
+                                'badge' => 'MAPS',
+                                'icon' => 'map-pin',
                                 'dms' => $toDms($lat, $lng)
                             ];
                         }
                     }
                 }
             } catch (Throwable $e) {}
+
+            // 4. Photon OSM API fallback
+            if (count($results) + count($extItems) < 5) {
+                try {
+                    $url = "https://photon.komoot.io/api/?" . http_build_query([
+                        'q' => $q,
+                        'limit' => 6
+                    ]);
+                    $ctx = stream_context_create([
+                        'http' => [
+                            'timeout' => 3,
+                            'header' => "User-Agent: QRSAR-Basarnas/2.0\r\nAccept: application/json\r\n"
+                        ]
+                    ]);
+                    $json = @file_get_contents($url, false, $ctx);
+                    if ($json) {
+                        $res = json_decode($json, true);
+                        if (!empty($res['features'])) {
+                            foreach ($res['features'] as $f) {
+                                $props = $f['properties'] ?? [];
+                                $coords = $f['geometry']['coordinates'] ?? [];
+                                if (empty($coords) || count($coords) < 2) continue;
+                                $lng = (float)$coords[0];
+                                $lat = (float)$coords[1];
+
+                                $name = $props['name'] ?? '';
+                                if (!$name) continue;
+
+                                $addrParts = array_filter([
+                                    $props['district'] ?? null,
+                                    $props['city'] ?? $props['county'] ?? null,
+                                    $props['state'] ?? null,
+                                    $props['country'] ?? null
+                                ]);
+                                $sub = implode(', ', $addrParts) ?: 'Indonesia';
+
+                                $extItems[] = [
+                                    'name' => $name,
+                                    'address' => $sub,
+                                    'lat' => $lat,
+                                    'lng' => $lng,
+                                    'type' => $props['type'] ?? 'Wilayah',
+                                    'badge' => 'GEODATA',
+                                    'icon' => 'navigation',
+                                    'dms' => $toDms($lat, $lng)
+                                ];
+                            }
+                        }
+                    }
+                } catch (Throwable $e) {}
+            }
+
+            if (!empty($extItems)) {
+                if (!is_dir($geoCacheDir)) {
+                    @mkdir($geoCacheDir, 0755, true);
+                }
+                @file_put_contents($geoCacheFile, json_encode($extItems, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            }
+        }
+
+        foreach ($extItems as $ext) {
+            $lat = (float)($ext['lat'] ?? 0);
+            $lng = (float)($ext['lng'] ?? 0);
+            $isDup = false;
+            foreach ($results as $r) {
+                if (abs($r['lat'] - $lat) < 0.0005 && abs($r['lng'] - $lng) < 0.0005) {
+                    $isDup = true;
+                    break;
+                }
+            }
+            if (!$isDup) {
+                $results[] = $ext;
+            }
         }
 
         self::json(['success' => true, 'query' => $q, 'count' => count($results), 'data' => array_slice($results, 0, 10)]);
@@ -614,7 +637,7 @@ class GisApiController extends BaseApiController {
 
             if ($ext === 'svg') {
                 $svgContent = file_get_contents($file['tmp_name']);
-                if ($svgContent !== false && preg_match('/<script|javascript:|onload|onerror|onclick|onmouseover|<iframe|<embed|<object|<foreignobject/i', $svgContent)) {
+                if ($svgContent !== false && preg_match('/<script|javascript:|data:text\/html|\bon[a-z]+\s*=|<iframe|<embed|<object|<foreignobject/i', $svgContent)) {
                     self::error('Berkas SVG ditolak: Terdeteksi skrip atau tag tidak aman.', 400);
                 }
             } else {
@@ -678,6 +701,13 @@ class GisApiController extends BaseApiController {
         if ($filename === '' || !preg_match('/^icon_\d+_[0-9a-f]{8}\.(png|jpe?g|svg|webp)$/i', $filename)) {
             self::error('Nama berkas ikon tidak valid.', 400);
         }
+        try {
+            $db = getDB();
+            $escapedFilename = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $filename);
+            $stmt = $db->prepare("UPDATE GisPoint SET customIconUrl = NULL, pointType = 'pin_umum' WHERE customIconUrl LIKE :pattern ESCAPE '!'");
+            $stmt->execute([':pattern' => '%uploads/icons/' . $escapedFilename]);
+        } catch (Throwable) {}
+
         $baseDir = realpath(ROOT_DIR . '/uploads/icons');
         if ($baseDir !== false) {
             $filePath = realpath($baseDir . '/' . $filename);
@@ -685,13 +715,6 @@ class GisApiController extends BaseApiController {
                 @unlink($filePath);
             }
         }
-
-        try {
-            $db = getDB();
-            $escapedFilename = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $filename);
-            $stmt = $db->prepare("UPDATE GisPoint SET customIconUrl = NULL, pointType = 'pin_umum' WHERE customIconUrl LIKE :pattern ESCAPE '!'");
-            $stmt->execute([':pattern' => '%uploads/icons/' . $escapedFilename]);
-        } catch (Throwable) {}
 
         self::json(['success' => true, 'message' => 'Logo kustom berhasil dihapus dari galeri dan dilepas dari titik peta.']);
     }
@@ -832,7 +855,7 @@ class GisApiController extends BaseApiController {
                     'verify_peer_name' => true
                 ]
             ]);
-            $imgBytes = @file_get_contents($tileUrl, false, $ctx);
+            $imgBytes = @file_get_contents($tileUrl, false, $ctx, 0, 5242880);
             $mime = $imgBytes !== false ? self::detectValidTileMime($imgBytes) : null;
             if ($mime === null) {
                 http_response_code(404);

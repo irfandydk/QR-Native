@@ -83,8 +83,7 @@ class MasterController extends BaseController {
                 $namaTim = trim($_POST['nama_tim'] ?? '');
                 if ($namaTim !== '') {
                     MasterModel::createTim([
-                        'nama_tim' => $namaTim,
-                        'kategori' => $_POST['kategori'] ?? 'Potensi'
+                        'nama_tim' => $namaTim
                     ]);
                     $this->setFlash('success', "Unsur potensi \"{$namaTim}\" berhasil ditambahkan.");
                 } else {

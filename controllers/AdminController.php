@@ -217,6 +217,9 @@ class AdminController extends BaseController {
             if ($action === 'prune_audit') {
                 $days = (int)($_POST['older_than_days'] ?? 180);
                 $res = AuditHelper::pruneLogs($days);
+                if (class_exists('LogService')) {
+                    LogService::cleanOldLogs(30);
+                }
                 if ($res['deleted'] > 0) {
                     $this->setFlash('success', "Pembersihan arsip sukses: {$res['deleted']} baris log audit berumur > {$res['days']} hari berhasil dibersihkan.");
                 } else {
@@ -228,7 +231,7 @@ class AdminController extends BaseController {
 
         // 3. Prepare Data for View
         $settings = SettingsModel::getSettings();
-        $dbStats = BackupService::getDbStats();
+        $dbStats = $tab === 'backup' ? BackupService::getDbStats() : [];
 
         $usersList = class_exists('UserModel') ? UserModel::getAll() : [];
 
@@ -297,7 +300,7 @@ class AdminController extends BaseController {
                         // A. Validate SVG against Stored XSS
                         if ($ext === 'svg') {
                             $svgContent = file_get_contents($tmpPath);
-                            if ($svgContent !== false && preg_match('/<script|javascript:|onload|onerror|onclick|onmouseover|<iframe|<embed|<object|<foreignobject/i', $svgContent)) {
+                            if ($svgContent !== false && preg_match('/<script|javascript:|data:text\/html|\bon[a-z]+\s*=|<iframe|<embed|<object|<foreignobject/i', $svgContent)) {
                                 $this->setFlash('error', 'Berkas SVG ditolak: Terdeteksi skrip atau tag tidak aman.');
                                 $this->redirect('/admin.php?tab=satker');
                             }

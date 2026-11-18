@@ -449,8 +449,6 @@ class RenopsModel {
             if ($db->inTransaction()) {
                 $db->commit();
             }
-            if (!empty($toDelete)) {
-            }
             return true;
         } catch (Throwable $e) {
             if ($db->inTransaction()) {

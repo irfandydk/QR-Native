@@ -6597,13 +6597,13 @@
     banner.classList.remove('hidden');
     if (type === 'success') {
       banner.className = 'text-xs p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center justify-between animate-in fade-in';
-      banner.innerHTML = `<span>${msg}</span><button type="button" onclick="this.parentElement.classList.add('hidden')" class="ml-2 font-bold opacity-60 hover:opacity-100">&times;</button>`;
+      banner.innerHTML = `<span>${escapeHtml(msg)}</span><button type="button" onclick="this.parentElement.classList.add('hidden')" class="ml-2 font-bold opacity-60 hover:opacity-100">&times;</button>`;
     } else if (type === 'warning') {
       banner.className = 'text-xs p-2.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex items-center justify-between animate-in fade-in';
-      banner.innerHTML = `<span>⚠️ ${msg}</span><button type="button" onclick="this.parentElement.classList.add('hidden')" class="ml-2 font-bold opacity-60 hover:opacity-100">&times;</button>`;
+      banner.innerHTML = `<span>⚠️ ${escapeHtml(msg)}</span><button type="button" onclick="this.parentElement.classList.add('hidden')" class="ml-2 font-bold opacity-60 hover:opacity-100">&times;</button>`;
     } else {
       banner.className = 'text-xs p-2.5 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 flex items-center justify-between animate-in fade-in';
-      banner.innerHTML = `<span>${msg}</span><button type="button" onclick="this.parentElement.classList.add('hidden')" class="ml-2 font-bold opacity-60 hover:opacity-100">&times;</button>`;
+      banner.innerHTML = `<span>${escapeHtml(msg)}</span><button type="button" onclick="this.parentElement.classList.add('hidden')" class="ml-2 font-bold opacity-60 hover:opacity-100">&times;</button>`;
     }
     setTimeout(() => {
       if (banner) banner.classList.add('hidden');
