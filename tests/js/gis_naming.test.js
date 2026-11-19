@@ -54,5 +54,39 @@ test('pointAutoName: LKP tunggal, Titik N, Kategori N', () => {
   assert.equal(N.pointAutoName('Posko', []), 'Posko 1');
 });
 
+test('groupPoints: item dengan import_group membentuk kelompok import tersendiri & dapat di-rename', () => {
+  const pts = [
+    { id: 'p1', category: 'LKP' },
+    { id: 'p2', category: 'Import 1', import_group: 'Import 1' },
+    { id: 'p3', category: 'Drone H.2', import_group: 'Drone H.2' },
+    { id: 'p4', category: 'Import 1', import_group: 'Import 1' },
+  ];
+  const g = N.groupPoints(pts);
+  assert.deepEqual(g.map((x) => x.key), ['lkp', 'import:Import 1', 'import:Drone H.2']);
+  const imp1 = g.find((x) => x.key === 'import:Import 1');
+  assert.equal(imp1.isImportGroup, true);
+  assert.equal(imp1.importGroup, 'Import 1');
+  assert.deepEqual(imp1.points.map((p) => p.id), ['p2', 'p4']);
+  const imp2 = g.find((x) => x.key === 'import:Drone H.2');
+  assert.equal(imp2.isImportGroup, true);
+  assert.equal(imp2.label, 'Drone H.2');
+});
+
+test('groupEntities: mengelompokkan Search Area, Pola SAR, dan Rute berdasarkan import_group', () => {
+  const polys = [
+    { id: 'a1', name: 'SRU 1' },
+    { id: 'a2', name: 'Area KML 1', import_group: 'Import 1' },
+    { id: 'a3', name: 'Area KML 2', import_group: 'Import 2' },
+    { id: 'a4', name: 'Area KML 1b', import_group: 'Import 1' },
+  ];
+  const g = N.groupEntities(polys, 'Search Area', 'default_polygons');
+  assert.deepEqual(g.map((x) => x.key), ['default_polygons', 'import:Import 1', 'import:Import 2']);
+  assert.equal(g[0].isImportGroup, false);
+  assert.deepEqual(g[0].items.map((x) => x.id), ['a1']);
+  assert.equal(g[1].isImportGroup, true);
+  assert.equal(g[1].importGroup, 'Import 1');
+  assert.deepEqual(g[1].items.map((x) => x.id), ['a2', 'a4']);
+});
+
 console.log(failed ? `${failed} FAIL` : 'ALL PASS');
 process.exit(failed ? 1 : 0);

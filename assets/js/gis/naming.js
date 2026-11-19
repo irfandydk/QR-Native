@@ -21,13 +21,87 @@
     return g ? g.key : 'lain';
   }
 
-  /** @return {Array<{key: string, label: string, points: object[]}>} hanya kelompok berisi, urutan titik dipertahankan */
+  function extractImportGroup(item) {
+    if (!item || typeof item !== 'object') return '';
+    const raw = String(item.import_group || item.importGroup || '').trim();
+    if (raw !== '') return raw;
+    const cat = String(item.category || '').trim();
+    if (/^Import\s+\d+$/i.test(cat)) return cat;
+    return '';
+  }
+
+  /** @return {Array<{key: string, label: string, isImportGroup?: boolean, importGroup?: string, points: object[]}>} hanya kelompok berisi, urutan titik dipertahankan */
   function groupPoints(points) {
-    return POINT_GROUPS.map((g) => ({
+    const regularPts = [];
+    const importMap = new Map();
+
+    (points || []).forEach((p) => {
+      const impGrp = extractImportGroup(p);
+      if (impGrp !== '') {
+        if (!importMap.has(impGrp)) importMap.set(impGrp, []);
+        importMap.get(impGrp).push(p);
+      } else {
+        regularPts.push(p);
+      }
+    });
+
+    const baseGroups = POINT_GROUPS.map((g) => ({
       key: g.key,
       label: g.label,
-      points: (points || []).filter((p) => groupKeyOf(p && p.category) === g.key),
+      isImportGroup: false,
+      points: regularPts.filter((p) => groupKeyOf(p && p.category) === g.key),
     })).filter((g) => g.points.length > 0);
+
+    const importGroups = [];
+    importMap.forEach((pts, grpName) => {
+      importGroups.push({
+        key: 'import:' + grpName,
+        label: grpName,
+        isImportGroup: true,
+        importGroup: grpName,
+        points: pts,
+      });
+    });
+
+    return baseGroups.concat(importGroups);
+  }
+
+  /** @return {Array<{key: string, label: string, isImportGroup: boolean, importGroup?: string, items: object[]}>} */
+  function groupEntities(items, defaultLabel = 'Daftar Item', defaultKey = 'default') {
+    const regularItems = [];
+    const importMap = new Map();
+
+    (items || []).forEach((item) => {
+      const impGrp = extractImportGroup(item);
+      if (impGrp !== '') {
+        if (!importMap.has(impGrp)) importMap.set(impGrp, []);
+        importMap.get(impGrp).push(item);
+      } else {
+        regularItems.push(item);
+      }
+    });
+
+    const groups = [];
+    if (regularItems.length > 0) {
+      groups.push({
+        key: defaultKey,
+        label: defaultLabel,
+        isImportGroup: false,
+        items: regularItems,
+      });
+    }
+
+    importMap.forEach((grpItems, grpName) => {
+      groups.push({
+        key: 'import:' + grpName,
+        label: grpName,
+        isImportGroup: true,
+        importGroup: grpName,
+        items: grpItems,
+      });
+    });
+
+    return groups;
   }
 
   // ── Penamaan otomatis (hanya dipakai bila nama kosong; nama ketikan operator tidak pernah ditimpa) ──
@@ -72,7 +146,7 @@
     return `${prefix} ` + nextFree((points || []).map((p) => p && p.label), prefix);
   }
 
-  const Naming = { POINT_GROUPS, groupKeyOf, groupPoints, nextSruName, patternAutoName, isAutoPatternName, routeAutoName, pointAutoName };
+  const Naming = { POINT_GROUPS, groupKeyOf, extractImportGroup, groupPoints, groupEntities, nextSruName, patternAutoName, isAutoPatternName, routeAutoName, pointAutoName };
 
   global.QrSarGis = global.QrSarGis || {};
   global.QrSarGis.Naming = Naming;

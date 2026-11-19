@@ -9,6 +9,27 @@ declare(strict_types=1);
 
 class GisModel {
     private static bool $schemaChecked = false;
+    private static bool $importGroupColsChecked = false;
+
+    public static function ensureImportGroupColumns(?PDO $db = null): void {
+        if (self::$importGroupColsChecked) {
+            return;
+        }
+        $db = $db ?? getDB();
+        if ($db->inTransaction()) {
+            return;
+        }
+        self::$importGroupColsChecked = true;
+        try {
+            foreach (['GisPoint', 'GisPolygon', 'GisSearchPattern', 'GisRoute'] as $tbl) {
+                if (empty($db->query("SHOW COLUMNS FROM `{$tbl}` LIKE 'import_group'")->fetchAll())) {
+                    $db->exec("ALTER TABLE `{$tbl}` ADD COLUMN `import_group` VARCHAR(100) NULL DEFAULT NULL");
+                }
+            }
+        } catch (Throwable $e) {
+            error_log("[GisModel import_group Check] " . $e->getMessage());
+        }
+    }
 
     /**
      * Schema migration check for multi-operation SAR.
@@ -59,6 +80,10 @@ class GisModel {
                 ['GisSearchPattern', 'flipH', 'TINYINT(1) NOT NULL DEFAULT 0'],
                 ['GisSearchPattern', 'flipV', 'TINYINT(1) NOT NULL DEFAULT 0'],
                 ['GisRoute', 'polygonId', 'VARCHAR(191) NULL DEFAULT NULL'],
+                ['GisPoint', 'import_group', 'VARCHAR(100) NULL DEFAULT NULL'],
+                ['GisPolygon', 'import_group', 'VARCHAR(100) NULL DEFAULT NULL'],
+                ['GisSearchPattern', 'import_group', 'VARCHAR(100) NULL DEFAULT NULL'],
+                ['GisRoute', 'import_group', 'VARCHAR(100) NULL DEFAULT NULL'],
             ] as [$tbl, $colName, $def]) {
                 if (empty($db->query("SHOW COLUMNS FROM {$tbl} LIKE '{$colName}'")->fetchAll())) {
                     $db->exec("ALTER TABLE {$tbl} ADD COLUMN {$colName} {$def}");
@@ -349,10 +374,14 @@ class GisModel {
         $rawType = (string)($data['pointType'] ?? ($data['point_type'] ?? 'pin_umum'));
         $type = !empty($customIcon) ? 'custom_upload' : ($rawType === 'custom_upload' ? 'pin_umum' : $rawType);
 
+        self::ensureImportGroupColumns($db);
+        $rawImpGroup = $data['import_group'] ?? ($data['importGroup'] ?? null);
+        $importGroup = ($rawImpGroup !== null && trim((string)$rawImpGroup) !== '') ? mb_substr(trim((string)$rawImpGroup), 0, 100) : null;
+
         $stmt = $db->prepare("INSERT INTO GisPoint (
-            id, id_operasi, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar
+            id, id_operasi, lat, lng, label, pointType, customIconUrl, description, category, alphabetChar, import_group
         ) VALUES (
-            :id, :id_ops, :lat, :lng, :label, :type, :customIcon, :desc, :category, :alphabetChar
+            :id, :id_ops, :lat, :lng, :label, :type, :customIcon, :desc, :category, :alphabetChar, :import_group
         ) ON DUPLICATE KEY UPDATE
             id_operasi = VALUES(id_operasi),
             lat = VALUES(lat),
@@ -362,7 +391,8 @@ class GisModel {
             customIconUrl = VALUES(customIconUrl),
             description = VALUES(description),
             category = VALUES(category),
-            alphabetChar = VALUES(alphabetChar)");
+            alphabetChar = VALUES(alphabetChar),
+            import_group = COALESCE(VALUES(import_group), import_group)");
         $stmt->execute([
             ':id' => $id,
             ':id_ops' => $idOperasi,
@@ -374,7 +404,8 @@ class GisModel {
             ':desc' => $data['description'] ?? '',
             ':category' => $data['category'] ?? 'Tanpa Kategori',
             // Label huruf/emoji pendek yang dirender ke HTML: tolak karakter markup
-            ':alphabetChar' => preg_match('/^[^<>&"\'`\s]{1,4}$/u', (string)($data['alphabetChar'] ?? '')) ? $data['alphabetChar'] : 'A'
+            ':alphabetChar' => preg_match('/^[^<>&"\'`\s]{1,4}$/u', (string)($data['alphabetChar'] ?? '')) ? $data['alphabetChar'] : 'A',
+            ':import_group' => $importGroup
         ]);
 
         return $id;
@@ -439,6 +470,7 @@ class GisModel {
 
     public static function savePolygon(array $data): string {
         $db = getDB();
+        self::ensureImportGroupColumns($db);
         $ownTx = !$db->inTransaction();
         if ($ownTx) {
             $db->beginTransaction();
@@ -460,13 +492,15 @@ class GisModel {
                 isset($data['boxHeightNm']) ? (float)$data['boxHeightNm'] : null
             );
             $areaNm2 = isset($data['areaNm2']) && (float)$data['areaNm2'] > 0 ? (float)$data['areaNm2'] : $calcArea;
+            $rawImpGroup = $data['import_group'] ?? ($data['importGroup'] ?? null);
+            $importGroup = ($rawImpGroup !== null && trim((string)$rawImpGroup) !== '') ? mb_substr(trim((string)$rawImpGroup), 0, 100) : null;
 
             $stmt = $db->prepare("INSERT INTO GisPolygon (
                 id, id_operasi, name, strokeColor, strokeWeight, strokeOpacity, fillColor, fillOpacity,
-                shapeType, centerLat, centerLng, radiusNm, boxWidthNm, boxHeightNm, areaNm2
+                shapeType, centerLat, centerLng, radiusNm, boxWidthNm, boxHeightNm, areaNm2, import_group
             ) VALUES (
                 :id, :id_ops, :name, :sc, :sw, :so, :fc, :fo,
-                :st, :clat, :clng, :r, :bw, :bh, :area
+                :st, :clat, :clng, :r, :bw, :bh, :area, :import_group
             ) ON DUPLICATE KEY UPDATE
                 id_operasi = VALUES(id_operasi),
                 name = VALUES(name),
@@ -481,7 +515,8 @@ class GisModel {
                 radiusNm = VALUES(radiusNm),
                 boxWidthNm = VALUES(boxWidthNm),
                 boxHeightNm = VALUES(boxHeightNm),
-                areaNm2 = VALUES(areaNm2)");
+                areaNm2 = VALUES(areaNm2),
+                import_group = COALESCE(VALUES(import_group), import_group)");
             $stmt->execute([
                 ':id' => $id,
                 ':id_ops' => $idOperasi,
@@ -497,7 +532,8 @@ class GisModel {
                 ':r' => isset($data['radiusNm']) ? (float)$data['radiusNm'] : null,
                 ':bw' => isset($data['boxWidthNm']) ? (float)$data['boxWidthNm'] : null,
                 ':bh' => isset($data['boxHeightNm']) ? (float)$data['boxHeightNm'] : null,
-                ':area' => $areaNm2
+                ':area' => $areaNm2,
+                ':import_group' => $importGroup
             ]);
 
             $stmtExisting = $db->prepare("SELECT id FROM GisPolygonPoint WHERE polygonId = :id ORDER BY id ASC");
@@ -614,6 +650,7 @@ class GisModel {
 
     public static function saveRoute(array $data): string {
         $db = getDB();
+        self::ensureImportGroupColumns($db);
         $ownTx = !$db->inTransaction();
         if ($ownTx) {
             $db->beginTransaction();
@@ -626,11 +663,13 @@ class GisModel {
             if ($idOperasi !== null && $idOperasi <= 0) {
                 $idOperasi = null;
             }
+            $rawImpGroup = $data['import_group'] ?? ($data['importGroup'] ?? null);
+            $importGroup = ($rawImpGroup !== null && trim((string)$rawImpGroup) !== '') ? mb_substr(trim((string)$rawImpGroup), 0, 100) : null;
 
             $stmt = $db->prepare("INSERT INTO GisRoute (
-                id, id_operasi, name, polygonId, vesselSpeedKnots, strokeColor, strokeWeight, strokeOpacity, createdAt
+                id, id_operasi, name, polygonId, vesselSpeedKnots, strokeColor, strokeWeight, strokeOpacity, createdAt, import_group
             ) VALUES (
-                :id, :id_ops, :name, :polyId, :speed, :color, :weight, :opacity, :created
+                :id, :id_ops, :name, :polyId, :speed, :color, :weight, :opacity, :created, :import_group
             ) ON DUPLICATE KEY UPDATE 
                 id_operasi = VALUES(id_operasi),
                 name = VALUES(name),
@@ -638,7 +677,8 @@ class GisModel {
                 vesselSpeedKnots = VALUES(vesselSpeedKnots),
                 strokeColor = VALUES(strokeColor),
                 strokeWeight = VALUES(strokeWeight),
-                strokeOpacity = VALUES(strokeOpacity)");
+                strokeOpacity = VALUES(strokeOpacity),
+                import_group = COALESCE(VALUES(import_group), import_group)");
 
             $stmt->execute([
                 ':id' => $id,
@@ -649,7 +689,8 @@ class GisModel {
                 ':color' => self::safeColor($data['strokeColor'] ?? null, '#059669'),
                 ':weight' => (float)($data['strokeWeight'] ?? 3.5),
                 ':opacity' => (float)($data['strokeOpacity'] ?? 0.9),
-                ':created' => $data['createdAt'] ?? (date('Y-m-d H:i') . ' WITA')
+                ':created' => $data['createdAt'] ?? (date('Y-m-d H:i') . ' WITA'),
+                ':import_group' => $importGroup
             ]);
 
             $stmtExisting = $db->prepare("SELECT id FROM GisRoutePoint WHERE routeId = :id ORDER BY id ASC");
@@ -778,12 +819,15 @@ class GisModel {
                 $idOperasi = null;
             }
 
+            $rawImpGroup = $data['import_group'] ?? ($data['importGroup'] ?? null);
+            $importGroup = ($rawImpGroup !== null && trim((string)$rawImpGroup) !== '') ? mb_substr(trim((string)$rawImpGroup), 0, 100) : null;
+
             $stmt = $db->prepare("INSERT INTO GisSearchPattern (
                 id, id_operasi, name, polygonId, polygonName, patternType, trackSpacingNm,
-                legsCount, poskoId, poskoName, color, opacity, strokeWeight, totalDistanceNm, createdAt, flipH, flipV
+                legsCount, poskoId, poskoName, color, opacity, strokeWeight, totalDistanceNm, createdAt, flipH, flipV, import_group
             ) VALUES (
                 :id, :id_ops, :name, :polyId, :polyName, :pt, :spacing,
-                :legs, :poskoId, :poskoName, :color, :opacity, :weight, :dist, :created, :flipH, :flipV
+                :legs, :poskoId, :poskoName, :color, :opacity, :weight, :dist, :created, :flipH, :flipV, :import_group
             ) ON DUPLICATE KEY UPDATE
                 id_operasi = VALUES(id_operasi),
                 name = VALUES(name),
@@ -800,7 +844,8 @@ class GisModel {
                 totalDistanceNm = VALUES(totalDistanceNm),
                 createdAt = VALUES(createdAt),
                 flipH = VALUES(flipH),
-                flipV = VALUES(flipV)");
+                flipV = VALUES(flipV),
+                import_group = COALESCE(VALUES(import_group), import_group)");
 
             $stmt->execute([
                 ':id' => $id,
@@ -820,6 +865,7 @@ class GisModel {
                 ':created' => $data['createdAt'] ?? (date('Y-m-d H:i') . ' WITA'),
                 ':flipH' => filter_var($data['flipH'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
                 ':flipV' => filter_var($data['flipV'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 1 : 0,
+                ':import_group' => $importGroup,
             ]);
 
             $stmtExisting = $db->prepare("SELECT id FROM GisSearchPatternWaypoint WHERE searchPatternId = :id ORDER BY id ASC");
@@ -1204,6 +1250,10 @@ class GisModel {
         }
 
         $db = getDB();
+        self::ensureImportGroupColumns($db);
+        $explicitGroup = trim((string)($payload['import_group'] ?? ($payload['importGroup'] ?? '')));
+        $importGroup = $explicitGroup !== '' ? mb_substr($explicitGroup, 0, 100) : self::nextImportGroupName($idOperasi);
+
         $ownTx = !$db->inTransaction();
         if ($ownTx) {
             $db->beginTransaction();
@@ -1273,7 +1323,8 @@ class GisModel {
                     'pointType' => $pointType,
                     'customIconUrl' => $customIconUrl,
                     'description' => $pt['description'] ?? '',
-                    'category' => $pt['category'] ?? 'Tanpa Kategori',
+                    'category' => $importGroup,
+                    'import_group' => $importGroup,
                     'alphabetChar' => $pt['alphabetChar'] ?? 'A'
                 ];
                 self::savePoint($pointData);
@@ -1336,6 +1387,7 @@ class GisModel {
                     'boxWidthNm' => isset($poly['boxWidthNm']) && is_numeric($poly['boxWidthNm']) ? (float)$poly['boxWidthNm'] : null,
                     'boxHeightNm' => isset($poly['boxHeightNm']) && is_numeric($poly['boxHeightNm']) ? (float)$poly['boxHeightNm'] : null,
                     'areaNm2' => $areaNm2,
+                    'import_group' => $importGroup,
                     'points' => $validatedPts
                 ];
 
@@ -1422,6 +1474,7 @@ class GisModel {
                     'totalDistanceNm' => isset($pat['totalDistanceNm']) && is_numeric($pat['totalDistanceNm']) ? (float)$pat['totalDistanceNm'] : 0.0,
                     'flipH' => !empty($pat['flipH']),
                     'flipV' => !empty($pat['flipV']),
+                    'import_group' => $importGroup,
                     'waypoints' => $validatedWps
                 ];
 
@@ -1464,6 +1517,7 @@ class GisModel {
                     'strokeColor' => $rt['strokeColor'] ?? '#059669',
                     'strokeWeight' => isset($rt['strokeWeight']) && is_numeric($rt['strokeWeight']) ? (float)$rt['strokeWeight'] : 3.5,
                     'strokeOpacity' => isset($rt['strokeOpacity']) && is_numeric($rt['strokeOpacity']) ? (float)$rt['strokeOpacity'] : 0.9,
+                    'import_group' => $importGroup,
                     'points' => $validatedPts
                 ];
 
@@ -1596,6 +1650,7 @@ class GisModel {
             }
 
             return [
+                'import_group' => $importGroup,
                 'counts' => [
                     'points' => count($hydratedPoints),
                     'polygons' => count($hydratedPolygons),
@@ -1608,6 +1663,141 @@ class GisModel {
                 'routes' => $hydratedRoutes
             ];
         } catch (\Throwable $e) {
+            if ($ownTx && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Hitung nama grup import berikutnya ('Import 1', 'Import 2', dst.) pada cakupan $idOperasi.
+     */
+    public static function nextImportGroupName(?int $idOperasi): string {
+        $db = getDB();
+        self::ensureImportGroupColumns($db);
+        $opVal = ($idOperasi !== null && $idOperasi > 0) ? $idOperasi : null;
+        $uniqueGroups = [];
+        $maxNum = 0;
+
+        foreach (['GisPoint', 'GisPolygon', 'GisSearchPattern', 'GisRoute'] as $tbl) {
+            if ($opVal !== null) {
+                $stmt = $db->prepare("SELECT DISTINCT import_group FROM `{$tbl}` WHERE id_operasi = :op AND import_group IS NOT NULL AND import_group != ''");
+                $stmt->execute([':op' => $opVal]);
+            } else {
+                $stmt = $db->query("SELECT DISTINCT import_group FROM `{$tbl}` WHERE id_operasi IS NULL AND import_group IS NOT NULL AND import_group != ''");
+            }
+            foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $grp) {
+                $g = trim((string)$grp);
+                if ($g === '') continue;
+                $uniqueGroups[strtolower($g)] = $g;
+                if (preg_match('/^Import\s+(\d+)$/i', $g, $m)) {
+                    $maxNum = max($maxNum, (int)$m[1]);
+                }
+            }
+        }
+
+        $next = max($maxNum, count($uniqueGroups)) + 1;
+        while (isset($uniqueGroups[strtolower('Import ' . $next)])) {
+            $next++;
+        }
+        return 'Import ' . $next;
+    }
+
+    /**
+     * Ubah nama grup import (import_group & GisPoint.category) pada cakupan operasi atau Base Map.
+     */
+    public static function renameImportGroup(?int $idOperasi, string $oldName, string $newName): int {
+        $oldClean = trim($oldName);
+        $newClean = trim($newName);
+        if ($oldClean === '' || $newClean === '') {
+            throw new InvalidArgumentException('Nama kategori import lama dan baru tidak boleh kosong.');
+        }
+        if (mb_strlen($newClean, 'UTF-8') > 100 || preg_match('/[\x00-\x1F\x7F<>]/', $newClean)) {
+            throw new InvalidArgumentException('Nama kategori import baru tidak valid (maksimal 100 karakter, tanpa tag HTML).');
+        }
+        if ($oldClean === $newClean) {
+            return 0;
+        }
+
+        $db = getDB();
+        self::ensureImportGroupColumns($db);
+        $opVal = ($idOperasi !== null && $idOperasi > 0) ? $idOperasi : null;
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
+
+        try {
+            $updated = 0;
+            if ($opVal !== null) {
+                $stmtPt = $db->prepare("UPDATE GisPoint SET import_group = :new1, category = CASE WHEN category = :old1 THEN :new2 ELSE category END WHERE id_operasi = :op AND (import_group = :old2 OR category = :old3)");
+                $stmtPt->execute([':new1' => $newClean, ':old1' => $oldClean, ':new2' => $newClean, ':op' => $opVal, ':old2' => $oldClean, ':old3' => $oldClean]);
+                $updated += $stmtPt->rowCount();
+
+                foreach (['GisPolygon', 'GisSearchPattern', 'GisRoute'] as $tbl) {
+                    $stmt = $db->prepare("UPDATE `{$tbl}` SET import_group = :new WHERE id_operasi = :op AND import_group = :old");
+                    $stmt->execute([':new' => $newClean, ':op' => $opVal, ':old' => $oldClean]);
+                    $updated += $stmt->rowCount();
+                }
+            } else {
+                $stmtPt = $db->prepare("UPDATE GisPoint SET import_group = :new1, category = CASE WHEN category = :old1 THEN :new2 ELSE category END WHERE id_operasi IS NULL AND (import_group = :old2 OR category = :old3)");
+                $stmtPt->execute([':new1' => $newClean, ':old1' => $oldClean, ':new2' => $newClean, ':old2' => $oldClean, ':old3' => $oldClean]);
+                $updated += $stmtPt->rowCount();
+
+                foreach (['GisPolygon', 'GisSearchPattern', 'GisRoute'] as $tbl) {
+                    $stmt = $db->prepare("UPDATE `{$tbl}` SET import_group = :new WHERE id_operasi IS NULL AND import_group = :old");
+                    $stmt->execute([':new' => $newClean, ':old' => $oldClean]);
+                    $updated += $stmt->rowCount();
+                }
+            }
+
+            if ($ownTx && $db->inTransaction()) {
+                $db->commit();
+            }
+            return $updated;
+        } catch (Throwable $e) {
+            if ($ownTx && $db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Hapus massal entitas GIS (points, polygons, patterns, routes) dalam satu transaksi.
+     */
+    public static function bulkDelete(string $entityType, array $ids): int {
+        $type = strtolower(trim($entityType));
+        if (!in_array($type, ['points', 'polygons', 'patterns', 'routes'], true)) {
+            throw new InvalidArgumentException("Tipe entitas bulk delete tidak valid: {$entityType}");
+        }
+        $cleanIds = array_values(array_unique(array_filter(array_map(fn($v) => trim((string)$v), $ids), fn($v) => $v !== '')));
+        if (empty($cleanIds) || count($cleanIds) > 500) {
+            throw new InvalidArgumentException('Jumlah ID bulk delete harus antara 1 hingga 500.');
+        }
+
+        $db = getDB();
+        $ownTx = !$db->inTransaction();
+        if ($ownTx) {
+            $db->beginTransaction();
+        }
+        try {
+            $deleted = 0;
+            foreach ($cleanIds as $id) {
+                $ok = match ($type) {
+                    'points' => self::deletePoint($id),
+                    'polygons' => self::deletePolygon($id),
+                    'patterns' => self::deleteSearchPattern($id),
+                    'routes' => self::deleteRoute($id),
+                };
+                if ($ok) $deleted++;
+            }
+            if ($ownTx && $db->inTransaction()) {
+                $db->commit();
+            }
+            return $deleted;
+        } catch (Throwable $e) {
             if ($ownTx && $db->inTransaction()) {
                 $db->rollBack();
             }

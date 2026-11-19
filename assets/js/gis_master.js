@@ -641,22 +641,32 @@
   let hiddenPatternIds = new Set();
   let hiddenRouteIds = new Set();
 
+  // Selected IDs for bulk hide/show & bulk delete
+  let selectedPointIds = new Set();
+  let selectedPolygonIds = new Set();
+  let selectedPatternIds = new Set();
+  let selectedRouteIds = new Set();
+
   function isIdHidden(idSet, id) {
     if (!idSet || id === null || id === undefined) return false;
     return idSet.has(id) || idSet.has(String(id)) || (!isNaN(Number(id)) && idSet.has(Number(id)));
   }
 
-  function toggleIdInSet(idSet, id) {
+  function setIdInSet(idSet, id, shouldHave) {
     if (!idSet || id === null || id === undefined) return;
     const strId = String(id);
     const numId = Number(id);
-    if (isIdHidden(idSet, id)) {
+    if (!shouldHave) {
       idSet.delete(id);
       idSet.delete(strId);
       if (!isNaN(numId)) idSet.delete(numId);
     } else {
       idSet.add(strId);
     }
+  }
+
+  function toggleIdInSet(idSet, id) {
+    setIdInSet(idSet, id, !isIdHidden(idSet, id));
   }
 
   // Leaflet Map & Layer References
@@ -2716,6 +2726,414 @@
     renderSavedPointsList(st);
   }
 
+  // Status buka/tutup kelompok Search Area, Pola SAR & Rute
+  const ENTITY_GROUP_STATE_KEY = 'qrsar.gis.entityGroups';
+  function readEntityGroupState() {
+    try {
+      return JSON.parse(localStorage.getItem(ENTITY_GROUP_STATE_KEY) || '{}') || {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function isEntityGroupOpen(entityType, key) {
+    if (entityType === 'points') return isPointGroupOpen(key);
+    const st = readEntityGroupState();
+    const fullKey = `${entityType}:${key}`;
+    return Object.prototype.hasOwnProperty.call(st, fullKey) ? !!st[fullKey] : true;
+  }
+  function toggleEntityGroup(entityType, key) {
+    if (entityType === 'points') {
+      togglePointGroup(key);
+      return;
+    }
+    const st = readEntityGroupState();
+    const fullKey = `${entityType}:${key}`;
+    st[fullKey] = !isEntityGroupOpen(entityType, key);
+    try {
+      localStorage.setItem(ENTITY_GROUP_STATE_KEY, JSON.stringify(st));
+    } catch (e) {}
+    const cfg = getBulkEntityConfig(entityType);
+    if (cfg && typeof cfg.renderList === 'function') cfg.renderList();
+  }
+
+  function getFilteredSavedPoints() {
+    const filterCatSelect = document.getElementById('filterGisPointCategory');
+    const selectedCat = filterCatSelect ? (filterCatSelect.value || '').trim() : '';
+    return selectedCat
+      ? savedPoints.filter((pt) => (pt.category || '').trim() === selectedCat)
+      : savedPoints;
+  }
+
+  function getBulkEntityConfig(entityType) {
+    const type = String(entityType || '').toLowerCase();
+    if (type === 'points' || type === 'point') {
+      return {
+        type: 'points',
+        label: 'Titik SAR',
+        selectedSet: selectedPointIds,
+        hiddenSet: hiddenPointIds,
+        getItems: () => getFilteredSavedPoints(),
+        getGroups: () => {
+          const pts = getFilteredSavedPoints();
+          return (window.QrSarGis && window.QrSarGis.Naming)
+            ? window.QrSarGis.Naming.groupPoints(pts).map((g) => ({ ...g, items: g.points }))
+            : [{ key: 'semua', label: 'Titik SAR', isImportGroup: false, items: pts }];
+        },
+        removeRawById: (id) => updateRawPoint({ id }, true),
+        renderAll: () => renderSavedPoints(),
+        renderList: () => renderSavedPointsList(),
+      };
+    }
+    if (type === 'polygons' || type === 'polygon') {
+      return {
+        type: 'polygons',
+        label: 'Search Area',
+        selectedSet: selectedPolygonIds,
+        hiddenSet: hiddenPolygonIds,
+        getItems: () => savedPolygons,
+        getGroups: () => (window.QrSarGis && window.QrSarGis.Naming && typeof window.QrSarGis.Naming.groupEntities === 'function')
+          ? window.QrSarGis.Naming.groupEntities(savedPolygons, 'Search Area', 'default_polygons')
+          : [{ key: 'default_polygons', label: 'Search Area', isImportGroup: false, items: savedPolygons }],
+        removeRawById: (id) => updateRawPolygon({ id }, true),
+        renderAll: () => renderSavedPolygons(),
+        renderList: () => renderSavedPolygonsList(),
+      };
+    }
+    if (type === 'patterns' || type === 'pattern') {
+      return {
+        type: 'patterns',
+        label: 'Pola SAR',
+        selectedSet: selectedPatternIds,
+        hiddenSet: hiddenPatternIds,
+        getItems: () => savedPatterns,
+        getGroups: () => (window.QrSarGis && window.QrSarGis.Naming && typeof window.QrSarGis.Naming.groupEntities === 'function')
+          ? window.QrSarGis.Naming.groupEntities(savedPatterns, 'Pola SAR', 'default_patterns')
+          : [{ key: 'default_patterns', label: 'Pola SAR', isImportGroup: false, items: savedPatterns }],
+        removeRawById: (id) => updateRawPattern({ id }, true),
+        renderAll: () => renderSavedPatterns(),
+        renderList: () => renderSavedPatternsList(),
+      };
+    }
+    if (type === 'routes' || type === 'route') {
+      return {
+        type: 'routes',
+        label: 'Rute',
+        selectedSet: selectedRouteIds,
+        hiddenSet: hiddenRouteIds,
+        getItems: () => savedRoutes,
+        getGroups: () => (window.QrSarGis && window.QrSarGis.Naming && typeof window.QrSarGis.Naming.groupEntities === 'function')
+          ? window.QrSarGis.Naming.groupEntities(savedRoutes, 'Rute Terukur', 'default_routes')
+          : [{ key: 'default_routes', label: 'Rute Terukur', isImportGroup: false, items: savedRoutes }],
+        removeRawById: (id) => updateRawRoute({ id }, true),
+        renderAll: () => renderSavedRoutes(),
+        renderList: () => renderSavedRoutesList(),
+      };
+    }
+    return null;
+  }
+
+  function renderBulkActionToolbarHtml(entityType, items) {
+    const cfg = getBulkEntityConfig(entityType);
+    if (!cfg || !Array.isArray(items) || items.length === 0) return '';
+    const selectedIds = items.filter((it) => isIdHidden(cfg.selectedSet, it.id)).map((it) => String(it.id));
+    const selCount = selectedIds.length;
+    const allChecked = selCount > 0 && selCount === items.length;
+    const targetItems = selCount > 0 ? items.filter((it) => isIdHidden(cfg.selectedSet, it.id)) : items;
+    const allTargetHidden = targetItems.length > 0 && targetItems.every((it) => isIdHidden(cfg.hiddenSet, it.id));
+
+    return `
+      <div class="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 text-[11px]">
+        <label class="inline-flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+          <input type="checkbox" class="rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500 cursor-pointer"
+            ${allChecked ? 'checked' : ''}
+            onchange="window.SAR_GIS.toggleSelectAll('${cfg.type}', this.checked)">
+          <span>Pilih Semua</span>
+          <span class="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">${selCount}/${items.length}</span>
+        </label>
+        <div class="flex items-center gap-1">
+          <button type="button"
+            onclick="window.SAR_GIS.bulkToggleVisibility('${cfg.type}')"
+            class="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold inline-flex items-center gap-1 cursor-pointer transition"
+            title="${allTargetHidden ? 'Tampilkan' : 'Sembunyikan'} ${selCount > 0 ? selCount + ' item terpilih' : 'semua item'}">
+            ${allTargetHidden ? GIS_ICON.eye : GIS_ICON.eyeOff}
+            <span>${allTargetHidden ? 'Tampilkan' : 'Sembunyikan'}${selCount > 0 ? ` (${selCount})` : ''}</span>
+          </button>
+          <button type="button"
+            onclick="window.SAR_GIS.bulkDeleteSelected('${cfg.type}')"
+            class="px-2 py-1 rounded-lg border ${selCount > 0 ? 'border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400' : 'border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/40 text-slate-400'} font-bold inline-flex items-center gap-1 cursor-pointer transition"
+            title="Hapus ${cfg.label} yang dicentang">
+            ${GIS_ICON.trash}
+            <span>Hapus${selCount > 0 ? ` (${selCount})` : ''}</span>
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function renderGroupHeaderHtml(entityType, g, open) {
+    const cfg = getBulkEntityConfig(entityType);
+    const items = g.items || g.points || [];
+    const safeKey = escapeHtml(g.key);
+    const allSelected = items.length > 0 && items.every((it) => isIdHidden(cfg.selectedSet, it.id));
+    const allHidden = items.length > 0 && items.every((it) => isIdHidden(cfg.hiddenSet, it.id));
+    const safeImpGrp = g.isImportGroup ? escapeHtml(g.importGroup || g.label) : '';
+
+    return `
+      <div class="w-full flex items-center justify-between gap-1.5 px-2.5 py-2">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          <input type="checkbox"
+            class="rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500 shrink-0 cursor-pointer"
+            ${allSelected ? 'checked' : ''}
+            title="Pilih semua di grup ${escapeHtml(g.label)}"
+            onclick="event.stopPropagation()"
+            onchange="window.SAR_GIS.toggleGroupSelect('${cfg.type}', '${safeKey}', this.checked)">
+          <button type="button"
+            onclick="window.SAR_GIS.toggleEntityGroup('${cfg.type}', '${safeKey}')"
+            class="flex items-center gap-1.5 min-w-0 flex-1 text-left cursor-pointer"
+            aria-expanded="${open}">
+            <span class="text-xs font-bold text-slate-700 dark:text-slate-200 truncate">${escapeHtml(g.label)}</span>
+            ${g.isImportGroup ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 shrink-0">KML/KMZ</span>' : ''}
+          </button>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          ${g.isImportGroup ? `
+            <button type="button"
+              onclick="event.stopPropagation(); window.SAR_GIS.renameImportGroup('${safeImpGrp}')"
+              class="p-1 text-slate-400 hover:text-orange-500 dark:hover:text-orange-400 rounded cursor-pointer transition"
+              title="Ubah nama kategori ${escapeHtml(g.label)}">
+              ${GIS_ICON.edit}
+            </button>` : ''}
+          <button type="button"
+            onclick="event.stopPropagation(); window.SAR_GIS.toggleGroupVisibility('${cfg.type}', '${safeKey}')"
+            class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded cursor-pointer transition"
+            title="${allHidden ? 'Tampilkan' : 'Sembunyikan'} grup ${escapeHtml(g.label)}">
+            ${allHidden ? GIS_ICON.eyeOff : GIS_ICON.eye}
+          </button>
+          <button type="button"
+            onclick="window.SAR_GIS.toggleEntityGroup('${cfg.type}', '${safeKey}')"
+            class="flex items-center gap-1 px-1 cursor-pointer">
+            <span class="text-[11px] font-mono px-1.5 rounded-full bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300">${items.length}</span>
+            <span class="text-slate-400 text-xs">${open ? '▾' : '▸'}</span>
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function toggleItemSelect(entityType, id, checked) {
+    const cfg = getBulkEntityConfig(entityType);
+    if (!cfg) return;
+    setIdInSet(cfg.selectedSet, id, !!checked);
+    cfg.renderList();
+  }
+
+  function toggleSelectAll(entityType, checked) {
+    const cfg = getBulkEntityConfig(entityType);
+    if (!cfg) return;
+    const items = cfg.getItems() || [];
+    items.forEach((it) => setIdInSet(cfg.selectedSet, it.id, !!checked));
+    cfg.renderList();
+  }
+
+  function toggleGroupSelect(entityType, groupKey, checked) {
+    const cfg = getBulkEntityConfig(entityType);
+    if (!cfg) return;
+    const grp = (cfg.getGroups() || []).find((g) => String(g.key) === String(groupKey));
+    if (!grp) return;
+    (grp.items || grp.points || []).forEach((it) => setIdInSet(cfg.selectedSet, it.id, !!checked));
+    cfg.renderList();
+  }
+
+  function toggleGroupVisibility(entityType, groupKey) {
+    const cfg = getBulkEntityConfig(entityType);
+    if (!cfg) return;
+    const grp = (cfg.getGroups() || []).find((g) => String(g.key) === String(groupKey));
+    if (!grp) return;
+    const items = grp.items || grp.points || [];
+    const allHidden = items.length > 0 && items.every((it) => isIdHidden(cfg.hiddenSet, it.id));
+    const shouldHide = !allHidden;
+    items.forEach((it) => setIdInSet(cfg.hiddenSet, it.id, shouldHide));
+    cfg.renderAll();
+  }
+
+  function bulkToggleVisibility(entityType, explicitHide = null) {
+    const cfg = getBulkEntityConfig(entityType);
+    if (!cfg) return;
+    const items = cfg.getItems() || [];
+    if (items.length === 0) return;
+    const selectedItems = items.filter((it) => isIdHidden(cfg.selectedSet, it.id));
+    const targets = selectedItems.length > 0 ? selectedItems : items;
+    const allHidden = targets.every((it) => isIdHidden(cfg.hiddenSet, it.id));
+    const shouldHide = explicitHide !== null ? !!explicitHide : !allHidden;
+    targets.forEach((it) => setIdInSet(cfg.hiddenSet, it.id, shouldHide));
+    cfg.renderAll();
+    if (typeof showToast === 'function') {
+      showToast(`${targets.length} ${cfg.label} berhasil ${shouldHide ? 'disembunyikan' : 'ditampilkan'}.`, 'info');
+    }
+  }
+
+  async function bulkDeleteSelected(entityType) {
+    const cfg = getBulkEntityConfig(entityType);
+    if (!cfg) return;
+    const items = cfg.getItems() || [];
+    const selectedItems = items.filter((it) => isIdHidden(cfg.selectedSet, it.id));
+    if (selectedItems.length === 0) {
+      if (typeof showToast === 'function') {
+        showToast(`Centang minimal 1 ${cfg.label} yang ingin dihapus terlebih dahulu.`, 'warning');
+      }
+      return;
+    }
+
+    const isAdminUser = !!(initialData && initialData.isAdmin);
+    const deletableItems = isAdminUser
+      ? selectedItems
+      : selectedItems.filter((it) => it.id_operasi && parseInt(it.id_operasi, 10) > 0);
+    const skippedBaseCount = selectedItems.length - deletableItems.length;
+
+    if (deletableItems.length === 0) {
+      if (typeof showToast === 'function') {
+        showToast('Item Base Map hanya dapat dihapus oleh Administrator.', 'error');
+      }
+      return;
+    }
+
+    const extraNote = skippedBaseCount > 0 ? ` (${skippedBaseCount} item Base Map dilewati karena khusus Admin)` : '';
+    const ok = await confirmAction(
+      `Hapus ${deletableItems.length} ${cfg.label}`,
+      `Apakah Anda yakin ingin menghapus ${deletableItems.length} ${cfg.label} yang dipilih secara permanen?${extraNote}`,
+      `Ya, Hapus (${deletableItems.length})`,
+      true
+    );
+    if (!ok) return;
+
+    const idsToDelete = deletableItems.map((it) => String(it.id));
+    try {
+      const res = await gisFetch(`${BASE_URL}/api/gis/bulk-delete`, {
+        method: 'POST',
+        body: JSON.stringify({ entity_type: cfg.type, ids: idsToDelete })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || (data && data.success === false)) {
+        throw new Error(data.error || data.message || `Gagal menghapus ${cfg.label} (HTTP ${res.status})`);
+      }
+
+      idsToDelete.forEach((id) => {
+        setIdInSet(cfg.selectedSet, id, false);
+        setIdInSet(cfg.hiddenSet, id, false);
+        cfg.removeRawById(id);
+      });
+      cfg.renderAll();
+      if (typeof showToast === 'function') {
+        showToast(`${idsToDelete.length} ${cfg.label} berhasil dihapus.`, 'success');
+      }
+    } catch (err) {
+      console.error('Bulk delete failed:', err);
+      if (typeof showToast === 'function') {
+        showToast(err.message || `Gagal menghapus ${cfg.label} secara massal!`, 'error');
+      }
+    }
+  }
+
+  async function renameImportGroup(oldName) {
+    const cleanOld = String(oldName || '').trim();
+    if (!cleanOld) return;
+
+    let newName = null;
+    if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
+      const result = await Swal.fire({
+        title: 'Ubah Nama Kategori Import',
+        input: 'text',
+        inputLabel: `Nama kategori saat ini: ${cleanOld}`,
+        inputValue: cleanOld,
+        showCancelButton: true,
+        confirmButtonText: 'Simpan Nama',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#ea580c',
+        inputValidator: (value) => {
+          const v = String(value || '').trim();
+          if (!v) return 'Nama kategori tidak boleh kosong!';
+          if (v.length > 100) return 'Nama kategori maksimal 100 karakter!';
+          if (/[<>]/.test(v)) return 'Nama kategori tidak boleh memuat karakter < atau >.';
+          return null;
+        }
+      });
+      if (!result.isConfirmed) return;
+      newName = String(result.value || '').trim();
+    } else {
+      const prompted = window.prompt(`Ubah nama kategori "${cleanOld}" menjadi:`, cleanOld);
+      if (prompted === null) return;
+      newName = String(prompted).trim();
+    }
+
+    if (!newName || newName === cleanOld) return;
+
+    // Tentukan id_operasi target dari item yang menyandang grup ini pada tampilan aktif
+    let targetOpId = (filterMode === 'operasi' && currentOperasiId) ? currentOperasiId : null;
+    const allVisible = [...savedPoints, ...savedPolygons, ...savedPatterns, ...savedRoutes];
+    const sampleItem = allVisible.find((it) => String(it.import_group || it.importGroup || it.category || '').trim() === cleanOld);
+    if (sampleItem !== undefined) {
+      targetOpId = (sampleItem.id_operasi && parseInt(sampleItem.id_operasi, 10) > 0) ? parseInt(sampleItem.id_operasi, 10) : null;
+    }
+
+    try {
+      const res = await gisFetch(`${BASE_URL}/api/gis/rename-import-group`, {
+        method: 'POST',
+        body: JSON.stringify({
+          id_operasi: targetOpId,
+          old_name: cleanOld,
+          new_name: newName
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || (data && data.success === false)) {
+        throw new Error(data.error || data.message || `Gagal mengubah nama kategori (HTTP ${res.status})`);
+      }
+
+      const matchScope = (it) => {
+        const itOp = (it.id_operasi && parseInt(it.id_operasi, 10) > 0) ? parseInt(it.id_operasi, 10) : null;
+        return itOp === targetOpId;
+      };
+
+      rawAllPoints.forEach((pt) => {
+        if (matchScope(pt)) {
+          if (String(pt.import_group || '').trim() === cleanOld) pt.import_group = newName;
+          if (String(pt.importGroup || '').trim() === cleanOld) pt.importGroup = newName;
+          if (String(pt.category || '').trim() === cleanOld) pt.category = newName;
+        }
+      });
+      [rawAllPolygons, rawAllPatterns, rawAllRoutes].forEach((arr) => {
+        arr.forEach((it) => {
+          if (matchScope(it)) {
+            if (String(it.import_group || '').trim() === cleanOld) it.import_group = newName;
+            if (String(it.importGroup || '').trim() === cleanOld) it.importGroup = newName;
+          }
+        });
+      });
+
+      const filterSelect = document.getElementById('filterGisPointCategory');
+      if (filterSelect && filterSelect.value === cleanOld) {
+        filterSelect.setAttribute('data-cats', '');
+      }
+
+      applyActiveFilter();
+      updateGisPointCategoryOptions();
+      if (filterSelect && filterSelect.value === '') {
+        // jika tadi memfilter cleanOld, arahkan ke newName bila ada di opsi
+        Array.from(filterSelect.options).forEach((opt) => {
+          if (opt.value === newName && filterSelect.value === cleanOld) filterSelect.value = newName;
+        });
+      }
+      reRenderAllLayers();
+      notifyGisStorageUpdate();
+      if (typeof showToast === 'function') {
+        showToast(`Kategori "${cleanOld}" berhasil diubah menjadi "${newName}".`, 'success');
+      }
+    } catch (err) {
+      console.error('Rename import group failed:', err);
+      if (typeof showToast === 'function') {
+        showToast(err.message || 'Gagal mengubah nama kategori import!', 'error');
+      }
+    }
+  }
+
   function updateGisPointCategoryOptions() {
     const select = document.getElementById('filterGisPointCategory');
     if (!select) return;
@@ -2785,6 +3203,7 @@
 
     const cardHtml = (pt) => {
       const isHidden = isIdHidden(hiddenPointIds, pt.id);
+      const isSelected = isIdHidden(selectedPointIds, pt.id);
       const dms = decimalToDms(pt.lat, pt.lng);
       const dist = calculateDistanceHaversine(-4.037694, 122.486694, pt.lat, pt.lng);
       const preset = getPresetIcon(pt.pointType) || PRESET_ICONS[0];
@@ -2802,6 +3221,10 @@
       const tip = `${category}${pt.id_operasi ? ` • OPS #${pt.id_operasi}` : ' • Base Map'} • ${dist.nm} NM (${dist.bearing}° ${dist.headingName}) dari Kansar`;
       return `
         <div class="flex items-center gap-2 px-2 py-1.5 rounded-xl border ${isHidden ? 'opacity-60 bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 hover:border-orange-500/40'} transition" title="${escapeHtml(tip)}">
+          <input type="checkbox" class="rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500 shrink-0 cursor-pointer"
+            ${isSelected ? 'checked' : ''}
+            onclick="event.stopPropagation()"
+            onchange="window.SAR_GIS.toggleItemSelect('points', '${safeId}', this.checked)">
           <div class="flex items-center gap-2 flex-1 min-w-0 cursor-pointer" onclick="window.SAR_GIS.focusPoint('${safeId}')">
             <span class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 select-none" style="background:${preset.color}25; color:${preset.color}">${iconDisplay}</span>
             <div class="min-w-0 flex-1">
@@ -2819,17 +3242,12 @@
     };
 
     const st = stateOverride || null;
-    listContainer.innerHTML = groups.map((g) => {
+    const bulkToolbar = renderBulkActionToolbarHtml('points', filteredPoints);
+    listContainer.innerHTML = bulkToolbar + groups.map((g) => {
       const open = selectedCat ? true : (st && Object.prototype.hasOwnProperty.call(st, g.key) ? !!st[g.key] : isPointGroupOpen(g.key));
       return `
-        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40" data-point-group="${g.key}">
-          <button type="button" onclick="window.SAR_GIS.togglePointGroup('${g.key}')" class="w-full flex items-center justify-between gap-2 px-3 py-2 text-left cursor-pointer" aria-expanded="${open}">
-            <span class="text-xs font-bold text-slate-700 dark:text-slate-200">${escapeHtml(g.label)}</span>
-            <span class="flex items-center gap-1.5">
-              <span class="text-[11px] font-mono px-1.5 rounded-full bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300">${g.points.length}</span>
-              <span class="text-slate-400 text-xs">${open ? '▾' : '▸'}</span>
-            </span>
-          </button>
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40" data-point-group="${escapeHtml(g.key)}">
+          ${renderGroupHeaderHtml('points', g, open)}
           ${open ? `<div class="px-2 pb-2 space-y-1">${g.points.map(cardHtml).join('')}</div>` : ''}
         </div>`;
     }).join('');
@@ -3774,60 +4192,64 @@
       return;
     }
 
-    container.innerHTML = savedPolygons
-      .map((poly) => {
-        const isHidden = isIdHidden(hiddenPolygonIds, poly.id);
-        const shapeType = poly.shapeType || 'polygon';
+    const polyCardHtml = (poly) => {
+      const isHidden = isIdHidden(hiddenPolygonIds, poly.id);
+      const isSelected = isIdHidden(selectedPolygonIds, poly.id);
+      const shapeType = poly.shapeType || 'polygon';
 
-        let stats;
-        if (shapeType === 'circle') {
-          const rNm = parseFloat(poly.radiusNm) || 1.0;
-          const sqNm = Math.PI * Math.pow(rNm, 2);
-          const sqKm = sqNm * 3.4299;
-          const perimNm = 2 * Math.PI * rNm;
-          const perimKm = perimNm * 1.852;
-          stats = {
-            sqNm: (poly.areaNm2 ? parseFloat(poly.areaNm2) : sqNm).toFixed(2),
-            sqKm: sqKm.toFixed(2),
-            perimeterNm: perimNm.toFixed(2),
-            perimeterKm: perimKm.toFixed(2)
-          };
-        } else if (shapeType === 'rectangle' || shapeType === 'box') {
-          const wNm = parseFloat(poly.boxWidthNm) || 2.0;
-          const hNm = parseFloat(poly.boxHeightNm) || 2.0;
-          const sqNm = wNm * hNm;
-          const sqKm = (wNm * 1.852) * (hNm * 1.852);
-          const perimNm = 2 * (wNm + hNm);
-          const perimKm = 2 * ((wNm * 1.852) + (hNm * 1.852));
-          stats = {
-            sqNm: (poly.areaNm2 ? parseFloat(poly.areaNm2) : sqNm).toFixed(2),
-            sqKm: sqKm.toFixed(2),
-            perimeterNm: perimNm.toFixed(2),
-            perimeterKm: perimKm.toFixed(2)
-          };
-        } else {
-          stats = calculatePolygonSphericalArea(poly.points);
-          if (poly.areaNm2) {
-            stats.sqNm = parseFloat(poly.areaNm2).toFixed(2);
-            stats.sqKm = (parseFloat(poly.areaNm2) * 3.4299).toFixed(2);
-          }
+      let stats;
+      if (shapeType === 'circle') {
+        const rNm = parseFloat(poly.radiusNm) || 1.0;
+        const sqNm = Math.PI * Math.pow(rNm, 2);
+        const sqKm = sqNm * 3.4299;
+        const perimNm = 2 * Math.PI * rNm;
+        const perimKm = perimNm * 1.852;
+        stats = {
+          sqNm: (poly.areaNm2 ? parseFloat(poly.areaNm2) : sqNm).toFixed(2),
+          sqKm: sqKm.toFixed(2),
+          perimeterNm: perimNm.toFixed(2),
+          perimeterKm: perimKm.toFixed(2)
+        };
+      } else if (shapeType === 'rectangle' || shapeType === 'box') {
+        const wNm = parseFloat(poly.boxWidthNm) || 2.0;
+        const hNm = parseFloat(poly.boxHeightNm) || 2.0;
+        const sqNm = wNm * hNm;
+        const sqKm = (wNm * 1.852) * (hNm * 1.852);
+        const perimNm = 2 * (wNm + hNm);
+        const perimKm = 2 * ((wNm * 1.852) + (hNm * 1.852));
+        stats = {
+          sqNm: (poly.areaNm2 ? parseFloat(poly.areaNm2) : sqNm).toFixed(2),
+          sqKm: sqKm.toFixed(2),
+          perimeterNm: perimNm.toFixed(2),
+          perimeterKm: perimKm.toFixed(2)
+        };
+      } else {
+        stats = calculatePolygonSphericalArea(poly.points);
+        if (poly.areaNm2) {
+          stats.sqNm = parseFloat(poly.areaNm2).toFixed(2);
+          stats.sqKm = (parseFloat(poly.areaNm2) * 3.4299).toFixed(2);
         }
+      }
 
-        const safeId = escapeHtml(poly.id);
-        const safeName = escapeHtml(poly.name);
-        const safeColor = escapeHtml(poly.strokeColor || '#ea580c');
-        const shapeBadge = shapeType === 'circle'
-          ? '<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-bold">⭕ Lingkaran</span>'
-          : (shapeType === 'rectangle'
-            ? '<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">⏹️ Persegi</span>'
-            : '<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-bold">📐 Bebas</span>');
+      const safeId = escapeHtml(poly.id);
+      const safeName = escapeHtml(poly.name);
+      const safeColor = escapeHtml(poly.strokeColor || '#ea580c');
+      const shapeBadge = shapeType === 'circle'
+        ? '<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 font-bold">⭕ Lingkaran</span>'
+        : (shapeType === 'rectangle'
+          ? '<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">⏹️ Persegi</span>'
+          : '<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-bold">📐 Bebas</span>');
 
-        const areaFmt = formatDynamicArea(stats.sqNm, stats.sqKm);
-        const perimFmt = formatDynamicPerimeter(stats.perimeterNm, stats.perimeterKm);
+      const areaFmt = formatDynamicArea(stats.sqNm, stats.sqKm);
+      const perimFmt = formatDynamicPerimeter(stats.perimeterNm, stats.perimeterKm);
 
-        return `
+      return `
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
+            <input type="checkbox" class="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500 shrink-0 cursor-pointer"
+              ${isSelected ? 'checked' : ''}
+              onclick="event.stopPropagation()"
+              onchange="window.SAR_GIS.toggleItemSelect('polygons', '${safeId}', this.checked)">
             <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusPolygon('${safeId}')">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${safeColor};"></span>
@@ -3858,8 +4280,18 @@
           </button>
         </div>
       `;
-      })
-      .join('');
+    };
+
+    const groups = getBulkEntityConfig('polygons').getGroups();
+    const bulkToolbar = renderBulkActionToolbarHtml('polygons', savedPolygons);
+    container.innerHTML = bulkToolbar + groups.map((g) => {
+      const open = isEntityGroupOpen('polygons', g.key);
+      return `
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40" data-polygon-group="${escapeHtml(g.key)}">
+          ${renderGroupHeaderHtml('polygons', g, open)}
+          ${open ? `<div class="px-2 pb-2 space-y-2">${(g.items || []).map(polyCardHtml).join('')}</div>` : ''}
+        </div>`;
+    }).join('');
   }
 
   function populatePolygonSelectOptions() {
@@ -5670,17 +6102,21 @@
       return;
     }
 
-    container.innerHTML = savedPatterns
-      .map((pat) => {
-        const isHidden = isIdHidden(hiddenPatternIds, pat.id);
-        const safeId = escapeHtml(pat.id);
-        const safeName = escapeHtml(pat.name);
-        const patColor = pat.color || '#0284c7';
-        const patOpacity = pat.opacity !== undefined && pat.opacity !== null ? pat.opacity : 0.85;
+    const patternCardHtml = (pat) => {
+      const isHidden = isIdHidden(hiddenPatternIds, pat.id);
+      const isSelected = isIdHidden(selectedPatternIds, pat.id);
+      const safeId = escapeHtml(pat.id);
+      const safeName = escapeHtml(pat.name);
+      const patColor = pat.color || '#0284c7';
+      const patOpacity = pat.opacity !== undefined && pat.opacity !== null ? pat.opacity : 0.85;
 
-        return `
+      return `
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
+            <input type="checkbox" class="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500 shrink-0 cursor-pointer"
+              ${isSelected ? 'checked' : ''}
+              onclick="event.stopPropagation()"
+              onchange="window.SAR_GIS.toggleItemSelect('patterns', '${safeId}', this.checked)">
             <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusPattern('${safeId}')">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="w-2.5 h-2.5 rounded-full inline-block border border-white/30 shrink-0 shadow-xs" style="background-color: ${patColor}; opacity: ${patOpacity}"></span>
@@ -5706,8 +6142,18 @@
           </div>
         </div>
       `;
-      })
-      .join('');
+    };
+
+    const groups = getBulkEntityConfig('patterns').getGroups();
+    const bulkToolbar = renderBulkActionToolbarHtml('patterns', savedPatterns);
+    container.innerHTML = bulkToolbar + groups.map((g) => {
+      const open = isEntityGroupOpen('patterns', g.key);
+      return `
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40" data-pattern-group="${escapeHtml(g.key)}">
+          ${renderGroupHeaderHtml('patterns', g, open)}
+          ${open ? `<div class="px-2 pb-2 space-y-2">${(g.items || []).map(patternCardHtml).join('')}</div>` : ''}
+        </div>`;
+    }).join('');
   }
 
   function editPattern(id) {
@@ -6727,26 +7173,30 @@
       return;
     }
 
-    container.innerHTML = savedRoutes
-      .map((rt) => {
-        const isHidden = isIdHidden(hiddenRouteIds, rt.id);
-        const safeId = escapeHtml(rt.id);
-        const safeName = escapeHtml(rt.name);
+    const routeCardHtml = (rt) => {
+      const isHidden = isIdHidden(hiddenRouteIds, rt.id);
+      const isSelected = isIdHidden(selectedRouteIds, rt.id);
+      const safeId = escapeHtml(rt.id);
+      const safeName = escapeHtml(rt.name);
 
-        let distNm = 0;
-        for (let i = 0; i < (rt.points ? rt.points.length - 1 : 0); i++) {
-          distNm += calculateDistanceHaversine(rt.points[i].lat, rt.points[i].lng, rt.points[i + 1].lat, rt.points[i + 1].lng).nm;
-        }
+      let distNm = 0;
+      for (let i = 0; i < (rt.points ? rt.points.length - 1 : 0); i++) {
+        distNm += calculateDistanceHaversine(rt.points[i].lat, rt.points[i].lng, rt.points[i + 1].lat, rt.points[i + 1].lng).nm;
+      }
 
-        const startDms = rt.points && rt.points[0] ? decimalToDms(rt.points[0].lat, rt.points[0].lng) : '-';
-        const endDms = rt.points && rt.points.length > 1 ? decimalToDms(rt.points[rt.points.length - 1].lat, rt.points[rt.points.length - 1].lng) : '-';
-        const speedDisplay = rt.speedUnit === 'kmh'
-          ? `${((parseFloat(rt.vesselSpeedKnots) || 25) * 1.852).toFixed(1)} km/jam`
-          : `${rt.vesselSpeedKnots || 25} Knot`;
+      const startDms = rt.points && rt.points[0] ? decimalToDms(rt.points[0].lat, rt.points[0].lng) : '-';
+      const endDms = rt.points && rt.points.length > 1 ? decimalToDms(rt.points[rt.points.length - 1].lat, rt.points[rt.points.length - 1].lng) : '-';
+      const speedDisplay = rt.speedUnit === 'kmh'
+        ? `${((parseFloat(rt.vesselSpeedKnots) || 25) * 1.852).toFixed(1)} km/jam`
+        : `${rt.vesselSpeedKnots || 25} Knot`;
 
-        return `
+      return `
         <div class="p-3 rounded-2xl border ${isHidden ? 'bg-slate-100/50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800/60 opacity-60' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs'} hover:border-orange-500/50 transition group space-y-2">
           <div class="flex items-start justify-between gap-2">
+            <input type="checkbox" class="mt-0.5 rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500 shrink-0 cursor-pointer"
+              ${isSelected ? 'checked' : ''}
+              onclick="event.stopPropagation()"
+              onchange="window.SAR_GIS.toggleItemSelect('routes', '${safeId}', this.checked)">
             <div class="cursor-pointer flex-1 min-w-0" onclick="window.SAR_GIS.focusRoute('${safeId}')">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition truncate">${safeName}</span>
@@ -6775,8 +7225,18 @@
           </div>
         </div>
       `;
-      })
-      .join('');
+    };
+
+    const groups = getBulkEntityConfig('routes').getGroups();
+    const bulkToolbar = renderBulkActionToolbarHtml('routes', savedRoutes);
+    container.innerHTML = bulkToolbar + groups.map((g) => {
+      const open = isEntityGroupOpen('routes', g.key);
+      return `
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40" data-route-group="${escapeHtml(g.key)}">
+          ${renderGroupHeaderHtml('routes', g, open)}
+          ${open ? `<div class="px-2 pb-2 space-y-2">${(g.items || []).map(routeCardHtml).join('')}</div>` : ''}
+        </div>`;
+    }).join('');
   }
 
   // ==========================================
@@ -7911,6 +8371,14 @@
     },
 
     togglePointGroup: (key) => togglePointGroup(key),
+    toggleEntityGroup: (type, key) => toggleEntityGroup(type, key),
+    toggleItemSelect: (type, id, checked) => toggleItemSelect(type, id, checked),
+    toggleSelectAll: (type, checked) => toggleSelectAll(type, checked),
+    toggleGroupSelect: (type, key, checked) => toggleGroupSelect(type, key, checked),
+    toggleGroupVisibility: (type, key) => toggleGroupVisibility(type, key),
+    bulkToggleVisibility: (type, explicitHide) => bulkToggleVisibility(type, explicitHide),
+    bulkDeleteSelected: (type) => bulkDeleteSelected(type),
+    renameImportGroup: (oldName) => renameImportGroup(oldName),
     togglePointVisibility: (id) => {
       toggleIdInSet(hiddenPointIds, id);
       renderSavedPoints();

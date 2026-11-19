@@ -1013,6 +1013,156 @@ try {
         "Exit Code: {$nodeExitCode}, Output:\n" . substr($nodeOutputStr, 0, 500)
     );
 
+    // -----------------------------------------------------------------
+    // 10. VERIFIKASI KATEGORI IMPORT OTOMATIS (Import 1, 2, dst.),
+    //     RENAME KATEGORI IMPORT & BULK DELETE / BULK HIDE
+    // -----------------------------------------------------------------
+    echo PHP_EOL . "--- 10. VERIFIKASI KATEGORI IMPORT OTOMATIS, RENAME & BULK DELETE ---" . PHP_EOL;
+
+    $batchImp1 = GisModel::importBatch($opB, [
+        'points' => [
+            ['label' => 'Titik Imp1 A', 'lat' => -4.01, 'lng' => 122.51],
+            ['label' => 'Titik Imp1 B', 'lat' => -4.02, 'lng' => 122.52],
+        ],
+        'polygons' => [
+            [
+                'name' => 'Area Imp1',
+                'shapeType' => 'polygon',
+                'points' => [
+                    ['lat' => -4.01, 'lng' => 122.51],
+                    ['lat' => -4.01, 'lng' => 122.55],
+                    ['lat' => -4.05, 'lng' => 122.55],
+                ]
+            ]
+        ],
+        'patterns' => [
+            [
+                'name' => 'Pola Imp1',
+                'waypoints' => [
+                    ['lat' => -4.01, 'lng' => 122.51],
+                    ['lat' => -4.03, 'lng' => 122.53],
+                ]
+            ]
+        ],
+        'routes' => [
+            [
+                'name' => 'Rute Imp1',
+                'points' => [
+                    ['lat' => -4.01, 'lng' => 122.51],
+                    ['lat' => -4.04, 'lng' => 122.54],
+                ]
+            ]
+        ]
+    ]);
+
+    assertCondition(
+        "Import pertama pada OpB otomatis diberi nama grup 'Import 1'",
+        ($batchImp1['import_group'] ?? '') === 'Import 1'
+        && ($batchImp1['points'][0]['import_group'] ?? '') === 'Import 1'
+        && ($batchImp1['points'][0]['category'] ?? '') === 'Import 1'
+        && ($batchImp1['polygons'][0]['import_group'] ?? '') === 'Import 1'
+        && ($batchImp1['patterns'][0]['import_group'] ?? '') === 'Import 1'
+        && ($batchImp1['routes'][0]['import_group'] ?? '') === 'Import 1',
+        "Got import_group: " . var_export($batchImp1['import_group'] ?? null, true)
+    );
+
+    $batchImp2 = GisModel::importBatch($opB, [
+        'points' => [
+            ['label' => 'Titik Imp2 A', 'lat' => -4.06, 'lng' => 122.56],
+        ]
+    ]);
+    assertCondition(
+        "Import kedua pada OpB otomatis diberi nama grup 'Import 2'",
+        ($batchImp2['import_group'] ?? '') === 'Import 2'
+        && ($batchImp2['points'][0]['import_group'] ?? '') === 'Import 2'
+        && ($batchImp2['points'][0]['category'] ?? '') === 'Import 2',
+        "Got import_group: " . var_export($batchImp2['import_group'] ?? null, true)
+    );
+
+    // Uji Rename Kategori Import via Controller POST /api/gis/rename-import-group
+    $renameRes = $runGisController('/gis/rename-import-group', 'POST', [
+        'id_operasi' => $opB,
+        'old_name' => 'Import 1',
+        'new_name' => 'Data Drone H.1'
+    ], 'USER');
+
+    $ptAfterRename = GisModel::getPoints($opB, false);
+    $polyAfterRename = GisModel::getPolygons($opB, false);
+    $patAfterRename = GisModel::getSearchPatterns($opB, false);
+    $rtAfterRename = GisModel::getRoutes($opB, false);
+
+    $renamedPts = array_values(array_filter($ptAfterRename, fn($p) => ($p['import_group'] ?? '') === 'Data Drone H.1' && ($p['category'] ?? '') === 'Data Drone H.1'));
+    assertCondition(
+        "POST /api/gis/rename-import-group berhasil mengubah 'Import 1' menjadi 'Data Drone H.1' di seluruh entitas OpB",
+        ($renameRes['__http_status__'] ?? 0) === 200
+        && ($renameRes['success'] ?? false) === true
+        && count($renamedPts) === 2
+        && ($polyAfterRename[0]['import_group'] ?? '') === 'Data Drone H.1'
+        && ($patAfterRename[0]['import_group'] ?? '') === 'Data Drone H.1'
+        && ($rtAfterRename[0]['import_group'] ?? '') === 'Data Drone H.1'
+    );
+
+    // Import ketiga setelah Import 1 di-rename tetap naik ke Import 3 (karena Import 2 sudah ada)
+    $batchImp3 = GisModel::importBatch($opB, [
+        'points' => [
+            ['label' => 'Titik Imp3 A', 'lat' => -4.07, 'lng' => 122.57],
+        ]
+    ]);
+    assertCondition(
+        "Import berikutnya setelah rename tetap berlanjut ke 'Import 3'",
+        ($batchImp3['import_group'] ?? '') === 'Import 3',
+        "Got: " . var_export($batchImp3['import_group'] ?? null, true)
+    );
+
+    // Uji penolakan RBAC rename pada Base Map oleh USER non-admin
+    $renameBaseDenied = $runGisController('/gis/rename-import-group', 'POST', [
+        'id_operasi' => null,
+        'old_name' => 'Import 1',
+        'new_name' => 'Bajakan Base Map'
+    ], 'USER');
+    assertCondition(
+        "POST /api/gis/rename-import-group menolak USER non-admin pada Base Map (HTTP 403)",
+        ($renameBaseDenied['__http_status__'] ?? 0) === 403 && ($renameBaseDenied['success'] ?? true) === false
+    );
+
+    // Uji Bulk Delete via POST /api/gis/bulk-delete untuk points, polygons, patterns, routes
+    $ptIdsToDelete = array_map(fn($p) => $p['id'], $batchImp1['points']);
+    $bulkDelPtsRes = $runGisController('/gis/bulk-delete', 'POST', [
+        'entity_type' => 'points',
+        'ids' => $ptIdsToDelete
+    ], 'USER');
+    $remainingPtsOpB = GisModel::getPoints($opB, false);
+    $remainingIdsOpB = array_column($remainingPtsOpB, 'id');
+    assertCondition(
+        "POST /api/gis/bulk-delete berhasil menghapus 2 titik terpilih sekaligus",
+        ($bulkDelPtsRes['__http_status__'] ?? 0) === 200
+        && ($bulkDelPtsRes['success'] ?? false) === true
+        && ($bulkDelPtsRes['count'] ?? 0) === 2
+        && empty(array_intersect($ptIdsToDelete, $remainingIdsOpB))
+    );
+
+    // Uji Bulk Delete menolak USER non-admin menghapus item Base Map
+    if (!empty($createdBaseMapPointIds)) {
+        $bulkDelBaseDenied = $runGisController('/gis/bulk-delete', 'POST', [
+            'entity_type' => 'points',
+            'ids' => [$createdBaseMapPointIds[0]]
+        ], 'USER');
+        assertCondition(
+            "POST /api/gis/bulk-delete menolak USER non-admin menghapus titik Base Map (HTTP 403)",
+            ($bulkDelBaseDenied['__http_status__'] ?? 0) === 403 && ($bulkDelBaseDenied['success'] ?? true) === false
+        );
+    }
+
+    // Verifikasi handler Bulk Hide/Show, Bulk Delete & Rename di assets/js/gis_master.js
+    $gisMasterAfter = (string)file_get_contents($rootDir . '/assets/js/gis_master.js');
+    assertCondition(
+        "assets/js/gis_master.js menyediakan fungsi bulkDeleteSelected, bulkToggleVisibility, toggleGroupVisibility, dan renameImportGroup",
+        str_contains($gisMasterAfter, 'bulkDeleteSelected')
+        && str_contains($gisMasterAfter, 'bulkToggleVisibility')
+        && str_contains($gisMasterAfter, 'toggleGroupVisibility')
+        && str_contains($gisMasterAfter, 'renameImportGroup')
+    );
+
 } finally {
     // -----------------------------------------------------------------
     // PEMBERSIHAN DATA TEST (CLEANUP SPOTLESS)

@@ -28,6 +28,11 @@ class GisApiController extends BaseApiController {
             return true;
         }
 
+        // 2c. Bulk Delete & Rename Import Group
+        if (self::handleBulkAndGroupRoute($path, $method, $input)) {
+            return true;
+        }
+
         // 3. GIS Points
         if (self::handlePointsRoute($path, $method, $input)) {
             return true;
@@ -185,6 +190,7 @@ class GisApiController extends BaseApiController {
             self::json([
                 'success' => true,
                 'id_operasi' => $idOperasi,
+                'import_group' => $result['import_group'] ?? null,
                 'counts' => $result['counts'],
                 'imported' => [
                     'points' => $result['points'],
@@ -202,6 +208,87 @@ class GisApiController extends BaseApiController {
         }
 
         return true;
+    }
+
+    /**
+     * Menangani POST /api/gis/rename-import-group dan POST /api/gis/bulk-delete
+     */
+    private static function handleBulkAndGroupRoute(string $path, string $method, array $input): bool {
+        if ($path === '/gis/rename-import-group' && in_array($method, ['POST', 'PUT'], true)) {
+            self::requireAuth();
+            $rawIdOp = $input['id_operasi'] ?? null;
+            $idOperasi = ($rawIdOp !== null && $rawIdOp !== '' && $rawIdOp !== 'basemap' && (int)$rawIdOp > 0)
+                ? (int)$rawIdOp
+                : null;
+
+            self::assertCanMutateGis('GisPoint', null, ['id_operasi' => $idOperasi]);
+
+            $oldName = trim((string)($input['old_name'] ?? ($input['oldName'] ?? '')));
+            $newName = trim((string)($input['new_name'] ?? ($input['newName'] ?? '')));
+            try {
+                $updated = GisModel::renameImportGroup($idOperasi, $oldName, $newName);
+                self::json([
+                    'success' => true,
+                    'id_operasi' => $idOperasi,
+                    'old_name' => $oldName,
+                    'new_name' => $newName,
+                    'updated' => $updated
+                ]);
+            } catch (InvalidArgumentException $e) {
+                self::error($e->getMessage(), 400);
+            }
+            return true;
+        }
+
+        if ($path === '/gis/bulk-delete' && in_array($method, ['POST', 'DELETE'], true)) {
+            self::requireAuth();
+            $entityType = strtolower(trim((string)($input['entity_type'] ?? ($input['entityType'] ?? ''))));
+            $tableMap = [
+                'points' => 'GisPoint',
+                'point' => 'GisPoint',
+                'polygons' => 'GisPolygon',
+                'polygon' => 'GisPolygon',
+                'patterns' => 'GisSearchPattern',
+                'pattern' => 'GisSearchPattern',
+                'search-patterns' => 'GisSearchPattern',
+                'routes' => 'GisRoute',
+                'route' => 'GisRoute',
+            ];
+            if (!isset($tableMap[$entityType])) {
+                self::error('Tipe entitas bulk-delete tidak valid.', 400);
+            }
+            $canonicalType = match ($tableMap[$entityType]) {
+                'GisPoint' => 'points',
+                'GisPolygon' => 'polygons',
+                'GisSearchPattern' => 'patterns',
+                'GisRoute' => 'routes',
+            };
+            $table = $tableMap[$entityType];
+            $ids = isset($input['ids']) && is_array($input['ids']) ? $input['ids'] : [];
+            $cleanIds = array_values(array_unique(array_filter(array_map(fn($v) => trim((string)$v), $ids), fn($v) => $v !== '')));
+            if (empty($cleanIds) || count($cleanIds) > 500) {
+                self::error('Daftar ID bulk-delete harus berisi 1 hingga 500 ID.', 400);
+            }
+
+            foreach ($cleanIds as $id) {
+                self::assertCanMutateGis($table, $id);
+            }
+
+            try {
+                $deleted = GisModel::bulkDelete($canonicalType, $cleanIds);
+                self::json([
+                    'success' => true,
+                    'entity_type' => $canonicalType,
+                    'deleted_ids' => $cleanIds,
+                    'count' => $deleted
+                ]);
+            } catch (InvalidArgumentException $e) {
+                self::error($e->getMessage(), 400);
+            }
+            return true;
+        }
+
+        return false;
     }
 
     private static function handlePointsRoute(string $path, string $method, array $input): bool {
