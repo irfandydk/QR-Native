@@ -131,6 +131,13 @@ try {
         echo "[OK] LaporanHarian schema validated.\n";
     }
 
+    // 1c-4. Run OperasiDokumentasiModel forced migration
+    if (class_exists('OperasiDokumentasiModel')) {
+        echo "[RUN] Checking OperasiDokumentasi table...\n";
+        OperasiDokumentasiModel::ensureSchemaUpdated(true);
+        echo "[OK] OperasiDokumentasi schema validated.\n";
+    }
+
     // 1d. Validate and Apply Composite Indexes for High Performance
     echo "[RUN] Checking Composite Indexes (Korban, Operasi, Renops, LaporanHarian)...\n";
     $compositeIndexes = [

@@ -23,10 +23,10 @@ $hasGeminiKey = !empty($settings['gemini_api_key']);
       <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Konfigurasi logo, kop surat resmi BRA, RENOPS, dan komunikasi radio.</p>
     </div>
 
-    <!-- Side-by-Side Logo Upload (Left & Right Kop) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
+    <!-- 3-Column Institutional Logo Upload (Utama, SAR Nasional, ANOA Rescue) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
       <!-- Logo 1: Logo Utama Satker -->
-      <div class="flex items-start gap-4">
+      <div class="flex items-start gap-3.5">
         <div class="w-16 h-16 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-2 shrink-0">
           <img src="<?= e($logoUrl) ?>" alt="Logo Basarnas" class="max-w-full max-h-full object-contain" id="satkerLogoPreview" />
         </div>
@@ -40,27 +40,47 @@ $hasGeminiKey = !empty($settings['gemini_api_key']);
               <span>Pilih Berkas</span>
               <input type="file" name="logo_file" accept="image/*" class="hidden" onchange="previewLogoFile(this)" />
             </label>
-            <input type="text" name="logo_url" value="<?= e($settings['logo_url'] ?? '') ?>" placeholder="Atau tempel URL logo..." aria-label="URL logo utama" class="control control-sm flex-1 min-w-[140px]" />
+            <input type="text" name="logo_url" value="<?= e($settings['logo_url'] ?? '') ?>" placeholder="Atau tempel URL logo..." aria-label="URL logo utama" class="control control-sm flex-1 min-w-[120px]" />
           </div>
         </div>
       </div>
 
       <!-- Logo 2: Logo Kedua Kop Dokumen (Kanan) -->
-      <div class="flex items-start gap-4 lg:pl-4 lg:border-l lg:border-slate-100 dark:lg:border-slate-800">
+      <div class="flex items-start gap-3.5 lg:pl-4 lg:border-l lg:border-slate-100 dark:lg:border-slate-800">
         <div class="w-16 h-16 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-2 shrink-0">
           <img src="<?= e(getAppLogo2DataUri()) ?>" alt="Logo kedua kop dokumen" class="max-w-full max-h-full object-contain" id="satkerLogo2Preview" />
         </div>
         <div class="flex-1 min-w-0 space-y-2">
           <div>
-            <p class="text-xs font-bold text-slate-900 dark:text-white">Logo Kedua Kop Dokumen (Kanan)</p>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Kosongkan untuk memakai logo SAR Nasional bawaan.</p>
+            <p class="text-xs font-bold text-slate-900 dark:text-white">Logo Kedua (SAR Nasional)</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Kosongkan untuk memakai logo bawaan.</p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <label class="adm-ghost-btn inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0">
               <span>Pilih Berkas</span>
               <input type="file" name="logo_file_2" accept="image/*" class="hidden" onchange="previewLogoFile(this, 'satkerLogo2Preview')" />
             </label>
-            <input type="text" name="logo_url_2" value="<?= e($settings['logo_url_2'] ?? '') ?>" placeholder="Atau tempel URL logo kedua..." aria-label="URL logo kedua" class="control control-sm flex-1 min-w-[140px]" />
+            <input type="text" name="logo_url_2" value="<?= e($settings['logo_url_2'] ?? '') ?>" placeholder="Atau tempel URL logo kedua..." aria-label="URL logo kedua" class="control control-sm flex-1 min-w-[120px]" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Logo 3: Logo Ketiga (ANOA Rescue / Dokumentasi Operasi SAR) -->
+      <div class="flex items-start gap-3.5 lg:pl-4 lg:border-l lg:border-slate-100 dark:lg:border-slate-800">
+        <div class="w-16 h-16 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-2 shrink-0">
+          <img src="<?= e(getAppLogo3DataUri()) ?>" alt="Logo ANOA Rescue" class="max-w-full max-h-full object-contain" id="satkerLogo3Preview" />
+        </div>
+        <div class="flex-1 min-w-0 space-y-2">
+          <div>
+            <p class="text-xs font-bold text-slate-900 dark:text-white">Logo Ketiga (ANOA Rescue)</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Referensi logo dokumentasi kolase SAR.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="adm-ghost-btn inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0">
+              <span>Pilih Berkas</span>
+              <input type="file" name="logo_file_3" accept="image/*" class="hidden" onchange="previewLogoFile(this, 'satkerLogo3Preview')" />
+            </label>
+            <input type="text" name="logo_url_3" value="<?= e($settings['logo_url_3'] ?? '') ?>" placeholder="Atau tempel URL logo ketiga..." aria-label="URL logo ketiga" class="control control-sm flex-1 min-w-[120px]" />
           </div>
         </div>
       </div>
@@ -89,13 +109,13 @@ $hasGeminiKey = !empty($settings['gemini_api_key']);
       </div>
 
       <div class="field">
-        <label class="field-label">Telepon Kantor / Emergency Call Center</label>
-        <input class="field-input w-full" type="text" name="no_telp" value="<?= e($settings['no_telp'] ?? '(0401) 3122115 / Emergency 115') ?>" placeholder="(0401) 3122115 / Emergency 115" />
+        <label class="field-label" for="satkerNoTelp">Telepon Kantor / Emergency Call Center</label>
+        <input id="satkerNoTelp" class="field-input w-full" type="text" name="no_telp" value="<?= e($settings['no_telp'] ?? '0401 3196 557') ?>" placeholder="0401 3196 557" />
       </div>
 
       <div class="field">
-        <label class="field-label">Frekuensi Komunikasi SAR Default</label>
-        <input class="field-input w-full font-mono" type="text" name="frekuensi_default" value="<?= e($settings['frekuensi_default'] ?? '115.000 MHz / 5827 kHz') ?>" placeholder="115.000 MHz / 5827 kHz" />
+        <label class="field-label" for="satkerNoWa">Nomor WhatsApp Kantor / Siaga (WA)</label>
+        <input id="satkerNoWa" class="field-input w-full font-mono" type="text" name="no_wa" value="<?= e($settings['no_wa'] ?? '') ?>" placeholder="08114034115" />
       </div>
 
       <div class="field">

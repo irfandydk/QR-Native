@@ -84,8 +84,11 @@ assertT3(
 
 $braView = file_get_contents($rootDir . '/views/bra/view.php');
 assertT3(
-    str_contains($braView, 'copyToClipboard(txt') && str_contains($braView, 'document.execCommand(\'copy\')'),
-    'bra/view.php menyediakan fallback copy teks telegram pada koneksi LAN non-HTTPS'
+    str_contains($braList, 'document.execCommand(\'copy\')')
+        && !str_contains($braView, 'btnCopyTelegram')
+        && !str_contains($braView, 'btnDownloadQr')
+        && !str_contains($braView, 'btnDownloadHtml'),
+    'bra/list.php menyediakan fallback copy non-HTTPS & bra/view.php bersih dari tombol/fungsi Salin Naskah, Unduh QR, dan HTML'
 );
 
 // 4. Uji Finding #14: Optimalisasi pemuatan modul GIS dan urutan skrip

@@ -36,143 +36,87 @@ $sections = $bra['sections'] ?? [];
 $totalWords = BraHelper::countBraWords($sections, $bra['perihal'] ?? '');
 $jumlahKataStr = $totalWords > 0 ? "{$totalWords} KATA" : (!empty($bra['jumlah_kata']) ? $bra['jumlah_kata'] : '-');
 
-$docHash = BraModel::generateVerifyToken($bra);
 $verifyUrl = BraModel::generateVerifyUrl($bra);
-$isGuest = !AuthHelper::isLoggedIn();
-$verifyMode = $verificationStatus ?? (isset($_GET['token']) && BraModel::verifyToken($bra, (string)$_GET['token']) ? 'VERIFIED_SIGNATURE' : 'LEGACY_VERIFIED');
 
 $cleanNoBra = trim((string)preg_replace('/[^a-zA-Z0-9_\-.]/', '_', (string)($bra['no_bra'] ?? 'BRA_SAR')), '_');
 $pdfFilename = 'BRA-SAR-' . ($cleanNoBra !== '' ? $cleanNoBra : 'DOKUMEN') . '.pdf';
-$pdfDownloadUrl = BASE_URL . '/bra.php?view=' . (int)$bra['id_bra']
-    . (!empty($_GET['token']) ? '&token=' . urlencode((string)$_GET['token']) : ($isGuest ? '&token=' . urlencode($docHash) : ''))
-    . '&format=pdf';
+$pdfDownloadUrl = BASE_URL . '/bra.php?view=' . (int)$bra['id_bra'] . '&format=pdf';
 $braBackUrl = isset($backUrl) && is_string($backUrl) && $backUrl !== '' ? $backUrl : (BASE_URL . '/bra.php');
 $braBackLabel = isset($backLabel) && is_string($backLabel) && $backLabel !== '' ? $backLabel : 'Kembali ke Daftar';
 $braReturnQuery = isset($returnQuery) && is_string($returnQuery) ? $returnQuery : '';
+
+$braKategoriLabel = $bra['kategori'] === 'MAPEL'
+    ? 'BRA MAPEL'
+    : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? 'BRA KAPAL' : 'BRA OPERASI SAR');
 ?>
 
-<div class="space-y-6">
-  <!-- Top Action Toolbar (Hidden on print) -->
-  <div class="print:hidden card p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg border border-slate-200 dark:border-slate-800">
-    <div class="flex flex-wrap items-center gap-2">
-      <?php if (!$isGuest): ?>
-        <a href="<?= e($braBackUrl) ?>" class="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-lg transition" title="<?= e($braBackLabel) ?>" aria-label="<?= e($braBackLabel) ?>">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+<div class="space-y-5 max-w-4xl mx-auto">
+  <!-- Clean Internal Action Toolbar (Flush with A4 Sheet, Hidden on Print) -->
+  <div class="print:hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs overflow-hidden">
+    <!-- Row 1: Identity & Paper/Zoom Controls -->
+    <div class="px-4 sm:px-5 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex flex-wrap items-center gap-2.5 min-w-0">
+        <a href="<?= e($braBackUrl) ?>" class="btn-tactile inline-flex items-center justify-center w-9 h-9 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/80 rounded-xl transition-colors shrink-0" title="<?= e($braBackLabel) ?>" aria-label="<?= e($braBackLabel) ?>">
+          <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
         </a>
-      <?php endif; ?>
 
-      <span class="px-2.5 py-1 text-xs font-bold rounded-lg border uppercase tracking-wider <?= $bra['kategori'] === 'MAPEL' ? 'bg-orange-500/20 text-orange-600 dark:text-orange-400 border-orange-500/30' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? 'bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border-cyan-500/30' : 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30') ?>">
-        <?= $bra['kategori'] === 'MAPEL' ? '📡 BRA MAPEL' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? '🚢 BRA KAPAL' : '📋 BRA OPERASI SAR') ?>
-      </span>
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg border uppercase tracking-wider shrink-0 <?= $bra['kategori'] === 'MAPEL' ? 'bg-orange-500/10 text-orange-800 dark:text-orange-400 border-orange-500/30' : ($bra['kategori'] === 'PERGERAKAN_KAPAL' ? 'bg-sky-500/10 text-sky-800 dark:text-sky-300 border-sky-500/30' : 'bg-amber-500/10 text-amber-800 dark:text-amber-400 border-amber-500/30') ?>">
+          <?php if ($bra['kategori'] === 'MAPEL'): ?>
+            <svg class="w-3.5 h-3.5 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9m2.8 11.4a6 6 0 010-8.5m8.6 0a6 6 0 010 8.5m2.8-11.4c3.9 3.9 3.9 10.2 0 14.1"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+          <?php elseif ($bra['kategori'] === 'PERGERAKAN_KAPAL'): ?>
+            <svg class="w-3.5 h-3.5 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2 21c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1 .6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1M19.38 20A11.6 11.6 0 0021 14l-9-4-9 4c0 2.9.94 5.34 2.81 7.76M19 13V7a2 2 0 00-2-2H7a2 2 0 00-2 2v6M12 10v4M12 2v3"/></svg>
+          <?php else: ?>
+            <svg class="w-3.5 h-3.5 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <?php endif; ?>
+          <span><?= e($braKategoriLabel) ?></span>
+        </span>
 
-      <span class="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
-        <?= htmlspecialchars($bra['no_bra']) ?>
-      </span>
-    </div>
+        <span class="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+          <?= htmlspecialchars($bra['no_bra']) ?>
+        </span>
+      </div>
 
-    <!-- Paper Size & Zoom Controls -->
-    <div class="flex items-center gap-2">
-      <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
-        <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 pl-1">Kertas:</span>
-        <select id="paperSizeSelect" class="text-xs font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 outline-none cursor-pointer">
-          <option value="A4" selected>A4 (210×297 mm) [Default]</option>
+      <div class="flex items-center gap-1 bg-slate-100/90 dark:bg-slate-800/90 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80">
+        <label for="paperSizeSelect" class="text-[11px] font-semibold text-slate-600 dark:text-slate-400 pl-1.5 pr-0.5">Kertas</label>
+        <select id="paperSizeSelect" class="h-7 text-xs font-semibold bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg px-2 outline-none focus:border-orange-500 cursor-pointer">
+          <option value="A4" selected>A4 (210×297 mm)</option>
           <option value="F4">F4 / Folio (215×330 mm)</option>
           <option value="LETTER">Letter (216×279 mm)</option>
           <option value="LEGAL">Legal (216×356 mm)</option>
         </select>
-        <div class="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-0.5"></div>
-        <button type="button" id="btnZoomOut" class="p-1 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded" title="Zoom Out">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+        <div class="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-0.5" aria-hidden="true"></div>
+        <button type="button" id="btnZoomOut" class="inline-flex items-center justify-center w-7 h-7 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer" title="Perkecil Tampilan" aria-label="Perkecil Tampilan">
+          <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"/></svg>
         </button>
-        <span id="zoomLabel" class="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300 min-w-[34px] text-center">100%</span>
-        <button type="button" id="btnZoomIn" class="p-1 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded" title="Zoom In">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        <span id="zoomLabel" class="text-[11px] font-mono font-bold tabular-nums text-slate-700 dark:text-slate-300 min-w-[36px] text-center">100%</span>
+        <button type="button" id="btnZoomIn" class="inline-flex items-center justify-center w-7 h-7 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors cursor-pointer" title="Perbesar Tampilan" aria-label="Perbesar Tampilan">
+          <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
         </button>
-      </div>
-
-      <!-- Action Buttons -->
-      <?php if (!$isGuest): ?>
-        <a href="<?= BASE_URL ?>/bra.php?action=edit&id=<?= (int)$bra['id_bra'] ?><?= e($braReturnQuery) ?>" class="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition">
-          Edit Form
-        </a>
-      <?php endif; ?>
-
-      <button type="button" id="btnCopyTelegram" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition" title="Salin Naskah Telegram Plain Text">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-        <span class="hidden sm:inline">Salin Naskah</span>
-      </button>
-
-      <button type="button" id="btnDownloadQr" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition" title="Unduh Barcode QR">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        <span class="hidden sm:inline">Unduh QR</span>
-      </button>
-
-      <button type="button" id="btnDownloadHtml" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition" title="Unduh Dokumen Mandiri HTML">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-        <span class="hidden sm:inline">HTML</span>
-      </button>
-
-      <button type="button" id="btnDownloadPdf" 
-              data-pdf-filename="<?= e($pdfFilename) ?>" 
-              data-pdf-url="<?= e($pdfDownloadUrl) ?>" 
-              onclick="window.downloadBraDocumentPdf()" 
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md transition cursor-pointer" 
-              title="Unduh berkas PDF resmi (teks tajam &amp; dapat dicari / searchable, identik dengan hasil cetak)">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-        <span>Unduh PDF</span>
-      </button>
-
-      <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg shadow-md transition" title="Naskah resmi: teks tajam &amp; bisa dicari. Pilih &quot;Simpan sebagai PDF&quot; pada dialog cetak.">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-        <span>Cetak / Simpan PDF</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Official Digital Verification Certificate Banner (Public & Authenticated) -->
-  <div class="print:hidden rounded-2xl border border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/30 p-4 sm:p-5 shadow-sm space-y-3">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-emerald-200 dark:border-emerald-800/60">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-        </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded text-[11px] font-black <?= $verifyMode === 'VERIFIED_SIGNATURE' ? 'bg-emerald-600 text-white' : 'bg-teal-600 text-white' ?> tracking-wider uppercase">
-              <?= $verifyMode === 'VERIFIED_SIGNATURE' ? 'TERVALIDASI DIGITAL • TANDA TANGAN SAH' : 'TERVALIDASI RESMI • ARSIP BASARNAS' ?>
-            </span>
-            <span class="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">HASH: <?= htmlspecialchars($docHash) ?></span>
-          </div>
-          <h3 class="text-sm font-black text-slate-900 dark:text-white mt-0.5">
-            Sertifikat Keabsahan Dokumen Digital Berita Radio SAR (BRA)
-          </h3>
-        </div>
-      </div>
-      <div class="text-left sm:text-right">
-        <span class="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 block">BASARNAS KPP KENDARI</span>
-        <span class="text-[11px] text-slate-500 dark:text-slate-400">
-          <?= $verifyMode === 'VERIFIED_SIGNATURE' ? 'Integritas: ASLI & SAH (Tanda Tangan Kriptografis)' : 'Integritas: ASLI & SAH (Tercatat Dalam Arsip)' ?>
-        </span>
       </div>
     </div>
 
-    <!-- Verification Metadata Grid -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-      <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
-        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Nomor Registrasi</span>
-        <span class="font-bold font-mono text-slate-800 dark:text-slate-200 mt-0.5 block truncate"><?= htmlspecialchars($bra['no_bra']) ?></span>
-      </div>
-      <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
-        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Waktu Sandi (TWU)</span>
-        <span class="font-bold font-mono text-slate-800 dark:text-slate-200 mt-0.5 block truncate"><?= htmlspecialchars($bra['twu']) ?></span>
-      </div>
-      <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
-        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Penandatangan (SMC)</span>
-        <span class="font-bold text-slate-800 dark:text-slate-200 mt-0.5 block truncate"><?= htmlspecialchars($bra['nama_smc'] ?: 'KEPALA KANSAR KENDARI') ?></span>
-      </div>
-      <div class="p-2.5 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-emerald-100 dark:border-emerald-900/30">
-        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Derajat Kecepatan</span>
-        <span class="font-bold font-mono text-slate-800 dark:text-slate-200 mt-0.5 block"><?= htmlspecialchars($bra['derajat'] ?? 'SGR') ?> (SEGERA)</span>
+    <!-- Row 2: Focused Actions (Edit Form, Unduh PDF, Cetak / Simpan PDF) -->
+    <div class="px-4 sm:px-5 py-2.5 bg-slate-50/80 dark:bg-slate-950/40 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
+      <a href="<?= BASE_URL ?>/bra.php?action=edit&id=<?= (int)$bra['id_bra'] ?><?= e($braReturnQuery) ?>" class="btn-tactile inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/90 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-xs">
+        <svg class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM19.5 7.125L16.862 4.487"/></svg>
+        <span>Edit Form</span>
+      </a>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button type="button" id="btnDownloadPdf" 
+                data-pdf-filename="<?= e($pdfFilename) ?>" 
+                data-pdf-url="<?= e($pdfDownloadUrl) ?>" 
+                onclick="window.downloadBraDocumentPdf()" 
+                class="btn-tactile inline-flex items-center gap-1.5 h-9 px-3.5 text-xs font-semibold text-slate-800 dark:text-white bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl shadow-xs transition-colors cursor-pointer" 
+                title="Unduh berkas PDF resmi (teks tajam &amp; dapat dicari / searchable, identik dengan hasil cetak)">
+          <svg class="w-3.5 h-3.5 text-sky-700 dark:text-sky-400 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span>Unduh PDF</span>
+        </button>
+
+        <button type="button" onclick="window.print()" class="btn-tactile inline-flex items-center gap-1.5 h-9 px-4 text-xs font-semibold text-white bg-orange-700 hover:bg-orange-800 rounded-xl shadow-xs transition-colors cursor-pointer" title="Naskah resmi: teks tajam &amp; bisa dicari. Pilih &quot;Simpan sebagai PDF&quot; pada dialog cetak.">
+          <svg class="w-3.5 h-3.5 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          <span>Cetak / Simpan PDF</span>
+        </button>
       </div>
     </div>
   </div>
@@ -180,9 +124,9 @@ $braReturnQuery = isset($returnQuery) && is_string($returnQuery) ? $returnQuery 
   <!-- ============================================================== -->
   <!-- THE OFFICIAL BRA SAR PAPER DOCUMENT CONTAINER (Print-perfect) -->
   <!-- ============================================================== -->
-  <div class="flex justify-center w-full py-2">
+  <div class="flex justify-center w-full py-1">
     <!-- Screen-only card frame: provides drop-shadow on UI without leaking outer borders into PDF -->
-    <div class="w-full max-w-4xl bg-white rounded-xl shadow-xl p-4 sm:p-6 print:p-0 print:shadow-none print:rounded-none">
+    <div class="w-full max-w-4xl bg-white rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-lg p-4 sm:p-7 print:p-0 print:border-0 print:shadow-none print:rounded-none">
       <div id="official-bra-document" class="page-sheet bra-official-paper w-full bg-white text-black p-0 border-0 shadow-none font-sans print:p-0">
         
         <!-- Header Kop: Logo sejajar dengan BRA SAR dan BADAN NASIONAL PENCARIAN DAN PERTOLONGAN -->
@@ -598,82 +542,6 @@ $braReturnQuery = isset($returnQuery) && is_string($returnQuery) ? $returnQuery 
     });
   }
 
-  // Copy Plain Text Telegram
-  const btnCopy = document.getElementById('btnCopyTelegram');
-  if (btnCopy) {
-    btnCopy.addEventListener('click', function() {
-      let txt = "BRA SAR\nBADAN NASIONAL PENCARIAN DAN PERTOLONGAN\n\n";
-      txt += "DARI : " + <?= jsonSafe((string)($bra['dari'] ?? '')) ?> + "\n";
-      txt += "AKSI : " + <?= jsonSafe((string)($bra['aksi'] ?? '')) ?> + "\n";
-      txt += "INFO : " + <?= jsonSafe((string)($bra['info'] ?? '')) ?> + "\n";
-      txt += "TWU  : " + <?= jsonSafe((string)($bra['twu'] ?? '')) ?> + "\n";
-      txt += "JUMLAH KATA : " + <?= jsonSafe((string)($jumlahKataStr)) ?> + "\n\n";
-      txt += "NO.    : " + <?= jsonSafe((string)($bra['no_bra'] ?? '')) ?> + "\n";
-      <?php if (!empty($bra['menbra']) && strtoupper(trim((string)$bra['menbra'])) !== 'SEGERA' && trim((string)$bra['menbra']) !== '-'): ?>
-      txt += "MENBRA : " + <?= jsonSafe((string)($bra['menbra'])) ?> + "\n";
-      <?php endif; ?>
-      <?php if (!empty($bra['perihal'])): ?>
-      txt += "" + <?= jsonSafe((string)($bra['perihal'])) ?> + "\n\n";
-      <?php endif; ?>
-      <?php foreach ($sections as $s): 
-          $isiRaw = trim((string)($s['isi'] ?? ''));
-          $lines = preg_split('/\r?\n/', $isiRaw);
-          $first = array_shift($lines);
-      ?>
-      txt += "" + <?= jsonSafe((string)($s['kode'] ?? '')) ?> + " : " + <?= jsonSafe((string)$first) ?> + "\n";
-      <?php foreach ($lines as $subLine): 
-          $subTrim = trim((string)$subLine);
-          if ($subTrim === '') continue;
-      ?>
-      txt += "      " + <?= jsonSafe((string)($subTrim)) ?> + "\n";
-      <?php endforeach; ?>
-      txt += "\n";
-      <?php endforeach; ?>
-      txt += "TWB : " + <?= jsonSafe((string)($bra['twb'] ?? '')) ?> + "\n";
-      txt += "PENGIRIM : " + <?= jsonSafe((string)($bra['pengirim'] ?? '')) ?> + "\n";
-      txt += "NAMA     : " + <?= jsonSafe((string)($bra['nama_smc'] ?? '')) ?> + "\n";
-      txt += "PANGKAT  : " + <?= jsonSafe((string)($bra['pangkat_smc'] ?? '')) ?> + "\n";
-      txt += "JABATAN  : " + <?= jsonSafe((string)($bra['jabatan_smc'] ?? '')) ?> + "\n";
-      txt += "LINK VERIFIKASI DIGITAL : " + verifyUrl + "\n";
-
-      if (typeof copyToClipboard === 'function') {
-        copyToClipboard(txt, 'Naskah Telegram Berhasil Disalin!');
-      } else if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(txt).then(() => {
-          if (typeof showToast === 'function') showToast('Naskah Telegram Berhasil Disalin!', 'success');
-        });
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = txt;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.focus();
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        if (typeof showToast === 'function') showToast('Naskah Telegram Berhasil Disalin!', 'success');
-      }
-    });
-  }
-
-  // Download QR Code image
-  const btnDlQr = document.getElementById('btnDownloadQr');
-  if (btnDlQr) {
-    btnDlQr.addEventListener('click', function() {
-      const canvas = document.getElementById('braQrCanvas');
-      const img = document.getElementById('braQrImage');
-      const srcUrl = (img && img.src && !img.classList.contains('hidden')) ? img.src : (canvas ? canvas.toDataURL('image/png') : null);
-      if (!srcUrl) return;
-
-      const link = document.createElement('a');
-      link.download = 'QR_BRA_' + noBra.replace(/[\/\\]/g, '_') + '.png';
-      link.href = srcUrl;
-      link.click();
-      if (typeof showToast === 'function') showToast('Barcode QR Berhasil Diunduh!', 'success');
-    });
-  }
-
   // Ensure print layout is completely unscaled and unmodified by screen zoom
   window.addEventListener('beforeprint', function() {
     if (doc) doc.style.transform = 'none';
@@ -768,66 +636,5 @@ $braReturnQuery = isset($returnQuery) && is_string($returnQuery) ? $returnQuery 
     });
   };
 
-  // Download Standalone HTML
-  const btnDlHtml = document.getElementById('btnDownloadHtml');
-  if (btnDlHtml && doc) {
-    btnDlHtml.addEventListener('click', function() {
-      const clone = doc.cloneNode(true);
-      const canvas = document.getElementById('braQrCanvas');
-      if (canvas) {
-        const qrImg = clone.querySelector('#braQrImage');
-        const qrCanvas = clone.querySelector('#braQrCanvas');
-        if (qrImg) {
-          qrImg.src = canvas.toDataURL('image/png');
-          qrImg.classList.remove('hidden');
-          qrImg.style.display = 'block';
-        }
-        if (qrCanvas) {
-          qrCanvas.remove();
-        }
-      }
-      const htmlContent = `<!DOCTYPE html>
-<html lang="id">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BRA SAR - ${noBra}</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; background: #f1f5f9; padding: 2rem; display: flex; justify-content: center; margin: 0; color: #000; }
-  #braDocument { background: #fff; max-width: 850px; width: 100%; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 4px; padding: 1.5cm; }
-  .font-bold { font-weight: 700 !important; }
-  .uppercase { text-transform: uppercase !important; }
-  .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important; }
-  .text-black { color: #000 !important; }
-  .text-center { text-align: center !important; }
-  .flex { display: flex !important; }
-  .items-center { align-items: center !important; }
-  .items-start { align-items: flex-start !important; }
-  .justify-between { justify-content: space-between !important; }
-  .border-b-2 { border-bottom-width: 2px !important; }
-  .border-black { border-color: #000 !important; }
-  .border { border: 1px solid #000 !important; }
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border: 1px solid #000; padding: 4px 6px; }
-  img { max-width: 100%; height: auto; }
-  @media print {
-    body { padding: 0; background: #fff; }
-    #braDocument { box-shadow: none !important; border: none !important; width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 1cm !important; }
-  }
-</style>
-</head>
-<body>
-${clone.outerHTML}
-</body>
-</html>`;
-      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'BRA_SAR_' + noBra.replace(/[\/\\]/g, '_') + '.html';
-      a.click();
-      if (typeof showToast === 'function') showToast('Dokumen HTML Mandiri Berhasil Diunduh!', 'success');
-    });
-  }
 })();
 </script>

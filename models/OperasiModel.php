@@ -149,6 +149,11 @@ class OperasiModel {
         }
         $ops['bra_sar'] = $bras;
 
+        // Arsip dokumentasi kolase foto/video operasi
+        $ops['dokumentasi'] = class_exists('OperasiDokumentasiModel')
+            ? OperasiDokumentasiModel::getByOperasiId($id)
+            : [];
+
         // Calculate stats
         $ops['stats_korban'] = TemplateHelper::hitungStatistikKorban($ops['korban'], (int)($ops['jumlah_pob'] ?? 0));
 
@@ -616,8 +621,9 @@ class OperasiModel {
             $namaOps = $ops['nama_operasi'] ?? "ID #{$id}";
             $statusOps = $ops['status'] ?? 'OPEN';
 
-            // 0. Kumpulkan path berkas dokumen RENOPS (dihapus dari disk setelah commit)
+            // 0. Kumpulkan path berkas dokumen RENOPS & dokumentasi kolase (dihapus dari disk setelah commit)
             $filePaths = class_exists('RenopsDokumenModel') ? RenopsDokumenModel::collectFilePathsForOperasi($id) : [];
+            $dokFiles = class_exists('OperasiDokumentasiModel') ? OperasiDokumentasiModel::collectFilePathsForOperasi($id) : [];
 
             // 1. Delete SRU from Renops belonging to this operation
             $stmtRenopsIds = $db->prepare("SELECT id_renops FROM Renops WHERE id_operasi = :id");
@@ -677,6 +683,9 @@ class OperasiModel {
                 if ($result) {
                     if ($filePaths && class_exists('RenopsDokumenModel')) {
                         RenopsDokumenModel::deleteFiles($filePaths);
+                    }
+                    if ($dokFiles && class_exists('OperasiDokumentasiModel')) {
+                        OperasiDokumentasiModel::deleteFiles($dokFiles);
                     }
                     if ($mapSnapFiles && class_exists('DokumenPetaSnapshotModel')) {
                         foreach ($mapSnapFiles as $mf) {

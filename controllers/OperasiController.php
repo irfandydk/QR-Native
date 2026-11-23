@@ -165,6 +165,12 @@ class OperasiController extends BaseController {
             $this->redirect('/index.php');
         }
 
+        // Studio Dokumentasi Kolase Foto & Video Operasi SAR
+        if ($action === 'dokumentasi') {
+            $this->dokumentasiStudio();
+            return;
+        }
+
         // Editor draf Dokumen RENOPS (format SMEAC)
         if ($action === 'renops_dokumen') {
             $this->renopsDokumen();
@@ -200,6 +206,117 @@ class OperasiController extends BaseController {
             'title' => 'Operasi SAR',
             'route' => 'operasi',
             'navbarTitle' => 'Operasi SAR'
+        ]);
+    }
+
+    /**
+     * Format baris Emergency Call standar KPP Kendari: "115 / {telp} / WA: {wa}" tanpa duplikasi 115 atau WA.
+     */
+    public static function formatEmergencyCallLine(string $telp, string $wa = ''): string {
+        $cleanTelp = trim($telp);
+        $cleanTelp = (string)preg_replace('/^\s*EMERGENCY\s*CALL\s*:\s*/i', '', $cleanTelp);
+        // Pisahkan segmen '/' dan buang segmen khusus "115" atau "Emergency 115" agar tidak ganda dengan prefix 115
+        $telpParts = [];
+        if ($cleanTelp !== '') {
+            foreach (explode('/', $cleanTelp) as $part) {
+                $p = trim($part);
+                if ($p === '') {
+                    continue;
+                }
+                if (preg_match('/^(?:emergency\s*(?:call)?\s*:?\s*)?115$/i', $p)) {
+                    continue;
+                }
+                $telpParts[] = $p;
+            }
+        }
+
+        $cleanWa = trim($wa);
+        $cleanWa = (string)preg_replace('/^\s*(?:WA|WhatsApp)\s*:?\s*/i', '', $cleanWa);
+
+        $segments = ['115'];
+        foreach ($telpParts as $tp) {
+            $segments[] = $tp;
+        }
+        if ($cleanWa !== '') {
+            $segments[] = 'WA: ' . $cleanWa;
+        }
+        return implode(' / ', $segments);
+    }
+
+    /**
+     * Sub-halaman Studio Dokumentasi Kolase Foto & Video Operasi SAR (4-12 slot, vertikal & horizontal).
+     */
+    protected function dokumentasiStudio(): void {
+        $this->requireLogin();
+        $id = (int)($_GET['id'] ?? $_GET['id_operasi'] ?? 0);
+        $operasi = $id > 0 ? OperasiModel::getById($id) : null;
+        if (!$operasi) {
+            $this->setFlash('error', 'Operasi SAR tidak ditemukan.');
+            $this->redirect('/operasi.php');
+        }
+
+        $settings = SettingsModel::getSettings();
+        $hariRaw = (string)TemplateHelper::hitungHariKe($operasi);
+        $hariLabel = strtoupper(str_replace('.', '', $hariRaw));
+        if ($hariLabel === '') {
+            $hariLabel = 'H1';
+        }
+
+        $tanggalDefault = TemplateHelper::formatTanggalIndo(date('Y-m-d'));
+
+        $namaOpsClean = trim((string)($operasi['nama_operasi'] ?? ''));
+        $namaOpsRingkas = (string)preg_replace('/^Operasi\s+SAR\s+/i', '', $namaOpsClean);
+        $judulDefault = trim('Dok Operasi SAR ' . $hariLabel . ' ' . ($namaOpsRingkas !== '' ? $namaOpsRingkas : $namaOpsClean));
+
+        $emergencyFormatted = self::formatEmergencyCallLine(
+            (string)($settings['no_telp'] ?? '0401 3196 557'),
+            (string)($settings['no_wa'] ?? '')
+        );
+
+        // Opsional: Mode Edit Arsip Dokumentasi yang sudah tersimpan (?doc_id=...)
+        $editDocId = (int)($_GET['doc_id'] ?? 0);
+        $editDok = null;
+        $editProject = null;
+        if ($editDocId > 0) {
+            $candidate = OperasiDokumentasiModel::getById($editDocId);
+            if ($candidate && (int)($candidate['id_operasi'] ?? 0) === $id) {
+                $editDok = $candidate;
+                $editProject = OperasiDokumentasiModel::decodeProjectForClient(
+                    isset($candidate['project_json']) ? (string)$candidate['project_json'] : null,
+                    BASE_URL
+                );
+                if (!empty($candidate['hari_ke'])) {
+                    $hariLabel = (string)$candidate['hari_ke'];
+                }
+                if (isset($candidate['tanggal_label']) && trim((string)$candidate['tanggal_label']) !== '') {
+                    $tanggalDefault = (string)$candidate['tanggal_label'];
+                }
+                if (!empty($candidate['judul'])) {
+                    $judulDefault = (string)$candidate['judul'];
+                }
+            } else {
+                $this->setFlash('error', 'Arsip dokumentasi yang ingin diedit tidak ditemukan pada operasi ini.');
+                $this->redirect('/operasi_detail.php?id=' . $id . '&tab=dokumentasi');
+            }
+        }
+
+        $this->render('operasi/dokumentasi_studio', [
+            'operasi' => $operasi,
+            'settings' => $settings,
+            'hariLabel' => $hariLabel,
+            'tanggalDefault' => $tanggalDefault,
+            'judulDefault' => $judulDefault,
+            'emergencyFormatted' => $emergencyFormatted,
+            'logo1DataUri' => getAppLogoDataUri(),
+            'logo2DataUri' => getAppLogo2DataUri(),
+            'logo3DataUri' => getAppLogo3DataUri(),
+            'dokumentasiList' => $operasi['dokumentasi'] ?? [],
+            'editDok' => $editDok,
+            'editProject' => $editProject,
+        ], [
+            'title' => $editDok ? 'Edit Dokumentasi Operasi SAR' : 'Studio Dokumentasi Operasi SAR',
+            'route' => 'operasi_detail',
+            'navbarTitle' => $editDok ? 'EDIT DOKUMENTASI OPERASI SAR' : 'STUDIO DOKUMENTASI OPERASI SAR',
         ]);
     }
 

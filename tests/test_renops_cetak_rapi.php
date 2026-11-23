@@ -122,13 +122,31 @@ foreach (['<span>Salin WA</span>', '<span>Cetak LAPBANG</span>', '<span>Unduh PD
 }
 assertCondition(str_contains($tabS, '<span>Naskah WA</span>') && str_contains($tabS, '<span>Edit</span>') && str_contains($tabS, '<span>BRA LAPBANG</span>'), 'Kartu LAPBANG: Naskah WA, Edit, BRA LAPBANG');
 
-// 9. Tab Cetak: hanya Rencana Operasi SAR & BRA SAR
+// 9. Tab Dokumen RENOPS: khusus Rencana Operasi SAR (tanpa duplikasi daftar BRA SAR) & urutan tab detail sesuai alur
 $tabC = (string)file_get_contents(ROOT_DIR . '/views/operasi/partials/tab_cetak.php');
-foreach (['print_laporan_awal', 'print_penutupan', 'print_sitrep', 'capture_doc=LAPORAN_AWAL', 'capture_doc=PENUTUPAN', 'select-sitrep-cetak'] as $x) {
-    assertCondition(!str_contains($tabC, $x), "Tab Cetak tanpa {$x}");
+foreach (['print_laporan_awal', 'print_penutupan', 'print_sitrep', 'capture_doc=LAPORAN_AWAL', 'capture_doc=PENUTUPAN', 'select-sitrep-cetak', 'Berita Radio SAR', 'select-bra-cetak', 'bra.php?view='] as $x) {
+    assertCondition(!str_contains($tabC, $x), "Tab Dokumen RENOPS tanpa {$x}");
 }
-assertCondition(str_contains($tabC, 'Rencana Operasi SAR') && str_contains($tabC, 'Berita Radio SAR') && str_contains($tabC, 'print_renops')
-    && str_contains($tabC, 'capture_doc=RENOPS_RENCANA') && str_contains($tabC, 'bra.php?view='), 'Tab Cetak: Rencana Operasi SAR (lokasi + rencana) & BRA SAR');
+assertCondition(str_contains($tabC, 'Rencana Operasi SAR') && str_contains($tabC, 'print_renops')
+    && str_contains($tabC, 'capture_doc=RENOPS_RENCANA'), 'Tab Dokumen RENOPS memuat Rencana Operasi SAR (lokasi + rencana + cetak/PDF)');
+
+$detailView = (string)file_get_contents(ROOT_DIR . '/views/operasi/detail.php');
+$tabNav = '';
+if (preg_match('/<nav aria-label="Navigasi modul detail operasi".*?<\/nav>/s', $detailView, $navMatch)) {
+    $tabNav = $navMatch[0];
+}
+$tabLabels = ['<span>Hirarki</span>', '<span>RENOPS</span>', '<span>LAPBANG</span>', '<span>Dokumen RENOPS</span>', '<span>BRA SAR</span>', '<span>Dokumentasi</span>', '<span>Korban</span>', '<span>Unsur &amp; Alut</span>', '<span>Peta GIS</span>'];
+$tabPositions = array_map(static fn (string $lbl) => strpos($tabNav, $lbl), $tabLabels);
+$orderOk = $tabNav !== '' && !in_array(false, $tabPositions, true);
+if ($orderOk) {
+    for ($ti = 1; $ti < count($tabPositions); $ti++) {
+        if ($tabPositions[$ti] <= $tabPositions[$ti - 1]) {
+            $orderOk = false;
+            break;
+        }
+    }
+}
+assertCondition($orderOk, 'Urutan tab detail.php: Hirarki -> RENOPS -> LAPBANG -> Dokumen RENOPS -> BRA SAR -> Dokumentasi -> Korban -> Unsur & Alut -> Peta GIS');
 
 echo "\nTotal: {$testTotal}, Lolos: {$testPassed}\n";
 exit($testPassed === $testTotal ? 0 : 1);

@@ -162,12 +162,15 @@ class AdminController extends BaseController {
                         'satker_nama' => $satkerNama,
                         'alamat' => trim($_POST['alamat'] ?? ''),
                         'no_telp' => trim($_POST['no_telp'] ?? ''),
+                        'no_wa' => trim($_POST['no_wa'] ?? ''),
                         'email' => trim($_POST['email'] ?? ''),
                         'call_sign' => trim($_POST['call_sign'] ?? ''),
-                        'frekuensi_default' => trim($_POST['frekuensi_default'] ?? ''),
                         'default_theme' => trim($_POST['default_theme'] ?? 'dark'),
                         'ui_theme' => in_array($_POST['ui_theme'] ?? '', ['klasik', 'minimal'], true) ? $_POST['ui_theme'] : 'klasik'
                     ];
+                    if (array_key_exists('frekuensi_default', $_POST)) {
+                        $data['frekuensi_default'] = trim((string)$_POST['frekuensi_default']);
+                    }
                     $newGeminiKey = trim($_POST['gemini_api_key'] ?? '');
                     if (!empty($_POST['clear_gemini_api_key'])) {
                         $data['gemini_api_key'] = '';
@@ -177,12 +180,13 @@ class AdminController extends BaseController {
 
                     $this->prosesLogoSatker('logo_file', 'logo_url', $data);
                     $this->prosesLogoSatker('logo_file_2', 'logo_url_2', $data);
+                    $this->prosesLogoSatker('logo_file_3', 'logo_url_3', $data);
 
                     SettingsModel::updateSettings($data);
                     if ((SettingsModel::getSettings()['ui_theme'] ?? null) === null) {
                         $this->setFlash('error', 'Pengaturan satker tersimpan, tetapi Gaya Tampilan belum bisa disimpan karena migrasi database belum dijalankan. Jalankan: php database/migrate.php');
                     } else {
-                        $this->setFlash('success', 'Identitas kantor SAR, call sign radio, frekuensi, kop surat, dan gaya tampilan berhasil diperbarui.');
+                        $this->setFlash('success', 'Identitas kantor SAR, nomor WhatsApp, call sign radio, kop surat, dan gaya tampilan berhasil diperbarui.');
                     }
                 }
                 $this->redirect('/admin.php?tab=satker');

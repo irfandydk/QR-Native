@@ -55,170 +55,283 @@ class BraController extends BaseController {
             $action = 'edit';
         }
 
-        // 1. View single BRA document sheet / Public QR Verification Portal
+        // 1. Portal Verifikasi Khusus BRA SAR (?action=verify&id=...&token=...)
+        if ($action === 'verify' || $action === 'verify_doc') {
+            $this->verifyDocument($_GET['id'] ?? $_GET['view'] ?? '');
+            return;
+        }
+
+        // 2. Halaman Khusus Melihat Dokumen BRA Publik Read-Only (?action=publik&id=...&token=...)
+        if ($action === 'publik' || $action === 'bra_publik') {
+            $this->publicDocument($_GET['id'] ?? $_GET['view'] ?? '');
+            return;
+        }
+
+        // 3. View single BRA document sheet (internal) / Legacy QR URL compatibility (?view=ID&token=TOKEN)
         if ($viewId !== null) {
             $this->showDocument($viewId);
             return;
         }
 
-        // 2. Action: Save (Create or Update)
+        // 4. Action: Save (Create or Update)
         if ($method === 'POST' && $action === 'save') {
             $this->save();
             return;
         }
 
-        // 3. Action: Delete (POST Only with CSRF)
+        // 5. Action: Delete (POST Only with CSRF)
         if ($action === 'delete') {
             $this->delete();
             return;
         }
 
-        // 4. Action: Create or Edit Form
+        // 6. Action: Create or Edit Form
         if ($action === 'create' || $action === 'edit') {
             $this->showForm($action);
             return;
         }
 
-        // 5. Default: List Archive
+        // 7. Default: List Archive
         $this->listArchive();
     }
 
     /**
-     * Render single BRA document or public verification portal.
+     * Validasi ketat ID dokumen BRA & token tanda tangan digital secara terpusat.
+     *
+     * @param mixed $rawId
+     * @return array{ok:bool, bra:?array, status:string, message:string, rawView:string, rawToken:?string, docId:int}
+     */
+    protected function resolveBraAccess(mixed $rawId, ?string $rawToken, bool $requireToken): array {
+        $rawView = trim((string)$rawId);
+        $cleanToken = $rawToken !== null ? trim($rawToken) : null;
+        if ($cleanToken === '') {
+            $cleanToken = null;
+        }
+
+        $isValidParam = (bool)preg_match('/^[1-9][0-9]{0,9}$/', $rawView);
+        $docId = $isValidParam ? (int)$rawView : 0;
+        $bra = $docId > 0 ? BraModel::getById($docId) : null;
+
+        if (!$bra) {
+            return [
+                'ok' => false,
+                'bra' => null,
+                'status' => 'NOT_FOUND',
+                'message' => 'Dokumen Berita Radio SAR dengan ID ini tidak terdaftar dalam pangkalan data resmi Basarnas KPP Kendari.',
+                'rawView' => $rawView,
+                'rawToken' => $cleanToken,
+                'docId' => $docId,
+            ];
+        }
+
+        if ($cleanToken !== null) {
+            if (!BraModel::verifyToken($bra, $cleanToken)) {
+                return [
+                    'ok' => false,
+                    'bra' => null,
+                    'status' => 'INVALID_TOKEN',
+                    'message' => 'Tanda tangan digital atau token verifikasi tidak valid. Dokumen diduga mengalami manipulasi URL atau tidak sah.',
+                    'rawView' => $rawView,
+                    'rawToken' => $cleanToken,
+                    'docId' => $docId,
+                ];
+            }
+            return [
+                'ok' => true,
+                'bra' => $bra,
+                'status' => 'VERIFIED_SIGNATURE',
+                'message' => '',
+                'rawView' => $rawView,
+                'rawToken' => $cleanToken,
+                'docId' => $docId,
+            ];
+        }
+
+        if ($requireToken) {
+            return [
+                'ok' => false,
+                'bra' => null,
+                'status' => 'INVALID_TOKEN',
+                'message' => 'Token verifikasi tidak disertakan. Pindai ulang Barcode QR pada naskah resmi untuk memverifikasi keabsahan dokumen.',
+                'rawView' => $rawView,
+                'rawToken' => null,
+                'docId' => $docId,
+            ];
+        }
+
+        return [
+            'ok' => true,
+            'bra' => $bra,
+            'status' => 'LEGACY_VERIFIED',
+            'message' => '',
+            'rawView' => $rawView,
+            'rawToken' => null,
+            'docId' => $docId,
+        ];
+    }
+
+    /**
+     * Render halaman verifikasi gagal (HTTP 404, zero-leakage).
+     */
+    protected function renderVerifyInvalid(string $rawView, ?string $rawToken, string $verificationStatus, string $verificationMessage): void {
+        http_response_code(404);
+        $invalidRef = htmlspecialchars($rawView !== '' ? $rawView : '-', ENT_QUOTES, 'UTF-8');
+        $invalidToken = $rawToken !== null ? htmlspecialchars($rawToken, ENT_QUOTES, 'UTF-8') : null;
+
+        $this->render('bra/verify_invalid', [
+            'invalidRef' => $invalidRef,
+            'invalidToken' => $invalidToken,
+            'verificationStatus' => $verificationStatus,
+            'verificationMessage' => $verificationMessage,
+        ], [
+            'layout' => 'public',
+            'title' => 'Verifikasi Dokumen Tidak Sah',
+        ]);
+    }
+
+    /**
+     * Render dokumen BRA resmi ke stream PDF vektor via Chrome Headless.
+     */
+    protected function outputBraPdf(array $bra, ?string $rawToken = null): void {
+        $verifyUrl = BraModel::generateVerifyUrl($bra);
+        $pdfDownloadUrl = $rawToken !== null
+            ? BraModel::generatePublicDocUrl($bra, $rawToken) . '&format=pdf'
+            : BASE_URL . '/bra.php?view=' . (int)$bra['id_bra'] . '&format=pdf';
+
+        ob_start();
+        require VIEWS_DIR . '/bra/public_print.php';
+        $html = (string)ob_get_clean();
+
+        $pdfBytes = BraPdfService::renderHtmlToPdf($html);
+        if ($pdfBytes !== null) {
+            $rawNo = (string)($bra['no_bra'] ?? 'BRA_SAR');
+            $safeNo = preg_replace('/[^a-zA-Z0-9_\-.]+/', '_', $rawNo);
+            $cleanNo = trim((string)$safeNo, '_');
+            $safeName = 'BRA-SAR-' . ($cleanNo !== '' ? $cleanNo : 'DOKUMEN');
+            if (!headers_sent()) {
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . $safeName . '.pdf"');
+                header('Content-Length: ' . (string)strlen($pdfBytes));
+                header('Cache-Control: no-store, no-cache, must-revalidate');
+            }
+            echo $pdfBytes;
+            exit;
+        }
+
+        http_response_code(503);
+        if (!headers_sent()) {
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        echo json_encode(['success' => false, 'message' => 'ENGINE_UNAVAILABLE']);
+        exit;
+    }
+
+    /**
+     * Halaman khusus verifikasi QR Berita Radio SAR (terpisah dari lembar naskah).
+     *
+     * @param mixed $rawId
+     */
+    protected function verifyDocument(mixed $rawId): void {
+        $rawToken = isset($_GET['token']) ? (string)$_GET['token'] : null;
+        $access = $this->resolveBraAccess($rawId, $rawToken, true);
+
+        if (!$access['ok'] || !$access['bra']) {
+            $this->renderVerifyInvalid($access['rawView'], $access['rawToken'], $access['status'], $access['message']);
+            return;
+        }
+
+        $bra = $access['bra'];
+        $docHash = BraModel::generateVerifyToken($bra);
+        $publicDocUrl = BraModel::generatePublicDocUrl($bra, $access['rawToken']);
+
+        $this->render('bra/verify_public', [
+            'bra' => $bra,
+            'docHash' => $docHash,
+            'publicDocUrl' => $publicDocUrl,
+            'verificationStatus' => $access['status'],
+        ], [
+            'layout' => 'public',
+            'title' => 'Verifikasi Berita Radio SAR',
+        ]);
+    }
+
+    /**
+     * Halaman khusus melihat dokumen BRA publik read-only (hanya lembar telegram + Unduh/Cetak PDF).
+     *
+     * @param mixed $rawId
+     */
+    protected function publicDocument(mixed $rawId): void {
+        if (!headers_sent()) {
+            header('X-Robots-Tag: noindex, nofollow');
+            header('Cache-Control: no-store');
+        }
+
+        $rawToken = isset($_GET['token']) ? (string)$_GET['token'] : null;
+        $access = $this->resolveBraAccess($rawId, $rawToken, true);
+
+        if (!$access['ok'] || !$access['bra']) {
+            $this->renderVerifyInvalid($access['rawView'], $access['rawToken'], $access['status'], $access['message']);
+            return;
+        }
+
+        $bra = $access['bra'];
+        if (($_GET['format'] ?? '') === 'pdf') {
+            $this->outputBraPdf($bra, $access['rawToken']);
+            return;
+        }
+
+        $verifyUrl = BraModel::generateVerifyUrl($bra);
+        $pdfDownloadUrl = BraModel::generatePublicDocUrl($bra, $access['rawToken']) . '&format=pdf';
+        require VIEWS_DIR . '/bra/public_print.php';
+    }
+
+    /**
+     * Render internal BRA document viewer, PDF vector export, or backward-compatible legacy QR redirect.
      *
      * @param mixed $viewId
      */
     protected function showDocument(mixed $viewId): void {
-        $pageTitle = 'Verifikasi Dokumen Resmi Berita Radio SAR';
-        $currentRoute = 'bra';
-        $navbarTitle = 'Naskah Resmi BRA SAR Terverifikasi';
         $isGuest = !AuthHelper::isLoggedIn();
-
-        $rawView = trim((string)$viewId);
         $rawToken = isset($_GET['token']) ? trim((string)$_GET['token']) : null;
-
-        // 1. Sanitasi Ketat Parameter URL: Hanya izinkan integer positif murni (1-9999999999)
-        $isValidParam = (bool)preg_match('/^[1-9][0-9]{0,9}$/', $rawView);
-        $docId = $isValidParam ? (int)$rawView : 0;
-
-        // 2. Query Record Dokumen secara aman via prepared statement
-        $bra = $docId > 0 ? BraModel::getById($docId) : null;
-
-        // 3. Evaluasi Status Keabsahan Dokumen & Token Tanda Tangan Digital
-        $verificationStatus = 'VALID';
-        $verificationMessage = '';
-
-        if (!$bra) {
-            $verificationStatus = 'NOT_FOUND';
-            $verificationMessage = 'Dokumen Berita Radio SAR dengan ID ini tidak terdaftar dalam pangkalan data resmi Basarnas KPP Kendari.';
-        } else {
-            if ($rawToken !== null) {
-                // Jika token disertakan di URL, verifikasi kecocokan tanda tangan digital
-                if (!BraModel::verifyToken($bra, $rawToken)) {
-                    $verificationStatus = 'INVALID_TOKEN';
-                    $verificationMessage = 'Tanda tangan digital atau token verifikasi tidak valid. Dokumen diduga mengalami manipulasi URL atau tidak sah.';
-                } else {
-                    $verificationStatus = 'VERIFIED_SIGNATURE';
-                }
-            } elseif ($isGuest) {
-                // Tamu tanpa token tidak boleh membaca naskah (mencegah enumerasi ?view=1,2,3...)
-                $verificationStatus = 'INVALID_TOKEN';
-                $verificationMessage = 'Token verifikasi tidak disertakan. Pindai ulang Barcode QR pada naskah resmi untuk memverifikasi keabsahan dokumen.';
-            } else {
-                // Petugas login tanpa token di URL (pencarian internal)
-                $verificationStatus = 'LEGACY_VERIFIED';
-            }
+        if ($rawToken === '') {
+            $rawToken = null;
         }
 
-        // 4. Tangani Dokumen Tidak Sah / Parameter URL Manipulasi (Zero-Leakage Policy)
-        if ($verificationStatus === 'NOT_FOUND' || $verificationStatus === 'INVALID_TOKEN') {
-            http_response_code(404);
-            $invalidRef = htmlspecialchars($rawView, ENT_QUOTES, 'UTF-8');
-            $invalidToken = $rawToken !== null ? htmlspecialchars($rawToken, ENT_QUOTES, 'UTF-8') : null;
-
-            $this->render('bra/verify_invalid', [
-                'invalidRef' => $invalidRef,
-                'invalidToken' => $invalidToken,
-                'verificationStatus' => $verificationStatus,
-                'verificationMessage' => $verificationMessage
-            ], [
-                'layout' => 'public',
-                'title' => 'Verifikasi Dokumen Tidak Sah'
-            ]);
-            return;
-        }
-
-        // 5. Unduh PDF Vektor (?format=pdf): Render Dokumen Resmi ke Stream PDF Vektor via Chrome Headless
+        // 1. Unduh PDF Vektor (?view=ID&format=pdf atau ?view=ID&token=...&format=pdf)
         if (($_GET['format'] ?? '') === 'pdf') {
-            ob_start();
-            $this->render('bra/view', [
-                'bra' => $bra,
-                'verificationStatus' => $verificationStatus,
-                'verificationMessage' => $verificationMessage,
-                'pageTitle' => $pageTitle,
-                'currentRoute' => $currentRoute,
-                'navbarTitle' => $navbarTitle,
-                'isGuest' => $isGuest,
-                'docId' => $docId
-            ], [
-                'layout' => 'public',
-                'title' => 'Dokumen Berita Radio SAR'
-            ]);
-            $html = (string)ob_get_clean();
-
-            $pdfBytes = BraPdfService::renderHtmlToPdf($html);
-            if ($pdfBytes !== null) {
-                $rawNo = (string)($bra['no_bra'] ?? 'BRA_SAR');
-                $safeNo = preg_replace('/[^a-zA-Z0-9_\-.]+/', '_', $rawNo);
-                $cleanNo = trim((string)$safeNo, '_');
-                $safeName = 'BRA-SAR-' . ($cleanNo !== '' ? $cleanNo : 'DOKUMEN');
-                if (!headers_sent()) {
-                    header('Content-Type: application/pdf');
-                    header('Content-Disposition: attachment; filename="' . $safeName . '.pdf"');
-                    header('Content-Length: ' . (string)strlen($pdfBytes));
-                    header('Cache-Control: no-store, no-cache, must-revalidate');
-                }
-                echo $pdfBytes;
-                exit;
+            $access = $this->resolveBraAccess($viewId, $rawToken, $isGuest);
+            if (!$access['ok'] || !$access['bra']) {
+                $this->renderVerifyInvalid($access['rawView'], $access['rawToken'], $access['status'], $access['message']);
+                return;
             }
-
-            http_response_code(503);
-            if (!headers_sent()) {
-                header('Content-Type: application/json; charset=utf-8');
-            }
-            echo json_encode(['success' => false, 'message' => 'ENGINE_UNAVAILABLE']);
-            exit;
-        }
-
-        // 6. Dokumen Sah: Render Portal Khusus Publik jika Guest
-        if ($isGuest) {
-            $this->render('bra/view', [
-                'bra' => $bra,
-                'verificationStatus' => $verificationStatus,
-                'verificationMessage' => $verificationMessage,
-                'pageTitle' => $pageTitle,
-                'currentRoute' => $currentRoute,
-                'navbarTitle' => $navbarTitle,
-                'isGuest' => $isGuest,
-                'docId' => $docId
-            ], [
-                'layout' => 'public',
-                'title' => 'Verifikasi Berita Radio SAR'
-            ]);
+            $this->outputBraPdf($access['bra'], $access['rawToken']);
             return;
         }
 
-        // 7. Dokumen Sah: Render Layout Lengkap Internal jika Pengguna Sudah Login
+        // 2. Kompatibilitas penuh QR BRA lama (?view=ID&token=TOKEN): arahkan ke portal verifikasi khusus
+        if ($rawToken !== null) {
+            $this->verifyDocument($viewId);
+            return;
+        }
+
+        // 3. Akses internal melihat BRA (wajib login; tamu tanpa token ditolak HTTP 404)
+        $access = $this->resolveBraAccess($viewId, null, $isGuest);
+        if (!$access['ok'] || !$access['bra']) {
+            $this->renderVerifyInvalid($access['rawView'], $access['rawToken'], $access['status'], $access['message']);
+            return;
+        }
+
+        $bra = $access['bra'];
         $returnCtx = self::resolveReturnContext($_GET);
         $this->render('bra/view', [
             'bra' => $bra,
-            'verificationStatus' => $verificationStatus,
-            'verificationMessage' => $verificationMessage,
-            'pageTitle' => $pageTitle,
-            'currentRoute' => $currentRoute,
-            'navbarTitle' => $navbarTitle,
-            'isGuest' => $isGuest,
-            'docId' => $docId,
+            'verificationStatus' => $access['status'],
+            'verificationMessage' => $access['message'],
+            'pageTitle' => 'Naskah Berita Radio SAR',
+            'currentRoute' => 'bra',
+            'navbarTitle' => 'LEMBAR DOKUMEN BERITA RADIO SAR (BRA)',
+            'isGuest' => false,
+            'docId' => $access['docId'],
             'backUrl' => $returnCtx['backUrl'],
             'backLabel' => $returnCtx['backLabel'],
             'returnQuery' => $returnCtx['returnQuery'],
@@ -226,7 +339,7 @@ class BraController extends BaseController {
             'layout' => 'default',
             'route' => 'bra',
             'title' => 'Naskah Berita Radio SAR',
-            'navbarTitle' => 'LEMBAR DOKUMEN BERITA RADIO SAR (BRA)'
+            'navbarTitle' => 'LEMBAR DOKUMEN BERITA RADIO SAR (BRA)',
         ]);
     }
 

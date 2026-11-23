@@ -614,6 +614,17 @@ class BraModel {
     public static function generateVerifyUrl(array $bra): string {
         $id = (int)($bra['id_bra'] ?? 0);
         $token = self::generateVerifyToken($bra);
-        return BASE_URL . "/bra.php?view={$id}&token={$token}";
+        return BASE_URL . "/bra.php?action=verify&id={$id}&token={$token}";
+    }
+
+    /**
+     * Menghasilkan URL dokumen BRA publik read-only (lembar cetak + PDF) untuk tautan dari portal verifikasi
+     */
+    public static function generatePublicDocUrl(array $bra, ?string $token = null): string {
+        $id = (int)($bra['id_bra'] ?? 0);
+        $resolvedToken = ($token !== null && trim($token) !== '')
+            ? strtoupper(trim($token))
+            : self::generateVerifyToken($bra);
+        return BASE_URL . "/bra.php?action=publik&id={$id}&token={$resolvedToken}";
     }
 }

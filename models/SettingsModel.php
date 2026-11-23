@@ -56,8 +56,8 @@ class SettingsModel {
     public static function updateSettings(array $data): bool {
         $db = getDB();
         $fields = [
-            'satker_kode', 'satker_nama', 'alamat', 'no_telp', 'email',
-            'call_sign', 'frekuensi_default', 'default_theme', 'ui_theme', 'logo_url', 'logo_url_2', 'gemini_api_key'
+            'satker_kode', 'satker_nama', 'alamat', 'no_telp', 'no_wa', 'email',
+            'call_sign', 'frekuensi_default', 'default_theme', 'ui_theme', 'logo_url', 'logo_url_2', 'logo_url_3', 'gemini_api_key'
         ];
 
         $sets = [];
@@ -68,7 +68,7 @@ class SettingsModel {
         foreach ($fields as $f) {
             if (array_key_exists($f, $data) && isset($existing[$f])) {
                 $val = $data[$f];
-                if (($f === 'logo_url' || $f === 'logo_url_2') && is_string($val)) {
+                if (in_array($f, ['logo_url', 'logo_url_2', 'logo_url_3'], true) && is_string($val)) {
                     $val = trim($val) === '' ? '' : qrsar_sanitize_asset_url($val, '');
                 }
                 $sets[] = "{$f} = :{$f}";

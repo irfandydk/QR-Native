@@ -384,6 +384,7 @@ function switchTab(tabName) {
     let resolvedTab = tabName;
     if (resolvedTab === 'ringkasan') resolvedTab = 'hierarchy';
     if (resolvedTab === 'laporan') resolvedTab = 'sitrep';
+    if (resolvedTab === 'dokumen_renops') resolvedTab = 'cetak';
 
     document.querySelectorAll('.tab-pane').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));

@@ -493,6 +493,17 @@ function getAppLogo2DataUri(): string {
 }
 
 /**
+ * Logo ketiga (ANOA Rescue / Dokumentasi Operasi SAR) dari AppSettings.logo_url_3; kosong = logo bawaan ANOA Rescue.
+ */
+function getAppLogo3DataUri(): string {
+    static $cachedDataUri = null;
+    if ($cachedDataUri === null) {
+        $cachedDataUri = qrsar_logo_data_uri('logo_url_3', ROOT_DIR . '/assets/images/logo_anoa_rescue.png');
+    }
+    return $cachedDataUri;
+}
+
+/**
  * Data URI logo dari kolom pengaturan $settingKey (data URI atau berkas di uploads/), atau $defaultPath bila kosong/tidak ada.
  */
 function qrsar_logo_data_uri(string $settingKey, string $defaultPath): string {

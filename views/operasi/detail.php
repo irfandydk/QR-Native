@@ -37,6 +37,9 @@ if ($activeTab === 'ringkasan') {
 if ($activeTab === 'laporan') {
     $activeTab = 'sitrep';
 }
+if ($activeTab === 'dokumen_renops') {
+    $activeTab = 'cetak';
+}
 
 $timeline = HierarchyHelper::getOperationalTimeline($operasi);
 $nextRenops = HierarchyHelper::getNextRenopsDefaults($operasi);
@@ -51,6 +54,7 @@ $countRenops = count($operasi['renops'] ?? []);
 $countSitrep = count($operasi['laporan_harian'] ?? []);
 $countKorban = count($operasi['korban'] ?? []);
 $countBra = count($operasi['bra_sar'] ?? []);
+$countDokumentasi = count($operasi['dokumentasi'] ?? []);
 
 $gisBundle = $gisBundle ?? GisModel::getOperationBundle($id, true);
 $cntPolys = count($gisBundle['polygons'] ?? []);
@@ -242,6 +246,18 @@ $pobH = (int)($statsKorban['h'] ?? 0);
           <span>LAPBANG</span>
           <span class="opsd-tab-count"><?= $countSitrep ?></span>
         </button>
+        <button type="button" class="tab-btn <?= $activeTab === 'cetak' ? 'active' : '' ?>" onclick="switchTab('cetak')">
+          <span>Dokumen RENOPS</span>
+          <span class="opsd-tab-count"><?= $countRenops ?></span>
+        </button>
+        <button type="button" class="tab-btn <?= $activeTab === 'bra' ? 'active' : '' ?>" onclick="switchTab('bra')">
+          <span>BRA SAR</span>
+          <span class="opsd-tab-count"><?= $countBra ?></span>
+        </button>
+        <button type="button" class="tab-btn <?= $activeTab === 'dokumentasi' ? 'active' : '' ?>" onclick="switchTab('dokumentasi')">
+          <span>Dokumentasi</span>
+          <span id="dok-tab-count" class="opsd-tab-count"><?= $countDokumentasi ?></span>
+        </button>
         <button type="button" class="tab-btn <?= $activeTab === 'korban' ? 'active' : '' ?>" onclick="switchTab('korban')">
           <span>Korban</span>
           <span class="opsd-tab-count"><?= $countKorban ?></span>
@@ -252,13 +268,6 @@ $pobH = (int)($statsKorban['h'] ?? 0);
         <button type="button" class="tab-btn <?= $activeTab === 'gis' ? 'active' : '' ?>" onclick="switchTab('gis')">
           <span>Peta GIS</span>
           <span id="gis-tab-count" class="opsd-tab-count <?= $totalComponents > 0 ? '' : 'hidden' ?>"><?= $totalComponents ?></span>
-        </button>
-        <button type="button" class="tab-btn <?= $activeTab === 'cetak' ? 'active' : '' ?>" onclick="switchTab('cetak')">
-          <span>Cetak</span>
-        </button>
-        <button type="button" class="tab-btn <?= $activeTab === 'bra' ? 'active' : '' ?>" onclick="switchTab('bra')">
-          <span>BRA SAR</span>
-          <span class="opsd-tab-count"><?= $countBra ?></span>
         </button>
       </nav>
     </section>
@@ -272,11 +281,12 @@ $pobH = (int)($statsKorban['h'] ?? 0);
       renderPartial('operasi/partials/tab_hierarchy', $contextData);
       renderPartial('operasi/partials/tab_renops', $contextData);
       renderPartial('operasi/partials/tab_sitrep', $contextData);
+      renderPartial('operasi/partials/tab_cetak', $contextData);
+      renderPartial('operasi/partials/tab_bra', $contextData);
+      renderPartial('operasi/partials/tab_dokumentasi', $contextData);
       renderPartial('operasi/partials/tab_korban', $contextData);
       renderPartial('operasi/partials/tab_kekuatan', $contextData);
-      renderPartial('operasi/partials/tab_bra', $contextData);
       renderPartial('operasi/partials/tab_gis', $contextData);
-      renderPartial('operasi/partials/tab_cetak', $contextData);
       renderPartial('operasi/partials/modals', $contextData);
       ?>
     </div>

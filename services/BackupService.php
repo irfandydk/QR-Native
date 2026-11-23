@@ -18,7 +18,7 @@ class BackupService {
     public const MANAGED_TABLES = [
         'AppSettings', 'Pejabat', 'MasterAlut', 'MasterTim', 'SarUnit',
         'Operasi', 'Korban', 'DetailUnsur', 'DetailAlut', 'DetailTimBerangkat',
-        'Renops', 'RenopsSRU', 'RenopsDokumen', 'RenopsFoto', 'LaporanHarian', 'BraSar', 'BraSection',
+        'Renops', 'RenopsSRU', 'RenopsDokumen', 'RenopsFoto', 'OperasiDokumentasi', 'LaporanHarian', 'BraSar', 'BraSection',
         'GisPoint', 'GisPolygon', 'GisPolygonPoint', 'GisRoute', 'GisRoutePoint',
         'GisSearchPattern', 'GisSearchPatternWaypoint', 'GisCustomIcon',
         'DokumenPetaSnapshot', 'DokumenToken',

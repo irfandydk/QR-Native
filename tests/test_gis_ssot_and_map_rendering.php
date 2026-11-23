@@ -168,8 +168,8 @@ assertCondition(
     "views/operasi/partials/tab_cetak.php tidak lagi merujuk ke parameter print=1"
 );
 assertCondition(
-    strpos($tabCetakContent, "md:grid-cols-2") !== false,
-    "views/operasi/partials/tab_cetak.php menggunakan grid 2 kolom: Rencana Operasi SAR & BRA SAR"
+    strpos($tabCetakContent, "Berita Radio SAR") === false && strpos($tabCetakContent, "select-bra-cetak") === false && strpos($tabCetakContent, "Dokumen Rencana Operasi SAR (RENOPS)") !== false,
+    "views/operasi/partials/tab_cetak.php khusus Dokumen RENOPS tanpa duplikasi daftar BRA SAR"
 );
 
 $gisViewContent = file_get_contents(BASE_PATH . '/views/gis.php');

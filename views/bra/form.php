@@ -1585,7 +1585,7 @@ window.__BRA_FORM_CONFIG__ = <?= jsonSafe([
     'nomorUrutPlaceholder' => $nomorUrutPlaceholder,
     'satkerKode' => $satkerKode,
     'bulanTahunPlaceholder' => $bulanTahunPlaceholder,
-    'verifyUrl' => BASE_URL . '/bra.php?view=' . ($id ?: 9999),
+    'verifyUrl' => BASE_URL . '/bra.php?action=verify&id=' . ($id ?: 9999),
     'idBra' => (int)($id ?: 0),
     'logoDataUri' => $logoDataUri,
     'autoDraft' => $autoDraft,
