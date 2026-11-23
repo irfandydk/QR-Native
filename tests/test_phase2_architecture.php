@@ -114,8 +114,6 @@ $requiredControllers = [
     'RenopsApiController',
     'SitrepApiController',
     'BraApiController',
-    'MasterApiController',
-    'SettingsApiController',
     'AiApiController',
     'GisApiController'
 ];

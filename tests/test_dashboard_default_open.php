@@ -21,8 +21,8 @@ function assertCondition($name, $condition, $details = '') {
     }
 }
 
-// 1. Test Static File Content & Architecture
-$dashboardFile = __DIR__ . '/../views/dashboard.php';
+// 1. Test Static File Content & Architecture (Daftar Operasi SAR -> views/operasi/list.php)
+$dashboardFile = __DIR__ . '/../views/operasi/list.php';
 $content = file_get_contents($dashboardFile);
 
 // Check syntax

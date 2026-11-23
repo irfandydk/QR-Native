@@ -235,11 +235,6 @@ assertCheck(
 );
 
 echo "\n8. Checking Vector SVG SENKOM Label & PDF Compression Optimizations:\n";
-$senkomSvgPath = __DIR__ . '/../assets/images/senkom_vertical_label.svg';
-assertCheck(
-    file_exists($senkomSvgPath) && filesize($senkomSvgPath) > 200,
-    "assets/images/senkom_vertical_label.svg exists and is valid vector SVG"
-);
 assertCheck(
     strpos($viewPhp, 'data:image/svg+xml;base64') !== false && strpos($viewPhp, 'RUANGAN DILUAR GARIS TEBAL DI ISI OLEH DINAS SENKOM') !== false,
     "views/bra/view.php renders SENKOM label as vector SVG image (100% visible, crisp & zero-drift in html2canvas)"

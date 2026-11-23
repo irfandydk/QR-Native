@@ -94,14 +94,4 @@ class SarUnitModel {
         $stmt = $db->prepare("DELETE FROM SarUnit WHERE id_unit = :id");
         return $stmt->execute([':id' => $id]);
     }
-
-    /**
-     * Set a unit as the default command base
-     */
-    public static function setDefault(int $id): bool {
-        $db = getDB();
-        $db->query("UPDATE SarUnit SET is_default = 0");
-        $stmt = $db->prepare("UPDATE SarUnit SET is_default = 1 WHERE id_unit = :id");
-        return $stmt->execute([':id' => $id]);
-    }
 }

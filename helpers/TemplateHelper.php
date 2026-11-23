@@ -95,10 +95,6 @@ class TemplateHelper {
 
     // --- GEOSPATIAL DELEGATES ---
 
-    public static function formatDMS(float|string|null $val, bool $isLat, bool $useIndoDir = false): string {
-        return GeoHelper::formatDMS($val, $isLat, $useIndoDir);
-    }
-
     public static function formatDmsPair(float|string|null $lat, float|string|null $lng, bool $useIndoDir = false): string {
         return GeoHelper::formatDmsPair($lat, $lng, $useIndoDir);
     }

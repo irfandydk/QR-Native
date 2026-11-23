@@ -1327,7 +1327,6 @@ window.__OPS_FORM_CONFIG__ = <?= jsonSafe([
     'initialCoord' => !empty($operasi['koordinat']) ? $operasi['koordinat'] : '04° 02\' 16" S - 122° 29\' 12" E'
 ]) ?>;
 </script>
-<script src="<?= assetUrl('assets/js/pages/operasi_form_map.js') ?>"></script>
 <script src="<?= assetUrl('assets/vendor/sortablejs/Sortable.min.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/alut_kategori.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/pages/operasi_form.js') ?>"></script>

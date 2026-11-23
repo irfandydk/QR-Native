@@ -152,8 +152,7 @@ QR-SAR/
 │   ├── app.php              # Bootstrap inti, session, CSRF guard, autoloader, zona waktu WITA
 │   └── database.php         # PDO Database Singleton connection & auto-reconnect
 ├── .env.example             # Contoh berkas konfigurasi kredensial lingkungan
-├── .htaccess                # Konfigurasi Apache webroot hardening & rewrite
-└── metadata.json            # Metadata kapabilitas aplikasi (Gemini API & SAR System)
+└── .htaccess                # Konfigurasi Apache webroot hardening & rewrite
 ```
 
 ---

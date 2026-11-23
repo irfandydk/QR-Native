@@ -47,9 +47,7 @@ echo "[1] Verifikasi Tile Layers Bebas API Key & Zoom Boundaries...\n";
 
 $gisMasterContent = file_get_contents(BASE_PATH . '/assets/js/gis_master.js');
 $gisTacticalContent = file_get_contents(BASE_PATH . '/assets/js/gis.js');
-$layersContent = file_get_contents(BASE_PATH . '/assets/js/gis/layers.js');
 $opsFormContent = file_get_contents(BASE_PATH . '/assets/js/pages/operasi_form.js');
-$opsFormMapContent = file_get_contents(BASE_PATH . '/assets/js/pages/operasi_form_map.js');
 
 // 1.1 Multi-subdomain mt{s}.google.com
 assertCondition(
@@ -92,10 +90,6 @@ assertCondition(
     strpos($opsFormContent, "minZoom: 4") !== false && strpos($opsFormContent, "maxZoom: 22") !== false,
     "operasi_form.js menetapkan minZoom: 4 dan maxZoom: 22 pada inlineMap dan modalMap"
 );
-assertCondition(
-    strpos($opsFormMapContent, "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}") !== false,
-    "operasi_form_map.js menggunakan multi-subdomain mt{s}.google.com"
-);
 
 // ---------------------------------------------------------
 // [2] Integrasi Modul 1: Penginputan Laporan Awal
@@ -129,14 +123,9 @@ assertCondition(
     "GisModel memiliki fungsi syncOperasiRoute untuk persistensi jalur laut ke GisRoute"
 );
 
-$opsMapContent = file_get_contents(BASE_PATH . '/assets/js/pages/operasi_form_map.js');
 assertCondition(
     strpos($opsFormContent, ">LKP</div>") !== false && strpos($opsFormContent, ">🚨 LKP</div>") === false,
     "operasi_form.js merender badge pin LKP bersih 'LKP' tanpa emoji"
-);
-assertCondition(
-    strpos($opsMapContent, ">LKP</div>") !== false && strpos($opsMapContent, ">🚨 LKP</div>") === false,
-    "operasi_form_map.js merender badge pin LKP bersih 'LKP' tanpa emoji"
 );
 
 // ---------------------------------------------------------

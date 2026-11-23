@@ -25,6 +25,9 @@ $bra = $isEdit ? BraModel::getById($id) : null;
 
 $preselectedOpId = (int)($_GET['id_operasi'] ?? ($bra['id_operasi'] ?? 0));
 $fromModul = trim((string)($_GET['from'] ?? ''));
+$braBackUrl = isset($backUrl) && is_string($backUrl) && $backUrl !== '' ? $backUrl : (BASE_URL . '/bra.php');
+$braReturnTo = isset($returnTo) && is_string($returnTo) ? $returnTo : '';
+$braReturnOp = isset($returnOp) ? (int)$returnOp : 0;
 
 // Tentukan kategori awal dengan prioritas query parameter
 $paramKategori = !empty($_GET['kategori']) ? BraHelper::normalizeCategory(trim((string)$_GET['kategori'])) : null;
@@ -762,6 +765,10 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
         <?php if ($isEdit): ?>
           <input type="hidden" name="id_bra" value="<?= $id ?>">
         <?php endif; ?>
+        <?php if ($braReturnTo !== '' && $braReturnOp > 0): ?>
+          <input type="hidden" name="return_to" value="<?= e($braReturnTo) ?>">
+          <input type="hidden" name="return_op" value="<?= $braReturnOp ?>">
+        <?php endif; ?>
         <input type="hidden" name="satker_kode" value="<?= htmlspecialchars($satkerKode) ?>">
         <input type="hidden" name="bulan_tahun" id="hiddenBulanTahun" value="<?= htmlspecialchars($bra['bulan_tahun'] ?? $bulanTahunPlaceholder) ?>">
         <input type="hidden" name="nomor_urut" id="hiddenNomorUrut" value="<?= htmlspecialchars((string)($bra['nomor_urut'] ?? $nomorUrutPlaceholder)) ?>">
@@ -1272,7 +1279,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
         <!-- ────────────────────────────────────────────── -->
         <div class="bra-sticky-bar cockpit-glass rounded-2xl shadow-xl">
           <div class="flex items-center gap-2">
-            <a href="<?= BASE_URL ?>/bra.php" class="btn-tactile btn-outline-bra rounded-xl">
+            <a href="<?= e($braBackUrl) ?>" class="btn-tactile btn-outline-bra rounded-xl">
               Batal
             </a>
           </div>

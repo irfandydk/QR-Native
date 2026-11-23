@@ -74,10 +74,8 @@ assertCondition("operasi_form.js closeFullscreenMapModal memanggil ensureBodyScr
 assertCondition("operasi_form.js applyAndCloseFullscreenMapModal memanggil ensureBodyScrollUnlocked", str_contains($opsFormJs, 'applyAndCloseFullscreenMapModal') && str_contains($opsFormJs, 'ensureBodyScrollUnlocked'));
 assertCondition("operasi_form.js mendukung selector map-modal-btn-mode-direct dengan fallback", str_contains($opsFormJs, "getElementById('map-modal-btn-mode-direct') || document.getElementById('modal-btn-mode-direct')"));
 
-// 1.4 assets/js/pages/operasi_form_map.js
-$opsFormMapJsPath = $rootDir . '/assets/js/pages/operasi_form_map.js';
-$opsFormMapJs = file_get_contents($opsFormMapJsPath);
-assertCondition("operasi_form_map.js mendukung selector map-modal-route-mode-badge dengan fallback", str_contains($opsFormMapJs, "getElementById('map-modal-route-mode-badge') || document.getElementById('modal-route-mode-badge')"));
+// 1.4 assets/js/pages/operasi_form.js route mode badge selector
+assertCondition("operasi_form.js mendukung selector map-modal-route-mode-badge dengan fallback", str_contains($opsFormJs, "getElementById('map-modal-route-mode-badge') || document.getElementById('modal-route-mode-badge')"));
 
 // 1.5 assets/js/pages/renops_form.js & sitrep_form.js
 $renopsFormJsPath = $rootDir . '/assets/js/pages/renops_form.js';

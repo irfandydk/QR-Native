@@ -60,10 +60,7 @@ try {
     AlutKategori::pulihkan($db);
     assertCondition($db->query('SELECT kategori FROM MasterAlut WHERE id_alut = ' . $idMaster['Drone Uji Pulih'])->fetchColumn() === 'PALSAR', 'koreksi manual master dipertahankan');
 
-    // Restore JSON lama: master tanpa kunci kategori → paksa isi ulang master.
-    assertCondition(AlutKategori::cadanganTanpaKategori(['master_alut' => [['id_alut' => 1, 'nama_alut' => 'Rescue Car']]])
-        && !AlutKategori::cadanganTanpaKategori(['master_alut' => [['id_alut' => 1, 'nama_alut' => 'Rescue Car', 'kategori' => 'PALSAR']]])
-        && !AlutKategori::cadanganTanpaKategori(['data' => []]), 'deteksi cadangan JSON sebelum fitur');
+    // Paksa isi ulang master bawaan PALSAR saat restore cadangan lama
     $db->exec("UPDATE MasterAlut SET kategori = 'PALSAR' WHERE id_alut IN (" . implode(',', $idMaster) . ')');
     AlutKategori::pulihkan($db, true);
     assertCondition($db->query('SELECT kategori FROM MasterAlut WHERE id_alut = ' . $idMaster['Mobil Uji Pulih'])->fetchColumn() === 'ALUT_DARAT', 'pulihkan(paksa) mengisi ulang master bawaan PALSAR');
@@ -94,7 +91,7 @@ try {
 $mig = (string)file_get_contents(ROOT_DIR . '/database/migrate.php');
 $bak = (string)file_get_contents(ROOT_DIR . '/services/BackupService.php');
 assertCondition(str_contains($mig, 'AlutKategori::pulihkan(') && !str_contains($mig, 'AlutKategori::backfill('), 'migrate.php memakai pulihkan (cek kolom sebelum backfill)');
-assertCondition(substr_count($bak, 'AlutKategori::pulihkan(') === 2 && str_contains($bak, 'AlutKategori::cadanganTanpaKategori('), 'restore SQL & JSON memanggil pulihkan');
+assertCondition(substr_count($bak, 'AlutKategori::pulihkan(') === 1 && !str_contains($bak, 'cadanganTanpaKategori'), 'restore SQL memanggil pulihkan dan jalur JSON mati telah dibersihkan');
 
 echo "\nTotal: {$testTotal}, Lolos: {$testPassed}\n";
 exit($testPassed === $testTotal ? 0 : 1);

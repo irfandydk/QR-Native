@@ -9,27 +9,6 @@ declare(strict_types=1);
 
 class GisModel {
     private static bool $schemaChecked = false;
-    private static bool $importGroupColsChecked = false;
-
-    public static function ensureImportGroupColumns(?PDO $db = null): void {
-        if (self::$importGroupColsChecked) {
-            return;
-        }
-        $db = $db ?? getDB();
-        if ($db->inTransaction()) {
-            return;
-        }
-        self::$importGroupColsChecked = true;
-        try {
-            foreach (['GisPoint', 'GisPolygon', 'GisSearchPattern', 'GisRoute'] as $tbl) {
-                if (empty($db->query("SHOW COLUMNS FROM `{$tbl}` LIKE 'import_group'")->fetchAll())) {
-                    $db->exec("ALTER TABLE `{$tbl}` ADD COLUMN `import_group` VARCHAR(100) NULL DEFAULT NULL");
-                }
-            }
-        } catch (Throwable $e) {
-            error_log("[GisModel import_group Check] " . $e->getMessage());
-        }
-    }
 
     /**
      * Schema migration check for multi-operation SAR.
@@ -91,6 +70,37 @@ class GisModel {
             }
         } catch (Throwable $e) {
             error_log("[GisModel Schema Check] " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Ringkasan jumlah komponen peta GIS secara agregat (1 query skalar ringan tanpa memuat geometri).
+     *
+     * @return array{points: int, polygons: int, patterns: int, routes: int, total: int}
+     */
+    public static function getStatsSummary(): array {
+        try {
+            $db = getDB();
+            $row = $db->query("
+                SELECT
+                    (SELECT COUNT(*) FROM GisPoint) AS points,
+                    (SELECT COUNT(*) FROM GisPolygon) AS polygons,
+                    (SELECT COUNT(*) FROM GisSearchPattern) AS patterns,
+                    (SELECT COUNT(*) FROM GisRoute) AS routes
+            ")->fetch(PDO::FETCH_ASSOC) ?: [];
+            $points = (int)($row['points'] ?? 0);
+            $polygons = (int)($row['polygons'] ?? 0);
+            $patterns = (int)($row['patterns'] ?? 0);
+            $routes = (int)($row['routes'] ?? 0);
+            return [
+                'points' => $points,
+                'polygons' => $polygons,
+                'patterns' => $patterns,
+                'routes' => $routes,
+                'total' => $points + $polygons + $patterns + $routes,
+            ];
+        } catch (Throwable $e) {
+            return ['points' => 0, 'polygons' => 0, 'patterns' => 0, 'routes' => 0, 'total' => 0];
         }
     }
 
@@ -374,7 +384,6 @@ class GisModel {
         $rawType = (string)($data['pointType'] ?? ($data['point_type'] ?? 'pin_umum'));
         $type = !empty($customIcon) ? 'custom_upload' : ($rawType === 'custom_upload' ? 'pin_umum' : $rawType);
 
-        self::ensureImportGroupColumns($db);
         $rawImpGroup = $data['import_group'] ?? ($data['importGroup'] ?? null);
         $importGroup = ($rawImpGroup !== null && trim((string)$rawImpGroup) !== '') ? mb_substr(trim((string)$rawImpGroup), 0, 100) : null;
 
@@ -470,7 +479,6 @@ class GisModel {
 
     public static function savePolygon(array $data): string {
         $db = getDB();
-        self::ensureImportGroupColumns($db);
         $ownTx = !$db->inTransaction();
         if ($ownTx) {
             $db->beginTransaction();
@@ -650,7 +658,6 @@ class GisModel {
 
     public static function saveRoute(array $data): string {
         $db = getDB();
-        self::ensureImportGroupColumns($db);
         $ownTx = !$db->inTransaction();
         if ($ownTx) {
             $db->beginTransaction();
@@ -1090,127 +1097,6 @@ class GisModel {
     }
 
     /**
-     * Export all GIS tactical layers as standard RFC 7946 GeoJSON FeatureCollection.
-     */
-    public static function exportGeoJson(?int $idOperasi = null, bool $includeGlobal = true): string {
-        $features = [];
-
-        // 1. Points
-        $points = self::getPoints($idOperasi, $includeGlobal);
-        foreach ($points as $pt) {
-            $lat = (float)($pt['lat'] ?? 0);
-            $lng = (float)($pt['lng'] ?? 0);
-            if ($lat == 0.0 && $lng == 0.0) continue;
-            $features[] = [
-                'type' => 'Feature',
-                'geometry' => [
-                    'type' => 'Point',
-                    'coordinates' => [$lng, $lat]
-                ],
-                'properties' => [
-                    'id' => $pt['id'],
-                    'label' => $pt['label'] ?? '',
-                    'pointType' => $pt['pointType'] ?? 'pin_umum',
-                    'category' => $pt['category'] ?? '',
-                    'description' => $pt['description'] ?? '',
-                    'alphabetChar' => $pt['alphabetChar'] ?? '',
-                    'id_operasi' => $pt['id_operasi'] ?? null
-                ]
-            ];
-        }
-
-        // 2. Polygons / Search Areas
-        $polys = self::getPolygons($idOperasi, $includeGlobal);
-        foreach ($polys as $pl) {
-            $rawPts = $pl['points'] ?? [];
-            if (empty($rawPts) && ($pl['shapeType'] ?? '') === 'circle' && isset($pl['radiusNm']) && (float)$pl['radiusNm'] > 0 && isset($pl['centerLat'], $pl['centerLng'])) {
-                $rawPts = self::generateCircleRing((float)$pl['centerLat'], (float)$pl['centerLng'], (float)$pl['radiusNm'], 64);
-            }
-            if (empty($rawPts)) continue;
-            $ring = [];
-            foreach ($rawPts as $p) {
-                $ring[] = [(float)$p['lng'], (float)$p['lat']];
-            }
-            if (!empty($ring) && ($ring[0] !== end($ring))) {
-                $ring[] = $ring[0];
-            }
-            $features[] = [
-                'type' => 'Feature',
-                'geometry' => [
-                    'type' => 'Polygon',
-                    'coordinates' => [$ring]
-                ],
-                'properties' => [
-                    'id' => $pl['id'],
-                    'name' => $pl['name'] ?? 'Search Area',
-                    'shapeType' => $pl['shapeType'] ?? 'polygon',
-                    'areaNm2' => (float)($pl['areaNm2'] ?? 0),
-                    'color' => $pl['color'] ?? ($pl['strokeColor'] ?? '#f97316'),
-                    'opacity' => (float)($pl['opacity'] ?? ($pl['fillOpacity'] ?? 0.25)),
-                    'id_operasi' => $pl['id_operasi'] ?? null
-                ]
-            ];
-        }
-
-        // 3. Routes
-        $routes = self::getRoutes($idOperasi, $includeGlobal);
-        foreach ($routes as $rt) {
-            $rawPts = $rt['points'] ?? [];
-            if (count($rawPts) < 2) continue;
-            $coords = [];
-            foreach ($rawPts as $p) {
-                $coords[] = [(float)$p['lng'], (float)$p['lat']];
-            }
-            $features[] = [
-                'type' => 'Feature',
-                'geometry' => [
-                    'type' => 'LineString',
-                    'coordinates' => $coords
-                ],
-                'properties' => [
-                    'id' => $rt['id'],
-                    'name' => $rt['name'] ?? 'Rute Operasi',
-                    'vesselSpeedKnots' => (float)($rt['vesselSpeedKnots'] ?? 25),
-                    'strokeColor' => $rt['strokeColor'] ?? '#059669',
-                    'id_operasi' => $rt['id_operasi'] ?? null
-                ]
-            ];
-        }
-
-        // 4. Search Patterns
-        $patterns = self::getSearchPatterns($idOperasi, $includeGlobal);
-        foreach ($patterns as $sp) {
-            $rawWp = $sp['waypoints'] ?? [];
-            if (count($rawWp) < 2) continue;
-            $coords = [];
-            foreach ($rawWp as $w) {
-                $coords[] = [(float)$w['lng'], (float)$w['lat']];
-            }
-            $features[] = [
-                'type' => 'Feature',
-                'geometry' => [
-                    'type' => 'LineString',
-                    'coordinates' => $coords
-                ],
-                'properties' => [
-                    'id' => $sp['id'],
-                    'name' => $sp['name'] ?? 'Pola Pencarian',
-                    'patternType' => $sp['patternType'] ?? 'parallel_track',
-                    'trackSpacingNm' => (float)($sp['trackSpacingNm'] ?? 1.0),
-                    'totalDistanceNm' => (float)($sp['totalDistanceNm'] ?? 0),
-                    'color' => $sp['color'] ?? '#0284c7',
-                    'id_operasi' => $sp['id_operasi'] ?? null
-                ]
-            ];
-        }
-
-        return (string)json_encode([
-            'type' => 'FeatureCollection',
-            'features' => $features
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-    }
-
-    /**
      * Atomically import a batch of tactical GIS entities (Points, Polygons, SearchPatterns, Routes).
      *
      * Validates:
@@ -1250,7 +1136,6 @@ class GisModel {
         }
 
         $db = getDB();
-        self::ensureImportGroupColumns($db);
         $explicitGroup = trim((string)($payload['import_group'] ?? ($payload['importGroup'] ?? '')));
         $importGroup = $explicitGroup !== '' ? mb_substr($explicitGroup, 0, 100) : self::nextImportGroupName($idOperasi);
 
@@ -1675,7 +1560,6 @@ class GisModel {
      */
     public static function nextImportGroupName(?int $idOperasi): string {
         $db = getDB();
-        self::ensureImportGroupColumns($db);
         $opVal = ($idOperasi !== null && $idOperasi > 0) ? $idOperasi : null;
         $uniqueGroups = [];
         $maxNum = 0;
@@ -1721,7 +1605,6 @@ class GisModel {
         }
 
         $db = getDB();
-        self::ensureImportGroupColumns($db);
         $opVal = ($idOperasi !== null && $idOperasi > 0) ? $idOperasi : null;
         $ownTx = !$db->inTransaction();
         if ($ownTx) {
@@ -1783,16 +1666,22 @@ class GisModel {
             $db->beginTransaction();
         }
         try {
-            $deleted = 0;
-            foreach ($cleanIds as $id) {
-                $ok = match ($type) {
-                    'points' => self::deletePoint($id),
-                    'polygons' => self::deletePolygon($id),
-                    'patterns' => self::deleteSearchPattern($id),
-                    'routes' => self::deleteRoute($id),
-                };
-                if ($ok) $deleted++;
+            $placeholders = implode(',', array_fill(0, count($cleanIds), '?'));
+            if ($type === 'polygons') {
+                $db->prepare("DELETE FROM GisPolygonPoint WHERE polygonId IN ({$placeholders})")->execute($cleanIds);
+                $stmtParent = $db->prepare("DELETE FROM GisPolygon WHERE id IN ({$placeholders})");
+            } elseif ($type === 'patterns') {
+                $db->prepare("DELETE FROM GisSearchPatternWaypoint WHERE searchPatternId IN ({$placeholders})")->execute($cleanIds);
+                $stmtParent = $db->prepare("DELETE FROM GisSearchPattern WHERE id IN ({$placeholders})");
+            } elseif ($type === 'routes') {
+                $db->prepare("DELETE FROM GisRoutePoint WHERE routeId IN ({$placeholders})")->execute($cleanIds);
+                $stmtParent = $db->prepare("DELETE FROM GisRoute WHERE id IN ({$placeholders})");
+            } else {
+                $stmtParent = $db->prepare("DELETE FROM GisPoint WHERE id IN ({$placeholders})");
             }
+            $stmtParent->execute($cleanIds);
+            $deleted = $stmtParent->rowCount();
+
             if ($ownTx && $db->inTransaction()) {
                 $db->commit();
             }

@@ -70,36 +70,6 @@ class SarCalculationService {
     }
 
     /**
-     * Resolve Indonesian day name from date string or numeric day of week.
-     */
-    public static function getNamaHariIndo(string|int|null $input): string {
-        if ($input === null || $input === '') return 'Minggu';
-        if (is_numeric($input)) {
-            $w = (int)$input % 7;
-            return self::HARI_INDO[$w] ?? 'Minggu';
-        }
-        $str = trim((string)$input);
-        $map = [
-            'sunday' => 'Minggu', 'sun' => 'Minggu',
-            'monday' => 'Senin', 'mon' => 'Senin',
-            'tuesday' => 'Selasa', 'tue' => 'Selasa',
-            'wednesday' => 'Rabu', 'wed' => 'Rabu',
-            'thursday' => 'Kamis', 'thu' => 'Kamis',
-            'friday' => 'Jumat', 'fri' => 'Jumat',
-            'saturday' => 'Sabtu', 'sat' => 'Sabtu'
-        ];
-        $lower = strtolower($str);
-        if (isset($map[$lower])) {
-            return $map[$lower];
-        }
-        $ts = self::parseToTimestamp($str);
-        if ($ts !== null) {
-            return self::HARI_INDO[(int)date('w', $ts)];
-        }
-        return in_array($str, self::HARI_INDO, true) ? $str : 'Minggu';
-    }
-
-    /**
      * Format time string to 24-hour WITA format: e.g. "08:30".
      */
     public static function formatJamWITA(?string $dateInput): string {

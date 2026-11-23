@@ -303,10 +303,12 @@ function renderDetailGisHistoryList() {
 
     if (items.length === 0) {
         container.innerHTML = `
-            <div class="p-8 text-center bg-slate-50 dark:bg-slate-950/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-                <div class="text-3xl mb-2">🗺️</div>
+            <div class="p-8 text-center bg-slate-50/70 dark:bg-slate-950/35 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 space-y-2">
+                <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-400 flex items-center justify-center mx-auto" aria-hidden="true">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+                </div>
                 <div class="text-xs font-bold text-slate-700 dark:text-slate-300">Belum ada komponen pada kategori ini</div>
-                <div class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                <div class="text-[11px] text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                     Buka halaman Plotting GIS untuk menggambar Search Area, Pola Pencarian SAR, atau membuat Titik Taktis baru.
                 </div>
             </div>
@@ -314,17 +316,22 @@ function renderDetailGisHistoryList() {
         return;
     }
 
+    const iconSvgs = {
+        polygon: '<svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/></svg>',
+        pattern: '<svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+        route: '<svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>',
+        point: '<svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>'
+    };
+    const copySvg = '<svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    const focusSvg = '<svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>';
+
     let html = '';
     items.forEach(item => {
         const badgeBg = item.isBaseMap 
-            ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' 
-            : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20';
+            ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300' 
+            : 'opsd-accent-text bg-slate-100 dark:bg-slate-800';
         const badgeText = item.isBaseMap ? 'BASE MAP' : 'OPERASI SAR';
-
-        let icon = '⬡';
-        if (item.type === 'pattern') icon = '⚡';
-        else if (item.type === 'route') icon = '↗️';
-        else if (item.type === 'point') icon = '📍';
+        const icon = iconSvgs[item.type] || iconSvgs.polygon;
 
         const safeColor = sanitizeDetailGisColor(item.color, '#2563eb');
         const safeIdAttr = escapeHtml(item.id);
@@ -332,9 +339,9 @@ function renderDetailGisHistoryList() {
         const safeLayerKeyAttr = escapeHtml(item.layerKey);
 
         html += `
-            <div class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950/60 hover:border-orange-500/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div class="opsd-row-card p-3.5 rounded-xl border border-slate-200/85 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/35 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex items-start gap-3 min-w-0">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-base" style="background-color: ${safeColor}15; color: ${safeColor};">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style="background-color: ${safeColor}18; color: ${safeColor};">
                         ${icon}
                     </div>
                     <div class="min-w-0">
@@ -342,28 +349,28 @@ function renderDetailGisHistoryList() {
                             <span class="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[240px] sm:max-w-xs">
                                 ${escapeHtml(item.name)}
                             </span>
-                            <span class="text-[11px] font-bold px-1.5 py-0.2 rounded ${badgeBg} font-mono">
+                            <span class="text-[11px] font-bold px-1.5 py-0.5 rounded-md ${badgeBg} font-mono">
                                 ${badgeText}
                             </span>
                             <span class="text-[11px] font-medium text-slate-400">
-                                &bull; ${escapeHtml(item.tag)}
+                                &middot; ${escapeHtml(item.tag)}
                             </span>
                         </div>
-                        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                        <div class="opsd-num text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                             ${item.meta}
                         </div>
-                        ${item.desc ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1 italic">${escapeHtml(item.desc)}</div>` : ''}
+                        ${item.desc ? `<div class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">${escapeHtml(item.desc)}</div>` : ''}
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                    <button type="button" data-copy-type="${safeTypeAttr}" data-copy-id="${safeIdAttr}" onclick="triggerDetailGisCopy(this.dataset.copyType, this.dataset.copyId)" class="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer flex items-center gap-1" title="Salin Data Koordinat">
-                        <span>📋</span>
-                        <span class="text-[11px]">Salin</span>
+                <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                    <button type="button" data-copy-type="${safeTypeAttr}" data-copy-id="${safeIdAttr}" onclick="triggerDetailGisCopy(this.dataset.copyType, this.dataset.copyId)" class="opsd-ghost-btn inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold transition cursor-pointer" title="Salin Data Koordinat">
+                        ${copySvg}
+                        <span>Salin</span>
                     </button>
-                    <button type="button" data-layer-key="${safeLayerKeyAttr}" onclick="focusDetailMapComponent(this.dataset.layerKey)" class="px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-xs" title="Fokuskan peta ke komponen ini">
-                        <span>🎯</span>
-                        <span class="text-[11px]">Fokus</span>
+                    <button type="button" data-layer-key="${safeLayerKeyAttr}" onclick="focusDetailMapComponent(this.dataset.layerKey)" class="opsd-accent-btn inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold transition cursor-pointer" title="Fokuskan peta ke komponen ini">
+                        ${focusSvg}
+                        <span>Fokus</span>
                     </button>
                 </div>
             </div>
@@ -398,10 +405,31 @@ function switchTab(tabName) {
     }
 }
 
+function toggleDetailRollout(panelId, btnEl, forceOpen) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    const isHidden = panel.classList.contains('hidden');
+    const willOpen = typeof forceOpen === 'boolean' ? forceOpen : isHidden;
+
+    panel.classList.toggle('hidden', !willOpen);
+
+    const btn = btnEl || document.querySelector(`[aria-controls="${panelId}"]`);
+    if (btn) {
+        btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        const label = btn.querySelector('.rollout-label');
+        if (label) label.textContent = willOpen ? 'Tutup' : 'Detail';
+        const icon = btn.querySelector('.rollout-chevron');
+        if (icon) icon.classList.toggle('rotate-180', willOpen);
+    }
+}
+
 function navigateToDoc(tab, docId) {
     switchTab(tab);
     if (!docId) return;
     setTimeout(() => {
+        const panelId = tab === 'renops' ? `renops-detail-${docId}` : `sitrep-detail-${docId}`;
+        toggleDetailRollout(panelId, null, true);
+
         const cardId = tab === 'renops' ? `card-renops-${docId}` : `card-sitrep-${docId}`;
         const target = document.getElementById(cardId);
         if (target) {

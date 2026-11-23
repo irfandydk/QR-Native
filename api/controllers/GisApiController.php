@@ -7,6 +7,23 @@
 declare(strict_types=1);
 
 class GisApiController extends BaseApiController {
+    /**
+     * Kategori titik master SAR (Pangkalan SAR & Dermaga SAR) yang dilindungi dari
+     * penghapusan maupun perubahan kategori oleh pengguna non-Administrator (role USER).
+     */
+    public const PROTECTED_POINT_CATEGORIES = [
+        'kantor sar',
+        'pos sar',
+        'unit siaga sar',
+        'dermaga sar',
+        'dermaga',
+    ];
+
+    public static function isProtectedPointCategory(?string $category): bool {
+        $norm = strtolower(trim((string)$category));
+        return $norm !== '' && in_array($norm, self::PROTECTED_POINT_CATEGORIES, true);
+    }
+
     public static function handle(string $path, string $method, array $input): bool {
         // 1. Geocode endpoint (Global & Indonesian Geocoding)
         if ($path === '/geocode') {
@@ -270,9 +287,7 @@ class GisApiController extends BaseApiController {
                 self::error('Daftar ID bulk-delete harus berisi 1 hingga 500 ID.', 400);
             }
 
-            foreach ($cleanIds as $id) {
-                self::assertCanMutateGis($table, $id);
-            }
+            self::assertCanBulkDeleteGis($table, $cleanIds);
 
             try {
                 $deleted = GisModel::bulkDelete($canonicalType, $cleanIds);
@@ -323,7 +338,7 @@ class GisApiController extends BaseApiController {
         if (preg_match('#^/gis/point(?:s)?/(.+)$#', $path, $m) && $method === 'DELETE') {
             self::requireAuth();
             $targetId = $m[1];
-            self::assertCanMutateGis('GisPoint', $targetId);
+            self::assertCanMutateGis('GisPoint', $targetId, [], true);
             $ok = GisModel::deletePoint($targetId);
             self::json(['success' => $ok]);
             return true;
@@ -1014,26 +1029,40 @@ class GisApiController extends BaseApiController {
      * @param string|null $id ID target jika operasi update/delete
      * @param array $input Payload input jika operasi create/update
      */
-    private static function assertCanMutateGis(string $table, ?string $id = null, array $input = []): void {
+    private static function assertCanMutateGis(string $table, ?string $id = null, array $input = [], bool $isDelete = false): void {
         $targetId = $id ?? ($input['id'] ?? null);
         $db = getDB();
         $existingRow = null;
         if (!empty($targetId)) {
-            $stmt = $db->prepare("SELECT id, id_operasi FROM `{$table}` WHERE id = :id");
+            $cols = $table === 'GisPoint' ? 'id, id_operasi, category' : 'id, id_operasi';
+            $stmt = $db->prepare("SELECT {$cols} FROM `{$table}` WHERE id = :id");
             $stmt->execute([':id' => $targetId]);
             $existingRow = $stmt->fetch();
         }
 
-        // 1. Jika rekaman sudah ada di DB, periksa kepemilikan & status operasi asalnya lebih dulu
-        // agar rekaman global atau milik operasi CLOSED tidak bisa dibajak lewat spoofing id_operasi
+        $checkedOpStatus = [];
+
+        // 1. Jika rekaman sudah ada di DB, periksa kepemilikan, proteksi kategori, & status operasi asalnya lebih dulu
+        // agar rekaman global, kategori terlindungi, atau milik operasi CLOSED tidak bisa dibajak lewat spoofing id_operasi
         if ($existingRow) {
+            if ($table === 'GisPoint' && !AuthHelper::isAdmin() && self::isProtectedPointCategory($existingRow['category'] ?? null)) {
+                if ($isDelete) {
+                    self::error('Akses ditolak: Titik kategori Pangkalan SAR dan Dermaga SAR hanya dapat dihapus oleh Administrator.', 403);
+                }
+                if (array_key_exists('category', $input) && !self::isProtectedPointCategory((string)$input['category'])) {
+                    self::error('Akses ditolak: Kategori titik Pangkalan SAR dan Dermaga SAR tidak dapat diubah oleh User.', 403);
+                }
+            }
+
             if ($existingRow['id_operasi'] === null) {
                 if (!AuthHelper::isAdmin()) {
                     self::error('Akses ditolak: Hanya Administrator yang berwenang menambah, mengubah, atau menghapus data master spasial global.', 403);
                 }
             } else {
-                $existingOps = OperasiModel::getById((int)$existingRow['id_operasi']);
-                if ($existingOps && ($existingOps['status'] ?? '') === 'CLOSED') {
+                $existingOpId = (int)$existingRow['id_operasi'];
+                $existingStatus = OperasiModel::getStatusById($existingOpId);
+                $checkedOpStatus[$existingOpId] = $existingStatus;
+                if ($existingStatus === 'CLOSED') {
                     self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Data spasial terkait operasi ini terkunci.', 403);
                 }
             }
@@ -1054,13 +1083,73 @@ class GisApiController extends BaseApiController {
             return;
         }
 
-        // 3. Validasi operasi SAR sasaran harus nyata dan belum CLOSED
-        $ops = OperasiModel::getById($idOperasi);
-        if (!$ops) {
+        // 3. Validasi operasi SAR sasaran harus nyata dan belum CLOSED (tanpa query ulang bila sama)
+        $status = array_key_exists($idOperasi, $checkedOpStatus)
+            ? $checkedOpStatus[$idOperasi]
+            : OperasiModel::getStatusById($idOperasi);
+        if ($status === null) {
             self::error('Data Operasi SAR tidak ditemukan.', 404);
         }
-        if (($ops['status'] ?? '') === 'CLOSED') {
+        if ($status === 'CLOSED') {
             self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Data spasial terkait operasi ini terkunci.', 403);
+        }
+    }
+
+    /**
+     * Verifikasi hak akses & status operasi secara batch untuk POST /api/gis/bulk-delete (maks 2 query SQL).
+     *
+     * @param string   $table Nama tabel GIS terwhitelist
+     * @param string[] $ids   Daftar ID yang akan dihapus
+     */
+    private static function assertCanBulkDeleteGis(string $table, array $ids): void {
+        if (empty($ids)) {
+            return;
+        }
+        $db = getDB();
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $cols = $table === 'GisPoint' ? 'id, id_operasi, category' : 'id, id_operasi';
+        $stmt = $db->prepare("SELECT {$cols} FROM `{$table}` WHERE id IN ({$placeholders})");
+        $stmt->execute(array_values($ids));
+
+        $foundOpById = [];
+        $foundCatById = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $rowId = (string)$row['id'];
+            $foundOpById[$rowId] = $row['id_operasi'] === null ? null : (int)$row['id_operasi'];
+            if ($table === 'GisPoint') {
+                $foundCatById[$rowId] = (string)($row['category'] ?? '');
+            }
+        }
+
+        $isAdmin = AuthHelper::isAdmin();
+        $opIds = [];
+        foreach ($ids as $id) {
+            $idStr = (string)$id;
+            if (!$isAdmin && $table === 'GisPoint' && array_key_exists($idStr, $foundCatById) && self::isProtectedPointCategory($foundCatById[$idStr])) {
+                self::error('Akses ditolak: Titik kategori Pangkalan SAR dan Dermaga SAR hanya dapat dihapus oleh Administrator.', 403);
+            }
+            if (!array_key_exists($idStr, $foundOpById) || $foundOpById[$idStr] === null) {
+                if (!$isAdmin) {
+                    self::error('Akses ditolak: Hanya Administrator yang berwenang menambah, mengubah, atau menghapus data master spasial global.', 403);
+                }
+                continue;
+            }
+            $opIds[$foundOpById[$idStr]] = true;
+        }
+
+        if (empty($opIds)) {
+            return;
+        }
+
+        $uniqueOpIds = array_keys($opIds);
+        $statuses = OperasiModel::getStatusesByIds($uniqueOpIds);
+        foreach ($uniqueOpIds as $opId) {
+            if (!array_key_exists($opId, $statuses)) {
+                self::error('Data Operasi SAR tidak ditemukan.', 404);
+            }
+            if ($statuses[$opId] === 'CLOSED') {
+                self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Data spasial terkait operasi ini terkunci.', 403);
+            }
         }
     }
 }

@@ -59,10 +59,9 @@ assertCondition("AuthController adalah turunan dari BaseController", is_subclass
 echo "\n3. Memeriksa Integritas Pemisahan BackupService:\n";
 assertCondition("BackupService memiliki method getDbStats", method_exists('BackupService', 'getDbStats'));
 assertCondition("BackupService memiliki method generateSQLDump", method_exists('BackupService', 'generateSQLDump'));
-assertCondition("BackupService memiliki method exportJsonBackup", method_exists('BackupService', 'exportJsonBackup'));
 assertCondition("BackupService memiliki method restoreFromSQL", method_exists('BackupService', 'restoreFromSQL'));
-assertCondition("BackupService memiliki method restoreFromJson", method_exists('BackupService', 'restoreFromJson'));
 assertCondition("BackupService memiliki method splitSqlStatements", method_exists('BackupService', 'splitSqlStatements'));
+assertCondition("BackupService tidak lagi menyimpan metode JSON backup mati", !method_exists('BackupService', 'exportJsonBackup') && !method_exists('BackupService', 'restoreFromJson'));
 
 $backupStats = BackupService::getDbStats();
 $settingsStats = SettingsModel::getDbStats();

@@ -194,12 +194,12 @@ class OperasiController extends BaseController {
             return;
         }
 
-        // Default: show list
+        // Default: show list Operasi SAR
         $this->requireLogin();
-        $this->render('dashboard', [], [
-            'title' => 'Daftar Operasi SAR',
+        $this->render('operasi/list', [], [
+            'title' => 'Operasi SAR',
             'route' => 'operasi',
-            'navbarTitle' => 'Daftar Operasi SAR Kendari'
+            'navbarTitle' => 'Operasi SAR'
         ]);
     }
 
@@ -535,7 +535,7 @@ class OperasiController extends BaseController {
             'title' => 'Operasi: ' . ($operasi['nama_operasi'] ?? ''),
             'route' => 'operasi_detail',
             'useGis' => true,
-            'navbarTitle' => 'PUSAT KENDALI OPERASI SAR',
+            'navbarTitle' => 'Detail Operasi SAR',
             'navbarSubtitle' => 'KANTOR PENCARIAN DAN PERTOLONGAN (KPP) KELAS A KENDARI - BASARNAS'
         ]);
     }

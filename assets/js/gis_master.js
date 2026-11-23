@@ -14,8 +14,19 @@
     eye: svgIcon('<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>'),
     eyeOff: svgIcon('<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.4 10.4 0 0 1 12 5c7 0 10 7 10 7a13.2 13.2 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/>'),
     edit: svgIcon('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
-    trash: svgIcon('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>')
+    trash: svgIcon('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
+    lock: svgIcon('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>')
   };
+
+  function isPointDeleteLockedForUser(pt) {
+    if (!pt) return false;
+    if (initialData && initialData.isAdmin) return false;
+    const cat = String(pt.category || '').trim();
+    if (window.QrSarGis && window.QrSarGis.Naming && typeof window.QrSarGis.Naming.isProtectedPointCategory === 'function') {
+      return window.QrSarGis.Naming.isProtectedPointCategory(cat);
+    }
+    return ['kantor sar', 'pos sar', 'unit siaga sar', 'dermaga sar', 'dermaga'].includes(cat.toLowerCase());
+  }
 
   // Base URL & State Data from server injection
   const BASE_URL = window.BASE_URL || window.location.origin;
@@ -47,17 +58,6 @@
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&#039;');
       };
-
-  // Safe XML / KML Escaping Helper
-  function escapeXml(str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
 
   function getOperasiBadgeHtml(idOps) {
     if (!idOps || idOps <= 0) return '';
@@ -159,12 +159,12 @@
     if (banner) {
       if (filterMode === 'basemap' || filterMode === 'dasar') {
         banner.innerHTML = `
-          <div class="px-3 py-2 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between text-xs">
+          <div class="px-3 py-1.5 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between text-[11px]">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
               <div class="truncate">
-                <span class="font-extrabold text-blue-600 dark:text-blue-400">1. Base Map</span>
-                <span class="text-slate-600 dark:text-slate-400 text-[11px] ml-1">(Komponen tanpa ID Operasi SAR)</span>
+                <span class="font-semibold text-blue-600 dark:text-blue-400">1. Base Map</span>
+                <span class="text-slate-500 dark:text-slate-400 ml-1">(Tanpa ID Ops)</span>
               </div>
             </div>
             <button type="button" class="btn-switch-mode-all text-[11px] font-bold text-slate-500 hover:text-orange-500 underline shrink-0 ml-2 cursor-pointer">Semua</button>
@@ -172,12 +172,12 @@
         `;
       } else if (filterMode === 'operasi' && currentOperasi) {
         banner.innerHTML = `
-          <div class="px-3 py-2 bg-orange-500/10 border-b border-orange-500/20 flex items-center justify-between text-xs">
+          <div class="px-3 py-1.5 bg-orange-500/10 border-b border-orange-500/20 flex items-center justify-between text-[11px]">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shrink-0"></span>
               <div class="truncate">
-                <span class="font-extrabold text-orange-600 dark:text-orange-400">3. Ops #${currentOperasi.id_operasi}</span>
-                <span class="text-slate-600 dark:text-slate-300 ml-1 text-[11px]">${escapeHtml(currentOperasi.nama_operasi)}</span>
+                <span class="font-semibold text-orange-600 dark:text-orange-400">3. Ops #${currentOperasi.id_operasi}</span>
+                <span class="text-slate-600 dark:text-slate-300 ml-1">${escapeHtml(currentOperasi.nama_operasi)}</span>
               </div>
             </div>
             <button type="button" class="btn-switch-mode-all text-[11px] font-bold text-slate-500 hover:text-red-500 underline shrink-0 ml-2 cursor-pointer" title="Kembali ke semua plotting">Lepas</button>
@@ -185,12 +185,12 @@
         `;
       } else {
         banner.innerHTML = `
-          <div class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+          <div class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px]">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
               <div class="truncate">
-                <span class="font-extrabold text-slate-700 dark:text-slate-200">2. Semua Komponen</span>
-                <span class="text-slate-500 dark:text-slate-400 text-[11px] ml-1">(Base Map & Operasi Aktif)</span>
+                <span class="font-semibold text-slate-700 dark:text-slate-200">2. Semua Komponen</span>
+                <span class="text-slate-500 dark:text-slate-400 ml-1">(Base Map &amp; Ops Aktif)</span>
               </div>
             </div>
           </div>
@@ -521,15 +521,21 @@
       localStorage.setItem('qr_sar_gis_unit', unit);
     } catch (e) {}
 
-    // 1. Update Master Pill Switcher UI
+    // 1. Update Master Pill Switcher UI & Floating Unit Circular Badge
     document.querySelectorAll('.global-unit-pill-btn').forEach((btn) => {
       const bUnit = btn.getAttribute('data-global-unit');
-      if (bUnit === unit) {
-        btn.className = 'global-unit-pill-btn px-2 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition font-black cursor-pointer';
+      const isSelected = bUnit === unit;
+      btn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+      if (isSelected) {
+        btn.className = 'btn-tactile global-unit-pill-btn px-2 py-1.5 rounded-xl bg-orange-500 text-white shadow-xs transition font-bold cursor-pointer text-center';
       } else {
-        btn.className = 'global-unit-pill-btn px-2 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition font-medium cursor-pointer';
+        btn.className = 'btn-tactile global-unit-pill-btn px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-medium cursor-pointer text-center';
       }
     });
+    const floatingUnitBadge = document.getElementById('floatingUnitBadge');
+    if (floatingUnitBadge) floatingUnitBadge.textContent = unit;
+    const floatingUnitBtn = document.getElementById('btnFloatingUnitToggle');
+    if (floatingUnitBtn) floatingUnitBtn.title = `Satuan Pengukuran: ${unit}`;
 
     // 2. Synchronize Search Area Circle Radius Unit
     polyCircleRadiusUnit = unit;
@@ -686,105 +692,13 @@
   let savedRoutePolylinesMap = new Map();
   let temporarySearchMarker = null;
 
-  // Comprehensive Preset Point Icons for SAR operations, incidents, places, assets, and tactical markers (SSOT synced with markers.js)
+  // Preset Point Icons (SSOT: assets/js/gis/markers.js)
   const PRESET_ICONS = (window.QrSarGis && window.QrSarGis.Markers && Array.isArray(window.QrSarGis.Markers.PRESET_ICONS))
     ? window.QrSarGis.Markers.PRESET_ICONS
-    : [
-    // --- KEJADIAN & BENCANA ---
-    { type: 'lkp', label: 'LKP / Titik Kejadian', color: '#dc2626', emoji: '🚨', group: 'kejadian' },
-    { type: 'orang_hilang', label: 'Orang Hilang / Survivor', color: '#ef4444', emoji: '👤', group: 'kejadian' },
-    { type: 'sinyal_sos', label: 'Sinyal SOS / Distress', color: '#dc2626', emoji: '🆘', group: 'kejadian' },
-    { type: 'tenggelam', label: 'Korban Tenggelam / Laka Air', color: '#0284c7', emoji: '🏊', group: 'kejadian' },
-    { type: 'kecelakaan_kapal', label: 'Laka Kapal / Karam', color: '#b91c1c', emoji: '🚢', group: 'kejadian' },
-    { type: 'perahu', label: 'Perahu Terbalik / Nelayan', color: '#0891b2', emoji: '⛵', group: 'kejadian' },
-    { type: 'kecelakaan_pesawat', label: 'Laka Pesawat / Jatuh', color: '#7c3aed', emoji: '✈️', group: 'kejadian' },
-    { type: 'laka_darat', label: 'Laka Transportasi Darat', color: '#d97706', emoji: '🚗', group: 'kejadian' },
-    { type: 'kmm', label: 'KMM / Bahaya Jiwa', color: '#ea580c', emoji: '🧗', group: 'kejadian' },
-    { type: 'banjir', label: 'Banjir / Luapan Air', color: '#2563eb', emoji: '🌊', group: 'kejadian' },
-    { type: 'longsor', label: 'Tanah Longsor', color: '#78350f', emoji: '⛰️', group: 'kejadian' },
-    { type: 'gempa', label: 'Gempa / Runtuhan', color: '#854d0e', emoji: '🏚️', group: 'kejadian' },
-    { type: 'kebakaran', label: 'Kebakaran / Karhutla', color: '#ea580c', emoji: '🔥', group: 'kejadian' },
-    { type: 'gunung_api', label: 'Erupsi Gunung Berapi', color: '#991b1b', emoji: '🌋', group: 'kejadian' },
-    { type: 'badai', label: 'Cuaca Buruk / Badai', color: '#475569', emoji: '🌪️', group: 'kejadian' },
-    { type: 'hewan_buas', label: 'Serangan Satwa / Buaya', color: '#15803d', emoji: '🐊', group: 'kejadian' },
-    { type: 'medis_gawat', label: 'Darurat Medis Kritis', color: '#be123c', emoji: '🩸', group: 'kejadian' },
-    { type: 'bencana', label: 'Bencana Alam / Hazard', color: '#d97706', emoji: '⚠️', group: 'kejadian' },
-
-    // --- TEMUAN KORBAN & SURVIVOR ---
-    { type: 'korban_selamat', label: 'Temuan Korban Selamat', color: '#16a34a', emoji: '🟢', group: 'korban' },
-    { type: 'korban_luka', label: 'Temuan Korban Luka', color: '#ca8a04', emoji: '🟡', group: 'korban' },
-    { type: 'korban_md', label: 'Temuan Korban MD', color: '#1e293b', emoji: '⚫', group: 'korban' },
-    { type: 'korban_hilang', label: 'Titik Duga Korban (DP)', color: '#dc2626', emoji: '🔴', group: 'korban' },
-
-    // --- TEMPAT, POS & FASILITAS ---
-    { type: 'kantor', label: 'Kantor / Pangkalan SAR', color: '#1e3a8a', emoji: '🏢', group: 'tempat' },
-    { type: 'pos_sar', label: 'Pos / Stasiun SAR', color: '#ea580c', emoji: '📻', group: 'tempat' },
-    { type: 'unit_siaga', label: 'Unit Siaga SAR', color: '#0284c7', emoji: '🛡️', group: 'tempat' },
-    { type: 'posko_sar', label: 'Posko Taktis Lapangan', color: '#059669', emoji: '🏕️', group: 'tempat' },
-    { type: 'tenda', label: 'Tenda Siaga / Pengungsi', color: '#0d9488', emoji: '⛺', group: 'tempat' },
-    { type: 'rumah_sakit', label: 'Rumah Sakit / Faskes', color: '#e11d48', emoji: '🏥', group: 'tempat' },
-    { type: 'pelabuhan', label: 'Pelabuhan / Dermaga', color: '#0284c7', emoji: '⚓', group: 'tempat' },
-    { type: 'dermaga', label: 'Dermaga Kapal SAR', color: '#0369a1', emoji: '⛴️', group: 'tempat' },
-    { type: 'bandara', label: 'Bandara / Airstrip', color: '#4338ca', emoji: '🛫', group: 'tempat' },
-    { type: 'helipad', label: 'Helipad / LZ Evakuasi', color: '#ca8a04', emoji: '🚁', group: 'tempat' },
-    { type: 'mercusuar', label: 'Mercusuar / Tower Pantau', color: '#334155', emoji: '🗼', group: 'tempat' },
-    { type: 'spbu_bbm', label: 'Depot BBM / Pengisian', color: '#d97706', emoji: '⛽', group: 'tempat' },
-    { type: 'rumah', label: 'Rumah / Titik Hunian', color: '#16a34a', emoji: '🏠', group: 'tempat' },
-    { type: 'pantai', label: 'Pantai / Area Pesisir', color: '#0891b2', emoji: '🏖️', group: 'tempat' },
-    { type: 'pulau', label: 'Pulau / Terumbu Karang', color: '#059669', emoji: '🏝️', group: 'tempat' },
-    { type: 'hutan', label: 'Hutan / Pegunungan', color: '#166534', emoji: '🌲', group: 'tempat' },
-    { type: 'jembatan', label: 'Jembatan / Akses Utama', color: '#64748b', emoji: '🌉', group: 'tempat' },
-
-    // --- ARMADA, ALUT & TIM SAR ---
-    { type: 'kapal', label: 'Kapal SAR KN / KRI', color: '#0284c7', emoji: '🚢', group: 'alut' },
-    { type: 'rib', label: 'RIB Basarnas', color: '#f97316', emoji: '🚤', group: 'alut' },
-    { type: 'perahu_karet', label: 'Perahu Karet / Raft', color: '#dc2626', emoji: '🛶', group: 'alut' },
-    { type: 'speedboat', label: 'Speedboat / Patroli', color: '#0ea5e9', emoji: '🛥️', group: 'alut' },
-    { type: 'helikopter', label: 'Helikopter SAR', color: '#ea580c', emoji: '🚁', group: 'alut' },
-    { type: 'pesawat', label: 'Pesawat Patroli Udara', color: '#7c3aed', emoji: '🛩️', group: 'alut' },
-    { type: 'rescue_car', label: 'Rescue Car / D-Max', color: '#ea580c', emoji: '🚙', group: 'alut' },
-    { type: 'rescue_truck', label: 'Truk Angkut / Truk SAR', color: '#475569', emoji: '🚛', group: 'alut' },
-    { type: 'ambulans', label: 'Ambulans Evakuasi Medis', color: '#dc2626', emoji: '🚑', group: 'alut' },
-    { type: 'motor_trail', label: 'Motor Trail Rescuer', color: '#c2410c', emoji: '🏍️', group: 'alut' },
-    { type: 'penyelam', label: 'Tim Selam / Under-Water', color: '#0369a1', emoji: '🤿', group: 'alut' },
-    { type: 'k9', label: 'Unit Anjing Pelacak K-9', color: '#854d0e', emoji: '🐕', group: 'alut' },
-    { type: 'drone', label: 'Drone / UAV Pemantau', color: '#6d28d9', emoji: '🛸', group: 'alut' },
-    { type: 'tim_rescuer', label: 'Tim Personel Rescuer', color: '#ea580c', emoji: '👷', group: 'alut' },
-
-    // --- TAKTIS & NAVIGASI ---
-    { type: 'pin_umum', label: 'Pin Lokasi Standar', color: '#ea580c', emoji: '📍', group: 'taktis' },
-    { type: 'target', label: 'Objek Sasaran / Datum', color: '#dc2626', emoji: '🎯', group: 'taktis' },
-    { type: 'entry_point', label: 'Entry Poin / Pintu Masuk', color: '#15803d', emoji: '🟢', group: 'taktis' },
-    { type: 'exit_point', label: 'Exit Poin / Titik Keluar', color: '#b91c1c', emoji: '🔴', group: 'taktis' },
-    { type: 'titik_kumpul', label: 'Titik Kumpul / Assembly', color: '#16a34a', emoji: '🏁', group: 'taktis' },
-    { type: 'waypoint', label: 'Titik Waypoint Navigasi', color: '#0284c7', emoji: '🧭', group: 'taktis' },
-    { type: 'bendera', label: 'Bendera Marker Taktis', color: '#ef4444', emoji: '🚩', group: 'taktis' },
-    { type: 'bintang', label: 'Titik Prioritas Utama', color: '#eab308', emoji: '⭐', group: 'taktis' },
-    { type: 'debris', label: 'Puing / Serpihan / Objek', color: '#0891b2', emoji: '🛟', group: 'taktis' },
-    { type: 'logistik', label: 'Drop Zone Logistik / Air', color: '#b45309', emoji: '📦', group: 'taktis' },
-    { type: 'komunikasi', label: 'Stasiun Radio / Repeater', color: '#0891b2', emoji: '📡', group: 'taktis' },
-    { type: 'rintangan', label: 'Bahaya / Rintangan Alur', color: '#eab308', emoji: '🚧', group: 'taktis' },
-    { type: 'jangkar', label: 'Titik Lego Jangkar', color: '#1d4ed8', emoji: '⚓', group: 'taktis' },
-    { type: 'teropong', label: 'Titik Pantau Visual', color: '#0f766e', emoji: '🔭', group: 'taktis' }
-  ];
-
-  const PRESET_ALIAS_MAP = {
-    tim_rescue: 'tim_rescuer',
-    radio: 'komunikasi',
-    korban_meninggal: 'korban_md',
-    kansar: 'kantor',
-    kapal_sar: 'kapal',
-    medis: 'rumah_sakit',
-    posko: 'posko_sar'
-  };
+    : [];
 
   function getPresetIcon(rawType) {
-    if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.getPreset === 'function') {
-      return window.QrSarGis.Markers.getPreset(rawType);
-    }
-    const t = String(rawType || 'pin_umum').trim().toLowerCase();
-    const mapped = PRESET_ALIAS_MAP[t] || t;
-    return PRESET_ICONS.find((p) => p.type === mapped) || PRESET_ICONS.find((p) => p.type === t) || null;
+    return window.QrSarGis.Markers.getPreset(rawType);
   }
 
   // Color Palette for Polygons and Routes
@@ -800,7 +714,7 @@
   ];
 
   // ==========================================
-  // 2. GEODETIC & MATHEMATICAL UTILITIES
+  // 2. GEODETIC & MATHEMATICAL UTILITIES (SSOT: assets/js/gis/geodesy.js)
   // ==========================================
 
   function decimalToDms(lat, lng) {
@@ -808,209 +722,15 @@
   }
 
   function parseCoordinatesString(text) {
-    if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.parseCoordinatesString === 'function') {
-      return window.QrSarGis.Geodesy.parseCoordinatesString(text);
-    }
-    if (!text || typeof text !== 'string') return null;
-    const clean = text.trim();
-    if (!clean) return null;
-
-    // Normalise Indonesian cardinal letters (LS -> S, LU -> N, BT -> E, BB -> W)
-    const norm = clean
-      .replace(/\bLS\b/gi, 'S')
-      .replace(/\bLU\b/gi, 'N')
-      .replace(/\bBT\b/gi, 'E')
-      .replace(/\bBB\b/gi, 'W');
-
-    // 1. Full DMS Regex: e.g. 04° 02' 16" S, 122° 29' 12" E or 04 02 16 S 122 29 12 E
-    const dmsRegex = /(\d{1,2})[°\s]+(\d{1,2})['\s]+(\d{1,2}(?:\.\d+)?)["]?\s*([NSns])\s*[-–,\s/]+\s*(\d{1,3})[°\s]+(\d{1,2})['\s]+(\d{1,2}(?:\.\d+)?)["]?\s*([EWew])/i;
-    const mDms = norm.match(dmsRegex);
-    if (mDms) {
-      let lat = parseFloat(mDms[1]) + parseFloat(mDms[2]) / 60 + parseFloat(mDms[3]) / 3600;
-      if (mDms[4].toUpperCase() === 'S') lat = -lat;
-      let lng = parseFloat(mDms[5]) + parseFloat(mDms[6]) / 60 + parseFloat(mDms[7]) / 3600;
-      if (mDms[8].toUpperCase() === 'W') lng = -lng;
-      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { lat, lng };
-      }
-    }
-
-    // 2. DDM (Degrees Decimal Minutes) Regex: e.g. 04° 02.266' S, 122° 29.200' E
-    const ddmRegex = /(\d{1,2})[°\s]+(\d{1,2}(?:\.\d+)?)[']?\s*([NSns])\s*[-–,\s/]+\s*(\d{1,3})[°\s]+(\d{1,2}(?:\.\d+)?)[']?\s*([EWew])/i;
-    const mDdm = norm.match(ddmRegex);
-    if (mDdm) {
-      let lat = parseFloat(mDdm[1]) + parseFloat(mDdm[2]) / 60;
-      if (mDdm[3].toUpperCase() === 'S') lat = -lat;
-      let lng = parseFloat(mDdm[4]) + parseFloat(mDdm[5]) / 60;
-      if (mDdm[6].toUpperCase() === 'W') lng = -lng;
-      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { lat, lng };
-      }
-    }
-
-    // 3. Decimal with Cardinal direction: e.g. 4.0376 S, 122.4866 E
-    const decCardRegex = /(\d{1,2}(?:\.\d+)?)\s*([NSns])\s*[-–,\s/]+\s*(\d{1,3}(?:\.\d+)?)\s*([EWew])/i;
-    const mDecCard = norm.match(decCardRegex);
-    if (mDecCard) {
-      let lat = parseFloat(mDecCard[1]);
-      if (mDecCard[2].toUpperCase() === 'S') lat = -lat;
-      let lng = parseFloat(mDecCard[3]);
-      if (mDecCard[4].toUpperCase() === 'W') lng = -lng;
-      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { lat, lng };
-      }
-    }
-
-    // 4. Standard Signed Decimal: e.g. -4.037664, 122.486662 or -4.037664 122.486662
-    const decRegex = /([-+]?\d{1,2}(?:\.\d+)?)\s*[,;\s]+\s*([-+]?\d{1,3}(?:\.\d+)?)/;
-    const mDec = clean.match(decRegex);
-    if (mDec) {
-      const lat = parseFloat(mDec[1]);
-      const lng = parseFloat(mDec[2]);
-      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
-        return { lat, lng };
-      }
-    }
-
-    return null;
+    return window.QrSarGis.Geodesy.parseCoordinatesString(text);
   }
 
   function calculateDistanceHaversine(lat1, lon1, lat2, lon2) {
-    if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.calculateDistanceHaversine === 'function') {
-      return window.QrSarGis.Geodesy.calculateDistanceHaversine(lat1, lon1, lat2, lon2);
-    }
-    const R = 6371; // Earth radius in km
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const km = R * c;
-    const nm = km * 0.539957;
-
-    const y = Math.sin(dLon) * Math.cos((lat2 * Math.PI) / 180);
-    const x =
-      Math.cos((lat1 * Math.PI) / 180) * Math.sin((lat2 * Math.PI) / 180) -
-      Math.sin((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.cos(dLon);
-    let brng = (Math.atan2(y, x) * 180) / Math.PI;
-    brng = (brng + 360) % 360;
-
-    const headings = ['Utara', 'Timur Laut', 'Timur', 'Tenggara', 'Selatan', 'Barat Daya', 'Barat', 'Barat Laut'];
-    const headingIdx = Math.round(brng / 45) % 8;
-
-    return {
-      km: Math.round(km * 100) / 100,
-      nm: Math.round(nm * 100) / 100,
-      bearing: Math.round(brng),
-      headingName: headings[headingIdx]
-    };
+    return window.QrSarGis.Geodesy.calculateDistanceHaversine(lat1, lon1, lat2, lon2);
   }
 
   function calculatePolygonSphericalArea(coordsOrPoly, shapeType, radiusNm, boxWidthNm, boxHeightNm) {
-    if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.calculatePolygonSphericalArea === 'function') {
-      return window.QrSarGis.Geodesy.calculatePolygonSphericalArea(coordsOrPoly, shapeType, radiusNm, boxWidthNm, boxHeightNm);
-    }
-    let coords = coordsOrPoly;
-    if (coordsOrPoly && typeof coordsOrPoly === 'object' && !Array.isArray(coordsOrPoly)) {
-      if (coordsOrPoly.points) {
-        coords = coordsOrPoly.points;
-      }
-      shapeType = shapeType || coordsOrPoly.shapeType;
-      radiusNm = radiusNm || coordsOrPoly.radiusNm;
-      boxWidthNm = boxWidthNm || coordsOrPoly.boxWidthNm;
-      boxHeightNm = boxHeightNm || coordsOrPoly.boxHeightNm;
-    }
-
-    // 1. Circle Area: A = pi * r^2
-    if (shapeType === 'circle' && radiusNm && Number(radiusNm) > 0) {
-      const r = Number(radiusNm);
-      const sqNm = Math.PI * Math.pow(r, 2);
-      const sqKm = sqNm * 3.429904;
-      const perimeterNm = 2 * Math.PI * r;
-      const perimeterKm = perimeterNm * 1.852;
-      return {
-        sqKm: Math.round(sqKm * 100) / 100,
-        sqNm: Math.round(sqNm * 100) / 100,
-        hectares: Math.round(sqKm * 1000) / 10,
-        perimeterKm: Math.round(perimeterKm * 100) / 100,
-        perimeterNm: Math.round(perimeterNm * 100) / 100
-      };
-    }
-
-    // 2. Box / Rectangle Area: A = width * height
-    if ((shapeType === 'box' || shapeType === 'rectangle') && boxWidthNm && boxHeightNm && Number(boxWidthNm) > 0 && Number(boxHeightNm) > 0) {
-      const w = Number(boxWidthNm);
-      const h = Number(boxHeightNm);
-      const sqNm = w * h;
-      const sqKm = sqNm * 3.429904;
-      const perimeterNm = 2 * (w + h);
-      const perimeterKm = perimeterNm * 1.852;
-      return {
-        sqKm: Math.round(sqKm * 100) / 100,
-        sqNm: Math.round(sqNm * 100) / 100,
-        hectares: Math.round(sqKm * 1000) / 10,
-        perimeterKm: Math.round(perimeterKm * 100) / 100,
-        perimeterNm: Math.round(perimeterNm * 100) / 100
-      };
-    }
-
-    if (!coords || coords.length < 3) {
-      return { sqKm: 0, sqNm: 0, hectares: 0, perimeterKm: 0, perimeterNm: 0 };
-    }
-
-    // Geodesic / nautical area in NM² matching SAR/Basarnas standard and GisModel.php
-    let sumLat = 0;
-    coords.forEach(p => {
-      const lat = p.lat !== undefined ? p.lat : (Array.isArray(p) ? p[0] : 0);
-      sumLat += Number(lat || 0);
-    });
-    const meanLatRad = (sumLat / coords.length) * (Math.PI / 180);
-    const cosMeanLat = Math.cos(meanLatRad);
-
-    let areaSum = 0;
-    const n = coords.length;
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      const pt1 = coords[i];
-      const pt2 = coords[j];
-      const lng1 = pt1.lng !== undefined ? pt1.lng : (Array.isArray(pt1) ? pt1[1] : 0);
-      const lat1 = pt1.lat !== undefined ? pt1.lat : (Array.isArray(pt1) ? pt1[0] : 0);
-      const lng2 = pt2.lng !== undefined ? pt2.lng : (Array.isArray(pt2) ? pt2[1] : 0);
-      const lat2 = pt2.lat !== undefined ? pt2.lat : (Array.isArray(pt2) ? pt2[0] : 0);
-
-      const x1 = Number(lng1 || 0) * 60.0 * cosMeanLat;
-      const y1 = Number(lat1 || 0) * 60.0;
-      const x2 = Number(lng2 || 0) * 60.0 * cosMeanLat;
-      const y2 = Number(lat2 || 0) * 60.0;
-      areaSum += (x1 * y2) - (x2 * y1);
-    }
-    const sqNm = Math.abs(areaSum) / 2.0;
-    const sqKm = sqNm * 3.429904; // 1 NM = 1.852 km => 1 NM² = 3.429904 km²
-    const hectares = sqKm * 100;
-
-    let perimeterKm = 0;
-    for (let i = 0; i < coords.length; i++) {
-      const p1 = coords[i];
-      const p2 = coords[(i + 1) % coords.length];
-      const lat1 = p1.lat !== undefined ? p1.lat : (Array.isArray(p1) ? p1[0] : 0);
-      const lng1 = p1.lng !== undefined ? p1.lng : (Array.isArray(p1) ? p1[1] : 0);
-      const lat2 = p2.lat !== undefined ? p2.lat : (Array.isArray(p2) ? p2[0] : 0);
-      const lng2 = p2.lng !== undefined ? p2.lng : (Array.isArray(p2) ? p2[1] : 0);
-      perimeterKm += calculateDistanceHaversine(lat1, lng1, lat2, lng2).km;
-    }
-    const perimeterNm = perimeterKm * 0.539957;
-
-    return {
-      sqKm: Math.round(sqKm * 100) / 100,
-      sqNm: Math.round(sqNm * 100) / 100,
-      hectares: Math.round(hectares * 10) / 10,
-      perimeterKm: Math.round(perimeterKm * 100) / 100,
-      perimeterNm: Math.round(perimeterNm * 100) / 100
-    };
+    return window.QrSarGis.Geodesy.calculatePolygonSphericalArea(coordsOrPoly, shapeType, radiusNm, boxWidthNm, boxHeightNm);
   }
 
   function formatDurationIndonesian(minutes) {
@@ -1023,148 +743,23 @@
   }
 
   // ==========================================
-  // 3. SVG MARKER HTML GENERATORS
+  // 3. SVG MARKER HTML GENERATORS (SSOT: assets/js/gis/markers.js)
   // ==========================================
 
   function createPointSvgHtml(type, color, isEditing, customUrl, labelNumber) {
-    if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createPointSvgHtml === 'function') {
-      return window.QrSarGis.Markers.createPointSvgHtml(type, color, isEditing, customUrl, labelNumber);
-    }
-    const width = isEditing ? 46 : 38;
-    const height = isEditing ? 54 : 46;
-    const cx = width / 2;
-    const normType = String(type || 'pin_umum').trim().toLowerCase();
-    const preset = getPresetIcon(normType);
-    const pinColor = color || (preset ? preset.color : '#ea580c');
-
-    let innerContent = '';
-
-    const normalizedUrl = normalizeIconUrl(customUrl);
-    if (normalizedUrl) {
-      const safeUrl = escapeHtml(normalizedUrl);
-      innerContent = `
-        <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-        <image href="${safeUrl}" xlink:href="${safeUrl}" x="${cx - 10}" y="6" width="20" height="20" preserveAspectRatio="xMidYMid slice" />
-      `;
-    } else if (normType === 'alphabet') {
-      const char = String(labelNumber || 'A').trim().toUpperCase().slice(0, 3) || 'A';
-      innerContent = `
-        <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-        <text x="${cx}" y="20.5" font-family="Arial, system-ui, sans-serif" font-size="12.5" font-weight="900" fill="${pinColor}" text-anchor="middle">${escapeHtml(char)}</text>
-      `;
-    } else {
-      const emoji = preset ? preset.emoji : '📍';
-      innerContent = `
-        <circle cx="${cx}" cy="16" r="11" fill="#ffffff" />
-        <text x="${cx}" y="16.5" font-family="'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', Arial, sans-serif" font-size="13.5" text-anchor="middle" dominant-baseline="central">${emoji}</text>
-      `;
-    }
-
-    const haloRing = isEditing
-      ? `<circle cx="${cx}" cy="16" r="17" fill="none" stroke="#facc15" stroke-width="3" stroke-dasharray="3,3" />`
-      : (normType === 'lkp' || normType === 'target' || normType === 'sinyal_sos' || normType === 'orang_hilang' || normType === 'tenggelam' || normType === 'medis_gawat' || normType === 'bencana')
-        ? `<circle cx="${cx}" cy="16" r="18" fill="none" stroke="${pinColor}" stroke-width="1.8" stroke-opacity="0.65">
-          <animate attributeName="r" values="14;22;14" dur="2s" repeatCount="indefinite" />
-          <animate attributeName="stroke-opacity" values="0.85;0.1;0.85" dur="2s" repeatCount="indefinite" />
-         </circle>`
-        : '';
-
-    return `
-      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="display:block;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4));">
-        <g>
-          ${haloRing}
-          <path d="M${cx} ${height - 4} C${cx - 2} ${height - 10}, ${cx - 14} 24, ${cx - 14} 16 A14 14 0 1 1 ${cx + 14} 16 C${cx + 14} 24, ${cx + 2} ${height - 10}, ${cx} ${height - 4} Z" fill="${pinColor}" stroke="#ffffff" stroke-width="2" />
-          ${innerContent}
-        </g>
-      </svg>
-    `;
+    return window.QrSarGis.Markers.createPointSvgHtml(type, color, isEditing, customUrl, labelNumber);
   }
 
   function createMarkerHtml(point, isEditing = false) {
-    if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createMarkerHtml === 'function') {
-      return window.QrSarGis.Markers.createMarkerHtml(point, isEditing);
-    }
-    const pType = String(point.pointType || point.type || 'pin_umum').trim().toLowerCase() || 'pin_umum';
-    const preset = getPresetIcon(pType);
-    const color = point.customColor || (preset ? preset.color : '#ea580c');
-    const label = point.label !== undefined && point.label !== null ? String(point.label).trim() : '';
-    const width = isEditing ? 46 : 38;
-    const height = isEditing ? 54 : 46;
-    const svg = createPointSvgHtml(pType, color, isEditing, point.customIconUrl, point.alphabetChar);
-
-    // Requirement 1: If label is empty, only show the point without any name above it
-    const labelBadge = label
-      ? `
-        <div style="
-          position: absolute;
-          bottom: 100%;
-          left: 50%;
-          transform: translateX(-50%);
-          margin-bottom: 3px;
-          background: rgba(15, 23, 42, 0.95);
-          color: #f8fafc;
-          font-size: 11px;
-          font-weight: 800;
-          padding: 2px 7px;
-          border-radius: 6px;
-          border: 1px solid rgba(255, 255, 255, 0.4);
-          box-shadow: 0 2px 6px rgba(0,0,0,0.6);
-          white-space: nowrap;
-          pointer-events: none;
-          max-width: 180px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          z-index: 10;
-        ">${escapeHtml(label)}</div>
-      `
-      : '';
-
-    return `
-      <div class="sar-marker-root" style="position: relative; width: ${width}px; height: ${height}px; user-select: none; pointer-events: auto;">
-        ${labelBadge}
-        ${svg}
-      </div>
-    `;
+    return window.QrSarGis.Markers.createMarkerHtml(point, isEditing);
   }
 
   function createVertexBadgeHtml(letter, color = '#ea580c', isDragging = false) {
-    if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createVertexBadgeHtml === 'function') {
-      return window.QrSarGis.Markers.createVertexBadgeHtml(letter, color, isDragging);
-    }
-    const size = isDragging ? 36 : 30;
-    return `
-      <div style="display: block; width: ${size}px; height: ${size}px; user-select: none;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-          <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" fill="${color}" stroke="#ffffff" stroke-width="2.5" />
-          <text x="${size / 2}" y="${size / 2 + 4.5}" font-family="Arial, sans-serif" font-size="12" font-weight="900" fill="#ffffff" text-anchor="middle">${letter}</text>
-        </svg>
-      </div>
-    `;
+    return window.QrSarGis.Markers.createVertexBadgeHtml(letter, color, isDragging);
   }
 
   function createPatternCornerHtml(type, color = '#0284c7', customLetter = '') {
-    if (window.QrSarGis && window.QrSarGis.Markers && typeof window.QrSarGis.Markers.createPatternCornerHtml === 'function') {
-      return window.QrSarGis.Markers.createPatternCornerHtml(type, color, customLetter);
-    }
-    const isStart = type === 'start';
-    const isEnd = type === 'end';
-    const fillColor = isStart ? '#16a34a' : isEnd ? '#dc2626' : color;
-    const letter = customLetter ? customLetter : (isStart ? 'S' : isEnd ? 'E' : '');
-    const isLong = letter.length >= 2;
-    const size = isLong ? 26 : 24;
-    const center = size / 2;
-    const radius = isLong ? 11 : 10;
-    const fontSize = isLong ? 9 : 11;
-    const textY = isLong ? (center + 3.5) : 16;
-
-    return `
-      <div style="display: block; width: ${size}px; height: ${size}px; user-select: none; cursor: grab;" class="sar-pat-corner">
-        <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-          <circle cx="${center}" cy="${center}" r="${radius}" fill="${fillColor}" stroke="#ffffff" stroke-width="2" />
-          ${letter ? `<text x="${center}" y="${textY}" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="900" fill="#ffffff" text-anchor="middle">${letter}</text>` : `<circle cx="${center}" cy="${center}" r="4" fill="#ffffff" />`}
-        </svg>
-      </div>
-    `;
+    return window.QrSarGis.Markers.createPatternCornerHtml(type, color, customLetter);
   }
 
   // ==========================================
@@ -1307,15 +902,31 @@
       if (tileLayers.osm) map.addLayer(tileLayers.osm);
     }
 
-    // Update Pills in UI
+    // Update Pills in UI & Floating Basemap Indicator
+    const basemapLabels = {
+      hybrid: 'Hybrid',
+      google_hybrid: 'Hybrid',
+      satellite: 'Satelit',
+      roadmap: 'Roadmap',
+      terrain: 'Terrain',
+      osm: 'OSM'
+    };
+    const activeLayerKey = type === 'google_hybrid' ? 'hybrid' : type;
     document.querySelectorAll('.basemap-pill-btn').forEach((btn) => {
       const layer = btn.getAttribute('data-layer');
-      if (layer === type) {
-        btn.className = 'basemap-pill-btn px-2.5 py-1 rounded-lg bg-orange-500 text-white shadow-sm transition font-bold';
+      const isSelected = layer === activeLayerKey;
+      btn.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+      if (isSelected) {
+        btn.className = 'btn-tactile basemap-pill-btn px-2.5 py-2 rounded-xl bg-orange-500 text-white shadow-xs transition font-bold cursor-pointer text-center';
       } else {
-        btn.className = 'basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition font-medium';
+        btn.className = 'btn-tactile basemap-pill-btn px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-medium cursor-pointer text-center';
       }
     });
+    const basemapLabelText = basemapLabels[activeLayerKey] || 'Hybrid';
+    const basemapLabelEl = document.getElementById('floatingBasemapActiveLabel');
+    if (basemapLabelEl) basemapLabelEl.textContent = basemapLabelText;
+    const basemapBtn = document.getElementById('btnFloatingBasemapToggle');
+    if (basemapBtn) basemapBtn.title = `Jenis Peta: ${basemapLabelText}`;
   }
 
   function onMapMouseMove(e) {
@@ -1660,6 +1271,7 @@
     currentSelectedSearchResult = result;
 
     document.getElementById('locationSearchResultsPopover').classList.add('hidden');
+    closeAllFloatingMapPopovers();
 
     // Smart zoom depending on place type
     let zoomLevel = 14;
@@ -2088,12 +1700,12 @@
       iconClosed.classList.add('hidden');
       iconOpen.classList.remove('hidden');
       label.textContent = 'Mode Geser Aktif';
-      btn.className = 'flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition bg-amber-500/20 border-amber-500/40 text-amber-300 shadow';
+      btn.className = 'flex-1 py-1.5 px-2.5 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1.5 transition bg-amber-500/15 border-amber-500/40 text-amber-700 dark:text-amber-300 shadow-xs cursor-pointer min-w-0';
     } else {
       iconClosed.classList.remove('hidden');
       iconOpen.classList.add('hidden');
       label.textContent = 'Posisi Terkunci';
-      btn.className = 'flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-750';
+      btn.className = 'flex-1 py-1.5 px-2.5 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1.5 transition bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer min-w-0';
     }
 
     // Update draggable on existing point markers
@@ -2235,20 +1847,7 @@
 
     // Ensure tab is switched to tab-points and sidebar is opened
     switchActiveTab('tab-points');
-    const sidebar = document.getElementById('gisSidebarPanel');
-    if (sidebar && sidebar.classList.contains('-ml-[390px]')) {
-      isSidebarVisible = true;
-      sidebar.classList.remove('-ml-[390px]');
-      const floatingBtn = document.getElementById('btnFloatingOpenSidebar');
-      if (floatingBtn) floatingBtn.classList.add('hidden');
-      const iconClose = document.getElementById('iconSidebarClose');
-      if (iconClose) iconClose.classList.remove('hidden');
-      const iconOpen = document.getElementById('iconSidebarOpen');
-      if (iconOpen) iconOpen.classList.add('hidden');
-      const label = document.getElementById('labelSidebarToggle');
-      if (label) label.textContent = 'Sembunyikan Tools';
-      setTimeout(() => { if (map) map.invalidateSize(); }, 200);
-    }
+    setSidebarVisibility(true);
 
     const nameInput = document.getElementById('pcPointName');
     if (nameInput) nameInput.value = data.label || '';
@@ -2282,7 +1881,14 @@
       else cat = 'Tanpa Kategori';
     }
     const catSelect = document.getElementById('pcPointCategory');
-    if (catSelect) catSelect.value = cat;
+    if (catSelect) {
+      catSelect.value = cat;
+      const lockCat = Boolean(editingPointId && isPointDeleteLockedForUser({ category: data.category || cat }));
+      catSelect.disabled = lockCat;
+      catSelect.classList.toggle('opacity-70', lockCat);
+      catSelect.classList.toggle('cursor-not-allowed', lockCat);
+      catSelect.title = lockCat ? 'Kategori Pangkalan SAR & Dermaga SAR tidak dapat diubah oleh User' : '';
+    }
 
     const descInput = document.getElementById('pcPointDesc');
     if (descInput) descInput.value = data.description || '';
@@ -2835,35 +2441,44 @@
   function renderBulkActionToolbarHtml(entityType, items) {
     const cfg = getBulkEntityConfig(entityType);
     if (!cfg || !Array.isArray(items) || items.length === 0) return '';
-    const selectedIds = items.filter((it) => isIdHidden(cfg.selectedSet, it.id)).map((it) => String(it.id));
-    const selCount = selectedIds.length;
+    const selectedItems = items.filter((it) => isIdHidden(cfg.selectedSet, it.id));
+    const selCount = selectedItems.length;
+    const isAdminUser = !!(initialData && initialData.isAdmin);
+    const deletableSelCount = isAdminUser
+      ? selCount
+      : selectedItems.filter((it) => {
+          const isBase = !(it.id_operasi && parseInt(it.id_operasi, 10) > 0);
+          if (isBase) return false;
+          if (cfg.type === 'points' && isPointDeleteLockedForUser(it)) return false;
+          return true;
+        }).length;
     const allChecked = selCount > 0 && selCount === items.length;
-    const targetItems = selCount > 0 ? items.filter((it) => isIdHidden(cfg.selectedSet, it.id)) : items;
+    const targetItems = selCount > 0 ? selectedItems : items;
     const allTargetHidden = targetItems.length > 0 && targetItems.every((it) => isIdHidden(cfg.hiddenSet, it.id));
 
     return `
-      <div class="flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 text-[11px]">
-        <label class="inline-flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+      <div class="flex items-center justify-between gap-1 px-2 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 text-[11px]">
+        <label class="inline-flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200 cursor-pointer select-none whitespace-nowrap" title="Pilih Semua">
           <input type="checkbox" class="rounded border-slate-300 dark:border-slate-700 text-orange-600 focus:ring-orange-500 cursor-pointer"
             ${allChecked ? 'checked' : ''}
             onchange="window.SAR_GIS.toggleSelectAll('${cfg.type}', this.checked)">
-          <span>Pilih Semua</span>
+          <span>Semua</span>
           <span class="font-mono text-[10px] px-1.5 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">${selCount}/${items.length}</span>
         </label>
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-1 shrink-0">
           <button type="button"
             onclick="window.SAR_GIS.bulkToggleVisibility('${cfg.type}')"
-            class="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold inline-flex items-center gap-1 cursor-pointer transition"
+            class="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold inline-flex items-center gap-1 cursor-pointer transition whitespace-nowrap"
             title="${allTargetHidden ? 'Tampilkan' : 'Sembunyikan'} ${selCount > 0 ? selCount + ' item terpilih' : 'semua item'}">
             ${allTargetHidden ? GIS_ICON.eye : GIS_ICON.eyeOff}
             <span>${allTargetHidden ? 'Tampilkan' : 'Sembunyikan'}${selCount > 0 ? ` (${selCount})` : ''}</span>
           </button>
           <button type="button"
             onclick="window.SAR_GIS.bulkDeleteSelected('${cfg.type}')"
-            class="px-2 py-1 rounded-lg border ${selCount > 0 ? 'border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400' : 'border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/40 text-slate-400'} font-bold inline-flex items-center gap-1 cursor-pointer transition"
+            class="px-2 py-1 rounded-lg border ${deletableSelCount > 0 ? 'border-red-500/40 bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400' : 'border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/40 text-slate-400'} font-bold inline-flex items-center gap-1 cursor-pointer transition whitespace-nowrap"
             title="Hapus ${cfg.label} yang dicentang">
             ${GIS_ICON.trash}
-            <span>Hapus${selCount > 0 ? ` (${selCount})` : ''}</span>
+            <span>Hapus${deletableSelCount > 0 ? ` (${deletableSelCount})` : ''}</span>
           </button>
         </div>
       </div>`;
@@ -2983,19 +2598,39 @@
     }
 
     const isAdminUser = !!(initialData && initialData.isAdmin);
+    let skippedBaseCount = 0;
+    let skippedProtectedCatCount = 0;
     const deletableItems = isAdminUser
       ? selectedItems
-      : selectedItems.filter((it) => it.id_operasi && parseInt(it.id_operasi, 10) > 0);
-    const skippedBaseCount = selectedItems.length - deletableItems.length;
+      : selectedItems.filter((it) => {
+          if (cfg.type === 'points' && isPointDeleteLockedForUser(it)) {
+            skippedProtectedCatCount++;
+            return false;
+          }
+          if (!(it.id_operasi && parseInt(it.id_operasi, 10) > 0)) {
+            skippedBaseCount++;
+            return false;
+          }
+          return true;
+        });
 
     if (deletableItems.length === 0) {
       if (typeof showToast === 'function') {
-        showToast('Item Base Map hanya dapat dihapus oleh Administrator.', 'error');
+        if (skippedProtectedCatCount > 0 && skippedBaseCount === 0) {
+          showToast('Titik kategori Pangkalan SAR & Dermaga SAR hanya dapat dihapus oleh Administrator.', 'error');
+        } else if (skippedProtectedCatCount > 0) {
+          showToast('Titik Pangkalan/Dermaga SAR dan item Base Map hanya dapat dihapus oleh Administrator.', 'error');
+        } else {
+          showToast('Item Base Map hanya dapat dihapus oleh Administrator.', 'error');
+        }
       }
       return;
     }
 
-    const extraNote = skippedBaseCount > 0 ? ` (${skippedBaseCount} item Base Map dilewati karena khusus Admin)` : '';
+    const skipParts = [];
+    if (skippedProtectedCatCount > 0) skipParts.push(`${skippedProtectedCatCount} titik Pangkalan/Dermaga SAR`);
+    if (skippedBaseCount > 0) skipParts.push(`${skippedBaseCount} item Base Map`);
+    const extraNote = skipParts.length > 0 ? ` (${skipParts.join(' & ')} dilewati karena khusus Admin)` : '';
     const ok = await confirmAction(
       `Hapus ${deletableItems.length} ${cfg.label}`,
       `Apakah Anda yakin ingin menghapus ${deletableItems.length} ${cfg.label} yang dipilih secara permanen?${extraNote}`,
@@ -3236,7 +2871,9 @@
             <button type="button" onclick="window.SAR_GIS.copyPointCoordinates('${safeId}')" class="p-1 text-slate-400 hover:text-emerald-500 rounded cursor-pointer" title="Salin Koordinat">${GIS_ICON.copy}</button>
             <button type="button" onclick="window.SAR_GIS.togglePointVisibility('${safeId}')" class="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded cursor-pointer" title="${isHidden ? 'Tampilkan' : 'Sembunyikan'}">${isHidden ? GIS_ICON.eyeOff : GIS_ICON.eye}</button>
             <button type="button" onclick="window.SAR_GIS.editPoint('${safeId}')" class="p-1 text-slate-400 hover:text-orange-500 rounded cursor-pointer" title="Edit">${GIS_ICON.edit}</button>
-            <button type="button" onclick="window.SAR_GIS.deletePoint('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 rounded cursor-pointer" title="Hapus">${GIS_ICON.trash}</button>
+            ${isPointDeleteLockedForUser(pt)
+              ? `<span class="p-1 text-slate-300 dark:text-slate-600 cursor-not-allowed" title="Kategori Pangkalan SAR &amp; Dermaga SAR hanya dapat dihapus oleh Admin" aria-label="Hapus terkunci khusus Admin">${GIS_ICON.lock}</span>`
+              : `<button type="button" onclick="window.SAR_GIS.deletePoint('${safeId}')" class="p-1 text-slate-400 hover:text-red-500 rounded cursor-pointer" title="Hapus">${GIS_ICON.trash}</button>`}
           </div>
         </div>`;
     };
@@ -3582,22 +3219,7 @@
     if (normRot === 0) {
       return baseVertices;
     }
-    if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.rotatePointsConformal === 'function') {
-      return window.QrSarGis.Patterns.rotatePointsConformal(baseVertices, normRot, { lat: centerLat, lng: centerLng });
-    }
-    const rad = (normRot * Math.PI) / 180;
-    const cosA = Math.cos(rad);
-    const sinA = Math.sin(rad);
-    const cosLat = Math.max(0.1, Math.cos((centerLat * Math.PI) / 180));
-    return baseVertices.map((p) => {
-      const dx = (p.lng - centerLng) * cosLat;
-      const dy = p.lat - centerLat;
-      return {
-        ...p,
-        lat: centerLat + (-dx * sinA + dy * cosA),
-        lng: centerLng + (dx * cosA + dy * sinA) / cosLat
-      };
-    });
+    return window.QrSarGis.Patterns.rotatePointsConformal(baseVertices, normRot, { lat: centerLat, lng: centerLng });
   }
 
   function handleSearchAreaMapClick(lat, lng) {
@@ -5277,314 +4899,8 @@
     return { lat: poly[0].lat, lng: poly[0].lng };
   }
 
-  function getHorizontalIntersections(lat, poly) {
-    const n = poly.length;
-    const intersections = [];
-
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      const p1 = poly[i];
-      const p2 = poly[j];
-
-      const minY = Math.min(p1.lat, p2.lat);
-      const maxY = Math.max(p1.lat, p2.lat);
-
-      if (lat >= minY && lat <= maxY && maxY !== minY) {
-        const t = (lat - p1.lat) / (p2.lat - p1.lat);
-        if (t >= 0 && t <= 1) {
-          const lngInter = p1.lng + t * (p2.lng - p1.lng);
-          intersections.push(lngInter);
-        }
-      }
-    }
-
-    intersections.sort((a, b) => a - b);
-    const unique = [];
-    for (let i = 0; i < intersections.length; i++) {
-      if (i === 0 || Math.abs(intersections[i] - intersections[i - 1]) > 1e-6) {
-        unique.push(intersections[i]);
-      }
-    }
-    return unique;
-  }
-
-  function getVerticalIntersections(lng, poly) {
-    const n = poly.length;
-    const intersections = [];
-
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      const p1 = poly[i];
-      const p2 = poly[j];
-
-      const minX = Math.min(p1.lng, p2.lng);
-      const maxX = Math.max(p1.lng, p2.lng);
-
-      if (lng >= minX && lng <= maxX && maxX !== minX) {
-        const t = (lng - p1.lng) / (p2.lng - p1.lng);
-        if (t >= 0 && t <= 1) {
-          const latInter = p1.lat + t * (p2.lat - p1.lat);
-          intersections.push(latInter);
-        }
-      }
-    }
-
-    intersections.sort((a, b) => a - b);
-    const unique = [];
-    for (let i = 0; i < intersections.length; i++) {
-      if (i === 0 || Math.abs(intersections[i] - intersections[i - 1]) > 1e-6) {
-        unique.push(intersections[i]);
-      }
-    }
-    return unique;
-  }
-
-  function lineSegmentIntersection(p1, p2, p3, p4) {
-    const dX1 = p2.lng - p1.lng;
-    const dY1 = p2.lat - p1.lat;
-    const dX2 = p4.lng - p3.lng;
-    const dY2 = p4.lat - p3.lat;
-
-    const denom = dX1 * dY2 - dY1 * dX2;
-    if (Math.abs(denom) < 1e-12) return null;
-
-    const t = ((p3.lng - p1.lng) * dY2 - (p3.lat - p1.lat) * dX2) / denom;
-    const u = ((p3.lng - p1.lng) * dY1 - (p3.lat - p1.lat) * dX1) / denom;
-
-    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-      return {
-        lat: p1.lat + t * dY1,
-        lng: p1.lng + t * dX1,
-        t: t
-      };
-    }
-    return null;
-  }
-
-  function clipSegmentToPolygon(fromPt, toPt, poly, safeMarginDeg = 0.0005) {
-    const n = poly.length;
-    let closestInter = null;
-    let minT = 1.0;
-
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      const inter = lineSegmentIntersection(fromPt, toPt, poly[i], poly[j]);
-      if (inter && inter.t < minT && inter.t > 1e-5) {
-        minT = inter.t;
-        closestInter = inter;
-      }
-    }
-
-    if (closestInter) {
-      const dist = Math.hypot(toPt.lat - fromPt.lat, toPt.lng - fromPt.lng) || 1e-5;
-      const pullT = Math.max(0.01, minT - (safeMarginDeg / dist));
-      const safeT = Math.max(0.05, Math.min(minT * 0.96, pullT));
-      return {
-        lat: fromPt.lat + safeT * (toPt.lat - fromPt.lat),
-        lng: fromPt.lng + safeT * (toPt.lng - fromPt.lng),
-        clipped: true
-      };
-    }
-
-    if (isPointInPolygon(toPt.lat, toPt.lng, poly)) {
-      return { lat: toPt.lat, lng: toPt.lng, clipped: false };
-    }
-
-    return {
-      lat: fromPt.lat + 0.9 * (toPt.lat - fromPt.lat),
-      lng: fromPt.lng + 0.9 * (toPt.lng - fromPt.lng),
-      clipped: true
-    };
-  }
-
   function generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount, options = {}) {
-    if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.generateFittedPatternInsidePolygon === 'function') {
-      return window.QrSarGis.Patterns.generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount, options);
-    }
-    const cleanPoints = (polygonPoints || []).map((p) => ({
-      lat: parseFloat(p.lat),
-      lng: parseFloat(p.lng),
-      label: p.label || ''
-    })).filter((p) => !isNaN(p.lat) && !isNaN(p.lng));
-
-    if (cleanPoints.length < 3) return [];
-
-    let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-    cleanPoints.forEach((p) => {
-      if (p.lat < minLat) minLat = p.lat;
-      if (p.lat > maxLat) maxLat = p.lat;
-      if (p.lng < minLng) minLng = p.lng;
-      if (p.lng > maxLng) maxLng = p.lng;
-    });
-
-    const centroid = getPolygonCentroid(cleanPoints);
-    const midLat = centroid.lat;
-    const midLng = centroid.lng;
-    const lngKmPerDeg = Math.max(0.1, 111.32 * Math.cos((midLat * Math.PI) / 180));
-    const spacingKm = Math.max(0.1, spacingNm * 1.852);
-
-    const marginLat = (spacingKm / 2) / 110.574;
-    const marginLng = (spacingKm / 2) / lngKmPerDeg;
-
-    const spanLat = Math.max(0.001, maxLat - minLat);
-    const spanLng = Math.max(0.001, maxLng - minLng);
-    const safeMarginLat = Math.min(marginLat, spanLat * 0.12);
-    const safeMarginLng = Math.min(marginLng, spanLng * 0.12);
-
-    const points = [];
-    const effectiveLegs = Math.max(2, legsCount || 2);
-
-    if (type === 'parallel_track') {
-      const effMinLat = minLat + safeMarginLat;
-      const effMaxLat = maxLat - safeMarginLat;
-      const stepY = (effMaxLat - effMinLat) / Math.max(1, effectiveLegs - 1);
-
-      for (let i = 0; i < effectiveLegs; i++) {
-        const curLat = effMaxLat - i * stepY;
-        const inters = getHorizontalIntersections(curLat, cleanPoints);
-        if (inters.length >= 2) {
-          const left = inters[0];
-          const right = inters[inters.length - 1];
-          const legSpan = right - left;
-          const legMargin = Math.min(safeMarginLng, legSpan * 0.08);
-          const west = left + legMargin;
-          const east = right - legMargin;
-          const sweepEast = i % 2 === 0;
-
-          points.push({
-            lat: curLat,
-            lng: sweepEast ? west : east,
-            label: i === 0 ? 'Entry (S)' : `Lintasan ${i + 1}A`
-          });
-          points.push({
-            lat: curLat,
-            lng: sweepEast ? east : west,
-            label: i === effectiveLegs - 1 ? 'Exit (E)' : `Lintasan ${i + 1}B`
-          });
-        }
-      }
-
-      if (points.length < 2) {
-        const stepY = spanLat / Math.max(1, effectiveLegs - 1);
-        for (let i = 0; i < effectiveLegs; i++) {
-          const curLat = effMaxLat - i * stepY;
-          const sweepEast = i % 2 === 0;
-          points.push({ lat: curLat, lng: sweepEast ? minLng + safeMarginLng : maxLng - safeMarginLng, label: i === 0 ? 'Entry (S)' : `Lintasan ${i + 1}A` });
-          points.push({ lat: curLat, lng: sweepEast ? maxLng - safeMarginLng : minLng + safeMarginLng, label: i === effectiveLegs - 1 ? 'Exit (E)' : `Lintasan ${i + 1}B` });
-        }
-      }
-    } else if (type === 'creeping_line') {
-      const effMinLng = minLng + safeMarginLng;
-      const effMaxLng = maxLng - safeMarginLng;
-      const stepX = (effMaxLng - effMinLng) / Math.max(1, effectiveLegs - 1);
-
-      for (let i = 0; i < effectiveLegs; i++) {
-        const curLng = effMinLng + i * stepX;
-        const inters = getVerticalIntersections(curLng, cleanPoints);
-        if (inters.length >= 2) {
-          const bottom = inters[0];
-          const top = inters[inters.length - 1];
-          const legSpan = top - bottom;
-          const legMargin = Math.min(safeMarginLat, legSpan * 0.08);
-          const south = bottom + legMargin;
-          const north = top - legMargin;
-          const sweepSouth = i % 2 === 0;
-
-          points.push({
-            lat: sweepSouth ? north : south,
-            lng: curLng,
-            label: i === 0 ? 'Entry (S)' : `Sapu ${i + 1}A`
-          });
-          points.push({
-            lat: sweepSouth ? south : north,
-            lng: curLng,
-            label: i === effectiveLegs - 1 ? 'Exit (E)' : `Sapu ${i + 1}B`
-          });
-        }
-      }
-
-      if (points.length < 2) {
-        const stepX = spanLng / Math.max(1, effectiveLegs - 1);
-        for (let i = 0; i < effectiveLegs; i++) {
-          const curLng = effMinLng + i * stepX;
-          const sweepSouth = i % 2 === 0;
-          points.push({ lat: sweepSouth ? maxLat - safeMarginLat : minLat + safeMarginLat, lng: curLng, label: i === 0 ? 'Entry (S)' : `Sapu ${i + 1}A` });
-          points.push({ lat: sweepSouth ? minLat + safeMarginLat : maxLat - safeMarginLat, lng: curLng, label: i === effectiveLegs - 1 ? 'Exit (E)' : `Sapu ${i + 1}B` });
-        }
-      }
-    } else {
-      // 3. Pola Pencarian E-SAR (Explorer SAR - Darat / Gunung Hutan)
-      // Pola sapuan sejajar serentak beberapa personel regu (skirmish / sweep line)
-      const personnelCount = Math.max(2, effectiveLegs || 5);
-      const spanLatKm = (maxLat - minLat) * 110.574;
-      const spanLngKm = (maxLng - minLng) * lngKmPerDeg;
-      const orient = (options && options.orientation) ? options.orientation : (spanLatKm >= spanLngKm ? 'vertical' : 'horizontal');
-      const dir = (options && options.direction) ? options.direction : (orient === 'vertical' ? 'north_to_south' : 'west_to_east');
-
-      if (orient === 'vertical') {
-        // Area disapu vertikal (Utara-Selatan atau Selatan-Utara): Seluruh personel berbaris sejajar Barat-Timur di baseline awal
-        const effMinLng = minLng + safeMarginLng;
-        const effMaxLng = maxLng - safeMarginLng;
-        const stepX = (effMaxLng - effMinLng) / Math.max(1, personnelCount - 1);
-
-        for (let i = 0; i < personnelCount; i++) {
-          const curLng = effMinLng + i * stepX;
-          const inters = getVerticalIntersections(curLng, cleanPoints);
-          if (inters.length >= 2) {
-            const bottom = inters[0] + safeMarginLat;
-            const top = inters[inters.length - 1] - safeMarginLat;
-            const pNum = i + 1;
-
-            if (dir === 'south_to_north') {
-              // Seluruh personel bergerak serentak dari baseline awal (Selatan/bottom) ke batas maju (Utara/top)
-              points.push({ lat: bottom, lng: curLng, label: `P${pNum} Start (Baseline)`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'north', bearing: 0 });
-              points.push({ lat: top, lng: curLng, label: `P${pNum} Batas Maju`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'north', bearing: 0 });
-            } else {
-              // Default: Seluruh personel bergerak serentak dari baseline awal (Utara/top) ke batas maju (Selatan/bottom)
-              points.push({ lat: top, lng: curLng, label: `P${pNum} Start (Baseline)`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'south', bearing: 180 });
-              points.push({ lat: bottom, lng: curLng, label: `P${pNum} Batas Maju`, sweepDir: 'vertical', pNum: pNum, advanceDir: 'south', bearing: 180 });
-            }
-          }
-        }
-      } else {
-        // Area disapu horizontal (Barat-Timur atau Timur-Barat): Seluruh personel berbaris sejajar Utara-Selatan di baseline awal
-        const effMinLat = minLat + safeMarginLat;
-        const effMaxLat = maxLat - safeMarginLat;
-        const stepY = (effMaxLat - effMinLat) / Math.max(1, personnelCount - 1);
-
-        for (let i = 0; i < personnelCount; i++) {
-          const curLat = effMaxLat - i * stepY;
-          const inters = getHorizontalIntersections(curLat, cleanPoints);
-          if (inters.length >= 2) {
-            const west = inters[0] + safeMarginLng;
-            const east = inters[inters.length - 1] - safeMarginLng;
-            const pNum = i + 1;
-
-            if (dir === 'east_to_west') {
-              // Seluruh personel bergerak serentak dari baseline awal (Timur/east) ke batas maju (Barat/west)
-              points.push({ lat: curLat, lng: east, label: `P${pNum} Start (Baseline)`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'west', bearing: 270 });
-              points.push({ lat: curLat, lng: west, label: `P${pNum} Batas Maju`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'west', bearing: 270 });
-            } else {
-              // Default: Seluruh personel bergerak serentak dari baseline awal (Barat/west) ke batas maju (Timur/east)
-              points.push({ lat: curLat, lng: west, label: `P${pNum} Start (Baseline)`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'east', bearing: 90 });
-              points.push({ lat: curLat, lng: east, label: `P${pNum} Batas Maju`, sweepDir: 'horizontal', pNum: pNum, advanceDir: 'east', bearing: 90 });
-            }
-          }
-        }
-      }
-    }
-
-    // Final safety check: guarantee all waypoints are strictly inside polygon boundaries and preserve metadata
-    return points.map((p) => {
-      if (!isPointInPolygon(p.lat, p.lng, cleanPoints)) {
-        return {
-          ...p,
-          lat: p.lat * 0.88 + centroid.lat * 0.12,
-          lng: p.lng * 0.88 + centroid.lng * 0.12
-        };
-      }
-      return p;
-    });
+    return window.QrSarGis.Patterns.generateFittedPatternInsidePolygon(type, polygonPoints, spacingNm, legsCount, options);
   }
 
   function generateDatumPattern(type, center, spacingNm, legsCount, options = {}) {
@@ -5603,44 +4919,11 @@
       c = { lat: parseFloat(c.lat), lng: parseFloat(c.lng) };
     }
 
-    if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.generateDatumPattern === 'function') {
-      return window.QrSarGis.Patterns.generateDatumPattern(type, c, spacingNm, legsCount, options);
-    }
-    const spanDeg = Math.max(0.08, (spacingNm * Math.max(3, legsCount || 4) * 1.852) / 110.574);
-    const fakePolygon = [
-      { lat: c.lat + spanDeg / 2, lng: c.lng - spanDeg / 2 },
-      { lat: c.lat + spanDeg / 2, lng: c.lng + spanDeg / 2 },
-      { lat: c.lat - spanDeg / 2, lng: c.lng + spanDeg / 2 },
-      { lat: c.lat - spanDeg / 2, lng: c.lng - spanDeg / 2 }
-    ];
-    return generateFittedPatternInsidePolygon(type, fakePolygon, spacingNm, legsCount, options);
+    return window.QrSarGis.Patterns.generateDatumPattern(type, c, spacingNm, legsCount, options);
   }
 
   function getPatternPolylineCoords(type, waypoints) {
-    if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.getPatternPolylineCoords === 'function') {
-      return window.QrSarGis.Patterns.getPatternPolylineCoords(type, waypoints);
-    }
-    if (!waypoints || waypoints.length < 2) return [];
-    if (type === 'sector_search' || type === 'e_sar') {
-      const segments = [];
-      const baseline = [];
-      for (let i = 0; i < waypoints.length - 1; i += 2) {
-        const pStart = waypoints[i];
-        const pFin = waypoints[i + 1];
-        if (pStart && pFin) {
-          segments.push([
-            [parseFloat(pStart.lat), parseFloat(pStart.lng)],
-            [parseFloat(pFin.lat), parseFloat(pFin.lng)]
-          ]);
-          baseline.push([parseFloat(pStart.lat), parseFloat(pStart.lng)]);
-        }
-      }
-      if (baseline.length >= 2) {
-        segments.push(baseline);
-      }
-      return segments;
-    }
-    return waypoints.map((p) => [parseFloat(p.lat), parseFloat(p.lng)]);
+    return window.QrSarGis.Patterns.getPatternPolylineCoords(type, waypoints);
   }
 
   function recalculateActivePatternDistance() {
@@ -6175,20 +5458,7 @@
     switchActiveTab('tab-pattern');
 
     // Ensure sidebar is visible
-    const sidebar = document.getElementById('gisSidebarPanel');
-    const floatingBtn = document.getElementById('btnFloatingOpenSidebar');
-    const iconClose = document.getElementById('iconSidebarClose');
-    const iconOpen = document.getElementById('iconSidebarOpen');
-    const label = document.getElementById('labelSidebarToggle');
-    if (sidebar && sidebar.classList.contains('-ml-[390px]')) {
-      isSidebarVisible = true;
-      sidebar.classList.remove('-ml-[390px]');
-      if (floatingBtn) floatingBtn.classList.add('hidden');
-      if (iconClose) iconClose.classList.remove('hidden');
-      if (iconOpen) iconOpen.classList.add('hidden');
-      if (label) label.textContent = 'Sembunyikan Tools';
-      setTimeout(() => { if (map) map.invalidateSize(); }, 200);
-    }
+    setSidebarVisibility(true);
 
     const card = document.getElementById('patternCreationCard');
     if (card) card.classList.remove('hidden');
@@ -7064,19 +6334,7 @@
     switchActiveTab('tab-measure');
 
     // Ensure sidebar is visible
-    const sidebar = document.getElementById('gisSidebarPanel');
-    const floatingBtn = document.getElementById('btnFloatingOpenSidebar');
-    const iconClose = document.getElementById('iconSidebarClose');
-    const iconOpen = document.getElementById('iconSidebarOpen');
-    const label = document.getElementById('labelSidebarToggle');
-    if (sidebar && sidebar.classList.contains('-ml-[390px]')) {
-      isSidebarVisible = true;
-      sidebar.classList.remove('-ml-[390px]');
-      if (floatingBtn) floatingBtn.classList.add('hidden');
-      if (iconClose) iconClose.classList.remove('hidden');
-      if (iconOpen) iconOpen.classList.add('hidden');
-      if (label) label.textContent = 'Sembunyikan Tools';
-    }
+    setSidebarVisibility(true, false);
 
     // Open route card & activate measure mode
     const card = document.getElementById('routePlanningCard');
@@ -7437,38 +6695,146 @@
     }
   }
 
-  function initSidebarToggle() {
-    const btnToggle = document.getElementById('btnToggleGisSidebar');
-    const floatingBtn = document.getElementById('btnFloatingOpenSidebar');
+  function setSidebarVisibility(visible, invalidate = true) {
     const sidebar = document.getElementById('gisSidebarPanel');
+    const floatingBtn = document.getElementById('btnFloatingOpenSidebar');
     const iconClose = document.getElementById('iconSidebarClose');
     const iconOpen = document.getElementById('iconSidebarOpen');
     const label = document.getElementById('labelSidebarToggle');
+    if (!sidebar) return;
 
-    function toggle() {
-      isSidebarVisible = !isSidebarVisible;
+    const wasVisible = !sidebar.classList.contains('gis-sidebar-collapsed');
+    isSidebarVisible = !!visible;
 
-      if (isSidebarVisible) {
-        sidebar.classList.remove('-ml-[390px]');
-        floatingBtn.classList.add('hidden');
-        iconClose.classList.remove('hidden');
-        iconOpen.classList.add('hidden');
-        if (label) label.textContent = 'Sembunyikan Tools';
-      } else {
-        sidebar.classList.add('-ml-[390px]');
-        floatingBtn.classList.remove('hidden');
-        iconClose.classList.add('hidden');
-        iconOpen.classList.remove('hidden');
-        if (label) label.textContent = 'Buka Tools Plotting';
-      }
+    if (isSidebarVisible) {
+      sidebar.classList.remove('gis-sidebar-collapsed');
+      if (floatingBtn) floatingBtn.classList.add('hidden');
+      if (iconClose) iconClose.classList.remove('hidden');
+      if (iconOpen) iconOpen.classList.add('hidden');
+      if (label) label.textContent = 'Sembunyikan Tools';
+    } else {
+      sidebar.classList.add('gis-sidebar-collapsed');
+      if (floatingBtn) floatingBtn.classList.remove('hidden');
+      if (iconClose) iconClose.classList.add('hidden');
+      if (iconOpen) iconOpen.classList.remove('hidden');
+      if (label) label.textContent = 'Buka Tools Plotting';
+    }
 
+    if (invalidate && wasVisible !== isSidebarVisible) {
       setTimeout(() => {
         if (map) map.invalidateSize();
-      }, 310);
+      }, 280);
+    }
+  }
+
+  function initSidebarToggle() {
+    const btnToggle = document.getElementById('btnToggleGisSidebar');
+    const floatingBtn = document.getElementById('btnFloatingOpenSidebar');
+
+    function toggle() {
+      setSidebarVisibility(!isSidebarVisible);
     }
 
     if (btnToggle) btnToggle.addEventListener('click', toggle);
     if (floatingBtn) floatingBtn.addEventListener('click', toggle);
+  }
+
+  function closeAllFloatingMapPopovers(restoreFocus = false) {
+    const dock = document.getElementById('gisFloatingMapDock');
+    if (!dock) return;
+    let activeTrigger = null;
+    dock.querySelectorAll('.gis-fab-btn[aria-controls]').forEach((btn) => {
+      const panelId = btn.getAttribute('aria-controls');
+      const panel = panelId ? document.getElementById(panelId) : null;
+      if (btn.getAttribute('aria-expanded') === 'true') {
+        activeTrigger = btn;
+      }
+      btn.setAttribute('aria-expanded', 'false');
+      if (panel) panel.classList.add('hidden');
+    });
+    if (restoreFocus && activeTrigger) {
+      activeTrigger.focus();
+    }
+  }
+
+  function initFloatingMapControls() {
+    const dock = document.getElementById('gisFloatingMapDock');
+    if (!dock) return;
+
+    const triggers = Array.from(dock.querySelectorAll('.gis-fab-btn[aria-controls]'));
+
+    triggers.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const panelId = btn.getAttribute('aria-controls');
+        const panel = panelId ? document.getElementById(panelId) : null;
+        if (!panel) return;
+
+        const isOpen = btn.getAttribute('aria-expanded') === 'true';
+        closeAllFloatingMapPopovers(false);
+        if (!isOpen) {
+          btn.setAttribute('aria-expanded', 'true');
+          panel.classList.remove('hidden');
+          if (panelId === 'floatingSearchPopover') {
+            const input = document.getElementById('locationSearchInput');
+            if (input) setTimeout(() => input.focus(), 40);
+          }
+        }
+      });
+    });
+
+    // Prevent clicks inside floating popovers from propagating to map/document dismiss
+    dock.querySelectorAll('.gis-fab-popover').forEach((pop) => {
+      pop.addEventListener('click', (e) => e.stopPropagation());
+    });
+
+    // Close basemap/unit popovers smoothly right after picking a value
+    dock.querySelectorAll('.basemap-pill-btn, .global-unit-pill-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        closeAllFloatingMapPopovers(false);
+      });
+    });
+
+    // Light dismiss on outside click
+    document.addEventListener('click', (e) => {
+      if (!dock.contains(e.target)) {
+        closeAllFloatingMapPopovers(false);
+      }
+    });
+
+    // Escape closes active popover and restores focus to trigger
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const hasOpen = triggers.some((b) => b.getAttribute('aria-expanded') === 'true');
+        if (hasOpen) {
+          e.preventDefault();
+          closeAllFloatingMapPopovers(true);
+        }
+      }
+    });
+
+    // Roving tabindex fallback for vertical toolbar when native focusgroup is unavailable
+    if (!('focusGroup' in HTMLElement.prototype) && triggers.length > 0) {
+      triggers.forEach((b, i) => { b.tabIndex = i === 0 ? 0 : -1; });
+      dock.addEventListener('focusin', ({ target }) => {
+        if (triggers.includes(target)) {
+          triggers.forEach((b) => { b.tabIndex = b === target ? 0 : -1; });
+        }
+      });
+      dock.addEventListener('keydown', (e) => {
+        const idx = triggers.indexOf(document.activeElement);
+        if (idx === -1) return;
+        let nextIdx = -1;
+        if (e.key === 'ArrowDown') nextIdx = (idx + 1) % triggers.length;
+        else if (e.key === 'ArrowUp') nextIdx = (idx - 1 + triggers.length) % triggers.length;
+        else if (e.key === 'Home') nextIdx = 0;
+        else if (e.key === 'End') nextIdx = triggers.length - 1;
+        if (nextIdx !== -1) {
+          e.preventDefault();
+          triggers[nextIdx].focus();
+        }
+      });
+    }
   }
 
   function initBasemapSwitcher() {
@@ -8392,6 +7758,13 @@
     },
 
     deletePoint: async (id) => {
+      const pt = savedPoints.find((p) => String(p.id) === String(id)) || rawAllPoints.find((p) => String(p.id) === String(id));
+      if (isPointDeleteLockedForUser(pt)) {
+        if (typeof showToast === 'function') {
+          showToast('Titik kategori Pangkalan SAR & Dermaga SAR hanya dapat dihapus oleh Administrator.', 'error');
+        }
+        return;
+      }
       const ok = await confirmAction('Hapus Titik SAR', 'Apakah Anda yakin ingin menghapus titik SAR ini?', 'Ya, Hapus Titik', true);
       if (!ok) return;
       try {
@@ -9134,10 +8507,17 @@
       }
     }
 
+    function getOriginRenopsForOperasi(idOp) {
+      const originOpId = parseInt(initialData.currentOperasiId || 0, 10);
+      const originRenopsId = parseInt(initialData.fromRenopsParam || 0, 10);
+      return (originRenopsId > 0 && originOpId > 0 && parseInt(idOp, 10) === originOpId) ? originRenopsId : null;
+    }
+
     function getPrintUrlForSelection(idOp, jenis, idRef) {
       if (!idOp) return '#';
-      // Kembali ke editor draf dokumen RENOPS (hari terpilih, atau hari pertama untuk Peta LKP); cetak draf/terbit dari sana.
-      const ref = idRef || (cachedOperasiRenopsList[0] ? cachedOperasiRenopsList[0].id_renops : '');
+      // Kembali ke editor draf dokumen RENOPS (hari terpilih, atau draf asal saat capture LKP, atau hari pertama); cetak draf/terbit dari sana.
+      const originRenops = getOriginRenopsForOperasi(idOp);
+      const ref = idRef || originRenops || (cachedOperasiRenopsList[0] ? cachedOperasiRenopsList[0].id_renops : '');
       return ref ? `${BASE_URL}/operasi.php?action=renops_dokumen&id_renops=${ref}` : `${BASE_URL}/operasi_detail.php?id=${idOp}&tab=cetak`;
     }
 
@@ -9164,6 +8544,8 @@
 
       if (found) {
         const printUrl = getPrintUrlForSelection(idOp, jenis, idRef);
+        const isReturningToOriginDraft = getOriginRenopsForOperasi(idOp) !== null && printUrl.includes('action=renops_dokumen');
+        const btnLabel = isReturningToOriginDraft ? '← Kembali ke Draf' : '🖨️ Lihat Cetakan';
         banner.classList.remove('hidden');
         banner.innerHTML = `
           <div class="flex items-center justify-between gap-2">
@@ -9171,8 +8553,8 @@
               <div class="font-extrabold text-emerald-700 dark:text-emerald-300">✓ Snapshot 16:9 Tersedia pada Dokumen Ini</div>
               <div class="text-[11px] text-slate-500 dark:text-slate-400">Terakhir diperbarui: ${escapeHtml(found.updated_at || '')}</div>
             </div>
-            <a href="${escapeHtml(printUrl)}" target="_blank" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shrink-0 shadow-xs transition">
-              🖨️ Lihat Cetakan
+            <a href="${escapeHtml(printUrl)}" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shrink-0 shadow-xs transition">
+              ${btnLabel}
             </a>
           </div>
         `;
@@ -9227,6 +8609,9 @@
 
     function openCaptureMode(docType = null, refId = null) {
       isCaptureModeActive = true;
+      closeAllFloatingMapPopovers(false);
+      const floatingDock = document.getElementById('gisFloatingMapDock');
+      if (floatingDock) floatingDock.classList.add('hidden');
       overlay.classList.remove('hidden');
       panel.classList.remove('hidden');
       btnToggle.classList.remove('bg-emerald-600');
@@ -9257,6 +8642,8 @@
       isCaptureModeActive = false;
       overlay.classList.add('hidden');
       panel.classList.add('hidden');
+      const floatingDock = document.getElementById('gisFloatingMapDock');
+      if (floatingDock) floatingDock.classList.remove('hidden');
       btnToggle.classList.remove('bg-amber-600', 'ring-2', 'ring-amber-300');
       btnToggle.classList.add('bg-emerald-600');
     }
@@ -9975,6 +9362,7 @@
     // Memastikan tab dan tombol SELALU responsif dan dapat diklik dalam kondisi apa pun
     try { initTabSwitcher(); } catch (e) { console.error('[GIS Bootstrap] TabSwitcher error:', e); }
     try { initSidebarToggle(); } catch (e) { console.error('[GIS Bootstrap] SidebarToggle error:', e); }
+    try { initFloatingMapControls(); } catch (e) { console.error('[GIS Bootstrap] FloatingMapControls error:', e); }
     try { initBasemapSwitcher(); } catch (e) { console.error('[GIS Bootstrap] BasemapSwitcher error:', e); }
     try { initGlobalUnitSwitcher(); } catch (e) { console.error('[GIS Bootstrap] GlobalUnitSwitcher error:', e); }
     try { initExportDropdown(); } catch (e) { console.error('[GIS Bootstrap] ExportDropdown error:', e); }

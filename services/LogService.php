@@ -114,10 +114,6 @@ class LogService {
         self::log(self::CRITICAL, $message, $context);
     }
 
-    public static function debug(string $message, array $context = []): void {
-        self::log(self::DEBUG, $message, $context);
-    }
-
     /**
      * Log an uncaught Throwable exception with complete stack trace context.
      */
@@ -160,27 +156,6 @@ class LogService {
 
         usort($result, fn($a, $b) => strcmp($b['date'], $a['date']));
         return $result;
-    }
-
-    /**
-     * Read content of a specific date's log file (safe bounded read).
-     */
-    public static function getLogContent(string $date, int $maxBytes = 2097152): ?string {
-        $path = self::getLogPath($date);
-        if (!file_exists($path)) {
-            return null;
-        }
-        $size = filesize($path);
-        if ($size > $maxBytes) {
-            // Read last $maxBytes bytes
-            $fp = @fopen($path, 'r');
-            if (!$fp) return null;
-            fseek($fp, -$maxBytes, SEEK_END);
-            $content = fread($fp, $maxBytes);
-            fclose($fp);
-            return "[... Log truncated due to size limit ...]\n" . ($content ?: '');
-        }
-        return @file_get_contents($path) ?: '';
     }
 
     /**

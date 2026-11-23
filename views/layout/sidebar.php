@@ -11,6 +11,7 @@ $currentRoute = $currentRoute ?? 'dashboard';
 $currentUser = $currentUser ?? AuthHelper::getCurrentUser();
 $appSettings = SettingsModel::getSettings();
 $logoUrl = getAppLogoUrl();
+$openOpsCount = class_exists('OperasiModel') ? OperasiModel::countOpen() : 0;
 ?>
 
 <!-- Mobile Backdrop -->
@@ -50,14 +51,36 @@ $logoUrl = getAppLogoUrl();
       Navigasi Sistem
     </p>
 
-    <!-- 1. Dashboard Operasi -->
-    <a href="<?= BASE_URL ?>/index.php" title="Dashboard Operasi" class="sidebar-nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group relative cursor-pointer <?= in_array($currentRoute, ['dashboard', 'operasi', 'operasi_detail', 'operasi_form']) ? 'sidebar-active bg-orange-50 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 font-bold' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white' ?>">
-      <svg class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110 <?= in_array($currentRoute, ['dashboard', 'operasi', 'operasi_detail', 'operasi_form']) ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400' ?>" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+    <!-- 1. Dashboard -->
+    <a href="<?= BASE_URL ?>/index.php" title="Dashboard" class="sidebar-nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group relative cursor-pointer <?= $currentRoute === 'dashboard' ? 'sidebar-active bg-orange-50 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 font-bold' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white' ?>">
+      <svg class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110 <?= $currentRoute === 'dashboard' ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400' ?>" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
       <div class="sidebar-item-label flex-1 flex items-center justify-between min-w-0 text-left">
-        <span class="truncate">Dashboard Operasi</span>
+        <span class="truncate">Dashboard</span>
       </div>
       <div class="sidebar-tooltip absolute left-full ml-2 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap shadow-lg border border-slate-700">
-        Dashboard Operasi
+        Dashboard
+      </div>
+    </a>
+
+    <!-- 2. Operasi SAR -->
+    <?php $isOperasiActive = in_array($currentRoute, ['operasi', 'operasi_detail', 'operasi_form'], true); ?>
+    <a href="<?= BASE_URL ?>/operasi.php" title="Operasi SAR<?= $openOpsCount > 0 ? " ({$openOpsCount} Aktif)" : '' ?>" class="sidebar-nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group relative cursor-pointer <?= $isOperasiActive ? 'sidebar-active bg-orange-50 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 font-bold' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white' ?>">
+      <span class="relative shrink-0">
+        <svg class="w-4 h-4 transition-transform group-hover:scale-110 <?= $isOperasiActive ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400' ?>" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        <?php if ($openOpsCount > 0): ?>
+          <span class="hidden sidebar-collapsed-dot absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" aria-hidden="true"></span>
+        <?php endif; ?>
+      </span>
+      <div class="sidebar-item-label flex-1 flex items-center justify-between gap-2 min-w-0 text-left">
+        <span class="truncate">Operasi SAR</span>
+        <?php if ($openOpsCount > 0): ?>
+          <span class="text-[10.5px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shrink-0" title="<?= $openOpsCount ?> Operasi SAR Aktif">
+            <?= $openOpsCount ?>
+          </span>
+        <?php endif; ?>
+      </div>
+      <div class="sidebar-tooltip absolute left-full ml-2 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap shadow-lg border border-slate-700">
+        Operasi SAR<?= $openOpsCount > 0 ? " ({$openOpsCount} Aktif)" : '' ?>
       </div>
     </a>
 

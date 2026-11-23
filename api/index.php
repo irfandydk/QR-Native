@@ -64,7 +64,7 @@ if (!is_array($input)) {
 }
 
 // CSRF Guard Middleware for State-Changing Requests (POST, PUT, DELETE)
-if (in_array($method, ['POST', 'PUT', 'DELETE'], true) && $path !== '/auth/login') {
+if (in_array($method, ['POST', 'PUT', 'DELETE'], true)) {
     BaseApiController::requireCsrf($input);
 }
 
@@ -74,20 +74,14 @@ try {
         BaseApiController::json(['status' => 'ok', 'time' => date('Y-m-d H:i:s'), 'version' => APP_VERSION]);
     }
 
-    // 2. Authentication & User Profile
+    // 2. Authentication Heartbeat
     if (str_starts_with($path, '/auth/')) {
         if (AuthApiController::handle($path, $method, $input)) exit;
     }
 
-    // 3. Operasi SAR & Nested Sub-routes (RENOPS & SITREP under Operasi)
-    if ($path === '/laporan/stats' || $path === '/monitoring/stats' || str_starts_with($path, '/operasi')) {
-        if (preg_match('#^/operasi/(\d+)/renops#', $path)) {
-            if (RenopsApiController::handle($path, $method, $input)) exit;
-        } elseif (preg_match('#^/operasi/(\d+)/laporan#', $path)) {
-            if (SitrepApiController::handle($path, $method, $input)) exit;
-        } else {
-            if (OperasiApiController::handle($path, $method, $input)) exit;
-        }
+    // 3. Operasi SAR
+    if (str_starts_with($path, '/operasi')) {
+        if (OperasiApiController::handle($path, $method, $input)) exit;
     }
 
     // 4. Standalone RENOPS routes
@@ -108,22 +102,12 @@ try {
         if (BraApiController::handle($path, $method, $input)) exit;
     }
 
-    // 7. Master Data (Alut, Tim, SarUnits, Pejabat)
-    if (str_starts_with($path, '/settings/pejabat') || str_starts_with($path, '/master/') || $path === '/sar-units') {
-        if (MasterApiController::handle($path, $method, $input)) exit;
-    }
-
-    // 8. Application Settings
-    if (str_starts_with($path, '/settings')) {
-        if (SettingsApiController::handle($path, $method, $input)) exit;
-    }
-
-    // 9. Gemini AI Assistant
+    // 7. Gemini AI Assistant
     if (str_starts_with($path, '/ai/')) {
         if (AiApiController::handle($path, $method, $input)) exit;
     }
 
-    // 10. Tactical Maritime GIS & Geocoding
+    // 8. Tactical Maritime GIS & Geocoding
     if (str_starts_with($path, '/gis') || $path === '/geocode') {
         if (GisApiController::handle($path, $method, $input)) exit;
     }

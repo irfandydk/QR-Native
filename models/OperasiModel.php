@@ -155,6 +155,54 @@ class OperasiModel {
         return $ops;
     }
 
+    /**
+     * Ambil status operasi secara ringan (1 kolom, tanpa hidrasi 7 tabel relasi).
+     */
+    public static function getStatusById(int $id): ?string {
+        if ($id <= 0) {
+            return null;
+        }
+        $db = getDB();
+        $stmt = $db->prepare("SELECT status FROM Operasi WHERE id_operasi = :id LIMIT 1");
+        $stmt->execute([':id' => $id]);
+        $val = $stmt->fetchColumn();
+        return $val === false ? null : (string)$val;
+    }
+
+    /**
+     * Ambil peta [id_operasi => status] secara batch untuk mencegah N+1 query pada operasi massal.
+     *
+     * @param int[] $ids
+     * @return array<int, string>
+     */
+    public static function getStatusesByIds(array $ids): array {
+        $cleanIds = array_values(array_unique(array_filter(array_map('intval', $ids), fn($v) => $v > 0)));
+        if (empty($cleanIds)) {
+            return [];
+        }
+        $db = getDB();
+        $placeholders = implode(',', array_fill(0, count($cleanIds), '?'));
+        $stmt = $db->prepare("SELECT id_operasi, status FROM Operasi WHERE id_operasi IN ({$placeholders})");
+        $stmt->execute($cleanIds);
+        $map = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $map[(int)$row['id_operasi']] = (string)$row['status'];
+        }
+        return $map;
+    }
+
+    /**
+     * Hitung cepat jumlah Operasi SAR yang masih berstatus OPEN (untuk badge sidebar & metrik).
+     */
+    public static function countOpen(): int {
+        try {
+            $db = getDB();
+            return (int)$db->query("SELECT COUNT(*) FROM Operasi WHERE status = 'OPEN'")->fetchColumn();
+        } catch (Throwable $e) {
+            return 0;
+        }
+    }
+
     public static function getStats(): array {
         $db = getDB();
         $rowOps = $db->query("

@@ -211,17 +211,11 @@ assertCondition(
     str_contains($logContentAfter, "Simulasi Galat Uji Coba Terisolasi: {$uniqueToken}") && str_contains($logContentAfter, 'TEST_CONTEXT')
 );
 
-// Test log reading & files list
+// Test log files list
 $logFiles = LogService::getLogFiles();
 assertCondition(
     "LogService::getLogFiles() mengembalikan array daftar berkas log",
     is_array($logFiles) && !empty($logFiles) && isset($logFiles[0]['filename'])
-);
-
-$todayContentViaService = LogService::getLogContent(date('Y-m-d'));
-assertCondition(
-    "LogService::getLogContent() berhasil membaca isi log tanggal hari ini",
-    $todayContentViaService !== null && str_contains($todayContentViaService, $uniqueToken)
 );
 
 // Test protection .htaccess

@@ -276,9 +276,11 @@ assertTest(
     str_contains($gisMasterJs, "catch (err) {")
 );
 
+$geodesyJs = (string)file_get_contents(__DIR__ . '/../assets/js/gis/geodesy.js');
 assertTest(
-    "calculatePolygonSphericalArea mendukung shapeType rectangle dan box",
-    str_contains($gisMasterJs, "shapeType === 'box' || shapeType === 'rectangle'")
+    "calculatePolygonSphericalArea (SSOT geodesy.js) mendukung shapeType rectangle dan box",
+    str_contains($geodesyJs, "shapeType === 'box' || shapeType === 'rectangle'")
+    && str_contains($gisMasterJs, "window.QrSarGis.Geodesy.calculatePolygonSphericalArea")
 );
 
 echo "\n====================================================================\n";

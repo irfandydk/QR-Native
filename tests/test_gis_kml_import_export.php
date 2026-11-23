@@ -485,42 +485,16 @@ try {
     assertCondition("Koordinat di luar [-90, 90] ditolak dengan InvalidArgumentException", $invalidCoordFailed);
 
     // -----------------------------------------------------------------
-    // 7. VERIFIKASI exportGeoJson DENGAN FALLBACK LINGKARAN TANPA GisPolygonPoint
+    // 7. VERIFIKASI SINTESIS LINGKARAN 64 VERTEX (generateCircleRing)
     // -----------------------------------------------------------------
-    echo PHP_EOL . "--- 7. VERIFIKASI exportGeoJson CIRCLE FALLBACK ---" . PHP_EOL;
+    echo PHP_EOL . "--- 7. VERIFIKASI generateCircleRing 64 VERTEX ---" . PHP_EOL;
 
-    $manualEmptyCircleId = 'poly-manual-circle-' . time() . '-' . substr(bin2hex(random_bytes(2)), 0, 4);
-    $stmtManual = $db->prepare("INSERT INTO GisPolygon (
-        id, id_operasi, name, shapeType, centerLat, centerLng, radiusNm, strokeColor, strokeWeight, fillColor, fillOpacity, areaNm2
-    ) VALUES (
-        :id, :id_ops, 'Lingkaran Manual Tanpa Point Baris', 'circle', -4.0378, 122.4866, 3.5, '#ea580c', 2.5, '#f97316', 0.25, 38.48
-    )");
-    $stmtManual->execute([
-        ':id' => $manualEmptyCircleId,
-        ':id_ops' => $opA
-    ]);
-
-    $geoJsonRaw = GisModel::exportGeoJson($opA, false);
-    $geoJson = is_string($geoJsonRaw) ? json_decode($geoJsonRaw, true) : $geoJsonRaw;
-    assertCondition("exportGeoJson mengembalikan tipe FeatureCollection", ($geoJson['type'] ?? '') === 'FeatureCollection');
-
-    $foundManualCircleFeature = null;
-    foreach ($geoJson['features'] ?? [] as $feat) {
-        if (($feat['properties']['id'] ?? '') === $manualEmptyCircleId) {
-            $foundManualCircleFeature = $feat;
-            break;
-        }
-    }
-
-    assertCondition("exportGeoJson menemukan fitur untuk poligon lingkaran manual tanpa titik DB", $foundManualCircleFeature !== null);
-    if ($foundManualCircleFeature) {
-        $coordsRing = $foundManualCircleFeature['geometry']['coordinates'][0] ?? [];
-        assertCondition(
-            "Fitur lingkaran disintesis menjadi 64 vertex poligon tertutup (65 koordinat)",
-            count($coordsRing) === 65 && ($coordsRing[0] === end($coordsRing)),
-            "Vertex count: " . count($coordsRing)
-        );
-    }
+    $circleRing = GisModel::generateCircleRing(-4.0378, 122.4866, 3.5, 64);
+    assertCondition(
+        "generateCircleRing menyintesis tepat 64 vertex valid untuk lingkaran radius 3.5 NM",
+        is_array($circleRing) && count($circleRing) === 64 && isset($circleRing[0]['lat'], $circleRing[0]['lng']),
+        "Vertex count: " . count($circleRing)
+    );
 
     // -----------------------------------------------------------------
     // 8. VERIFIKASI CONTROLLER GisApiController POST /api/gis/import
@@ -1125,7 +1099,14 @@ try {
         ($renameBaseDenied['__http_status__'] ?? 0) === 403 && ($renameBaseDenied['success'] ?? true) === false
     );
 
-    // Uji Bulk Delete via POST /api/gis/bulk-delete untuk points, polygons, patterns, routes
+    // Uji Bulk Delete via POST /api/gis/bulk-delete untuk points, polygons, patterns, routes + pembersihan tabel anak
+    assertCondition(
+        "OperasiModel::getStatusById dan getStatusesByIds mengembalikan status operasi ringan tanpa hidrasi penuh",
+        OperasiModel::getStatusById($opB) === 'OPEN'
+        && (OperasiModel::getStatusesByIds([$opB, $opClosed])[$opB] ?? null) === 'OPEN'
+        && (OperasiModel::getStatusesByIds([$opB, $opClosed])[$opClosed] ?? null) === 'CLOSED'
+    );
+
     $ptIdsToDelete = array_map(fn($p) => $p['id'], $batchImp1['points']);
     $bulkDelPtsRes = $runGisController('/gis/bulk-delete', 'POST', [
         'entity_type' => 'points',
@@ -1139,6 +1120,29 @@ try {
         && ($bulkDelPtsRes['success'] ?? false) === true
         && ($bulkDelPtsRes['count'] ?? 0) === 2
         && empty(array_intersect($ptIdsToDelete, $remainingIdsOpB))
+    );
+
+    // Uji Bulk Delete polygons/patterns/routes ikut menghapus baris anak (GisPolygonPoint, GisSearchPatternWaypoint, GisRoutePoint)
+    $polyIdsToDel = array_map(fn($p) => $p['id'], $batchImp1['polygons']);
+    $patIdsToDel = array_map(fn($p) => $p['id'], $batchImp1['patterns']);
+    $rtIdsToDel = array_map(fn($r) => $r['id'], $batchImp1['routes']);
+    $bulkDelPolyRes = $runGisController('/gis/bulk-delete', 'POST', ['entity_type' => 'polygons', 'ids' => $polyIdsToDel], 'USER');
+    $bulkDelPatRes = $runGisController('/gis/bulk-delete', 'POST', ['entity_type' => 'patterns', 'ids' => $patIdsToDel], 'USER');
+    $bulkDelRtRes = $runGisController('/gis/bulk-delete', 'POST', ['entity_type' => 'routes', 'ids' => $rtIdsToDel], 'USER');
+    $stmtChildPoly = $db->prepare("SELECT COUNT(*) FROM GisPolygonPoint WHERE polygonId = ?");
+    $stmtChildPoly->execute([$polyIdsToDel[0]]);
+    $stmtChildPat = $db->prepare("SELECT COUNT(*) FROM GisSearchPatternWaypoint WHERE searchPatternId = ?");
+    $stmtChildPat->execute([$patIdsToDel[0]]);
+    $stmtChildRt = $db->prepare("SELECT COUNT(*) FROM GisRoutePoint WHERE routeId = ?");
+    $stmtChildRt->execute([$rtIdsToDel[0]]);
+    assertCondition(
+        "POST /api/gis/bulk-delete batch polygons/patterns/routes menghapus induk sekaligus seluruh baris tabel anak",
+        ($bulkDelPolyRes['__http_status__'] ?? 0) === 200 && ($bulkDelPolyRes['count'] ?? 0) === count($polyIdsToDel)
+        && ($bulkDelPatRes['__http_status__'] ?? 0) === 200 && ($bulkDelPatRes['count'] ?? 0) === count($patIdsToDel)
+        && ($bulkDelRtRes['__http_status__'] ?? 0) === 200 && ($bulkDelRtRes['count'] ?? 0) === count($rtIdsToDel)
+        && (int)$stmtChildPoly->fetchColumn() === 0
+        && (int)$stmtChildPat->fetchColumn() === 0
+        && (int)$stmtChildRt->fetchColumn() === 0
     );
 
     // Uji Bulk Delete menolak USER non-admin menghapus item Base Map

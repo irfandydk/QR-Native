@@ -46,6 +46,9 @@ $pdfFilename = 'BRA-SAR-' . ($cleanNoBra !== '' ? $cleanNoBra : 'DOKUMEN') . '.p
 $pdfDownloadUrl = BASE_URL . '/bra.php?view=' . (int)$bra['id_bra']
     . (!empty($_GET['token']) ? '&token=' . urlencode((string)$_GET['token']) : ($isGuest ? '&token=' . urlencode($docHash) : ''))
     . '&format=pdf';
+$braBackUrl = isset($backUrl) && is_string($backUrl) && $backUrl !== '' ? $backUrl : (BASE_URL . '/bra.php');
+$braBackLabel = isset($backLabel) && is_string($backLabel) && $backLabel !== '' ? $backLabel : 'Kembali ke Daftar';
+$braReturnQuery = isset($returnQuery) && is_string($returnQuery) ? $returnQuery : '';
 ?>
 
 <div class="space-y-6">
@@ -53,7 +56,7 @@ $pdfDownloadUrl = BASE_URL . '/bra.php?view=' . (int)$bra['id_bra']
   <div class="print:hidden card p-4 flex flex-wrap items-center justify-between gap-3 shadow-lg border border-slate-200 dark:border-slate-800">
     <div class="flex flex-wrap items-center gap-2">
       <?php if (!$isGuest): ?>
-        <a href="<?= BASE_URL ?>/bra.php" class="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-lg transition" title="Kembali ke Daftar">
+        <a href="<?= e($braBackUrl) ?>" class="p-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-lg transition" title="<?= e($braBackLabel) ?>" aria-label="<?= e($braBackLabel) ?>">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
         </a>
       <?php endif; ?>
@@ -89,7 +92,7 @@ $pdfDownloadUrl = BASE_URL . '/bra.php?view=' . (int)$bra['id_bra']
 
       <!-- Action Buttons -->
       <?php if (!$isGuest): ?>
-        <a href="<?= BASE_URL ?>/bra.php?action=edit&id=<?= $bra['id_bra'] ?>" class="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition">
+        <a href="<?= BASE_URL ?>/bra.php?action=edit&id=<?= (int)$bra['id_bra'] ?><?= e($braReturnQuery) ?>" class="px-2.5 py-1.5 text-xs font-medium rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 transition">
           Edit Form
         </a>
       <?php endif; ?>

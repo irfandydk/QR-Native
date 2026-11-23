@@ -52,7 +52,7 @@ $ssotOut = [];
 $ssotCode = 0;
 exec('DB_DATABASE=qrsar_test ' . escapeshellarg($phpBin) . ' ' . escapeshellarg(__DIR__ . '/test_gis_ssot_and_map_rendering.php') . ' 2>&1', $ssotOut, $ssotCode);
 $ssotRaw = implode("\n", $ssotOut);
-assertT2($ssotCode === 0 && (str_contains($ssotRaw, 'Success Rate : 100%') || str_contains($ssotRaw, 'Total Assertions : 28') || str_contains($ssotRaw, 'Total Assertions : 25')), 'test_gis_ssot_and_map_rendering.php mengeksekusi asersi tanpa crash');
+assertT2($ssotCode === 0 && (bool)preg_match('/Success Rate\s*:\s*100%/', $ssotRaw) && (bool)preg_match('/Total Assertions\s*:\s*([2-9]\d)/', $ssotRaw), 'test_gis_ssot_and_map_rendering.php mengeksekusi asersi tanpa crash');
 
 // ---------------------------------------------------------
 // 2. Uji Finding #5: Siklus Tutup-Buka Operasi & Status Saat Hapus/Edit Laporan

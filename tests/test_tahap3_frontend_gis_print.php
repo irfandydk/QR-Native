@@ -37,10 +37,9 @@ assertT3(
     'gis_master.js memprioritaskan window.BASE_URL untuk instalasi subfolder Laragon'
 );
 
-$uiPointsContent = file_get_contents($rootDir . '/assets/js/gis/ui_points.js');
 assertT3(
-    str_contains($uiPointsContent, 'const base = (window.BASE_URL || window.location.origin || \'\')'),
-    'ui_points.js normalizeIconUrl menyertakan window.BASE_URL'
+    str_contains($gisMasterContent, 'function normalizeIconUrl(') && str_contains($gisMasterContent, 'BASE_URL'),
+    'gis_master.js normalizeIconUrl menyertakan BASE_URL'
 );
 
 // 2. Uji Finding #6: Anti XSS & penghapusan addslashes rawan newline
@@ -62,7 +61,7 @@ assertT3(
     'bra/list.php memindahkan nomor BRA dari inline onclick ke data-no-bra (anti quote breakout)'
 );
 
-$dashboard = file_get_contents($rootDir . '/views/dashboard.php');
+$dashboard = file_get_contents($rootDir . '/views/operasi/list.php');
 assertT3(
     !str_contains($dashboard, 'onclick="openOpsWaModal(<?= $op[\'id_operasi\'] ?>, \'<?= e(addslashes') &&
     str_contains($dashboard, 'data-nama="<?= e($op[\'nama_operasi\']) ?>"') &&

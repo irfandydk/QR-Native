@@ -184,14 +184,6 @@ class AlutKategori {
         return ['master' => $master] + self::backfill($db);
     }
 
-    /** Cadangan JSON dari sebelum fitur: baris master_alut tidak membawa kunci kategori. */
-    public static function cadanganTanpaKategori(array $data): bool {
-        $dbData = $data['data'] ?? $data['database'] ?? $data['backup'] ?? $data;
-        $rows = is_array($dbData) ? ($dbData['master_alut'] ?? null) : null;
-        $first = is_array($rows) ? reset($rows) : false;
-        return is_array($first) && !array_key_exists('kategori', $first);
-    }
-
     /**
      * Isian master yang masih bawaan PALSAR: daftar baku dulu, lalu tebakan kata kunci.
      * Dipanggil lewat pulihkan() hanya saat kolom/isian master baru, agar koreksi manual

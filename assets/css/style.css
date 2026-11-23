@@ -221,6 +221,11 @@ html.sidebar-is-collapsed .sidebar .sidebar-item-label {
   display: none !important;
 }
 
+.sidebar.collapsed .sidebar-collapsed-dot,
+html.sidebar-is-collapsed .sidebar .sidebar-collapsed-dot {
+  display: block !important;
+}
+
 .sidebar.collapsed .sidebar-nav-item,
 html.sidebar-is-collapsed .sidebar .sidebar-nav-item {
   justify-content: center !important;
@@ -342,7 +347,7 @@ body.route-gis .page-body,
   max-width: none !important;
   display: flex !important;
   flex-direction: column !important;
-  height: calc(100vh - 56px) !important;
+  height: 100vh !important;
   overflow: hidden !important;
 }
 

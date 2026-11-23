@@ -231,15 +231,14 @@ try {
     }
 }
 
-// 6. SettingsApiController: tamu tidak menerima pejabat_list, admin tidak menerima plaintext gemini_api_key
-$guestSettingsCode = sprintf(
-    'require %s; $_SESSION = []; SettingsApiController::handle("/settings", "GET", []);',
-    var_export($rootDir . '/config/app.php', true)
+// 6. Endpoint /api/settings & /api/auth/login yang tidak dikonsumsi UI telah dihapus (nol kebocoran & nol bypass CSRF)
+$apiIndexSrc = (string)file_get_contents($rootDir . '/api/index.php');
+assertT1(
+    !file_exists($rootDir . '/api/controllers/SettingsApiController.php')
+    && !str_contains($apiIndexSrc, 'SettingsApiController')
+    && !str_contains($apiIndexSrc, '/auth/login'),
+    'Endpoint dead /api/settings & pengecualian CSRF /auth/login telah dihapus bersih'
 );
-$guestOut = [];
-exec(escapeshellarg($phpBin) . ' -r ' . escapeshellarg($guestSettingsCode) . ' 2>&1', $guestOut);
-$guestJson = json_decode(trim(implode("\n", $guestOut)), true);
-assertT1(is_array($guestJson) && !isset($guestJson['data']['pejabat_list']), 'GET /api/settings publik (tamu) tidak membocorkan daftar pejabat & NIP');
 
 // 7. Pemeriksaan konfigurasi statis lintas OS (.htaccess, views/bra/view.php, migrate.php, config/database.php)
 $htaccess = (string)file_get_contents($rootDir . '/.htaccess');

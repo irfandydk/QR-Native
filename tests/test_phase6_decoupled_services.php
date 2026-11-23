@@ -160,8 +160,8 @@ assertCondition("TemplateHelper::generateLaporanAwalWA identik dengan WhatsAppTe
     TemplateHelper::generateLaporanAwalWA($mockOps, $korbanList) === WhatsAppTemplateService::generateLaporanAwalWA($mockOps, $korbanList)
 );
 
-assertCondition("TemplateHelper::formatDMS identik dengan GeoHelper::formatDMS",
-    TemplateHelper::formatDMS(-4.037664, true) === GeoHelper::formatDMS(-4.037664, true)
+assertCondition("TemplateHelper::formatDmsPair identik dengan GeoHelper::formatDmsPair",
+    TemplateHelper::formatDmsPair(-4.037664, 122.486662) === GeoHelper::formatDmsPair(-4.037664, 122.486662)
 );
 
 assertCondition("GisModel::calculateDistanceHaversine mendelegasikan ke GeoHelper::calculateDistanceHaversine",

@@ -16,6 +16,19 @@
     { key: 'lain', label: 'Tanpa Kategori', categories: [] },
   ];
 
+  const PROTECTED_POINT_CATEGORIES = new Set([
+    'kantor sar',
+    'pos sar',
+    'unit siaga sar',
+    'dermaga sar',
+    'dermaga',
+  ]);
+
+  function isProtectedPointCategory(category) {
+    const norm = String(category || '').trim().toLowerCase();
+    return norm !== '' && PROTECTED_POINT_CATEGORIES.has(norm);
+  }
+
   function groupKeyOf(category) {
     const g = POINT_GROUPS.find((x) => x.categories.includes(String(category || '')));
     return g ? g.key : 'lain';
@@ -146,7 +159,19 @@
     return `${prefix} ` + nextFree((points || []).map((p) => p && p.label), prefix);
   }
 
-  const Naming = { POINT_GROUPS, groupKeyOf, extractImportGroup, groupPoints, groupEntities, nextSruName, patternAutoName, isAutoPatternName, routeAutoName, pointAutoName };
+  const Naming = {
+    POINT_GROUPS,
+    isProtectedPointCategory,
+    groupKeyOf,
+    extractImportGroup,
+    groupPoints,
+    groupEntities,
+    nextSruName,
+    patternAutoName,
+    isAutoPatternName,
+    routeAutoName,
+    pointAutoName
+  };
 
   global.QrSarGis = global.QrSarGis || {};
   global.QrSarGis.Naming = Naming;

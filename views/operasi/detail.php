@@ -1,7 +1,7 @@
 <?php
 /**
- * QR-SAR - Detail Operasi Hub View (Modular Architecture)
- * Kantor Pencarian dan Pertolongan (Basarnas) Kendari
+ * QR-SAR - Detail Operasi SAR (Modular Architecture)
+ * Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
  */
 
 if (!defined('APP_NAME')) {
@@ -38,12 +38,10 @@ if ($activeTab === 'laporan') {
     $activeTab = 'sitrep';
 }
 
-// Operational Hierarchy & Defaults
 $timeline = HierarchyHelper::getOperationalTimeline($operasi);
 $nextRenops = HierarchyHelper::getNextRenopsDefaults($operasi);
 $nextLapbang = HierarchyHelper::getNextLapbangDefaults($operasi);
 
-// Coordinates
 $lkpCoords = GeoHelper::parseCoordinates($operasi['koordinat'] ?? '');
 $hasLkpCoords = !empty($lkpCoords) && isset($lkpCoords['lat']) && isset($lkpCoords['lng']);
 $lkpLat = $hasLkpCoords ? (float)$lkpCoords['lat'] : -4.037694;
@@ -60,188 +58,231 @@ $cntPatterns = count($gisBundle['searchPatterns'] ?? []);
 $cntRoutes = count($gisBundle['routes'] ?? []);
 $cntPoints = count($gisBundle['points'] ?? []);
 $totalComponents = $cntPolys + $cntPatterns + $cntRoutes + $cntPoints;
+
+$pobTotal = (int)($statsKorban['total'] ?? $countKorban);
+$pobS = (int)($statsKorban['s'] ?? 0);
+$pobMd = (int)($statsKorban['md'] ?? 0);
+$pobDp = (int)($statsKorban['dp'] ?? 0);
+$pobH = (int)($statsKorban['h'] ?? 0);
 ?>
 
-<!-- ======================================================== -->
-<!-- TOP BREADCRUMB & CONTEXT HEADER -->
-<!-- ======================================================== -->
-<div class="flex items-center justify-between gap-3 mb-4 no-print">
-    <div class="flex items-center gap-2">
-        <a href="<?= BASE_URL ?>/operasi.php" class="btn-tactile inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition">
-            <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
-            <span>Daftar Operasi</span>
-        </a>
-        <span class="text-xs text-slate-300 dark:text-slate-700 font-semibold hidden sm:inline">/</span>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-            OPS-#<?= $id ?>
-        </span>
-    </div>
+<style>
+  .opsd-root {
+    --opsd-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px -20px rgba(15, 23, 42, 0.14);
+    --opsd-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  html.dark .opsd-root, html[data-theme="dark"] .opsd-root {
+    --opsd-shadow: 0 1px 2px rgba(2, 6, 23, 0.45), 0 16px 34px -20px rgba(2, 6, 23, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  .opsd-panel { background-color: var(--bg-card); border: 1px solid var(--border-color); box-shadow: var(--opsd-shadow); }
+  .opsd-hairline-grid { background-color: var(--border-color); border: 1px solid var(--border-color); box-shadow: var(--opsd-shadow); }
+  .opsd-hairline-cell { background-color: var(--bg-card); }
+  .opsd-row-card { transition: border-color 180ms ease, box-shadow 200ms ease; }
+  .opsd-row-card:hover { border-color: color-mix(in srgb, var(--primary) 36%, var(--border-color)); }
+  .opsd-title { font-size: clamp(1.0625rem, 0.98rem + 0.45vw, 1.3125rem); line-height: 1.24; letter-spacing: -0.022em; text-wrap: balance; }
+  .opsd-num { font-variant-numeric: tabular-nums; }
+  .opsd-justify { text-align: justify; text-justify: inter-word; hyphens: auto; -webkit-hyphens: auto; }
+  .opsd-accent-btn { background-color: var(--primary); color: #fff !important; border: 1px solid transparent; }
+  .opsd-accent-btn:hover { background-color: var(--primary-hover); color: #fff !important; }
+  .opsd-accent-soft { background-color: color-mix(in srgb, var(--primary) 10%, transparent); color: var(--m-accent-text, var(--primary)) !important; border: 1px solid color-mix(in srgb, var(--primary) 28%, transparent); }
+  .opsd-accent-soft:hover { background-color: var(--primary); color: #fff !important; border-color: transparent; }
+  .opsd-accent-badge { background-color: var(--primary); color: #fff; }
+  .opsd-accent-text { color: var(--m-accent-text, var(--primary)); }
+  .opsd-ghost-btn { background-color: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); }
+  .opsd-ghost-btn:hover { background-color: var(--bg-card-subtle); border-color: color-mix(in srgb, var(--primary) 32%, var(--border-color)); }
+  .opsd-accent-btn:focus-visible, .opsd-accent-soft:focus-visible, .opsd-ghost-btn:focus-visible, .ops-detail-tabs .tab-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .ops-detail-tabs { margin-bottom: 0 !important; gap: 0.125rem; scrollbar-width: none; }
+  .ops-detail-tabs::-webkit-scrollbar { display: none; }
+  .ops-detail-tabs .tab-btn { padding: 0.65rem 0.8rem; font-size: 0.75rem; font-weight: 600; border-radius: 0; border-bottom: 2px solid transparent; background: transparent !important; box-shadow: none !important; color: var(--text-muted); gap: 0.375rem; white-space: nowrap; }
+  .ops-detail-tabs .tab-btn:hover { color: var(--text-main); background: color-mix(in srgb, var(--bg-card-subtle) 55%, transparent) !important; transform: none; }
+  .ops-detail-tabs .tab-btn.active { color: var(--m-accent-text, var(--primary)) !important; border-bottom-color: var(--primary) !important; background: transparent !important; box-shadow: none !important; font-weight: 700; }
+  .ops-detail-tabs .tab-btn .opsd-tab-count { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; font-size: 0.65rem; padding: 0.08rem 0.4rem; border-radius: 9999px; background: var(--bg-card-subtle); color: var(--text-muted); }
+  .ops-detail-tabs .tab-btn.active .opsd-tab-count { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--m-accent-text, var(--primary)); }
+  .ops-gis-seg button.bg-orange-600 { background-color: var(--primary); color: #fff; }
+  @media (prefers-reduced-motion: no-preference) {
+    .opsd-accent-btn:active, .opsd-accent-soft:active, .opsd-ghost-btn:active { transform: scale(0.98); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .opsd-accent-btn, .opsd-accent-soft, .opsd-ghost-btn, .opsd-row-card, .ops-detail-tabs .tab-btn { transition: none !important; transform: none !important; }
+  }
+</style>
 
-    <?php if (AuthHelper::canDelete()): ?>
-    <form method="POST" action="<?= BASE_URL ?>/operasi.php?action=delete" class="inline-block" data-confirm="Apakah Anda yakin ingin menghapus Operasi SAR ini secara permanen beserta seluruh Renops, Lapbang, dan data terkait? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Operasi SAR Permanen" data-confirm-btn="Ya, Hapus Permanen" data-confirm-danger="true">
-        <?= csrfInput() ?>
-        <input type="hidden" name="id" value="<?= $id ?>">
-        <button type="submit" class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500 text-red-600 hover:text-white border border-red-500/20 font-semibold text-xs transition cursor-pointer" title="Hapus Operasi">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
-            <span>Hapus Operasi</span>
-        </button>
-    </form>
-    <?php endif; ?>
-</div>
+<div class="opsd-root overflow-x-hidden w-full max-w-full">
+  <div class="max-w-7xl mx-auto space-y-5">
 
-<!-- ======================================================== -->
-<!-- EXECUTIVE SUMMARY COMMAND COCKPIT -->
-<!-- ======================================================== -->
-<div class="bento-card-v1 p-4 sm:p-5 mb-5 transition-colors">
-    <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <div class="space-y-2.5 min-w-0 flex-1">
-            <!-- Badges Row -->
-            <div class="flex flex-wrap items-center gap-2">
-                <?php if ($isOpen): ?>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-mono tracking-wider bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25">
-                    <span class="radar-beacon-active w-2 h-2 rounded-full bg-emerald-500"></span>
-                    OPERASI BERJALAN (<?= $hariKe ?>)
+    <!-- ======================================================== -->
+    <!-- UNIFIED MISSION COMMAND PANEL + INTEGRATED TAB RAIL      -->
+    <!-- ======================================================== -->
+    <section aria-label="Ringkasan, aksi, dan navigasi operasi" class="opsd-panel rounded-2xl overflow-hidden">
+      <!-- Top Row: Breadcrumb, Status, Mission Title & Action Cluster -->
+      <div class="px-4 sm:px-5 pt-4 pb-3.5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2.5 no-print">
+          <div class="flex flex-wrap items-center gap-2 text-xs min-w-0">
+            <a href="<?= BASE_URL ?>/operasi.php" class="inline-flex items-center gap-1.5 font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors">
+              <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+              <span>Operasi SAR</span>
+            </a>
+            <span class="text-slate-300 dark:text-slate-700" aria-hidden="true">/</span>
+            <span class="opsd-num font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400">#<?= $id ?></span>
+
+            <?php if ($isOpen): ?>
+              <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden="true"></span>
+                <span>OPEN</span>
+              </span>
+              <span class="opsd-num font-mono text-xs font-bold opsd-accent-text"><?= e($hariKe) ?></span>
+              <?php if ($isReopened): ?>
+                <span class="px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-400" title="Dibuka kembali pada <?= $tglReopen ?> <?= $jamReopen ?> WITA">
+                  DIPERPANJANG
                 </span>
-                <?php if ($isReopened): ?>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-mono tracking-wider bg-amber-500/10 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/25" title="Operasi SAR dibuka kembali / diperpanjang pada <?= $tglReopen ?> <?= $jamReopen ?> WITA. Perhitungan hari dimulai dari tanggal pembukaan.">
-                    <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
-                    DIPERPANJANG
-                </span>
-                <?php endif; ?>
-                <?php else: ?>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold font-mono tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
-                    OPERASI SELESAI (<?= e($hariKe) ?>)
-                </span>
-                <?php endif; ?>
+              <?php endif; ?>
+            <?php else: ?>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold tracking-wide bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                CLOSED
+              </span>
+              <span class="opsd-num font-mono text-xs font-semibold text-slate-500 dark:text-slate-400"><?= e($hariKe) ?></span>
+            <?php endif; ?>
 
-                <?php if (!empty($operasi['jenis_kejadian'])): ?>
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700">
-                    <svg class="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.386l5.228-3.076c.827-.486 1.139-1.528.698-2.316L11.16 3.659A2.25 2.25 0 009.568 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
-                    <span><?= e($operasi['jenis_kejadian']) ?></span>
-                </span>
-                <?php endif; ?>
-            </div>
+            <?php if (!empty($operasi['jenis_kejadian'])): ?>
+              <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300">
+                <?= e($operasi['jenis_kejadian']) ?>
+              </span>
+            <?php endif; ?>
+          </div>
 
-            <!-- Title -->
-            <h1 class="text-base sm:text-lg lg:text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-snug">
-                <?= e($operasi['nama_operasi']) ?>
-            </h1>
-
-            <!-- Meta Information in Double-Bezel Inner Core -->
-            <div class="p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800/80 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-600 dark:text-slate-300">
-                <span class="inline-flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span>Mulai: <strong class="text-slate-800 dark:text-slate-200 font-mono"><?= TemplateHelper::formatTanggalIndo($waktuMulaiOps) ?> (<?= TemplateHelper::formatJamWITA($waktuMulaiOps) ?> WITA)</strong></span>
-                </span>
-
-                <?php if (!empty($operasi['lokasi_kejadian'])): ?>
-                <span class="inline-flex items-center gap-1.5 truncate max-w-md" title="<?= e($operasi['lokasi_kejadian']) ?>">
-                    <svg class="w-3.5 h-3.5 text-rose-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
-                    <span><?= e($operasi['lokasi_kejadian']) ?></span>
-                </span>
-                <?php endif; ?>
-
-                <?php if (!empty($operasi['koordinat'])): ?>
-                <span class="inline-flex items-center gap-1.5 font-mono text-[11px] text-slate-700 dark:text-slate-200">
-                    <svg class="w-3.5 h-3.5 text-blue-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v3m0 12v3M3 12h3m12 0h3"/></svg>
-                    <span>LKP: <span class="font-bold"><?= e($operasi['koordinat']) ?></span></span>
-                </span>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <!-- Action Toolbar -->
-        <div class="flex flex-wrap items-center gap-2 shrink-0 pt-2 xl:pt-0 border-t xl:border-t-0 border-slate-100 dark:border-slate-800 no-print">
-            <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= $id ?>&include_base=1" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-xs transition" title="Buka Peta Taktis GIS Operasi Ini">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-                <span>Peta Plotting GIS</span>
+          <div class="flex flex-wrap items-center gap-1.5 min-w-0 max-w-full lg:shrink-0">
+            <a href="<?= BASE_URL ?>/gis.php?id_operasi=<?= $id ?>&include_base=1" class="opsd-accent-btn inline-flex items-center gap-1.5 h-8 px-3 rounded-lg font-semibold text-xs transition whitespace-nowrap" title="Buka Peta Taktis GIS Operasi Ini">
+              <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+              <span>Peta GIS</span>
             </a>
 
-            <button type="button" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-view-wa-awal')" title="Lihat naskah laporan awal format WhatsApp">
-                <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-.774-.954l.583-2.183A7.95 7.95 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"/></svg>
-                <span>Naskah WA</span>
+            <button type="button" class="opsd-ghost-btn inline-flex items-center gap-1.5 h-8 px-3 rounded-lg font-semibold text-xs transition cursor-pointer whitespace-nowrap" onclick="openModal('modal-view-wa-awal')" title="Lihat naskah laporan awal format WhatsApp">
+              <svg class="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              <span>Naskah WA</span>
             </button>
 
             <?php if ($isOpen): ?>
-            <a href="<?= BASE_URL ?>/operasi_form.php?id=<?= $id ?>" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition" title="Koreksi data inisiasi laporan awal">
-                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"/></svg>
-                <span>Edit Lap Awal</span>
-            </a>
+              <a href="<?= BASE_URL ?>/operasi_form.php?id=<?= $id ?>" class="opsd-ghost-btn inline-flex items-center gap-1.5 h-8 px-3 rounded-lg font-semibold text-xs transition whitespace-nowrap" title="Koreksi data inisiasi laporan awal">
+                <svg class="w-3.5 h-3.5 text-slate-400" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                <span>Edit</span>
+              </a>
 
-            <button type="button" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-600 text-red-600 hover:text-white border border-red-500/25 font-bold text-xs shadow-xs transition cursor-pointer" onclick="openModal('modal-close-ops-detail')" title="Tutup Operasi SAR secara resmi">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/></svg>
+              <button type="button" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-rose-500/10 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white border border-rose-500/25 font-semibold text-xs transition cursor-pointer whitespace-nowrap" onclick="openModal('modal-close-ops-detail')" title="Tutup Operasi SAR secara resmi">
+                <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 <span>Tutup Operasi</span>
-            </button>
+              </button>
             <?php else: ?>
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-amber-600 dark:text-amber-400 font-medium hidden sm:inline">
-                    Ditutup <?= $tglSelesai ? "({$tglSelesai})" : '' ?>
-                </span>
-                <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="btn-tactile inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs shadow-xs transition cursor-pointer" title="Perpanjang hari operasi SAR (buka hari lanjutan)">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
-                    <span>Perpanjang Operasi</span>
-                </button>
-            </div>
+              <button type="button" onclick="confirmAndRollbackOperasi(<?= $id ?>)" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition cursor-pointer whitespace-nowrap" title="Perpanjang hari operasi SAR (buka hari lanjutan)">
+                <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <span>Perpanjang Operasi</span>
+              </button>
             <?php endif; ?>
+
+            <?php if (AuthHelper::canDelete()): ?>
+              <form method="POST" action="<?= BASE_URL ?>/operasi.php?action=delete" class="inline-flex" data-confirm="Apakah Anda yakin ingin menghapus Operasi SAR ini secara permanen beserta seluruh Renops, Lapbang, dan data terkait? Tindakan ini tidak dapat dibatalkan." data-confirm-title="Hapus Operasi SAR Permanen" data-confirm-btn="Ya, Hapus Permanen" data-confirm-danger="true">
+                <?= csrfInput() ?>
+                <input type="hidden" name="id" value="<?= $id ?>">
+                <button type="submit" class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-900 transition cursor-pointer" title="Hapus Operasi Permanen" aria-label="Hapus operasi permanen">
+                  <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </button>
+              </form>
+            <?php endif; ?>
+          </div>
         </div>
+
+        <h1 class="opsd-title font-bold text-slate-900 dark:text-white max-w-4xl">
+          <?= e($operasi['nama_operasi']) ?>
+        </h1>
+      </div>
+
+      <!-- Hairline Metadata Strip -->
+      <div class="px-4 sm:px-5 py-2.5 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/35 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+        <span class="inline-flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Mulai <strong class="font-semibold text-slate-800 dark:text-slate-200"><?= TemplateHelper::formatTanggalIndo($waktuMulaiOps) ?></strong> <span class="opsd-num font-mono text-[11px]">(<?= TemplateHelper::formatJamWITA($waktuMulaiOps) ?> WITA)</span></span>
+        </span>
+
+        <?php if (!empty($operasi['lokasi_kejadian'])): ?>
+          <span class="inline-flex items-center gap-1.5 min-w-0" title="<?= e($operasi['lokasi_kejadian']) ?>">
+            <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="truncate max-w-md"><?= e($operasi['lokasi_kejadian']) ?></span>
+          </span>
+        <?php endif; ?>
+
+        <?php if (!empty($operasi['koordinat'])): ?>
+          <span class="opsd-num font-mono text-[11px] px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+            LKP <?= e($operasi['koordinat']) ?>
+          </span>
+        <?php endif; ?>
+
+        <span class="opsd-num inline-flex items-center gap-1.5 font-mono text-[11px]">
+          <span class="text-slate-500 dark:text-slate-400">POB <?= $pobTotal ?>:</span>
+          <span class="text-emerald-700 dark:text-emerald-400 font-semibold"><?= $pobS ?> S</span>
+          <span class="text-rose-700 dark:text-rose-400 font-semibold"><?= $pobMd ?> MD</span>
+          <span class="text-amber-700 dark:text-amber-400 font-semibold"><?= $pobDp ?> DP</span>
+          <?php if ($pobH > 0): ?><span class="text-slate-500 dark:text-slate-400 font-semibold"><?= $pobH ?> H</span><?php endif; ?>
+        </span>
+
+        <?php if (!$isOpen && $tglSelesai): ?>
+          <span class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Ditutup <?= e($tglSelesai) ?></span>
+        <?php endif; ?>
+      </div>
+
+      <!-- Integrated Flush Underline Tab Rail -->
+      <nav aria-label="Navigasi modul detail operasi" class="tabs-header ops-detail-tabs border-t border-slate-200/80 dark:border-slate-800 px-2 sm:px-3 flex items-center overflow-x-auto no-print">
+        <button type="button" class="tab-btn <?= $activeTab === 'hierarchy' ? 'active' : '' ?>" onclick="switchTab('hierarchy')">
+          <span>Hirarki</span>
+          <span class="opsd-tab-count"><?= count($timeline) ?></span>
+        </button>
+        <button type="button" class="tab-btn <?= $activeTab === 'renops' ? 'active' : '' ?>" onclick="switchTab('renops')">
+          <span>RENOPS</span>
+          <span class="opsd-tab-count"><?= $countRenops ?></span>
+        </button>
+        <button type="button" class="tab-btn <?= ($activeTab === 'sitrep' || $activeTab === 'laporan') ? 'active' : '' ?>" onclick="switchTab('sitrep')">
+          <span>LAPBANG</span>
+          <span class="opsd-tab-count"><?= $countSitrep ?></span>
+        </button>
+        <button type="button" class="tab-btn <?= $activeTab === 'korban' ? 'active' : '' ?>" onclick="switchTab('korban')">
+          <span>Korban</span>
+          <span class="opsd-tab-count"><?= $countKorban ?></span>
+        </button>
+        <button type="button" class="tab-btn <?= $activeTab === 'kekuatan' ? 'active' : '' ?>" onclick="switchTab('kekuatan')">
+          <span>Unsur &amp; Alut</span>
+        </button>
+        <button type="button" class="tab-btn <?= $activeTab === 'gis' ? 'active' : '' ?>" onclick="switchTab('gis')">
+          <span>Peta GIS</span>
+          <span id="gis-tab-count" class="opsd-tab-count <?= $totalComponents > 0 ? '' : 'hidden' ?>"><?= $totalComponents ?></span>
+        </button>
+        <button type="button" class="tab-btn <?= $activeTab === 'cetak' ? 'active' : '' ?>" onclick="switchTab('cetak')">
+          <span>Cetak</span>
+        </button>
+        <button type="button" class="tab-btn <?= $activeTab === 'bra' ? 'active' : '' ?>" onclick="switchTab('bra')">
+          <span>BRA SAR</span>
+          <span class="opsd-tab-count"><?= $countBra ?></span>
+        </button>
+      </nav>
+    </section>
+
+    <!-- ======================================================== -->
+    <!-- TAB CONTENT PANES (MODULAR PARTIALS)                     -->
+    <!-- ======================================================== -->
+    <div>
+      <?php
+      $contextData = get_defined_vars();
+      renderPartial('operasi/partials/tab_hierarchy', $contextData);
+      renderPartial('operasi/partials/tab_renops', $contextData);
+      renderPartial('operasi/partials/tab_sitrep', $contextData);
+      renderPartial('operasi/partials/tab_korban', $contextData);
+      renderPartial('operasi/partials/tab_kekuatan', $contextData);
+      renderPartial('operasi/partials/tab_bra', $contextData);
+      renderPartial('operasi/partials/tab_gis', $contextData);
+      renderPartial('operasi/partials/tab_cetak', $contextData);
+      renderPartial('operasi/partials/modals', $contextData);
+      ?>
     </div>
-</div>
 
-<!-- ======================================================== -->
-<!-- TAB NAVIGATION (CLEAN & MODERN) -->
-<!-- ======================================================== -->
-<div class="tabs-header cockpit-glass p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 mb-6 flex overflow-x-auto no-print gap-1.5">
-    <button class="tab-btn <?= $activeTab === 'hierarchy' ? 'active' : '' ?>" onclick="switchTab('hierarchy')">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <span>Hirarki Dokumen (<?= count($timeline) ?>)</span>
-    </button>
-    <button class="tab-btn <?= $activeTab === 'renops' ? 'active' : '' ?>" onclick="switchTab('renops')">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
-        <span>Rencana Operasi (<?= $countRenops ?>)</span>
-    </button>
-    <button class="tab-btn <?= ($activeTab === 'sitrep' || $activeTab === 'laporan') ? 'active' : '' ?>" onclick="switchTab('sitrep')">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
-        <span>Laporan Perkembangan (<?= $countSitrep ?>)</span>
-    </button>
-    <button class="tab-btn <?= $activeTab === 'korban' ? 'active' : '' ?>" onclick="switchTab('korban')">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
-        <span>Data Korban (<?= $countKorban ?>)</span>
-    </button>
-    <button class="tab-btn <?= $activeTab === 'kekuatan' ? 'active' : '' ?>" onclick="switchTab('kekuatan')">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>
-        <span>Kekuatan Unsur & Alut</span>
-    </button>
-    <button class="tab-btn <?= $activeTab === 'gis' ? 'active' : '' ?>" onclick="switchTab('gis')">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
-        <span>Peta Taktis (GIS)</span>
-        <span id="gis-tab-count" class="<?= $totalComponents > 0 ? '' : 'hidden' ?> ml-1 px-1.5 py-0.2 rounded-full text-[11px] font-mono font-bold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30"><?= $totalComponents ?></span>
-    </button>
-    <button class="tab-btn <?= $activeTab === 'cetak' ? 'active' : '' ?>" onclick="switchTab('cetak')">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
-        <span>Cetak Berkas</span>
-    </button>
-    <button class="tab-btn <?= $activeTab === 'bra' ? 'active' : '' ?>" onclick="switchTab('bra')">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
-        <span>BRA SAR (<?= $countBra ?>)</span>
-    </button>
+  </div>
 </div>
-
-<!-- ======================================================== -->
-<!-- TAB CONTENT PANES (MODULAR PARTIALS) -->
-<!-- ======================================================== -->
-<?php
-$contextData = get_defined_vars();
-renderPartial('operasi/partials/tab_hierarchy', $contextData);
-renderPartial('operasi/partials/tab_renops', $contextData);
-renderPartial('operasi/partials/tab_sitrep', $contextData);
-renderPartial('operasi/partials/tab_korban', $contextData);
-renderPartial('operasi/partials/tab_kekuatan', $contextData);
-renderPartial('operasi/partials/tab_bra', $contextData);
-renderPartial('operasi/partials/tab_gis', $contextData);
-renderPartial('operasi/partials/tab_cetak', $contextData);
-renderPartial('operasi/partials/modals', $contextData);
-?>
 
 <script>
 window.__OPS_DETAIL_CONFIG__ = <?= jsonSafe([

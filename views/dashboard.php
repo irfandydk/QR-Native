@@ -1,8 +1,13 @@
 <?php
 /**
- * QR-SAR - Dashboard View
- * KPP Kendari - Basarnas
- * 100% Faithful Implementation matching src/components/DashboardList.tsx
+ * QR-SAR - Dashboard Beranda (Arsitektur Editorial Rapi, Ikon-First & Stabil)
+ * Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
+ *
+ * Struktur 4 blok terpadu sejajar pada satu rel grid:
+ * 1. Hero Editorial + Panorama Basarnas + Bar Operasional Terpadu (3 KPI & Operasi Aktif)
+ * 2. Strip Alur Kerja 5 Tahap (hover-only, non-klik)
+ * 3. Bento Fitur Utama 12x2 Gapless (hover-only, non-klik)
+ * 4. Matriks Keunggulan & Manfaat 2 Kolom (hover-only, non-klik)
  */
 
 declare(strict_types=1);
@@ -12,958 +17,707 @@ if (!defined('APP_NAME')) {
     exit('Akses langsung ditolak.');
 }
 
-$stats = OperasiModel::getStats();
-$operasis = OperasiModel::getAll();
-$braStats = BraModel::getStats();
-$latestBraList = BraModel::getLatest(1);
+$stats = isset($stats) && is_array($stats) ? $stats : OperasiModel::getStats();
+$activeOperations = isset($activeOperations) && is_array($activeOperations) ? $activeOperations : [];
+$appSettings = isset($appSettings) && is_array($appSettings) ? $appSettings : SettingsModel::getSettings();
+$currentUser = isset($currentUser) && is_array($currentUser) ? $currentUser : AuthHelper::getCurrentUser();
+$isAdmin = isset($isAdmin) ? (bool)$isAdmin : AuthHelper::isAdmin();
 
-$currentUser = AuthHelper::getCurrentUser();
-$isAdmin = AuthHelper::isAdmin();
-$initialStatus = isset($_GET['status']) && in_array(strtoupper((string)$_GET['status']), ['ALL', 'OPEN', 'CLOSED'], true)
-    ? strtoupper((string)$_GET['status'])
-    : 'OPEN';
-
-// Overall Metrics
 $totalOpen = (int)($stats['operasi_aktif'] ?? 0);
 $totalClosed = (int)($stats['operasi_selesai'] ?? 0);
-$totalBra = (int)($braStats['total'] ?? 0);
+$totalBra = (int)($stats['total_bra'] ?? 0);
 
-$latestBra = !empty($latestBraList) ? $latestBraList[0] : null;
-$latestBraNumber = $latestBra['no_bra'] ?? '-';
-$latestBraSubtext = $latestBra
-    ? ($latestBra['kategori'] . ' • ' . ($latestBra['twu'] ?: (!empty($latestBra['created_at']) ? TemplateHelper::formatJamWITA($latestBra['created_at']) . ' WITA' : 'Tercatat')))
-    : 'Belum ada dokumen BRA terbit';
+$satkerNama = trim((string)($appSettings['satker_nama'] ?? 'Kantor Pencarian dan Pertolongan Kendari'));
+$userName = trim((string)($currentUser['nama'] ?? ($isAdmin ? 'Administrator SAR' : 'Petugas Siaga SAR')));
+$userRoleLabel = $isAdmin ? 'Administrator' : 'Operator Siaga';
+$logoUrl = getAppLogoUrl();
 
-// Extract distinct list of months from operasis
-$monthNamesId = [
-    1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April', 5 => 'Mei', 6 => 'Juni',
-    7 => 'Juli', 8 => 'Agustus', 9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+$imgHero = assetUrl('assets/images/dashboard/hero-sar-ops.jpg');
+$imgGis = assetUrl('assets/images/dashboard/feature-gis-tactical.jpg');
+$imgDesk = assetUrl('assets/images/dashboard/feature-command-desk.jpg');
+
+$workflowSteps = [
+    [
+        'idx' => '01',
+        'title' => 'Laporan awal',
+        'icon' => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+    ],
+    [
+        'idx' => '02',
+        'title' => 'Ploting GIS',
+        'icon' => '<polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/>',
+    ],
+    [
+        'idx' => '03',
+        'title' => 'RENOPS',
+        'icon' => '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/>',
+    ],
+    [
+        'idx' => '04',
+        'title' => 'BRA & LAPBANG',
+        'icon' => '<path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/>',
+    ],
+    [
+        'idx' => '05',
+        'title' => 'Penutupan',
+        'icon' => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/>',
+    ],
 ];
-$monthMap = [];
-foreach ($operasis as $op) {
-    $dateStr = $op['waktu_kejadian'] ?: ($op['waktu_lapor'] ?: ($op['waktu_berangkat'] ?: ($op['created_at'] ?? '')));
-    if (!$dateStr) continue;
-    $time = strtotime($dateStr);
-    if ($time === false) continue;
-    $year = (int)date('Y', $time);
-    $month = (int)date('n', $time);
-    $key = sprintf('%04d-%02d', $year, $month);
-    $label = $monthNamesId[$month] . ' ' . $year;
-    if (!isset($monthMap[$key])) {
-        $monthMap[$key] = [
-            'key' => $key,
-            'label' => $label,
-            'count' => 0,
-            'time' => strtotime("{$year}-{$month}-01")
-        ];
-    }
-    $monthMap[$key]['count']++;
-}
-uasort($monthMap, fn($a, $b) => $b['time'] <=> $a['time']);
+
+$advantages = [
+    [
+        'title' => 'Offline-first jaringan lokal',
+        'icon' => '<rect x="2" y="3" width="20" height="7" rx="2"/><rect x="2" y="14" width="20" height="7" rx="2"/><line x1="6" y1="6.5" x2="6.01" y2="6.5"/><line x1="6" y1="17.5" x2="6.01" y2="17.5"/>',
+    ],
+    [
+        'title' => 'Sinkron GIS & dokumen',
+        'icon' => '<path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/>',
+    ],
+    [
+        'title' => 'Standar Basarnas & IAMSAR',
+        'icon' => '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
+    ],
+    [
+        'title' => 'RBAC & penguncian arsip',
+        'icon' => '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    ],
+];
+
+$benefits = [
+    [
+        'title' => 'Pelaporan hitungan menit',
+        'icon' => '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+    ],
+    [
+        'title' => 'Koordinat DMS presisi',
+        'icon' => '<circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>',
+    ],
+    [
+        'title' => 'Format seragam lintas regu',
+        'icon' => '<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/>',
+    ],
+    [
+        'title' => 'Verifikasi QR instan',
+        'icon' => '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M20 14v3"/><path d="M14 20h6"/>',
+    ],
+];
 ?>
 
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
-  
-  <!-- ============================================================== -->
-  <!-- 4 PRIMARY METRICS ROW (MATCHING DashboardList.tsx)              -->
-  <!-- ============================================================== -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
-    
-    <!-- Metric 1: Operasi SAR Aktif -->
-    <div class="bento-card-v1 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden group">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">
-          Operasi Aktif
-        </span>
-        <span class="radar-beacon-active">
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 z-10"></span>
-        </span>
-      </div>
-      <div class="flex items-baseline justify-between gap-1.5 mt-1.5">
-        <div class="text-2xl sm:text-3xl font-bold text-emerald-500 dark:text-emerald-400 font-mono tracking-tight leading-none">
-          <?= $totalOpen ?>
-        </div>
-        <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-          OPEN
-        </span>
-      </div>
-      <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500 truncate">
-        Dalam penanganan SAR
-      </p>
-    </div>
+<style>
+  /* ====================================================================== */
+  /* DASHBOARD ARCHITECTURAL GRID, HOVER PHYSICS & ADAPTIVE THEME TOKENS    */
+  /* ====================================================================== */
+  .dash-root {
+    --dash-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 32px -20px rgba(15, 23, 42, 0.14);
+    --dash-shadow-hover: 0 6px 14px -4px rgba(15, 23, 42, 0.07), 0 22px 44px -20px color-mix(in srgb, var(--primary) 26%, rgba(15, 23, 42, 0.16));
+    --dash-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  html.dark .dash-root,
+  html[data-theme="dark"] .dash-root {
+    --dash-shadow: 0 1px 2px rgba(2, 6, 23, 0.45), 0 18px 38px -20px rgba(2, 6, 23, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --dash-shadow-hover: 0 8px 20px -6px rgba(2, 6, 23, 0.58), 0 24px 48px -20px color-mix(in srgb, var(--primary) 30%, rgba(2, 6, 23, 0.78)), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  }
 
-    <!-- Metric 2: Operasi SAR Tutup -->
-    <div class="bento-card-v1 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden group">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">
-          Operasi Selesai
-        </span>
-        <div class="w-5 h-5 rounded-md bg-slate-500/10 dark:bg-slate-800 flex items-center justify-center border border-slate-200/50 dark:border-slate-700/50">
-          <svg class="w-3 h-3 text-slate-500 dark:text-slate-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-      </div>
-      <div class="flex items-baseline justify-between gap-1.5 mt-1.5">
-        <div class="text-2xl sm:text-3xl font-bold font-mono text-slate-700 dark:text-slate-300 tracking-tight leading-none">
-          <?= $totalClosed ?>
-        </div>
-        <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-          CLOSED
-        </span>
-      </div>
-      <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500 truncate">
-        Debriefing &amp; penutupan
-      </p>
-    </div>
+  /* Wide editorial display typography (2-line iron rule) */
+  .dash-hero-title {
+    font-size: clamp(1.75rem, 1.15rem + 2vw, 2.625rem);
+    line-height: 1.08;
+    letter-spacing: -0.032em;
+    text-wrap: balance;
+  }
+  .dash-section-title {
+    font-size: clamp(1.0625rem, 0.98rem + 0.35vw, 1.25rem);
+    line-height: 1.25;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+  .dash-card-title {
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  .dash-num {
+    font-variant-numeric: tabular-nums;
+  }
 
-    <!-- Metric 3: Jumlah BRA SAR -->
-    <div class="bento-card-v1 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden group">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">
-          Berita SAR (BRA)
-        </span>
-        <div class="w-5 h-5 rounded-md bg-orange-500/10 dark:bg-orange-500/15 flex items-center justify-center border border-orange-500/30">
-          <svg class="w-3 h-3 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0 14.14"/></svg>
-        </div>
-      </div>
-      <div class="flex items-baseline justify-between gap-1.5 mt-1.5">
-        <div class="text-2xl sm:text-3xl font-bold text-orange-600 dark:text-orange-400 font-mono tracking-tight leading-none">
-          <?= $totalBra ?>
-        </div>
-        <span class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
-          TERBIT
-        </span>
-      </div>
-      <p class="text-[11px] mt-1 text-slate-400 dark:text-slate-500 truncate">
-        Telegram radio terbit
-      </p>
-    </div>
+  /* Interactive Hero & Operational Bar controls */
+  .dash-accent-btn {
+    background-color: var(--primary);
+    color: #ffffff !important;
+    border: 1px solid transparent;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 10px 20px -10px color-mix(in srgb, var(--primary) 62%, transparent);
+  }
+  .dash-accent-btn:hover {
+    background-color: var(--primary-hover);
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.14), 0 14px 24px -10px color-mix(in srgb, var(--primary) 72%, transparent);
+  }
+  .dash-ghost-btn {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+  }
+  .dash-ghost-btn:hover {
+    background-color: var(--bg-card-subtle);
+    border-color: color-mix(in srgb, var(--primary) 38%, var(--border-color));
+  }
+  .dash-accent-text {
+    color: var(--m-accent-text, var(--primary));
+  }
+  .dash-text-link {
+    color: var(--m-accent-text, var(--primary));
+    text-underline-offset: 4px;
+    text-decoration-thickness: 1.5px;
+  }
+  .dash-text-link:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+  }
+  .dash-accent-btn:focus-visible,
+  .dash-ghost-btn:focus-visible,
+  .dash-text-link:focus-visible,
+  .dash-metric-link:focus-visible,
+  .dash-op-row:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
 
-    <!-- Metric 4: Nomor Terakhir BRA SAR -->
-    <div class="bento-card-v1 p-3 sm:p-3.5 rounded-2xl relative overflow-hidden group">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 font-mono">
-          BRA Terakhir
-        </span>
-        <div class="w-5 h-5 rounded-md bg-blue-500/10 dark:bg-blue-500/15 flex items-center justify-center border border-blue-500/30">
-          <svg class="w-3 h-3 text-blue-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        </div>
-      </div>
-      <div class="mt-1.5">
-        <div class="text-sm sm:text-base font-bold font-mono tracking-tight truncate text-slate-900 dark:text-white" title="<?= e($latestBraNumber) ?>">
-          <?= e($latestBraNumber) ?>
-        </div>
-      </div>
-      <p class="text-[11px] mt-0.5 truncate text-slate-400 dark:text-slate-500">
-        <?= e($latestBraSubtext) ?>
-      </p>
-    </div>
+  /* Unified architectural surfaces & icon badges */
+  .dash-panel {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--dash-shadow);
+  }
+  .dash-hairline-grid {
+    background-color: var(--border-color);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--dash-shadow);
+  }
+  .dash-hairline-cell {
+    background-color: var(--bg-card);
+  }
+  .dash-hover-card {
+    cursor: default;
+    user-select: none;
+  }
+  .dash-surface {
+    box-shadow: var(--dash-shadow);
+  }
+  .dash-tile-tinted {
+    background-color: color-mix(in srgb, var(--primary) 7%, var(--bg-card));
+    border-color: color-mix(in srgb, var(--primary) 26%, var(--border-color));
+  }
+  .dash-icon-box {
+    background-color: color-mix(in srgb, var(--primary) 10%, var(--bg-card-subtle));
+    color: var(--m-accent-text, var(--primary));
+    border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+  .dash-icon-box-neutral {
+    background-color: var(--bg-card-subtle);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+  }
+  .dash-media-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 
-  </div>
+  /* Unified workflow segment top accent indicator */
+  .dash-step-cell {
+    position: relative;
+  }
+  .dash-step-cell::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 1.25rem;
+    right: 1.25rem;
+    height: 2px;
+    background-color: var(--primary);
+    border-radius: 0 0 2px 2px;
+    transform-origin: left center;
+    transform: scaleX(0);
+    opacity: 0;
+  }
 
-  <!-- ============================================================== -->
-  <!-- FILTER AND SEARCH BAR (MATCHING DashboardList.tsx)              -->
-  <!-- ============================================================== -->
-  <div class="cockpit-glass flex flex-col lg:flex-row items-center justify-between gap-3 rounded-2xl p-3 sm:p-4">
-    
-    <!-- Search Input -->
-    <div class="relative w-full lg:w-72">
-      <svg class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      <input
-        type="text"
-        id="dashSearchInput"
-        placeholder="Cari operasi, perairan, koordinat..."
-        class="control control-sm w-full placeholder:text-slate-400 dark:placeholder:text-slate-500 pl-9 pr-8"
-      />
-      <button
-        type="button"
-        id="dashSearchClearBtn"
-        onclick="clearDashSearch()"
-        class="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hidden cursor-pointer"
-        title="Hapus Pencarian"
-      >
-        ✕
-      </button>
-    </div>
+  /* Subtle ambient glow behind hero */
+  .dash-hero-band {
+    position: relative;
+    isolation: isolate;
+  }
+  .dash-hero-band::before {
+    content: "";
+    position: absolute;
+    inset: -1.5rem -1rem auto -1rem;
+    height: 18rem;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(46rem 16rem at 18% 0%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 70%);
+  }
 
-    <!-- Month Filter, Status Tabs & Actions -->
-    <div class="flex flex-wrap items-center justify-end gap-2 w-full lg:w-auto">
-      
-      <!-- Month Filter Dropdown -->
-      <div class="relative flex items-center">
-        <div class="absolute left-2.5 pointer-events-none">
-          <svg class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-        </div>
-        <select
-          id="dashMonthSelect"
-          onchange="onMonthFilterChange(this.value)"
-          aria-label="Filter Bulan Operasi SAR"
-          class="control control-sm font-semibold cursor-pointer appearance-none pl-8 pr-7"
-        >
-          <option value="ALL">Semua Bulan Operasi</option>
-          <?php foreach ($monthMap as $mOpt): ?>
-            <option value="<?= e($mOpt['key']) ?>">
-              <?= e($mOpt['label']) ?> (<?= $mOpt['count'] ?>)
-            </option>
-          <?php endforeach; ?>
-        </select>
-        <div class="absolute right-2.5 pointer-events-none text-slate-400 text-[11px]">
-          ▼
-        </div>
-      </div>
-
-      <!-- Status Filter Tabs -->
-      <div class="flex items-center max-w-full overflow-x-auto rounded-xl p-1 text-xs border bg-slate-100 dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xs">
-        <button
-          type="button"
-          id="tab-status-ALL"
-          onclick="setStatusFilter('ALL')"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'ALL' ? 'font-bold bg-orange-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
-        >
-          <span>Semua</span>
-          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[11px] font-mono <?= $initialStatus === 'ALL' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
-            <?= count($operasis) ?>
-          </span>
-        </button>
-        <button
-          type="button"
-          id="tab-status-OPEN"
-          onclick="setStatusFilter('OPEN')"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'OPEN' ? 'font-bold bg-orange-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
-        >
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>OPEN</span>
-          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[11px] font-mono <?= $initialStatus === 'OPEN' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
-            <?= $totalOpen ?>
-          </span>
-        </button>
-        <button
-          type="button"
-          id="tab-status-CLOSED"
-          onclick="setStatusFilter('CLOSED')"
-          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg <?= $initialStatus === 'CLOSED' ? 'font-bold bg-orange-600 text-white shadow-sm' : 'font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' ?> transition-all cursor-pointer"
-        >
-          <svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>CLOSED</span>
-          <span class="tab-badge px-1.5 py-0.2 rounded-full text-[11px] font-mono <?= $initialStatus === 'CLOSED' ? 'bg-white/20 text-white font-bold' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold' ?>">
-            <?= $totalClosed ?>
-          </span>
-        </button>
-      </div>
-
-      <!-- Segarkan Button -->
-      <button
-        type="button"
-        id="btnRefreshData"
-        onclick="refreshDashboardData()"
-        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer shadow-xs"
-        title="Segarkan Data Real-Time"
-      >
-        <svg id="refreshSpinnerIcon" class="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
-        <span class="hidden sm:inline" id="refreshLabel">Segarkan</span>
-      </button>
-
-      <!-- Tambah Operasi Baru Button -->
-      <a
-        id="btn-tambah-operasi-baru"
-        href="<?= BASE_URL ?>/operasi_form.php"
-        class="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:opacity-95 text-white rounded-xl text-xs font-bold shadow-md border border-orange-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-        <span>Operasi Baru</span>
-      </a>
-
-    </div>
-  </div>
-
-  <!-- ============================================================== -->
-  <!-- FILTER ACTIVE INFO BAR (Dinamis jika filter aktif)              -->
-  <!-- ============================================================== -->
-  <div id="filterActiveInfoBar" class="px-4 py-2 rounded-xl border items-center justify-between text-xs transition-colors bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hidden">
-    <div class="flex items-center gap-2 flex-wrap">
-      <span class="text-slate-400 font-medium">Filter Aktif:</span>
-
-      <span id="chipMonth" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/30 hidden">
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-        <span id="chipMonthText">Bulan</span>
-        <button type="button" onclick="resetMonthFilter()" class="hover:text-orange-800 dark:hover:text-orange-200 ml-0.5 cursor-pointer"></button>
-      </span>
-
-      <span id="chipStatus" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 hidden">
-        <span id="chipStatusText">Status</span>
-        <button type="button" onclick="setStatusFilter('OPEN')" class="hover:text-blue-800 dark:hover:text-blue-200 ml-0.5 cursor-pointer"></button>
-      </span>
-
-      <span id="chipSearch" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/30 hidden">
-        <span id="chipSearchText">Cari</span>
-        <button type="button" onclick="clearDashSearch()" class="hover:text-slate-900 dark:hover:text-white ml-0.5 cursor-pointer"></button>
-      </span>
-
-      <span id="filteredCountText" class="text-slate-400 text-[11px]">
-        (<?= count($operasis) ?> dari <?= count($operasis) ?> operasi)
-      </span>
-    </div>
-
-    <button
-      type="button"
-      onclick="resetAllFilters()"
-      class="text-[11px] font-semibold text-orange-600 dark:text-orange-400 hover:underline shrink-0 cursor-pointer"
-    >
-      Reset Semua Filter
-    </button>
-  </div>
-
-  <!-- ============================================================== -->
-  <!-- OPERATIONS CARD LIST (MATCHING DashboardList.tsx)              -->
-  <!-- ============================================================== -->
-  <div id="operationsListContainer" class="space-y-3">
-    
-    <?php
-    $initialVisibleCount = 0;
-    foreach ($operasis as $opCheck) {
-        $checkStatus = $opCheck['status'] ?? 'OPEN';
-        if ($initialStatus === 'ALL' || $checkStatus === $initialStatus) {
-            $initialVisibleCount++;
-        }
+  /* GPU-only entrance & hover physics (strictly gated by prefers-reduced-motion) */
+  @keyframes dash-rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
     }
-    ?>
-    <!-- Tactical Empty State Container -->
-    <div id="operationsEmptyState" class="p-10 sm:p-12 text-center rounded-2xl border space-y-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-xs <?= $initialVisibleCount === 0 ? '' : 'hidden' ?>">
-      <div class="w-14 h-14 mx-auto rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400 flex items-center justify-center border border-orange-500/20 radar-sweep-tactical">
-        <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
-      </div>
-      <div class="max-w-md mx-auto">
-        <h3 id="emptyStateTitle" class="text-sm font-bold text-slate-900 dark:text-white">
-          <?= $initialStatus === 'OPEN' ? 'Tidak ada operasi SAR aktif' : 'Tidak ada data operasi ditemukan' ?>
-        </h3>
-        <p id="emptyStateSubtitle" class="text-xs mt-1 text-slate-500 dark:text-slate-400">
-          <?= $initialStatus === 'OPEN' ? 'Saat ini tidak ada operasi SAR yang berstatus OPEN' : 'Belum ada operasi SAR yang diinisiasi' ?>
-        </p>
-      </div>
-      <div id="emptyStateActions" class="flex flex-wrap items-center justify-center gap-2 pt-1">
-        <button
-          type="button"
-          id="emptyStateResetBtn"
-          onclick="resetAllFilters()"
-          class="hidden px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-700 transition cursor-pointer"
-        >
-          Reset Filter Pencarian
-        </button>
-        <a
-          href="<?= BASE_URL ?>/operasi_form.php"
-          id="emptyStateInitBtn"
-          class="inline-block px-4 py-2 bg-orange-600 hover:opacity-95 text-white rounded-xl text-xs font-semibold shadow-md transition cursor-pointer"
-        >
-          + Inisiasi Laporan Awal Sekarang
-        </a>
-      </div>
-    </div>
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .dash-stagger {
+      animation: dash-rise 420ms var(--dash-spring) both;
+    }
+    .dash-stagger-1 { animation-delay: 20ms; }
+    .dash-stagger-2 { animation-delay: 80ms; }
+    .dash-stagger-3 { animation-delay: 140ms; }
+    .dash-stagger-4 { animation-delay: 200ms; }
 
-    <!-- Operation Cards -->
-    <?php foreach ($operasis as $op): 
-      $isOpen = ($op['status'] ?? 'OPEN') === 'OPEN';
-      $isReopened = !empty($op['waktu_reopen']);
-      $isInitialMatch = ($initialStatus === 'ALL') || (($op['status'] ?? 'OPEN') === $initialStatus);
-      $pelaksanaan = TemplateHelper::hitungPelaksanaanOperasi($op);
-      $resp = TemplateHelper::hitungResponseTime($op['waktu_lapor'], $op['waktu_berangkat']);
-      
-      $waktuBerangkat = $op['waktu_berangkat'] ?: ($op['waktu_kejadian'] ?: $op['waktu_lapor']);
-      $tglBerangkat = $waktuBerangkat ? TemplateHelper::formatTanggalIndo($waktuBerangkat) : '-';
-      $jamBerangkat = $waktuBerangkat ? TemplateHelper::formatJamWITA($waktuBerangkat) : '-';
+    .dash-accent-btn,
+    .dash-ghost-btn {
+      transition: transform 180ms var(--dash-spring), background-color 160ms ease, border-color 160ms ease, box-shadow 180ms ease;
+    }
+    .dash-accent-btn:active,
+    .dash-ghost-btn:active {
+      transform: scale(0.98) translateY(1px);
+    }
+    .dash-surface,
+    .dash-step-cell,
+    .dash-point-row,
+    .dash-metric-link,
+    .dash-op-row {
+      transition: transform 220ms var(--dash-spring), border-color 200ms ease, box-shadow 240ms ease, background-color 180ms ease;
+    }
+    .dash-step-cell::before {
+      transition: transform 280ms var(--dash-spring), opacity 220ms ease;
+    }
+    .dash-icon-box,
+    .dash-icon-box-neutral {
+      transition: transform 220ms var(--dash-spring), background-color 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+    .dash-media-img {
+      transition: transform 700ms ease-out;
+    }
+    .dash-card-arrow {
+      transition: transform 200ms var(--dash-spring), color 180ms ease;
+    }
+  }
+  @media (hover: hover) {
+    .dash-hero-visual:hover .dash-media-img,
+    .dash-surface:hover .dash-media-img {
+      transform: scale(1.03);
+    }
+    .dash-surface:hover {
+      border-color: color-mix(in srgb, var(--primary) 42%, var(--border-color));
+      box-shadow: var(--dash-shadow-hover);
+      transform: translateY(-2px);
+    }
+    .dash-surface:hover .dash-icon-box {
+      transform: scale(1.05);
+      background-color: color-mix(in srgb, var(--primary) 16%, var(--bg-card-subtle));
+    }
+    .dash-step-cell:hover {
+      background-color: color-mix(in srgb, var(--primary) 4%, transparent);
+    }
+    .dash-step-cell:hover::before {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+    .dash-step-cell:hover .dash-icon-box {
+      transform: scale(1.06);
+      background-color: color-mix(in srgb, var(--primary) 17%, var(--bg-card-subtle));
+    }
+    .dash-point-row:hover {
+      background-color: color-mix(in srgb, var(--primary) 4%, transparent);
+    }
+    .dash-point-row:hover .dash-icon-box,
+    .dash-point-row:hover .dash-icon-box-neutral {
+      transform: scale(1.06);
+      background-color: color-mix(in srgb, var(--primary) 14%, var(--bg-card-subtle));
+      border-color: color-mix(in srgb, var(--primary) 26%, transparent);
+      color: var(--m-accent-text, var(--primary));
+    }
+    .dash-metric-link:hover {
+      background-color: color-mix(in srgb, var(--primary) 5%, transparent);
+    }
+    .dash-op-row:hover {
+      background-color: color-mix(in srgb, var(--primary) 5%, transparent);
+    }
+    .dash-op-row:hover .dash-card-arrow {
+      transform: translateX(3px);
+      color: var(--m-accent-text, var(--primary));
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dash-stagger,
+    .dash-media-img,
+    .dash-card-arrow,
+    .dash-accent-btn,
+    .dash-ghost-btn,
+    .dash-surface,
+    .dash-step-cell,
+    .dash-step-cell::before,
+    .dash-point-row,
+    .dash-metric-link,
+    .dash-op-row,
+    .dash-icon-box,
+    .dash-icon-box-neutral {
+      animation: none !important;
+      transition: none !important;
+      transform: none !important;
+    }
+  }
+</style>
 
-      $tglLapor = !empty($op['waktu_lapor']) ? TemplateHelper::formatTanggalIndo($op['waktu_lapor']) : '-';
-      $jamLapor = !empty($op['waktu_lapor']) ? TemplateHelper::formatJamWITA($op['waktu_lapor']) : '-';
-      
-      // Calculate month key
-      $dateStr = $op['waktu_kejadian'] ?: ($op['waktu_lapor'] ?: ($op['waktu_berangkat'] ?: ($op['created_at'] ?? '')));
-      $monthKey = $dateStr ? date('Y-m', strtotime($dateStr)) : '';
-      
-      $s = (int)($op['korban_s'] ?? 0);
-      $md = (int)($op['korban_md'] ?? 0);
-      $dp = (int)($op['korban_dp'] ?? 0);
-      $h = (int)($op['korban_h'] ?? 0);
-      $identified = (int)($op['total_korban_count'] ?? 0);
-      // Aturan sama dengan SarCalculationService::hitungStatistikKorban: POB yang belum terdata dihitung DP
-      $totalPob = max((int)($op['jumlah_pob'] ?? 0), $identified);
-      $dp += $totalPob - $identified;
+<div class="dash-root overflow-x-hidden w-full max-w-full">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-16 space-y-12 lg:space-y-14">
 
-      $totalRenops = (int)($op['total_renops'] ?? 0);
-      $totalLapbang = (int)($op['total_laporan'] ?? 0);
-    ?>
-    <div
-      class="operation-item-card bento-card-v1 p-3.5 sm:p-4 transition-all cursor-pointer hover:border-orange-500/50 dark:hover:border-orange-500/50 <?= $isOpen ? ($isReopened ? 'border-l-4 border-l-amber-500' : 'border-l-4 border-l-emerald-500') : 'border-l-4 border-l-slate-400 dark:border-l-slate-600' ?> <?= $isInitialMatch ? '' : 'hidden' ?>"
-      data-id="<?= $op['id_operasi'] ?>"
-      data-status="<?= e($op['status']) ?>"
-      data-month="<?= e($monthKey) ?>"
-      data-search="<?= e(strtolower($op['nama_operasi'] . ' ' . $op['lokasi_kejadian'] . ' ' . ($op['koordinat'] ?? ''))) ?>"
-      onclick="navigateToDetail(<?= $op['id_operasi'] ?>)"
-    >
-      <!-- Top Row: Status, H-X, ID, and Response Time Badge -->
-      <div class="flex flex-wrap items-center justify-between gap-2">
-        <div class="flex flex-wrap items-center gap-2">
-          
-          <!-- Status Badge -->
-          <?php if ($isOpen): ?>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>OPEN</span>
-            </span>
-          <?php else: ?>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
-              <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              <span>CLOSED</span>
-            </span>
-          <?php endif; ?>
+    <!-- ================================================================== -->
+    <!-- 1. WIDE EDITORIAL HERO + PANORAMA + UNIFIED OPERATIONAL BAR        -->
+    <!-- ================================================================== -->
+    <section aria-labelledby="dashHeroTitle" class="dash-hero-band dash-stagger dash-stagger-1 space-y-6">
 
-          <!-- Reopened / Extension Pill if Reopened -->
-          <?php if ($isReopened): ?>
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30" title="Operasi SAR dibuka kembali pada <?= TemplateHelper::formatTanggalIndo($op['waktu_reopen']) ?>">
-              <svg class="w-3 h-3 text-amber-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
-              <span>DIPERPANJANG</span>
-            </span>
-          <?php endif; ?>
+      <!-- Clean Wide Editorial Header (H1 max 2 lines + 2 aligned CTAs) -->
+      <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+        <div class="space-y-3 max-w-3xl">
+          <div class="flex items-center gap-2.5">
+            <img
+              src="<?= e($logoUrl) ?>"
+              alt="Logo resmi <?= e($satkerNama) ?>"
+              width="32"
+              height="32"
+              class="w-8 h-8 object-contain shrink-0"
+              onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'"
+            >
+            <p class="text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
+              <span class="font-semibold text-slate-800 dark:text-slate-200"><?= e($satkerNama) ?></span>
+              &middot; <?= e($userName) ?> (<?= e($userRoleLabel) ?>)
+            </p>
+          </div>
 
-          <!-- H-X Badge -->
-          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-mono font-bold border <?= $isOpen ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700' ?>" title="Hari Pelaksanaan SAR: <?= e($pelaksanaan['h_display']) ?>">
-            <span><?= e($pelaksanaan['h_display']) ?></span>
-          </span>
-
-          <!-- ID Badge (Opsional) -->
-          <span class="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
-            #<?= $op['id_operasi'] ?>
-          </span>
-
+          <h1 id="dashHeroTitle" class="dash-hero-title font-bold text-slate-900 dark:text-white">
+            Pelaporan cepat dan ploting taktis SAR.
+          </h1>
         </div>
 
-        <!-- Right: Response Time Badge -->
-        <div class="flex items-center gap-2">
-          <?php if ($resp['is_quick']): ?>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30" title="Response Time: <?= $resp['formatted'] ?> (Info diterima <?= $jamLapor ?> Berangkat <?= $jamBerangkat ?>)">
-              <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/></svg>
-              <span>Response Time: <?= $resp['formatted'] ?></span>
-            </span>
-          <?php elseif ($resp['minutes'] !== null): ?>
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30" title="Response Time: <?= $resp['formatted'] ?> (Info diterima <?= $jamLapor ?> Berangkat <?= $jamBerangkat ?>)">
-              <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span>Response Time: <?= $resp['formatted'] ?></span>
-            </span>
-          <?php else: ?>
-            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700">
-              <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <span>Respons: Belum Lengkap</span>
-            </span>
-          <?php endif; ?>
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+          <a href="<?= BASE_URL ?>/operasi.php" class="dash-accent-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap">
+            <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            <span>Buka Operasi SAR</span>
+            <svg class="w-4 h-4 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+          </a>
+          <a href="<?= BASE_URL ?>/gis.php" class="dash-ghost-btn inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap">
+            <svg class="w-4 h-4 shrink-0 dash-accent-text" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+            <span>Ploting Peta GIS</span>
+          </a>
         </div>
       </div>
 
-      <!-- Main Title: Judul Operasi -->
-      <div class="mt-2">
-        <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors leading-snug">
-          <?= e($op['nama_operasi']) ?>
-        </h3>
-      </div>
-
-      <!-- Lokasi & Koordinat -->
-      <div class="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-600 dark:text-slate-400">
-        <div class="flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
-          <span class="text-slate-800 dark:text-slate-200 font-semibold"><?= e($op['lokasi_kejadian']) ?></span>
-        </div>
-        <span class="text-slate-300 dark:text-slate-700 hidden sm:inline">•</span>
-        <div class="flex items-center gap-1 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-          <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>
-          <span><?= e($op['koordinat']) ?></span>
-        </div>
-      </div>
-
-      <!-- Tactical Metrics Grid: Waktu Mulai, Response Time Detail, POB, Renops & Lapbang -->
-      <div class="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
-        
-        <!-- Metric 1: Waktu Mulai (Dihitung Sejak Tim Berangkat) -->
-        <div class="p-2 sm:p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 font-mono">
-            <svg class="w-3 h-3 text-blue-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            <span class="truncate">Waktu Berangkat</span>
-          </div>
-          <div class="mt-1 font-semibold text-slate-800 dark:text-slate-200 leading-tight truncate">
-            <?= $tglBerangkat ?>
-          </div>
-          <div class="text-[11px] font-mono text-blue-600 dark:text-blue-400 font-bold mt-0.5">
-            <?= $waktuBerangkat ? $jamBerangkat . ' WITA' : 'Belum Berangkat' ?>
-          </div>
+      <!-- Unified Visual Stage + Integrated Operational Strip (Zero Overlapping Clutter) -->
+      <div class="dash-panel rounded-[1.5rem] overflow-hidden">
+        <!-- Full-Width Clean Basarnas Maritime Panorama -->
+        <div class="dash-hero-visual group relative aspect-[16/9] sm:aspect-[21/9] lg:aspect-[24/9] overflow-hidden bg-slate-900">
+          <img
+            src="<?= e($imgHero) ?>"
+            alt="Kapal patroli pencarian dan pertolongan melintasi perairan teluk Sulawesi Tenggara pada pagi hari"
+            width="1200"
+            height="896"
+            fetchpriority="high"
+            class="dash-media-img object-[50%_54%] contrast-[1.03] saturate-[0.96]"
+          >
+          <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/30 to-transparent" aria-hidden="true"></div>
         </div>
 
-        <!-- Metric 2: Response Time Details -->
-        <div class="p-2 sm:p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 font-mono">
-            <svg class="w-3 h-3 text-amber-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span class="truncate">Response Time</span>
-          </div>
-          <div class="mt-1 font-bold font-mono text-xs sm:text-sm <?= $resp['is_quick'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' ?>">
-            <?= $resp['formatted'] ?>
-          </div>
-          <div class="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-0.5" title="Lapor: <?= $jamLapor ?> WITA ➔ Berangkat: <?= $jamBerangkat ?> WITA">
-            <?= $jamLapor ?> ➔ <?= $jamBerangkat ?>
-          </div>
-        </div>
+        <!-- Unified Bottom Operational Bar: 3 Live KPIs (Left) | Active Ops (Right) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 dark:divide-slate-800 border-t border-slate-200 dark:border-slate-800">
 
-        <!-- Metric 3: Jumlah POB (Breakdown S / MD / DP) -->
-        <div class="p-2 sm:p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
-          <div class="flex items-center justify-between text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 font-mono">
-            <div class="flex items-center gap-1 truncate">
-              <svg class="w-3 h-3 text-orange-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <span class="truncate">POB: <?= $totalPob ?> Jiwa</span>
-            </div>
+          <!-- Left (5 cols): 3 Relevant Operational KPIs -->
+          <div class="lg:col-span-5 grid grid-cols-3 divide-x divide-slate-200/80 dark:divide-slate-800">
+            <a href="<?= BASE_URL ?>/operasi.php?status=OPEN" class="dash-metric-link flex items-center gap-2.5 px-3.5 sm:px-5 py-4 no-underline min-w-0">
+              <span class="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0 <?= $totalOpen > 0 ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25' : 'dash-icon-box-neutral' ?>" aria-hidden="true">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              </span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 text-[0.75rem] font-medium text-slate-500 dark:text-slate-400">
+                  <?php if ($totalOpen > 0): ?>
+                    <span class="radar-beacon-active w-2 h-2 rounded-full bg-emerald-500 shrink-0" aria-hidden="true"></span>
+                  <?php endif; ?>
+                  <span class="truncate">Aktif</span>
+                </div>
+                <div class="mt-0.5 flex items-baseline gap-1.5">
+                  <span class="dash-num text-xl font-bold font-mono text-slate-900 dark:text-white leading-none"><?= $totalOpen ?></span>
+                  <span class="text-[0.6875rem] font-semibold <?= $totalOpen > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400' ?>">
+                    <?= $totalOpen > 0 ? 'OPEN' : 'Siaga' ?>
+                  </span>
+                </div>
+              </div>
+            </a>
+
+            <a href="<?= BASE_URL ?>/operasi.php?status=CLOSED" class="dash-metric-link flex items-center gap-2.5 px-3.5 sm:px-5 py-4 no-underline min-w-0">
+              <span class="hidden sm:flex dash-icon-box-neutral w-8 h-8 rounded-lg items-center justify-center shrink-0" aria-hidden="true">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+              </span>
+              <div class="min-w-0">
+                <div class="text-[0.75rem] font-medium text-slate-500 dark:text-slate-400 truncate">Selesai</div>
+                <div class="mt-0.5 flex items-baseline gap-1.5">
+                  <span class="dash-num text-xl font-bold font-mono text-slate-900 dark:text-white leading-none"><?= $totalClosed ?></span>
+                  <span class="text-[0.6875rem] font-medium text-slate-500 dark:text-slate-400">arsip</span>
+                </div>
+              </div>
+            </a>
+
+            <a href="<?= BASE_URL ?>/bra.php" class="dash-metric-link flex items-center gap-2.5 px-3.5 sm:px-5 py-4 no-underline min-w-0">
+              <span class="hidden sm:flex dash-icon-box w-8 h-8 rounded-lg items-center justify-center shrink-0" aria-hidden="true">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/></svg>
+              </span>
+              <div class="min-w-0">
+                <div class="text-[0.75rem] font-medium text-slate-500 dark:text-slate-400 truncate">BRA SAR</div>
+                <div class="mt-0.5 flex items-baseline gap-1.5">
+                  <span class="dash-num text-xl font-bold font-mono dash-accent-text leading-none"><?= $totalBra ?></span>
+                  <span class="text-[0.6875rem] font-medium text-slate-500 dark:text-slate-400">berkas</span>
+                </div>
+              </div>
+            </a>
           </div>
-          <div class="mt-1 flex items-center gap-1 flex-wrap">
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25" title="Selamat">
-              <?= $s ?> S
-            </span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/25" title="Meninggal Dunia">
-              <?= $md ?> MD
-            </span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25" title="Dalam Pencarian">
-              <?= $dp ?> DP
-            </span>
-            <?php if ($h > 0): ?>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-500/15 text-slate-600 dark:text-slate-300 border border-slate-500/25" title="Hilang">
-              <?= $h ?> H
-            </span>
+
+          <!-- Right (7 cols): Live Active Operations Strip OR Calm Standby -->
+          <div class="lg:col-span-7 flex flex-col justify-center">
+            <?php if (!empty($activeOperations)): ?>
+              <div class="divide-y divide-slate-200/80 dark:divide-slate-800">
+                <?php foreach ($activeOperations as $op): ?>
+                  <?php
+                    $opId = (int)($op['id_operasi'] ?? 0);
+                    $opName = trim((string)($op['nama_operasi'] ?? 'Operasi SAR'));
+                    $opLoc = trim((string)($op['lokasi_kejadian'] ?? ''));
+                  ?>
+                  <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $opId ?>" class="dash-op-row flex items-center justify-between gap-3 px-4 sm:px-5 py-3.5 no-underline">
+                    <div class="flex items-center gap-3 min-w-0">
+                      <span class="dash-icon-box w-8 h-8 rounded-lg flex items-center justify-center shrink-0" aria-hidden="true">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                      </span>
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-2 min-w-0">
+                          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" aria-hidden="true"></span>
+                          <p class="text-xs sm:text-[0.8125rem] font-semibold text-slate-900 dark:text-white truncate">
+                            <?= e($opName) ?>
+                          </p>
+                        </div>
+                        <?php if ($opLoc !== ''): ?>
+                          <p class="text-[0.75rem] text-slate-500 dark:text-slate-400 truncate mt-0.5"><?= e($opLoc) ?></p>
+                        <?php endif; ?>
+                      </div>
+                    </div>
+                    <svg class="dash-card-arrow w-4 h-4 text-slate-400 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+                  </a>
+                <?php endforeach; ?>
+              </div>
+            <?php else: ?>
+              <div class="px-4 sm:px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3 min-w-0">
+                  <span class="dash-icon-box-neutral w-8 h-8 rounded-lg flex items-center justify-center shrink-0" aria-hidden="true">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                  </span>
+                  <p class="text-xs sm:text-[0.8125rem] font-semibold text-slate-800 dark:text-slate-200">
+                    Status siaga terkendali &middot; <span class="font-normal text-slate-500 dark:text-slate-400">Tidak ada operasi aktif</span>
+                  </p>
+                </div>
+                <a href="<?= BASE_URL ?>/operasi.php?status=CLOSED" class="dash-text-link inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap">
+                  <span>Lihat arsip</span>
+                  <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 5 7 7-7 7"/></svg>
+                </a>
+              </div>
             <?php endif; ?>
           </div>
-          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-            Status Korban
-          </div>
-        </div>
 
-        <!-- Metric 4: Jumlah Renops dan Lapbang -->
-        <div class="p-2 sm:p-2.5 rounded-xl border bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/70 dark:border-slate-800/70 flex flex-col justify-between">
-          <div class="flex items-center gap-1.5 text-[11px] uppercase font-bold tracking-wider text-slate-400 dark:text-slate-500 font-mono">
-            <svg class="w-3 h-3 text-purple-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            <span class="truncate">Dokumen Taktis</span>
-          </div>
-          <div class="mt-1 flex items-center gap-1.5">
-            <span class="px-1.5 py-0.5 rounded-md font-mono font-bold text-[11px] bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/25">
-              <?= $totalRenops ?> Renops
-            </span>
-            <span class="px-1.5 py-0.5 rounded-md font-mono font-bold text-[11px] bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/25">
-              <?= $totalLapbang ?> Lapbang
-            </span>
-          </div>
-          <div class="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
-            Telah Diterbitkan
-          </div>
         </div>
-
       </div>
+    </section>
 
-      <!-- Bottom Row: Hari Pelaksanaan & Action Buttons -->
-      <div class="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        
-        <!-- Hari Pelaksanaan -->
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs <?= $pelaksanaan['is_extended'] ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30' : ($isOpen ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700') ?>">
-            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-            <span>Pelaksanaan Operasi: <strong><?= e($pelaksanaan['teks']) ?></strong></span>
-          </span>
-          <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-            (<?= e($pelaksanaan['subteks']) ?>)
-          </span>
-        </div>
+    <!-- ================================================================== -->
+    <!-- 2. ALUR KERJA (1 STRIP TERPADU 5 TAHAP, HOVER-ONLY, NON-KLIK)      -->
+    <!-- ================================================================== -->
+    <section aria-labelledby="dashWorkflowTitle" class="dash-stagger dash-stagger-2 space-y-4">
+      <h2 id="dashWorkflowTitle" class="dash-section-title font-bold text-slate-900 dark:text-white">
+        Alur kerja
+      </h2>
 
-        <!-- Action Buttons Group (stopPropagation) -->
-        <div class="flex items-center gap-1.5 self-end sm:self-auto shrink-0" onclick="event.stopPropagation()">
-          
-          <!-- Salin WA Button -->
-          <button
-            type="button"
-            id="btnCopyWa-<?= $op['id_operasi'] ?>"
-            onclick="copyOpsWaText(event, <?= $op['id_operasi'] ?>)"
-            title="Salin Teks WA Laporan Awal"
-            class="btn-tactile p-1.5 sm:p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white border-slate-200 dark:border-slate-700 cursor-pointer"
-          >
-            <svg id="iconCopy-<?= $op['id_operasi'] ?>" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            <svg id="iconCheck-<?= $op['id_operasi'] ?>" class="w-4 h-4 text-emerald-500 hidden" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
+      <ol class="dash-hairline-grid rounded-2xl overflow-hidden grid grid-cols-2 sm:grid-cols-5 gap-px list-none p-0 m-0">
+        <?php foreach ($workflowSteps as $idx => $step): ?>
+          <li class="dash-hairline-cell flex <?= $idx === 4 ? 'col-span-2 sm:col-span-1' : '' ?>">
+            <article class="dash-hover-card dash-step-cell flex-1 flex flex-col justify-between gap-4 p-4 sm:p-5">
+              <div class="flex items-center justify-between gap-2">
+                <span class="dash-icon-box w-9 h-9 rounded-xl flex items-center justify-center shrink-0" aria-hidden="true">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><?= $step['icon'] ?></svg>
+                </span>
+                <span class="dash-num font-mono text-xs font-semibold text-slate-400 dark:text-slate-500">
+                  <?= e($step['idx']) ?>
+                </span>
+              </div>
+              <h3 class="dash-card-title text-xs sm:text-sm font-semibold text-slate-900 dark:text-white">
+                <?= e($step['title']) ?>
+              </h3>
+            </article>
+          </li>
+        <?php endforeach; ?>
+      </ol>
+    </section>
 
-          <!-- Lihat Format WA Button -->
-          <button
-            type="button"
-            data-id="<?= (int)$op['id_operasi'] ?>"
-            data-nama="<?= e($op['nama_operasi']) ?>"
-            onclick="openOpsWaModal(this.dataset.id, this.dataset.nama)"
-            title="Lihat Format WA Resmi"
-            class="btn-tactile p-1.5 sm:p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white border-slate-200 dark:border-slate-700 cursor-pointer"
-          >
-            <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
+    <!-- ================================================================== -->
+    <!-- 3. FITUR UTAMA (BENTO 12x2 GAPLESS, HOVER-ONLY, NON-KLIK)          -->
+    <!-- ================================================================== -->
+    <section aria-labelledby="dashFeaturesTitle" class="dash-stagger dash-stagger-3 space-y-4">
+      <h2 id="dashFeaturesTitle" class="dash-section-title font-bold text-slate-900 dark:text-white">
+        Fitur utama
+      </h2>
 
-          <!-- Edit Operasi Button -->
-          <a
-            href="<?= BASE_URL ?>/operasi_form.php?id=<?= $op['id_operasi'] ?>"
-            title="Edit Data Operasi"
-            class="btn-tactile p-1.5 sm:p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 hover:text-amber-600 dark:text-slate-300 dark:hover:text-amber-400 border-slate-200 dark:border-slate-700 cursor-pointer"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          </a>
+      <div class="grid grid-cols-1 lg:grid-cols-12 grid-flow-dense gap-4">
 
-          <!-- Delete Button (Admin Only) -->
-          <?php if ($isAdmin): ?>
-            <button
-              type="button"
-              data-id="<?= (int)$op['id_operasi'] ?>"
-              data-nama="<?= e($op['nama_operasi']) ?>"
-              onclick="deleteOpsHandler(event, this.dataset.id, this.dataset.nama)"
-              title="Hapus Operasi"
-              class="btn-tactile p-1.5 sm:p-2 rounded-lg border transition-colors bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 border-slate-200 dark:border-slate-700 cursor-pointer"
+        <!-- Left Centerpiece (7 cols x 2 rows): Ploting Peta GIS -->
+        <article class="bento-card-v1 dash-hover-card dash-surface lg:col-span-7 lg:row-span-2 rounded-[1.375rem] overflow-hidden flex flex-col">
+          <div class="aspect-[16/10] lg:aspect-auto lg:flex-1 min-h-[15rem] overflow-hidden bg-slate-100 dark:bg-slate-800">
+            <img
+              src="<?= e($imgGis) ?>"
+              alt="Tampilan udara garis lintasan pencarian maritim IAMSAR di perairan teluk"
+              width="1200"
+              height="670"
+              loading="lazy"
+              decoding="async"
+              class="dash-media-img"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
-          <?php endif; ?>
-
-          <!-- Enter Hub Arrow -->
-          <div class="hidden sm:flex items-center text-orange-500 group-hover:translate-x-1.5 transition-transform ml-1">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
+          <div class="p-4 sm:p-5 flex items-center gap-3.5 border-t border-slate-100 dark:border-slate-800/80">
+            <span class="dash-icon-box w-10 h-10 rounded-xl flex items-center justify-center shrink-0" aria-hidden="true">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+            </span>
+            <div class="min-w-0">
+              <h3 class="dash-card-title text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
+                Ploting peta GIS
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                Search Area, pola IAMSAR, ETA &amp; KML
+              </p>
+            </div>
+          </div>
+        </article>
 
+        <!-- Top-Right (5 cols x 1 row): Operasi SAR & RENOPS -->
+        <article class="bento-card-v1 dash-hover-card dash-surface lg:col-span-5 rounded-[1.375rem] overflow-hidden flex flex-col">
+          <div class="aspect-[16/9] overflow-hidden bg-slate-100 dark:bg-slate-800">
+            <img
+              src="<?= e($imgDesk) ?>"
+              alt="Peta laut terlipat, jangka navigasi maritim, radio VHF taktis, dan papan kerja operasi SAR"
+              width="1200"
+              height="896"
+              loading="lazy"
+              decoding="async"
+              class="dash-media-img"
+            >
+          </div>
+          <div class="p-4 sm:p-5 flex items-center gap-3.5 border-t border-slate-100 dark:border-slate-800/80">
+            <span class="dash-icon-box w-10 h-10 rounded-xl flex items-center justify-center shrink-0" aria-hidden="true">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>
+            </span>
+            <div class="min-w-0">
+              <h3 class="dash-card-title text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
+                Operasi SAR &amp; RENOPS
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                RENOPS, LAPBANG &amp; cetak resmi
+              </p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Bottom-Right (5 cols x 1 row): Paired Compact Modules (BRA + QR) -->
+        <div class="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-4">
+          <article class="bento-card-v1 dash-hover-card dash-surface dash-tile-tinted p-4 sm:p-5 rounded-2xl flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3.5 min-w-0">
+              <span class="dash-icon-box w-10 h-10 rounded-xl flex items-center justify-center shrink-0" aria-hidden="true">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.2 19.1 19.1"/></svg>
+              </span>
+              <div class="min-w-0">
+                <h3 class="dash-card-title text-sm font-bold text-slate-900 dark:text-white truncate">
+                  Berita radio SAR (BRA)
+                </h3>
+                <p class="text-xs text-slate-600 dark:text-slate-400 truncate">
+                  Telegram TWU/TWB &amp; PDF
+                </p>
+              </div>
+            </div>
+            <span class="dash-num font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-white/75 dark:bg-slate-900/60 dash-accent-text shrink-0">
+              <?= $totalBra ?>
+            </span>
+          </article>
+
+          <article class="bento-card-v1 dash-hover-card dash-surface p-4 sm:p-5 rounded-2xl flex items-center gap-3.5">
+            <span class="dash-icon-box w-10 h-10 rounded-xl flex items-center justify-center shrink-0" aria-hidden="true">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M20 14v3"/><path d="M14 20h6"/></svg>
+            </span>
+            <div class="min-w-0">
+              <h3 class="dash-card-title text-sm font-bold text-slate-900 dark:text-white truncate">
+                Verifikasi QR digital
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                Validasi publik RENOPS &amp; BRA resmi
+              </p>
+            </div>
+          </article>
         </div>
 
       </div>
-    </div>
-    <?php endforeach; ?>
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- 4. KEUNGGULAN & MANFAAT (1 MATRIKS TERPADU 2 KOLOM, HOVER-ONLY)    -->
+    <!-- ================================================================== -->
+    <section aria-labelledby="dashBenefitsTitle" class="dash-stagger dash-stagger-4 space-y-4">
+      <h2 id="dashBenefitsTitle" class="dash-section-title font-bold text-slate-900 dark:text-white">
+        Keunggulan dan manfaat
+      </h2>
+
+      <div class="dash-panel rounded-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200 dark:divide-slate-800">
+        <!-- Kolom Kiri: Keunggulan -->
+        <div>
+          <div class="px-5 py-3 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/35">
+            <h3 class="text-xs font-semibold dash-accent-text">Keunggulan</h3>
+          </div>
+          <ul class="divide-y divide-slate-200/75 dark:divide-slate-800/80 list-none p-0 m-0">
+            <?php foreach ($advantages as $adv): ?>
+              <li class="dash-hover-card dash-point-row flex items-center gap-3.5 px-5 py-3.5">
+                <span class="dash-icon-box w-8 h-8 rounded-lg flex items-center justify-center shrink-0" aria-hidden="true">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><?= $adv['icon'] ?></svg>
+                </span>
+                <span class="text-xs sm:text-[0.8125rem] font-semibold text-slate-800 dark:text-slate-100">
+                  <?= e($adv['title']) ?>
+                </span>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+
+        <!-- Kolom Kanan: Manfaat -->
+        <div>
+          <div class="px-5 py-3 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/35">
+            <h3 class="text-xs font-semibold text-slate-600 dark:text-slate-400">Manfaat</h3>
+          </div>
+          <ul class="divide-y divide-slate-200/75 dark:divide-slate-800/80 list-none p-0 m-0">
+            <?php foreach ($benefits as $ben): ?>
+              <li class="dash-hover-card dash-point-row flex items-center gap-3.5 px-5 py-3.5">
+                <span class="dash-icon-box-neutral w-8 h-8 rounded-lg flex items-center justify-center shrink-0" aria-hidden="true">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><?= $ben['icon'] ?></svg>
+                </span>
+                <span class="text-xs sm:text-[0.8125rem] font-semibold text-slate-800 dark:text-slate-100">
+                  <?= e($ben['title']) ?>
+                </span>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+      </div>
+    </section>
 
   </div>
-
 </div>
-
-<!-- ============================================================== -->
-<!-- MODAL: LIHAT FORMAT WA RESMI (MATCHING DashboardList.tsx)       -->
-<!-- ============================================================== -->
-<div id="modalOpsWaPreview" class="modal-overlay">
-  <div class="modal-container max-w-2xl">
-    <div class="modal-header">
-      <div>
-        <h3 class="font-semibold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
-          <span>LAPORAN AWAL OPS SAR (FILE AKTIF)</span>
-        </h3>
-        <p id="modalOpsWaSubtitle" class="text-xs text-orange-600 dark:text-orange-400 font-semibold mt-0.5"></p>
-      </div>
-      <button type="button" class="btn-tactile p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer" onclick="closeModal('modalOpsWaPreview')" title="Tutup">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
-    </div>
-    <div class="modal-body space-y-3">
-      <div class="relative">
-        <textarea
-          id="modalOpsWaTextarea"
-          readonly
-          rows="14"
-          class="control control-sm w-full font-mono leading-relaxed select-all"
-        ></textarea>
-      </div>
-    </div>
-    <div class="modal-footer flex items-center justify-between">
-      <button type="button" class="btn btn-secondary btn-sm" onclick="closeModal('modalOpsWaPreview')">
-        Tutup
-      </button>
-      <button type="button" class="btn btn-primary btn-sm flex items-center gap-1.5" onclick="copyModalWaText()">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        <span>Salin Naskah WhatsApp</span>
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- ============================================================== -->
-<!-- DASHBOARD CLIENT-SIDE FILTER & CONTROLLER JAVASCRIPT           -->
-<!-- ============================================================== -->
-<script>
-let currentStatusFilter = '<?= $initialStatus ?>';
-let currentMonthFilter = 'ALL';
-let currentSearchQuery = '';
-
-function navigateToDetail(id) {
-  window.location.href = '<?= BASE_URL ?>/operasi_detail.php?id=' + id;
-}
-
-// Search Handler
-const searchInput = document.getElementById('dashSearchInput');
-const clearSearchBtn = document.getElementById('dashSearchClearBtn');
-
-if (searchInput) {
-  searchInput.addEventListener('input', function(e) {
-    currentSearchQuery = e.target.value.trim().toLowerCase();
-    if (clearSearchBtn) {
-      if (currentSearchQuery) {
-        clearSearchBtn.classList.remove('hidden');
-      } else {
-        clearSearchBtn.classList.add('hidden');
-      }
-    }
-    applyDashFilters();
-  });
-}
-
-function clearDashSearch() {
-  if (searchInput) searchInput.value = '';
-  if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
-  currentSearchQuery = '';
-  applyDashFilters();
-}
-
-function onMonthFilterChange(val) {
-  currentMonthFilter = val;
-  const select = document.getElementById('dashMonthSelect');
-  if (select) {
-    if (val !== 'ALL') {
-      select.classList.add('bg-orange-500/15', 'border-orange-500', 'text-orange-600', 'dark:text-orange-400', 'font-bold');
-    } else {
-      select.classList.remove('bg-orange-500/15', 'border-orange-500', 'text-orange-600', 'dark:text-orange-400', 'font-bold');
-    }
-  }
-  applyDashFilters();
-}
-
-function resetMonthFilter() {
-  const select = document.getElementById('dashMonthSelect');
-  if (select) select.value = 'ALL';
-  onMonthFilterChange('ALL');
-}
-
-function setStatusFilter(status) {
-  currentStatusFilter = status;
-  ['ALL', 'OPEN', 'CLOSED'].forEach(st => {
-    const btn = document.getElementById('tab-status-' + st);
-    if (!btn) return;
-    const badge = btn.querySelector('.tab-badge');
-    if (st === status) {
-      btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all bg-orange-600 text-white shadow-sm cursor-pointer';
-      if (badge) {
-        badge.className = 'tab-badge px-1.5 py-0.2 rounded-full text-[11px] font-mono bg-white/20 text-white font-bold';
-      }
-    } else {
-      btn.className = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer';
-      if (badge) {
-        badge.className = 'tab-badge px-1.5 py-0.2 rounded-full text-[11px] font-mono bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold';
-      }
-    }
-  });
-  applyDashFilters();
-}
-
-function resetAllFilters() {
-  clearDashSearch();
-  resetMonthFilter();
-  setStatusFilter('OPEN');
-}
-
-function applyDashFilters() {
-  const cards = document.querySelectorAll('.operation-item-card');
-  const emptyState = document.getElementById('operationsEmptyState');
-  const infoBar = document.getElementById('filterActiveInfoBar');
-  
-  const chipMonth = document.getElementById('chipMonth');
-  const chipMonthText = document.getElementById('chipMonthText');
-  const chipStatus = document.getElementById('chipStatus');
-  const chipStatusText = document.getElementById('chipStatusText');
-  const chipSearch = document.getElementById('chipSearch');
-  const chipSearchText = document.getElementById('chipSearchText');
-  const countText = document.getElementById('filteredCountText');
-
-  let visibleCount = 0;
-  const totalCount = cards.length;
-
-  cards.forEach(card => {
-    const cardStatus = card.getAttribute('data-status') || '';
-    const cardMonth = card.getAttribute('data-month') || '';
-    const cardSearch = card.getAttribute('data-search') || '';
-
-    const matchStatus = currentStatusFilter === 'ALL' || cardStatus === currentStatusFilter;
-    const matchMonth = currentMonthFilter === 'ALL' || cardMonth === currentMonthFilter;
-    const matchSearch = !currentSearchQuery || cardSearch.includes(currentSearchQuery);
-
-    if (matchStatus && matchMonth && matchSearch) {
-      card.classList.remove('hidden');
-      visibleCount++;
-    } else {
-      card.classList.add('hidden');
-    }
-  });
-
-  // Empty state handling
-  if (emptyState) {
-    if (visibleCount === 0) {
-      emptyState.classList.remove('hidden');
-      const title = document.getElementById('emptyStateTitle');
-      const subtitle = document.getElementById('emptyStateSubtitle');
-      const resetBtn = document.getElementById('emptyStateResetBtn');
-      const isFiltered = currentSearchQuery || currentMonthFilter !== 'ALL' || currentStatusFilter !== 'OPEN';
-
-      if (title && subtitle) {
-        if (isFiltered) {
-          title.textContent = 'Tidak ada data operasi sesuai filter';
-          subtitle.textContent = 'Coba ubah atau reset kata kunci dan filter pencarian Anda';
-        } else {
-          title.textContent = 'Tidak ada operasi SAR aktif';
-          subtitle.textContent = 'Saat ini tidak ada operasi SAR yang berstatus OPEN';
-        }
-      }
-
-      if (resetBtn) {
-        if (isFiltered) {
-          resetBtn.classList.remove('hidden');
-        } else {
-          resetBtn.classList.add('hidden');
-        }
-      }
-    } else {
-      emptyState.classList.add('hidden');
-    }
-  }
-
-  // Active info bar handling
-  const isNonDefaultStatus = currentStatusFilter !== 'OPEN';
-  const hasQueryOrMonth = Boolean(currentSearchQuery || currentMonthFilter !== 'ALL');
-  const isFilterActive = hasQueryOrMonth || isNonDefaultStatus;
-
-  if (infoBar) {
-    if (isFilterActive) {
-      infoBar.classList.remove('hidden');
-      infoBar.classList.add('flex');
-
-      if (currentMonthFilter !== 'ALL') {
-        const sel = document.getElementById('dashMonthSelect');
-        const monthLabel = sel ? sel.options[sel.selectedIndex]?.text?.replace(/\s*\(\d+\)$/, '') : currentMonthFilter;
-        chipMonthText.textContent = 'Bulan: ' + monthLabel;
-        chipMonth.classList.remove('hidden');
-      } else {
-        chipMonth.classList.add('hidden');
-      }
-
-      if (currentStatusFilter !== 'OPEN') {
-        chipStatusText.textContent = 'Status: ' + (currentStatusFilter === 'ALL' ? 'Semua Operasi' : currentStatusFilter);
-        chipStatus.classList.remove('hidden');
-      } else {
-        chipStatus.classList.add('hidden');
-      }
-
-      if (currentSearchQuery) {
-        chipSearchText.textContent = 'Cari: "' + currentSearchQuery + '"';
-        chipSearch.classList.remove('hidden');
-      } else {
-        chipSearch.classList.add('hidden');
-      }
-
-      if (countText) {
-        countText.textContent = `(${visibleCount} dari ${totalCount} operasi)`;
-      }
-    } else {
-      infoBar.classList.add('hidden');
-      infoBar.classList.remove('flex');
-    }
-  }
-}
-
-// Refresh Data Handler
-async function refreshDashboardData() {
-  const icon = document.getElementById('refreshSpinnerIcon');
-  const label = document.getElementById('refreshLabel');
-  if (icon) icon.classList.add('animate-spin');
-  if (label) label.textContent = 'Menyinkronkan...';
-
-  try {
-    await fetch('<?= BASE_URL ?>/api/operasi?_t=' + Date.now());
-    showToast('Data operasi SAR dan BRA berhasil disinkronkan!', 'success');
-    setTimeout(() => location.reload(), 400);
-  } catch (e) {
-    showToast('Gagal menyinkronkan data real-time', 'error');
-  } finally {
-    setTimeout(() => {
-      if (icon) icon.classList.remove('animate-spin');
-      if (label) label.textContent = 'Segarkan';
-    }, 600);
-  }
-}
-
-// Copy WA Handler
-async function copyOpsWaText(e, id) {
-  e.stopPropagation();
-  const iconCopy = document.getElementById('iconCopy-' + id);
-  const iconCheck = document.getElementById('iconCheck-' + id);
-
-  try {
-    const res = await fetch('<?= BASE_URL ?>/api/operasi/' + id);
-    const json = await res.json();
-    if (json.success && json.data && json.data.full_text_wa) {
-      await copyToClipboard(json.data.full_text_wa, 'Naskah Laporan Awal berhasil disalin!');
-      if (iconCopy && iconCheck) {
-        iconCopy.classList.add('hidden');
-        iconCheck.classList.remove('hidden');
-        setTimeout(() => {
-          iconCopy.classList.remove('hidden');
-          iconCheck.classList.add('hidden');
-        }, 2000);
-      }
-    } else {
-      showToast('Gagal mengambil naskah laporan WA', 'error');
-    }
-  } catch {
-    showToast('Terjadi kesalahan jaringan', 'error');
-  }
-}
-
-// View Format WA Modal
-async function openOpsWaModal(id, title) {
-  document.getElementById('modalOpsWaSubtitle').textContent = title;
-  const textarea = document.getElementById('modalOpsWaTextarea');
-  textarea.value = 'Memuat naskah Laporan Awal...';
-  openModal('modalOpsWaPreview');
-
-  try {
-    const res = await fetch('<?= BASE_URL ?>/api/operasi/' + id);
-    const json = await res.json();
-    if (json.success && json.data && json.data.full_text_wa) {
-      textarea.value = json.data.full_text_wa;
-    } else {
-      textarea.value = 'Gagal memuat format naskah WhatsApp.';
-    }
-  } catch {
-    textarea.value = 'Terjadi kesalahan jaringan saat memuat naskah.';
-  }
-}
-
-async function copyModalWaText() {
-  const textarea = document.getElementById('modalOpsWaTextarea');
-  if (textarea && textarea.value) {
-    await copyToClipboard(textarea.value, 'Naskah Laporan Awal WhatsApp Berhasil Disalin!');
-  }
-}
-
-// Delete Handler with SweetAlert2
-async function deleteOpsHandler(e, id, name) {
-  e.stopPropagation();
-  const confirmed = await confirmAction(
-    `Hapus Operasi "${name}"?`,
-    `Apakah Anda yakin ingin menghapus data operasi SAR ini beserta seluruh arsip Renops dan Lapbang-nya? Tindakan ini tidak dapat dibatalkan.`,
-    'Ya, Hapus Data',
-    true
-  );
-
-  if (confirmed) {
-    try {
-      const res = await fetch('<?= BASE_URL ?>/api/operasi/' + id, { method: 'DELETE' });
-      const json = await res.json();
-      if (json.success) {
-        showToast('Operasi SAR berhasil dihapus!', 'success');
-        setTimeout(() => location.reload(), 700);
-      } else {
-        showToast(json.message || json.error || 'Gagal menghapus data operasi', 'error');
-      }
-    } catch {
-      showToast('Terjadi kesalahan jaringan', 'error');
-    }
-  }
-}
-
-// Initial filter activation
-setStatusFilter(currentStatusFilter);
-</script>

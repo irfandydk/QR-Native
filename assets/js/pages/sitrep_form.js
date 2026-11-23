@@ -346,15 +346,6 @@ function handleAddUnsurClick() {
   renderUnsurList();
 }
 
-function moveUnsurRow(idx, direction) {
-  const target = idx + direction;
-  if (target < 0 || target >= currentUnsurList.length) return;
-  const temp = currentUnsurList[idx];
-  currentUnsurList[idx] = currentUnsurList[target];
-  currentUnsurList[target] = temp;
-  renderUnsurList();
-}
-
 function removeUnsurRow(idx) {
   currentUnsurList.splice(idx, 1);
   renderUnsurList();
@@ -505,15 +496,6 @@ function handleAddAlutClick() {
   jmlInput.value = '1';
   document.getElementById('select-master-alut').value = '';
   AlutKategoriUI.resetInput('alut-input-kategori');
-  renderAlutList();
-}
-
-function moveAlutRow(idx, direction) {
-  const target = idx + direction;
-  if (target < 0 || target >= currentAlutList.length) return;
-  const temp = currentAlutList[idx];
-  currentAlutList[idx] = currentAlutList[target];
-  currentAlutList[target] = temp;
   renderAlutList();
 }
 

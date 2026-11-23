@@ -34,6 +34,8 @@ foreach ($rawActiveOps as $ops) {
 $captureDocParam = isset($_GET['capture_doc']) ? strtoupper(trim((string)$_GET['capture_doc'])) : '';
 $rawCapRef = $_GET['capture_ref'] ?? $_GET['id_ref'] ?? '';
 $captureRefParam = $rawCapRef !== '' ? (int)$rawCapRef : null;
+$rawFromRenops = $_GET['from_renops'] ?? '';
+$fromRenopsParam = ($rawFromRenops !== '' && (int)$rawFromRenops > 0) ? (int)$rawFromRenops : null;
 if ($captureDocParam !== '' && !empty($_GET['id_operasi'])) {
     $reqCaptureOpId = (int)$_GET['id_operasi'];
     if ($reqCaptureOpId > 0 && !isset($activeOperasiMap[$reqCaptureOpId])) {
@@ -207,51 +209,146 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
     cursor: grabbing !important;
     transform: scale(1.25);
   }
+
+  /* Compact Spacious GIS Sidebar Panel */
+  .gis-sidebar-panel {
+    --gis-sidebar-w: 360px;
+    width: var(--gis-sidebar-w);
+    max-width: 100%;
+    transition: margin-left 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .gis-sidebar-panel.gis-sidebar-collapsed {
+    margin-left: calc(var(--gis-sidebar-w) * -1);
+  }
+
+  /* Floating Circular Map Controls (Top-Right Vertical Toolbar) */
+  .gis-fab-btn {
+    min-inline-size: 2.5rem;
+    min-block-size: 2.5rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(203, 213, 225, 0.9);
+    background: rgba(255, 255, 255, 0.94);
+    color: #334155;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.14);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    cursor: pointer;
+    position: relative;
+  }
+  .dark .gis-fab-btn,
+  [data-theme="dark"] .gis-fab-btn {
+    border-color: rgba(71, 85, 105, 0.85);
+    background: rgba(15, 23, 42, 0.9);
+    color: #e2e8f0;
+    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
+  }
+  .gis-fab-btn[aria-expanded="true"] {
+    background: #ea580c;
+    border-color: #f97316;
+    color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25), 0 8px 22px rgba(234, 88, 12, 0.35);
+  }
+  .gis-fab-btn:focus-visible {
+    outline: 2px solid #f97316;
+    outline-offset: 2px;
+  }
+  @media (hover: hover) {
+    .gis-fab-btn:not([aria-expanded="true"]):hover {
+      background: #ffffff;
+      border-color: #f97316;
+      color: #ea580c;
+    }
+    .dark .gis-fab-btn:not([aria-expanded="true"]):hover,
+    [data-theme="dark"] .gis-fab-btn:not([aria-expanded="true"]):hover {
+      background: rgba(30, 41, 59, 0.96);
+      border-color: #fb923c;
+      color: #fb923c;
+    }
+  }
+  @media (pointer: coarse) {
+    .gis-fab-btn {
+      min-inline-size: 2.75rem;
+      min-block-size: 2.75rem;
+    }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .gis-fab-btn {
+      transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+    }
+    .gis-fab-btn:active {
+      transform: scale(0.94);
+    }
+  }
+  @media (forced-colors: active) {
+    .gis-fab-btn {
+      border: 1px solid ButtonText;
+      color: ButtonText;
+    }
+    .gis-fab-btn[aria-expanded="true"] {
+      border-color: Highlight;
+      outline: 2px solid Highlight;
+    }
+  }
+  .gis-fab-popover {
+    position: absolute;
+    right: calc(100% + 0.5rem);
+    top: 0;
+  }
 </style>
 
 <div id="gisRootContainer" class="w-full h-full flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 select-none" style="height: 100%; flex: 1;">
   
   <!-- ========================================== -->
-  <!-- 1. TOP SUB-NAVBAR (HEADER KONTROL GIS)     -->
+  <!-- 1. UNIFIED SLIM HEADER (SINGLE BAR ~52px)  -->
   <!-- ========================================== -->
-  <header class="cockpit-glass px-3.5 py-2 flex flex-wrap items-center justify-between gap-2.5 shrink-0 z-20 border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs">
+  <header id="gisUnifiedHeader" class="print:hidden no-print top-navbar cockpit-glass px-3 py-1.5 min-h-[52px] flex items-center justify-between gap-2 shrink-0 z-30 border-b border-slate-200/80 dark:border-slate-800/80 shadow-xs">
     
-    <!-- Left Section: Sidebar Toggle & Operational Header -->
-    <div class="flex items-center gap-3">
-      <button type="button" id="btnToggleGisSidebar" class="btn-tactile flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 text-xs font-bold transition border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer" title="Buka / Tutup Tools Plotting">
-        <svg id="iconSidebarClose" class="w-4 h-4 text-orange-500 dark:text-orange-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+    <!-- Left Section: Mobile Nav, Sidebar Tools Toggle, Unified Brand & Misi Ops Selector -->
+    <div class="flex items-center gap-2 min-w-0">
+      <button
+        type="button"
+        id="mobile-menu-btn"
+        class="lg:hidden p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
+        title="Buka Navigasi Sistem"
+        aria-label="Buka Navigasi Sistem"
+      >
+        <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+      </button>
+
+      <button type="button" id="btnToggleGisSidebar" class="btn-tactile inline-flex items-center justify-center w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 transition border border-slate-200 dark:border-slate-700 shadow-xs cursor-pointer shrink-0" title="Sembunyikan / Buka Panel Tools Plotting" aria-label="Sembunyikan / Buka Panel Tools Plotting">
+        <svg id="iconSidebarClose" class="w-4 h-4 text-orange-500 dark:text-orange-400" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
           <path d="M9 3v18M14 9l-3 3 3 3"/>
         </svg>
-        <svg id="iconSidebarOpen" class="w-4 h-4 text-orange-500 dark:text-orange-400 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <svg id="iconSidebarOpen" class="w-4 h-4 text-orange-500 dark:text-orange-400 hidden" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
           <path d="M9 3v18M11 9l3 3-3 3"/>
         </svg>
-        <span id="labelSidebarToggle" class="hidden sm:inline">Sembunyikan Tools</span>
+        <span id="labelSidebarToggle" class="sr-only">Sembunyikan Tools</span>
       </button>
 
-      <div class="flex items-center gap-2.5 border-l border-slate-200 dark:border-slate-700 pl-3">
-        <img src="<?= e(getAppLogoUrl()) ?>" alt="Logo Basarnas" class="w-8 h-8 object-contain drop-shadow-sm shrink-0" onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'">
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="text-xs sm:text-sm font-bold tracking-wide text-slate-900 dark:text-white flex items-center gap-1.5">
-              <span>GIS RADAR OPERASI SAR KENDARI</span>
-            </h1>
-            <span class="text-[11px] font-mono px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/30">
-              SULTRA MARITIME OPS
-            </span>
-          </div>
+      <div class="flex items-center gap-2 border-l border-slate-200 dark:border-slate-700/80 pl-2.5 min-w-0">
+        <img src="<?= e(getAppLogoUrl()) ?>" alt="Logo Basarnas" class="w-7 h-7 object-contain drop-shadow-xs shrink-0" onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'">
+        <div class="flex items-center gap-2 min-w-0">
+          <h1 class="text-xs sm:text-[13px] font-bold tracking-tight text-slate-900 dark:text-white truncate">
+            GIS RADAR OPERASI SAR KENDARI
+          </h1>
+          <span class="hidden xl:inline-flex text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-500/30 shrink-0">
+            SULTRA OPS
+          </span>
         </div>
       </div>
 
       <!-- SAR Mission Operasi Selector Dropdown (3 Pilihan Plotting Teroptimasi) -->
-      <div class="hidden md:flex items-center gap-1.5 pl-3 border-l border-slate-200 dark:border-slate-700">
-        <div class="field">
-          <label for="selectGisOperasi" class="field-label"><span class="hidden lg:inline">Misi Ops:</span></label>
-          <select 
+      <div class="hidden sm:flex items-center gap-1.5 pl-2.5 border-l border-slate-200 dark:border-slate-700/80 shrink-0">
+        <select 
           id="selectGisOperasi" 
-          class="field-input font-semibold max-w-[230px] truncate rounded-xl"
+          class="control control-sm font-semibold max-w-[195px] truncate rounded-xl text-xs py-1"
           title="Pilih mode tampilan komponen plotting taktis"
+          aria-label="Pilih Misi Operasi SAR"
         >
           <option value="basemap" <?= ($filterMode === 'basemap' || $filterMode === 'dasar') ? 'selected' : '' ?>>
             1. Base Map
@@ -271,112 +368,67 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             <?php endif; ?>
           </optgroup>
         </select>
-        </div>
         
         <!-- Toggle: Tampilkan Base Map juga pada Operasi Aktif -->
         <label id="wrapperIncludeBase" class="items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-400 select-none cursor-pointer <?= $filterMode === 'operasi' ? 'flex' : 'hidden' ?>" title="Muat juga komponen Base Map pada peta operasi SAR aktif ini">
           <input type="checkbox" id="checkIncludeBase" class="rounded border-slate-300 dark:border-slate-600 text-orange-500 focus:ring-orange-500 cursor-pointer" <?= $includeBase ? 'checked' : '' ?>>
-          <span class="text-[11px] font-bold text-orange-600 dark:text-orange-400">+ Base Map</span>
+          <span class="text-[11px] font-bold text-orange-600 dark:text-orange-400 whitespace-nowrap">+ Base</span>
         </label>
 
-        <button type="button" id="btnResetGisOperasi" class="btn-tactile p-1 text-slate-400 hover:text-red-500 transition <?= ($filterMode === 'operasi' || $filterMode === 'basemap' || $filterMode === 'dasar') ? '' : 'hidden' ?>" title="Reset ke Semua Komponen">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        <button type="button" id="btnResetGisOperasi" class="btn-tactile p-1 text-slate-400 hover:text-red-500 transition cursor-pointer <?= ($filterMode === 'operasi' || $filterMode === 'basemap' || $filterMode === 'dasar') ? '' : 'hidden' ?>" title="Reset ke Semua Komponen" aria-label="Reset ke Semua Komponen">
+          <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
 
         <?php if ($filterMode === 'operasi' && $selectedOperasiId > 0): ?>
-          <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $selectedOperasiId ?>" class="btn-tactile inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-600 dark:text-orange-400 text-xs font-bold border border-orange-500/30 transition shadow-xs" title="Kembali ke Detail Operasi SAR">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
-            <span class="hidden xl:inline">Ke Operasi</span>
+          <a href="<?= BASE_URL ?>/operasi_detail.php?id=<?= $selectedOperasiId ?>" class="btn-tactile inline-flex items-center gap-1 px-2 py-1 rounded-xl bg-orange-500/15 hover:bg-orange-500/25 text-orange-600 dark:text-orange-400 text-[11px] font-bold border border-orange-500/30 transition shadow-xs whitespace-nowrap" title="Kembali ke Detail Operasi SAR">
+            <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"/></svg>
+            <span class="hidden lg:inline">Ke Operasi</span>
           </a>
         <?php endif; ?>
       </div>
     </div>
 
-    <!-- Center Section: LocationSearchBar (Verified Sultra Presets & Coordinates Parser) -->
-    <div class="flex-1 max-w-md mx-2 relative" id="locationSearchBarWrapper">
-      <div class="relative flex items-center">
-        <span class="absolute left-3 text-slate-400 dark:text-slate-500 pointer-events-none">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        </span>
-        <input 
-          type="text" 
-          id="locationSearchInput" 
-          placeholder="Cari kota, desa, jalan, pelabuhan, pulau, atau koordinat DMS/DD..."
-          autocomplete="off"
-          class="control control-sm w-full font-medium pl-9 pr-8 rounded-xl shadow-xs"
-        >
-        <button type="button" id="btnClearLocationSearch" class="btn-tactile absolute right-2.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hidden p-0.5" title="Bersihkan">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
-        </button>
-      </div>
-
-      <!-- Autocomplete Dropdown Popover -->
-      <div id="locationSearchResultsPopover" class="absolute left-0 right-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700/90 rounded-2xl shadow-2xl overflow-hidden z-50 hidden max-h-80 overflow-y-auto gis-scrollbar text-xs">
-        <div class="p-2.5 border-b border-slate-100 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
-          <span>Pencarian Lokasi (Google Maps Geocoding & GPS)</span>
-          <span class="text-orange-500 dark:text-orange-400 font-mono">115 SAR GPS</span>
-        </div>
-        <div id="locationSearchResultsList" class="divide-y divide-slate-100 dark:divide-slate-800">
-          <!-- Populated by JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Right Section: Master Unit Switcher, Basemap Pills, Ekspor & Fullscreen -->
-    <div class="flex flex-wrap items-center gap-2">
-      <!-- Master Satuan Switcher (Dinamis: NM | KM | M) -->
-      <div id="gisGlobalUnitSwitcher" class="bg-slate-100 dark:bg-slate-950/90 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center text-[11px] font-bold shrink-0" title="Satuan Pengukuran Dinamis Peta Taktis">
-        <span class="text-[11px] text-slate-400 font-mono px-1.5 uppercase hidden lg:inline">Unit:</span>
-        <button type="button" data-global-unit="NM" class="btn-tactile global-unit-pill-btn px-2 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition font-bold cursor-pointer">
-          NM
-        </button>
-        <button type="button" data-global-unit="KM" class="btn-tactile global-unit-pill-btn px-2 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition font-medium cursor-pointer">
-          KM
-        </button>
-        <button type="button" data-global-unit="M" class="btn-tactile global-unit-pill-btn px-2 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition font-medium cursor-pointer">
-          M
-        </button>
-      </div>
-
-      <!-- 4-Pill Basemap Switcher -->
-      <div class="bg-slate-100 dark:bg-slate-950/90 p-0.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center text-[11px] font-bold shrink-0">
-        <button type="button" data-layer="hybrid" class="btn-tactile basemap-pill-btn px-2.5 py-1 rounded-lg bg-orange-500 text-white shadow-xs transition cursor-pointer">
-          Hybrid
-        </button>
-        <button type="button" data-layer="satellite" class="btn-tactile basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition cursor-pointer">
-          Satelit
-        </button>
-        <button type="button" data-layer="roadmap" class="btn-tactile basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition cursor-pointer">
-          Roadmap
-        </button>
-        <button type="button" data-layer="terrain" class="btn-tactile basemap-pill-btn px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition cursor-pointer">
-          Terrain
-        </button>
-      </div>
-
+    <!-- Right Section: Compact Spatial Actions, Fullscreen & Global Theme Toggle -->
+    <div class="flex items-center gap-1.5 shrink-0">
       <!-- Capture Peta Cetak 16:9 Button -->
-      <button type="button" id="btnToggleCaptureMode" class="btn-tactile shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer" title="Capture / Screenshot Area Peta 16:9 untuk Dokumen Cetak Resmi (Laporan Awal, RENOPS, LAPBANG, Penutupan)">
-        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        <span class="hidden sm:inline">Capture Peta Cetak</span>
+      <button type="button" id="btnToggleCaptureMode" class="btn-tactile shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold transition shadow-xs cursor-pointer" title="Capture / Screenshot Area Peta 16:9 untuk Dokumen Cetak Resmi (RENOPS)">
+        <svg class="w-3.5 h-3.5 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span class="hidden md:inline">Capture</span>
       </button>
 
       <!-- Ekspor Data Spasial Button (Opens Scope-Aware Export Modal) -->
       <div class="relative shrink-0" id="exportMenuWrapper">
-        <button type="button" id="btnToggleExportMenu" class="btn-tactile shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold transition shadow-xs cursor-pointer" title="Ekspor Data Spasial (KMZ, KML, GeoJSON)">
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          <span class="hidden sm:inline">Ekspor Spasial</span>
+        <button type="button" id="btnToggleExportMenu" class="btn-tactile shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-[11px] font-bold transition shadow-xs cursor-pointer" title="Ekspor Data Spasial (KMZ, KML, GeoJSON)">
+          <svg class="w-3.5 h-3.5 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          <span class="hidden md:inline">Ekspor</span>
         </button>
       </div>
 
       <!-- Impor KML/KMZ Button (Opens Interactive Import Modal) -->
-      <button type="button" id="btnOpenImportKmlModal" class="btn-tactile shrink-0 whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white border border-sky-500/30 text-xs font-bold transition shadow-xs cursor-pointer" title="Impor Berkas KML / KMZ">
-        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-        <span class="hidden sm:inline">Impor KML/KMZ</span>
+      <button type="button" id="btnOpenImportKmlModal" class="btn-tactile shrink-0 whitespace-nowrap inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white border border-sky-500/30 text-[11px] font-bold transition shadow-xs cursor-pointer" title="Impor Berkas KML / KMZ">
+        <svg class="w-3.5 h-3.5 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        <span class="hidden md:inline">Impor</span>
       </button>
 
+      <div class="w-px h-5 bg-slate-200 dark:bg-slate-700/80 mx-0.5 hidden sm:block"></div>
+
       <!-- Fullscreen Toggle -->
-      <button type="button" id="btnToggleFullscreen" class="btn-tactile shrink-0 p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 transition cursor-pointer" title="Layar Penuh">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      <button type="button" id="btnToggleFullscreen" class="btn-tactile shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white dark:border-slate-700 transition cursor-pointer" title="Layar Penuh" aria-label="Layar Penuh">
+        <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      </button>
+
+      <!-- Global Theme Toggle Button (Unified from navbar.php) -->
+      <button
+        type="button"
+        id="theme-toggle-btn"
+        class="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer shadow-xs"
+        title="Ganti Mode Gelap / Terang"
+        aria-label="Ganti Mode Gelap / Terang"
+      >
+        <span id="theme-icon" class="flex items-center justify-center">
+          <svg class="w-4 h-4 hidden dark:block text-amber-400" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          <svg class="w-4 h-4 block dark:hidden text-slate-700" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </span>
       </button>
     </div>
   </header>
@@ -386,26 +438,26 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
   <!-- ========================================== -->
   <div class="flex-1 min-h-0 flex overflow-hidden relative">
 
-    <!-- LEFT TOOLS PLOTTING PANEL (COLLAPSIBLE) -->
-    <div id="gisSidebarPanel" class="w-[390px] max-w-full cockpit-glass border-r border-slate-200/80 dark:border-slate-800/80 flex flex-col z-10 transition-all duration-300 shadow-xl relative select-none shrink-0">
+    <!-- LEFT TOOLS PLOTTING PANEL (COLLAPSIBLE & COMPACT) -->
+    <div id="gisSidebarPanel" class="gis-sidebar-panel cockpit-glass border-r border-slate-200/80 dark:border-slate-800/80 flex flex-col z-10 shadow-xl relative select-none shrink-0">
       
-      <!-- Dynamic Operasi / Mode Banner -->
+      <!-- Dynamic Operasi / Mode Banner (Ultra-Slim) -->
       <div id="gisSidebarOperasiBanner">
         <?php if ($filterMode === 'basemap' || $filterMode === 'dasar'): ?>
-          <div class="px-3 py-2 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between text-xs">
+          <div class="px-3 py-1.5 bg-blue-500/10 border-b border-blue-500/20 flex items-center justify-between text-[11px]">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0"></span>
               <div class="truncate">
                 <span class="font-semibold text-blue-600 dark:text-blue-400">1. Base Map</span>
-                <span class="text-slate-600 dark:text-slate-400 text-[11px] ml-1">(Komponen tanpa ID Operasi SAR)</span>
+                <span class="text-slate-500 dark:text-slate-400 ml-1">(Tanpa ID Ops)</span>
               </div>
             </div>
             <button type="button" class="btn-switch-mode-all text-[11px] font-bold text-slate-500 hover:text-orange-500 underline shrink-0 ml-2 cursor-pointer">Semua</button>
           </div>
         <?php elseif ($filterMode === 'operasi' && $currentOperasi): ?>
-          <div class="px-3 py-2 bg-orange-500/10 border-b border-orange-500/20 flex items-center justify-between text-xs">
+          <div class="px-3 py-1.5 bg-orange-500/10 border-b border-orange-500/20 flex items-center justify-between text-[11px]">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse shrink-0"></span>
               <div class="truncate">
                 <span class="font-semibold text-orange-600 dark:text-orange-400">3. Ops #<?= $currentOperasi['id_operasi'] ?></span>
                 <span class="text-slate-600 dark:text-slate-300 ml-1"><?= e($currentOperasi['nama_operasi']) ?></span>
@@ -414,60 +466,58 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             <button type="button" class="btn-switch-mode-all text-[11px] font-bold text-slate-500 hover:text-red-500 underline shrink-0 ml-2 cursor-pointer" title="Kembali ke semua plotting">Lepas</button>
           </div>
         <?php else: ?>
-          <div class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+          <div class="px-3 py-1.5 bg-slate-100 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px]">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
               <div class="truncate">
                 <span class="font-semibold text-slate-700 dark:text-slate-200">2. Semua Komponen</span>
-                <span class="text-slate-500 dark:text-slate-400 text-[11px] ml-1">(Base Map & Operasi Aktif)</span>
+                <span class="text-slate-500 dark:text-slate-400 ml-1">(Base Map &amp; Ops Aktif)</span>
               </div>
             </div>
           </div>
         <?php endif; ?>
       </div>
 
-      <!-- 4 Tabs Header -->
-      <div class="grid grid-cols-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/70 text-[11px] font-bold text-center">
-        <button type="button" data-tab="tab-points" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-orange-500 text-orange-600 dark:text-orange-400 flex flex-col items-center justify-center gap-1 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-          <span>Titik (<span id="pointsBadgeCount"><?= $initialPointsCount ?></span>)</span>
+      <!-- 4 Tabs Header (Compact Vertical Rhythm) -->
+      <div class="grid grid-cols-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/70 text-[10.5px] font-bold text-center">
+        <button type="button" data-tab="tab-points" class="gis-tab-nav-btn py-2 px-1 border-b-2 border-orange-500 text-orange-600 dark:text-orange-400 flex flex-col items-center justify-center gap-0.5 transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span class="leading-tight">Titik (<span id="pointsBadgeCount"><?= $initialPointsCount ?></span>)</span>
         </button>
 
-        <button type="button" data-tab="tab-polygon" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-1 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="2" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="22"/></svg>
-          <span>Search Area (<span id="polygonsBadgeCount"><?= $initialPolygonsCount ?></span>)</span>
+        <button type="button" data-tab="tab-polygon" class="gis-tab-nav-btn py-2 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-0.5 transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="2" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="22"/></svg>
+          <span class="leading-tight">Search Area (<span id="polygonsBadgeCount"><?= $initialPolygonsCount ?></span>)</span>
         </button>
 
-        <button type="button" data-tab="tab-pattern" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-1 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
-          <span>Pola SAR (<span id="patternsBadgeCount"><?= $initialPatternsCount ?></span>)</span>
+        <button type="button" data-tab="tab-pattern" class="gis-tab-nav-btn py-2 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-0.5 transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+          <span class="leading-tight">Pola SAR (<span id="patternsBadgeCount"><?= $initialPatternsCount ?></span>)</span>
         </button>
 
-        <button type="button" data-tab="tab-measure" class="gis-tab-nav-btn py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-1 transition">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <span>Jarak & ETA (<span id="routesBadgeCount"><?= $initialRoutesCount ?></span>)</span>
+        <button type="button" data-tab="tab-measure" class="gis-tab-nav-btn py-2 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex flex-col items-center justify-center gap-0.5 transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span class="leading-tight">Jarak & ETA (<span id="routesBadgeCount"><?= $initialRoutesCount ?></span>)</span>
         </button>
       </div>
 
       <!-- TAB 1: TITIK SAR (SAVED POINTS & POINT CREATOR CARD) -->
-      <div id="tab-points" class="gis-tab-pane flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
-        <!-- Top Controls: Draggable Lock & Add Point Button -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between gap-2">
-            <button type="button" id="btnToggleDragLock" class="flex-1 py-1.5 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-750">
-              <svg id="iconLockClosed" class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <svg id="iconLockOpen" class="w-3.5 h-3.5 text-amber-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
-              <span id="labelLockStatus">Posisi Terkunci</span>
-            </button>
+      <div id="tab-points" class="gis-tab-pane flex-1 overflow-y-auto p-2.5 space-y-2.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
+        <!-- Compact Single-Row Action Bar -->
+        <div class="flex items-center gap-1.5">
+          <button type="button" id="btnShowPointCreator" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-bold transition shadow-xs cursor-pointer shrink-0" title="Tambah Titik Baru di Peta">
+            <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Titik</span>
+          </button>
 
-            <button type="button" id="btnFocusKansarQuick" class="p-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition cursor-pointer" title="Pusatkan Peta ke Kansar Kendari">
-              📍
-            </button>
-          </div>
+          <button type="button" id="btnToggleDragLock" class="flex-1 py-1.5 px-2.5 rounded-lg border text-[11px] font-bold flex items-center justify-center gap-1.5 transition bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer min-w-0">
+            <svg id="iconLockClosed" class="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <svg id="iconLockOpen" class="w-3.5 h-3.5 text-amber-500 hidden shrink-0" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+            <span id="labelLockStatus" class="truncate">Posisi Terkunci</span>
+          </button>
 
-          <button type="button" id="btnShowPointCreator" class="w-full py-2.5 px-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-            <span>Tambah Titik Baru di Peta</span>
+          <button type="button" id="btnFocusKansarQuick" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition cursor-pointer shrink-0" title="Pusatkan Peta ke Kansar Kendari" aria-label="Pusatkan Peta ke Kansar Kendari">
+            <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
           </button>
         </div>
 
@@ -661,12 +711,15 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       </div>
 
       <!-- TAB 2: POLYGON SEARCH AREA (POLYGON MANAGER) -->
-      <div id="tab-polygon" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
-        <!-- New Search Area Button -->
-        <button type="button" id="btnStartNewPolygon" class="w-full py-2.5 px-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/></svg>
-          <span>+ Buat Search Area Baru</span>
-        </button>
+      <div id="tab-polygon" class="gis-tab-pane hidden flex-1 overflow-y-auto p-2.5 space-y-2.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
+        <!-- Compact Header & New Search Area Pill -->
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Sektor Area Tersimpan</span>
+          <button type="button" id="btnStartNewPolygon" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-bold transition shadow-xs cursor-pointer shrink-0" title="Buat Search Area Baru">
+            <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Area</span>
+          </button>
+        </div>
 
         <!-- Drawing & Editing Mode Panel -->
         <div id="polygonDrawingEditorCard" class="hidden p-3.5 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl space-y-3 animate-in fade-in">
@@ -859,11 +912,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
         </div>
 
         <!-- Saved Polygons List -->
-        <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-          <div class="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            <span>Sektor Area Tersimpan</span>
-          </div>
-
+        <div class="space-y-2">
           <div id="savedPolygonsListContainer" class="space-y-2">
             <!-- Populated by JS -->
           </div>
@@ -871,12 +920,15 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       </div>
 
       <!-- TAB 3: POLA SAR (SEARCH PATTERNS IAMSAR) -->
-      <div id="tab-pattern" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
-        <!-- New Search Pattern Button -->
-        <button type="button" id="btnStartNewPattern" class="w-full py-2.5 px-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
-          <span>+ Buat Pola Lintasan SAR Baru</span>
-        </button>
+      <div id="tab-pattern" class="gis-tab-pane hidden flex-1 overflow-y-auto p-2.5 space-y-2.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
+        <!-- Compact Header & New Search Pattern Pill -->
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pola Lintasan Tersimpan</span>
+          <button type="button" id="btnStartNewPattern" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-bold transition shadow-xs cursor-pointer shrink-0" title="Buat Pola Lintasan SAR Baru">
+            <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Pola SAR</span>
+          </button>
+        </div>
 
         <!-- Pattern Creation / Editor Card -->
         <div id="patternCreationCard" class="hidden p-3.5 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl space-y-3 animate-in fade-in">
@@ -1067,8 +1119,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
         </div>
 
         <!-- Saved Search Patterns List -->
-        <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-          <div class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pola Lintasan Tersimpan</div>
+        <div class="space-y-2">
           <div id="savedPatternsListContainer" class="space-y-2">
             <!-- Populated by JS -->
           </div>
@@ -1076,12 +1127,15 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       </div>
 
       <!-- TAB 4: JARAK & ETA (MEASURE DISTANCE & SPEED SIMULATOR) -->
-      <div id="tab-measure" class="gis-tab-pane hidden flex-1 overflow-y-auto p-3.5 space-y-3.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
-        <!-- New Route Button -->
-        <button type="button" id="btnStartNewRoute" class="w-full py-2.5 px-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m3 11 18-5-5 18-3-8-10-5z"/></svg>
-          <span>+ Buat / Rencanakan Rute Baru</span>
-        </button>
+      <div id="tab-measure" class="gis-tab-pane hidden flex-1 overflow-y-auto p-2.5 space-y-2.5 gis-scrollbar bg-slate-50/50 dark:bg-slate-900/50">
+        <!-- Compact Header & New Route Pill -->
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Rute Terukur Tersimpan</span>
+          <button type="button" id="btnStartNewRoute" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-bold transition shadow-xs cursor-pointer shrink-0" title="Buat / Rencanakan Rute Baru">
+            <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Rute</span>
+          </button>
+        </div>
 
         <!-- Route Planning & Measuring Form Card -->
         <div id="routePlanningCard" class="hidden p-3.5 bg-white dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl space-y-3 animate-in fade-in">
@@ -1251,8 +1305,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
         </div>
 
         <!-- Saved Routes List -->
-        <div class="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-          <div class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Rute Terukur Tersimpan</div>
+        <div class="space-y-2">
           <div id="savedRoutesListContainer" class="space-y-2">
             <!-- Populated by JS -->
           </div>
@@ -1264,6 +1317,126 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
     <!-- MAP CANVAS (LEAFLET INTERACTIVE FULL VIEWPORT) -->
     <div class="flex-1 h-full relative" id="gisMapWrapper" style="height: 100%; flex: 1;">
       <div id="gisLeafletMap" class="w-full h-full z-0" style="width: 100%; height: 100%;"></div>
+
+      <!-- Floating Circular Map Controls Dock (Top-Right Vertical Toolbar: Search, Basemap, Unit) -->
+      <div id="gisFloatingMapDock" role="toolbar" aria-orientation="vertical" aria-label="Kontrol Peta Taktis" aria-controls="gisLeafletMap" focusgroup="toolbar wrap block" class="absolute top-3 right-3 z-[405] flex flex-col items-end gap-2">
+        <!-- 1. Floating Search Control -->
+        <div class="relative flex items-center" data-fab-group="search">
+          <button
+            type="button"
+            id="btnFloatingSearchToggle"
+            class="gis-fab-btn"
+            aria-label="Pencarian Lokasi"
+            aria-expanded="false"
+            aria-controls="floatingSearchPopover"
+            title="Cari Lokasi / Koordinat"
+          >
+            <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          </button>
+
+          <div id="floatingSearchPopover" class="gis-fab-popover hidden z-50" style="width: min(340px, calc(100vw - 5rem));">
+            <div class="cockpit-glass p-2 rounded-2xl border border-slate-200/90 dark:border-slate-700/90 shadow-2xl" id="locationSearchBarWrapper">
+              <div class="relative flex items-center">
+                <span class="absolute left-3 text-slate-400 dark:text-slate-500 pointer-events-none">
+                  <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                </span>
+                <input 
+                  type="text" 
+                  id="locationSearchInput" 
+                  placeholder="Cari kota, pulau, pelabuhan, atau DMS/DD..."
+                  autocomplete="off"
+                  class="control control-sm w-full font-medium pl-9 pr-8 rounded-xl shadow-xs"
+                >
+                <button type="button" id="btnClearLocationSearch" class="btn-tactile absolute right-2.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hidden p-0.5 cursor-pointer" title="Bersihkan" aria-label="Bersihkan Pencarian">
+                  <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+
+              <!-- Autocomplete Dropdown Popover -->
+              <div id="locationSearchResultsPopover" class="mt-1.5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-700/90 rounded-xl shadow-2xl overflow-hidden hidden max-h-72 overflow-y-auto gis-scrollbar text-xs">
+                <div class="p-2 border-b border-slate-100 dark:border-slate-800 text-[10.5px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex justify-between items-center bg-slate-50 dark:bg-slate-950/50">
+                  <span>Pencarian Lokasi &amp; GPS</span>
+                  <span class="text-orange-500 dark:text-orange-400 font-mono">115 SAR</span>
+                </div>
+                <div id="locationSearchResultsList" class="divide-y divide-slate-100 dark:divide-slate-800">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Floating Basemap Switcher Control -->
+        <div class="relative flex items-center" data-fab-group="basemap">
+          <button
+            type="button"
+            id="btnFloatingBasemapToggle"
+            class="gis-fab-btn"
+            aria-label="Jenis Peta"
+            aria-expanded="false"
+            aria-controls="floatingBasemapPopover"
+            title="Jenis Peta: Hybrid"
+          >
+            <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          </button>
+
+          <div id="floatingBasemapPopover" class="gis-fab-popover hidden z-50 w-52">
+            <div class="cockpit-glass p-2.5 rounded-2xl border border-slate-200/90 dark:border-slate-700/90 shadow-2xl space-y-2">
+              <div class="flex items-center justify-between px-1">
+                <span class="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Jenis Peta</span>
+                <span id="floatingBasemapActiveLabel" class="text-[10.5px] font-mono font-bold text-orange-600 dark:text-orange-400">Hybrid</span>
+              </div>
+              <div class="grid grid-cols-2 gap-1.5 text-[11px] font-bold">
+                <button type="button" data-layer="hybrid" aria-pressed="true" class="btn-tactile basemap-pill-btn px-2.5 py-2 rounded-xl bg-orange-500 text-white shadow-xs transition cursor-pointer text-center">
+                  Hybrid
+                </button>
+                <button type="button" data-layer="satellite" aria-pressed="false" class="btn-tactile basemap-pill-btn px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer text-center">
+                  Satelit
+                </button>
+                <button type="button" data-layer="roadmap" aria-pressed="false" class="btn-tactile basemap-pill-btn px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer text-center">
+                  Roadmap
+                </button>
+                <button type="button" data-layer="terrain" aria-pressed="false" class="btn-tactile basemap-pill-btn px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer text-center">
+                  Terrain
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Floating Measurement Unit Control -->
+        <div class="relative flex items-center" data-fab-group="unit">
+          <button
+            type="button"
+            id="btnFloatingUnitToggle"
+            class="gis-fab-btn"
+            aria-label="Satuan Pengukuran"
+            aria-expanded="false"
+            aria-controls="floatingUnitPopover"
+            title="Satuan Pengukuran (NM / KM / M)"
+          >
+            <span id="floatingUnitBadge" class="text-[11px] font-mono font-extrabold tracking-tight">NM</span>
+          </button>
+
+          <div id="floatingUnitPopover" class="gis-fab-popover hidden z-50 w-44">
+            <div class="cockpit-glass p-2.5 rounded-2xl border border-slate-200/90 dark:border-slate-700/90 shadow-2xl space-y-2">
+              <div class="px-1 text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Satuan Peta</div>
+              <div id="gisGlobalUnitSwitcher" class="grid grid-cols-3 gap-1.5 text-[11px] font-bold" title="Satuan Pengukuran Dinamis Peta Taktis">
+                <button type="button" data-global-unit="NM" aria-pressed="true" class="btn-tactile global-unit-pill-btn px-2 py-1.5 rounded-xl bg-orange-500 text-white shadow-xs transition font-bold cursor-pointer text-center" title="Nautical Mile">
+                  NM
+                </button>
+                <button type="button" data-global-unit="KM" aria-pressed="false" class="btn-tactile global-unit-pill-btn px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-medium cursor-pointer text-center" title="Kilometer">
+                  KM
+                </button>
+                <button type="button" data-global-unit="M" aria-pressed="false" class="btn-tactile global-unit-pill-btn px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition font-medium cursor-pointer text-center" title="Meter">
+                  M
+                </button>
+              </div>
+              <p class="px-1 text-[10px] text-slate-500 dark:text-slate-400 leading-tight">NM: Nautical Mile &bull; KM: Kilometer &bull; M: Meter</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Floating Offline / Blank Spot Status Badge -->
       <div id="gisOfflineIndicator" class="absolute bottom-4 left-4 z-[400] hidden px-3.5 py-2 rounded-xl bg-amber-500/95 text-slate-950 font-bold text-xs shadow-2xl backdrop-blur-md flex items-center gap-2 border border-amber-600/30 transition-all duration-300">
@@ -1784,6 +1957,7 @@ window.SAR_INITIAL_GIS_DATA = {
   currentOperasi: <?= jsonSafe($currentOperasi) ?>,
   captureDocParam: <?= jsonSafe($captureDocParam) ?>,
   captureRefParam: <?= jsonSafe($captureRefParam) ?>,
+  fromRenopsParam: <?= jsonSafe($fromRenopsParam) ?>,
   csrfToken: <?= jsonSafe(csrfToken()) ?>,
   points: <?= jsonSafe($savedPoints) ?>,
   polygons: <?= jsonSafe($savedPolygons) ?>,
@@ -1801,11 +1975,5 @@ window.SAR_INITIAL_GIS_DATA = {
 <script src="<?= assetUrl('assets/js/gis/naming.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/export.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/kml_importer.js') ?>"></script>
-<script src="<?= assetUrl('assets/js/gis/layers.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/tile_fallback.js') ?>"></script>
-<script src="<?= assetUrl('assets/js/gis/ui_search.js') ?>"></script>
-<script src="<?= assetUrl('assets/js/gis/ui_points.js') ?>"></script>
-<script src="<?= assetUrl('assets/js/gis/ui_polygons.js') ?>"></script>
-<script src="<?= assetUrl('assets/js/gis/ui_patterns.js') ?>"></script>
-<script src="<?= assetUrl('assets/js/gis/ui_routes.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis_master.js') ?>"></script>

@@ -136,10 +136,10 @@ try {
 
 $bak = (string)file_get_contents(ROOT_DIR . '/services/BackupService.php');
 assertCondition(
-    substr_count($bak, 'GisModel::ensureSchemaUpdated(true)') === 2
-    && substr_count($bak, 'OperasiModel::ensureSchemaUpdated(true)') === 2
-    && substr_count($bak, 'RenopsModel::ensureSchemaUpdated(true)') === 2,
-    'Restore JSON & SQL memulihkan skema (GisModel, OperasiModel, RenopsModel)'
+    substr_count($bak, 'GisModel::ensureSchemaUpdated(true)') === 1
+    && substr_count($bak, 'OperasiModel::ensureSchemaUpdated(true)') === 1
+    && substr_count($bak, 'RenopsModel::ensureSchemaUpdated(true)') === 1,
+    'Restore SQL memulihkan skema (GisModel, OperasiModel, RenopsModel)'
 );
 
 echo "\nTotal: {$testTotal}, Lolos: {$testPassed}\n";

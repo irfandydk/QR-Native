@@ -10,6 +10,39 @@ declare(strict_types=1);
 
 class BraController extends BaseController {
     /**
+     * Resolve strict, open-redirect-safe return navigation context for BRA pages.
+     * Only allows returning to Operasi Detail BRA sub-tab when return_to=operasi_bra
+     * and return_op is a positive integer.
+     *
+     * @param array<string, mixed>|null $source
+     * @return array{returnTo: string, returnOp: int, backUrl: string, backLabel: string, returnQuery: string}
+     */
+    public static function resolveReturnContext(?array $source = null): array {
+        $src = $source ?? $_GET;
+        $returnTo = trim((string)($src['return_to'] ?? ''));
+        $rawOp = trim((string)($src['return_op'] ?? ''));
+
+        if ($returnTo === 'operasi_bra' && preg_match('/^[1-9][0-9]{0,9}$/', $rawOp) === 1) {
+            $opId = (int)$rawOp;
+            return [
+                'returnTo' => 'operasi_bra',
+                'returnOp' => $opId,
+                'backUrl' => BASE_URL . '/operasi_detail.php?id=' . $opId . '&tab=bra',
+                'backLabel' => 'Kembali ke BRA Operasi SAR',
+                'returnQuery' => '&return_to=operasi_bra&return_op=' . $opId,
+            ];
+        }
+
+        return [
+            'returnTo' => '',
+            'returnOp' => 0,
+            'backUrl' => BASE_URL . '/bra.php',
+            'backLabel' => 'Kembali ke Daftar',
+            'returnQuery' => '',
+        ];
+    }
+
+    /**
      * Main dispatcher for BRA requests.
      */
     public function handle(): void {
@@ -176,6 +209,7 @@ class BraController extends BaseController {
         }
 
         // 7. Dokumen Sah: Render Layout Lengkap Internal jika Pengguna Sudah Login
+        $returnCtx = self::resolveReturnContext($_GET);
         $this->render('bra/view', [
             'bra' => $bra,
             'verificationStatus' => $verificationStatus,
@@ -184,7 +218,10 @@ class BraController extends BaseController {
             'currentRoute' => $currentRoute,
             'navbarTitle' => $navbarTitle,
             'isGuest' => $isGuest,
-            'docId' => $docId
+            'docId' => $docId,
+            'backUrl' => $returnCtx['backUrl'],
+            'backLabel' => $returnCtx['backLabel'],
+            'returnQuery' => $returnCtx['returnQuery'],
         ], [
             'layout' => 'default',
             'route' => 'bra',
@@ -198,10 +235,12 @@ class BraController extends BaseController {
      */
     protected function save(): void {
         $this->requireLogin();
+        $returnCtx = self::resolveReturnContext(!empty($_POST['return_to']) ? $_POST : $_GET);
+        $returnQuery = $returnCtx['returnQuery'];
 
         if (!$this->validateCsrf($_POST['csrf_token'] ?? null)) {
             $this->setFlash('error', 'Token keamanan CSRF tidak valid atau sesi Anda telah kedaluwarsa.');
-            $this->redirect('/bra.php');
+            $this->redirect($returnCtx['backUrl']);
         }
 
         $id = (int)($_POST['id_bra'] ?? $_GET['id'] ?? 0);
@@ -209,15 +248,15 @@ class BraController extends BaseController {
             if ($id > 0) {
                 BraModel::update($id, $_POST);
                 $this->setFlash('success', 'Naskah Berita Radio SAR berhasil diperbarui!');
-                $this->redirect("/bra.php?view={$id}");
+                $this->redirect("/bra.php?view={$id}{$returnQuery}");
             } else {
                 $newId = BraModel::create($_POST);
                 $this->setFlash('success', 'Naskah Berita Radio SAR berhasil diterbitkan!');
-                $this->redirect("/bra.php?view={$newId}");
+                $this->redirect("/bra.php?view={$newId}{$returnQuery}");
             }
         } catch (Throwable $e) {
             $this->setFlash('error', 'Gagal menyimpan naskah BRA: ' . $e->getMessage());
-            $this->redirect('/bra.php' . ($id > 0 ? "?action=edit&id={$id}" : "?action=create"));
+            $this->redirect('/bra.php' . ($id > 0 ? "?action=edit&id={$id}{$returnQuery}" : "?action=create{$returnQuery}"));
         }
     }
 
@@ -264,13 +303,19 @@ class BraController extends BaseController {
 
         $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
         $bra = $id > 0 ? BraModel::getById($id) : null;
+        $returnCtx = self::resolveReturnContext($_GET);
 
         $this->render('bra/form', [
             'action' => $action,
             'pageTitle' => $pageTitle,
             'navbarTitle' => $navbarTitle,
             'bra' => $bra,
-            'id' => $id
+            'id' => $id,
+            'backUrl' => $returnCtx['backUrl'],
+            'backLabel' => $returnCtx['backLabel'],
+            'returnTo' => $returnCtx['returnTo'],
+            'returnOp' => $returnCtx['returnOp'],
+            'returnQuery' => $returnCtx['returnQuery'],
         ], [
             'title' => $pageTitle,
             'route' => 'bra',

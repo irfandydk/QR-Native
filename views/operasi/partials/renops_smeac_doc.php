@@ -99,7 +99,9 @@ $rows = function (array $data, array $cols, bool $nomor = false) use ($col, $row
 $img = fn(string $path): string => e(BASE_URL . '/' . ltrim($path, '/'));
 // Tombol aksi di tempat isinya (draft): capture peta & unggah foto, tanpa gulir ke toolbar atas.
 // Peta Lokasi (LKP) 1x per operasi: tanpa capture_ref, dipakai semua hari RENOPS.
-$capturePetaUrl = BASE_URL . '/gis.php?id_operasi=' . (int)($meta['id_operasi'] ?? 0) . '&include_base=1&capture_doc=RENOPS';
+// Sertakan from_renops sebelum capture_doc sebagai konteks navigasi kembali ke draf RENOPS asal.
+$fromRenopsQ = (int)($meta['id_renops'] ?? 0) > 0 ? '&from_renops=' . (int)$meta['id_renops'] : '';
+$capturePetaUrl = BASE_URL . '/gis.php?id_operasi=' . (int)($meta['id_operasi'] ?? 0) . '&include_base=1' . $fromRenopsQ . '&capture_doc=RENOPS';
 
 $jenisOps = trim((string)($S['jenis_operasi'] ?? ''));
 $petaJudul = 'Peta Lokasi ' . ($jenisOps !== '' && $jenisOps !== '-' ? $jenisOps : 'Kejadian');
@@ -107,7 +109,7 @@ $petaPath = (string)($doc['peta']['path'] ?? '');
 // Peta Rencana Operasi (capture per hari, jenis RENOPS_RENCANA) tepat di bawah Peta Lokasi.
 $petaRencanaPath = (string)($doc['peta_rencana']['path'] ?? '');
 $capturePetaRencanaUrl = BASE_URL . '/gis.php?id_operasi=' . (int)($meta['id_operasi'] ?? 0)
-    . '&include_base=1&capture_doc=RENOPS_RENCANA&capture_ref=' . (int)($meta['id_renops'] ?? 0);
+    . '&include_base=1' . $fromRenopsQ . '&capture_doc=RENOPS_RENCANA&capture_ref=' . (int)($meta['id_renops'] ?? 0);
 $hurufPetaRencana = $petaPath !== '' ? 'b' : 'a';
 $fotoList = $doc['foto'] ?? [];
 $hariOrdinal = ($hariNum > 0 && $hariLabel === (string)$hariNum)

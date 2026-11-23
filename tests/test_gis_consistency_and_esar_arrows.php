@@ -48,7 +48,6 @@ $gisView = file_get_contents(__DIR__ . '/../views/gis.php');
 $gisMasterJs = file_get_contents(__DIR__ . '/../assets/js/gis_master.js');
 $gisJs = file_get_contents(__DIR__ . '/../assets/js/gis.js');
 $patternsJs = file_get_contents(__DIR__ . '/../assets/js/gis/patterns.js');
-$uiPatternsJs = file_get_contents(__DIR__ . '/../assets/js/gis/ui_patterns.js');
 $operasiDetailJs = file_get_contents(__DIR__ . '/../assets/js/pages/operasi_detail.js');
 $renopsFormJs = file_get_contents(__DIR__ . '/../assets/js/pages/renops_form.js');
 $operasiCtrl = file_get_contents(__DIR__ . '/../controllers/OperasiController.php');
@@ -74,11 +73,6 @@ assertTest(
 assertTest(
     "assets/js/gis/patterns.js bebas dari referensi expanding_square",
     !str_contains($patternsJs, 'expanding_square')
-);
-
-assertTest(
-    "assets/js/gis/ui_patterns.js bebas dari referensi expanding_square",
-    !str_contains($uiPatternsJs, 'expanding_square')
 );
 
 assertTest(
@@ -217,9 +211,9 @@ assertTest(
 );
 
 assertTest(
-    "assets/js/gis/patterns.js dan gis_master.js memiliki fallback lintasan sapuan agar koordinat tidak pernah kosong",
+    "assets/js/gis/patterns.js memiliki fallback lintasan sapuan dan gis_master.js mendelegasikan penuh ke QrSarGis.Patterns",
     str_contains($patternsJs, "if (points.length < 2)") &&
-    str_contains($gisMasterJs, "if (points.length < 2)")
+    str_contains($gisMasterJs, "window.QrSarGis.Patterns.generateFittedPatternInsidePolygon")
 );
 
 // -------------------------------------------------------------------------

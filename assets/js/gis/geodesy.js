@@ -197,7 +197,7 @@
       }
 
       // 2. Box / Rectangle Area: A = width * height
-      if (shapeType === 'box' && boxWidthNm && boxHeightNm && Number(boxWidthNm) > 0 && Number(boxHeightNm) > 0) {
+      if ((shapeType === 'box' || shapeType === 'rectangle') && boxWidthNm && boxHeightNm && Number(boxWidthNm) > 0 && Number(boxHeightNm) > 0) {
         const w = Number(boxWidthNm);
         const h = Number(boxHeightNm);
         const sqNm = w * h;

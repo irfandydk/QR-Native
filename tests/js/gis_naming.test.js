@@ -88,5 +88,15 @@ test('groupEntities: mengelompokkan Search Area, Pola SAR, dan Rute berdasarkan 
   assert.deepEqual(g[1].items.map((x) => x.id), ['a2', 'a4']);
 });
 
+test('isProtectedPointCategory: melindungi Pangkalan SAR (Kantor/POS/USS) dan Dermaga SAR', () => {
+  assert.equal(typeof N.isProtectedPointCategory, 'function');
+  ['Kantor SAR', 'POS SAR', 'Unit Siaga SAR', 'Dermaga SAR', 'Dermaga', ' kantor sar ', 'dermaga sar'].forEach((cat) => {
+    assert.equal(N.isProtectedPointCategory(cat), true, `Seharusnya dilindungi: ${cat}`);
+  });
+  ['LKP', 'Posko', 'Penemuan Korban', 'Lokasi Penemuan Korban', 'Entry Poin', 'Exit Poin', 'Tanpa Kategori', 'Import 1', '', null, undefined].forEach((cat) => {
+    assert.equal(N.isProtectedPointCategory(cat), false, `Seharusnya tidak dilindungi: ${cat}`);
+  });
+});
+
 console.log(failed ? `${failed} FAIL` : 'ALL PASS');
 process.exit(failed ? 1 : 0);

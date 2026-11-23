@@ -6,8 +6,8 @@
 
 $flash = getFlash();
 $requiresGis = !empty($useGis) || in_array($currentRoute ?? '', ['gis', 'operasi_detail', 'operasi_form'], true);
+$requiresTacticalGis = $requiresGis && ($currentRoute ?? '') !== 'gis' && ($currentRoute ?? '') !== 'operasi_form';
 $requiresQr  = !empty($useQr) || in_array($currentRoute ?? '', ['bra', 'bra_view', 'bra_list', 'bra_form'], true);
-$requiresBra = !empty($useBra) || in_array($currentRoute ?? '', ['bra', 'bra_view', 'bra_list', 'bra_form'], true);
 ?>
 </main> <!-- end page-body -->
 
@@ -38,11 +38,7 @@ $requiresBra = !empty($useBra) || in_array($currentRoute ?? '', ['bra', 'bra_vie
 <?php endif; ?>
 
 <!-- Conditional Feature Scripts -->
-<?php if ($requiresBra): ?>
-<script src="<?= assetUrl('assets/js/bra.js') ?>"></script>
-<?php endif; ?>
-
-<?php if ($requiresGis && ($currentRoute ?? '') !== 'gis'): ?>
+<?php if ($requiresTacticalGis): ?>
 <script src="<?= assetUrl('assets/js/gis/geodesy.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/markers.js') ?>"></script>
 <script src="<?= assetUrl('assets/js/gis/patterns.js') ?>"></script>

@@ -319,22 +319,6 @@ try {
         $foundPattern !== null && (float)$foundPattern['trackSpacingNm'] === 0.5 && (int)$foundPattern['legsCount'] === 4
     );
 
-    // 2.7 Export GeoJSON Standar RFC 7946
-    $geojsonStr = GisModel::exportGeoJson($idTestOpsGis);
-    $geoDecoded = json_decode($geojsonStr, true);
-    assertTest('GEOJSON', 'exportGeoJson menghasilkan format RFC 7946 FeatureCollection valid',
-        is_array($geoDecoded) &&
-        ($geoDecoded['type'] ?? '') === 'FeatureCollection' &&
-        isset($geoDecoded['features']) &&
-        count($geoDecoded['features']) >= 4
-    );
-
-    // Verifikasi masing-masing tipe geometri di GeoJSON
-    $geomTypes = array_column(array_column($geoDecoded['features'], 'geometry'), 'type');
-    assertTest('GEOJSON', 'GeoJSON memuat geometri Point, Polygon, dan LineString',
-        in_array('Point', $geomTypes) && in_array('Polygon', $geomTypes) && in_array('LineString', $geomTypes)
-    );
-
 } catch (Throwable $e) {
     echo "  [ERROR EXCEPTION] " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n";
 } finally {

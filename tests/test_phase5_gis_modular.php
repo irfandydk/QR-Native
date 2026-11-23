@@ -170,14 +170,13 @@ assertCondition("gis_master.js generateFittedPatternInsidePolygon mendelegasikan
 assertCondition("gis_master.js generateKmlDocument mendelegasikan ke QrSarGis.Export", str_contains($gisMasterContent, 'window.QrSarGis.Export.generateKmlDocument'));
 assertCondition("gis_master.js mempertahankan facade publik window.SAR_GIS", str_contains($gisMasterContent, 'window.SAR_GIS = {'));
 
-// 6. Memeriksa Resolusi Collision Namespace bra.js vs bra_form.js (JS-DEEP-03)
-echo "\n6. Memeriksa Resolusi Collision Namespace bra.js vs bra_form.js:\n";
+// 6. Memeriksa Namespace QrSarUtils.Bra & Pembersihan bra.js Mati (JS-DEEP-03)
+echo "\n6. Memeriksa Namespace QrSarUtils.Bra & bra_form.js:\n";
 $commonJsContent = file_get_contents($rootDir . '/assets/js/utils/common.js');
-$braJsContent = file_get_contents($rootDir . '/assets/js/bra.js');
 $braFormJsContent = file_get_contents($rootDir . '/assets/js/pages/bra_form.js');
 
 assertCondition("common.js menyediakan namespace QrSarUtils.Bra", str_contains($commonJsContent, 'QrSarUtils') && str_contains($commonJsContent, 'Bra:'));
-assertCondition("bra.js memuat fungsi getSectionLetter terisolasi/ter-guard", str_contains($braJsContent, 'getSectionLetter'));
+assertCondition("bra.js mati telah dihapus dan bra_form.js memakai QrSarUtils.Bra.getSectionLetter", !file_exists($rootDir . '/assets/js/bra.js') && str_contains($braFormJsContent, 'window.QrSarUtils.Bra.getSectionLetter'));
 assertCondition("bra_form.js memuat fungsi getMilitaryTW dengan guard namespace", str_contains($braFormJsContent, 'getMilitaryTW'));
 
 echo "\n--- HASIL: {$passedAssertions} / {$totalAssertions} Pengujian Berhasil Lulus ---\n";

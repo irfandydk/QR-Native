@@ -8,23 +8,7 @@ declare(strict_types=1);
 
 class OperasiApiController extends BaseApiController {
     public static function handle(string $path, string $method, array $input): bool {
-        // 1. Stats
-        if ($path === '/laporan/stats' || $path === '/monitoring/stats') {
-            self::requireAuth();
-            self::json(['success' => true, 'data' => OperasiModel::getStats()]);
-            return true;
-        }
-
-        // 2. Operasi List
-        if ($path === '/operasi' && $method === 'GET') {
-            self::requireAuth();
-            $status = $_GET['status'] ?? null;
-            $q = $_GET['q'] ?? null;
-            self::json(['success' => true, 'data' => OperasiModel::getAll($status, $q)]);
-            return true;
-        }
-
-        // 2b. Pratinjau naskah WA dari isi form (belum disimpan), generator sama dengan saat simpan
+        // 1. Pratinjau naskah WA dari isi form (belum disimpan), generator sama dengan saat simpan
         if ($path === '/operasi/wa-preview' && $method === 'POST') {
             self::requireAuth();
             $data = $_POST ?: $input;
@@ -63,38 +47,7 @@ class OperasiApiController extends BaseApiController {
             return true;
         }
 
-        // 3. Operasi Create
-        if ($path === '/operasi' && $method === 'POST') {
-            self::requireAuth();
-            $namaOperasi = trim((string)($input['nama_operasi'] ?? ''));
-            if ($namaOperasi === '') {
-                self::error('Nama Operasi SAR wajib diisi.', 400);
-            }
-            try {
-                $newId = OperasiModel::create($input);
-                self::json(['success' => true, 'id' => $newId, 'message' => 'Laporan Awal Operasi SAR berhasil disimpan.']);
-            } catch (\Throwable $e) {
-                error_log("QR-SAR API Error creating Operasi: " . $e->getMessage());
-                self::error('Gagal menyimpan operasi SAR: ' . $e->getMessage(), 400);
-            }
-            return true;
-        }
-
-        // 4. Operasi Close
-        if (preg_match('#^/operasi/(\d+)/close$#', $path, $m) && $method === 'POST') {
-            self::requireAuth();
-            $id = (int)$m[1];
-            $waktu = $input['waktu_selesai'] ?? date('Y-m-d H:i:s');
-            try {
-                $ok = OperasiModel::closeOperation($id, $waktu);
-                self::json(['success' => $ok, 'message' => 'Operasi SAR resmi ditutup.']);
-            } catch (\Throwable $e) {
-                self::error($e->getMessage(), 400);
-            }
-            return true;
-        }
-
-        // 5. Operasi Rollback Penutupan (Re-open)
+        // 2. Operasi Rollback Penutupan (Re-open)
         if (preg_match('#^/operasi/(\d+)/rollback-penutupan$#', $path, $m) && $method === 'POST') {
             self::requireAuth();
             $id = (int)$m[1];
@@ -113,7 +66,7 @@ class OperasiApiController extends BaseApiController {
             return true;
         }
 
-        // 6. Operasi Detail / Update / Delete
+        // 3. Operasi Detail / Delete
         if (preg_match('#^/operasi/(\d+)$#', $path, $m)) {
             $id = (int)$m[1];
             if ($method === 'GET') {
@@ -123,17 +76,6 @@ class OperasiApiController extends BaseApiController {
                     self::error('Operasi tidak ditemukan', 404);
                 }
                 self::json(['success' => true, 'data' => $ops]);
-                return true;
-            }
-
-            if ($method === 'PUT' || $method === 'POST') {
-                self::requireAuth();
-                try {
-                    $ok = OperasiModel::update($id, $input);
-                    self::json(['success' => $ok, 'message' => 'Data Operasi SAR berhasil diperbarui.']);
-                } catch (\Throwable $e) {
-                    self::error($e->getMessage(), 400);
-                }
                 return true;
             }
 
