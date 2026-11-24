@@ -79,7 +79,11 @@ try {
         if (AuthApiController::handle($path, $method, $input)) exit;
     }
 
-    // 3. Operasi SAR (Dokumentasi Kolase & Operasi CRUD)
+    // 3. Operasi SAR (Dokumentasi Kolase & Operasi CRUD) & Pusat Dokumentasi Umum
+    if (str_starts_with($path, '/dokumentasi')) {
+        if (OperasiDokumentasiApiController::handle($path, $method, $input)) exit;
+    }
+
     if (str_starts_with($path, '/operasi')) {
         if (preg_match('#^/operasi/\d+/dokumentasi#', $path)) {
             if (OperasiDokumentasiApiController::handle($path, $method, $input)) exit;

@@ -29,6 +29,9 @@ class Router {
         '/bra/edit' => 'bra.php',
         '/bra/form' => 'bra.php',
         '/bra/view' => 'bra.php',
+        '/dokumentasi' => 'dokumentasi.php',
+        '/dokumentasi/create' => 'dokumentasi.php',
+        '/dokumentasi/edit' => 'dokumentasi.php',
         '/gis' => 'gis.php',
         '/master' => 'master.php',
         '/admin' => 'admin.php',
@@ -140,6 +143,10 @@ class Router {
                 $_GET['action'] = 'edit';
             } elseif ($path === '/bra/form') {
                 $_GET['action'] = isset($_GET['id']) ? 'edit' : 'create';
+            } elseif ($path === '/dokumentasi/create') {
+                $_GET['action'] = 'create';
+            } elseif ($path === '/dokumentasi/edit') {
+                $_GET['action'] = 'edit';
             }
             $target = ROOT_DIR . '/' . $controller;
             if (file_exists($target)) {

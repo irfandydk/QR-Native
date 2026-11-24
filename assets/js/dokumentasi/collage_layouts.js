@@ -312,15 +312,21 @@
     return lines.slice(0, limit);
   }
 
-  function formatCollageFilename(hariKe, namaOperasi, ext) {
-    const safeHari = String(hariKe || 'H1').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'H1';
-    const safeOps = String(namaOperasi || 'OPERASI_SAR')
+  function formatCollageFilename(hariKe, namaOperasi, ext, isGeneral) {
+    const defaultHari = isGeneral ? 'KEGIATAN' : 'H1';
+    const defaultTitle = isGeneral ? 'KPP_KENDARI' : 'OPERASI_SAR';
+    const safeHari = String(hariKe || defaultHari).toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || defaultHari;
+    const safeOps = String(namaOperasi || defaultTitle)
       .toUpperCase()
       .replace(/[^A-Z0-9]+/g, '_')
       .replace(/_+/g, '_')
       .replace(/^_+|_+$/g, '')
-      .slice(0, 60) || 'OPERASI_SAR';
+      .slice(0, 60) || defaultTitle;
     const safeExt = String(ext || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+    if (isGeneral) {
+      const stripped = safeOps.replace(/^DOK(?:UMENTASI)?_(?:KEGIATAN_)?/, '') || safeOps;
+      return `DOK_${safeHari}_${stripped}.${safeExt}`;
+    }
     return `DOK_SAR_${safeHari}_${safeOps}.${safeExt}`;
   }
 

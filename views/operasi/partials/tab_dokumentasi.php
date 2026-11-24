@@ -127,13 +127,15 @@ $formatBytes = static function (int $bytes): string {
                   <span>Unduh</span>
                 </a>
               </div>
-              <button type="button"
-                      onclick="deleteOperasiDokumentasi(<?= (int)$id ?>, <?= $dokId ?>, this)"
-                      class="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-900 transition cursor-pointer"
-                      title="Hapus Arsip Dokumentasi"
-                      aria-label="Hapus Arsip Dokumentasi">
-                <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-              </button>
+              <?php if (AuthHelper::canDelete('dokumentasi')): ?>
+                <button type="button"
+                        onclick="deleteOperasiDokumentasi(<?= (int)$id ?>, <?= $dokId ?>, this)"
+                        class="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-900 transition cursor-pointer"
+                        title="Hapus Arsip Dokumentasi"
+                        aria-label="Hapus Arsip Dokumentasi">
+                  <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                </button>
+              <?php endif; ?>
             </div>
           </div>
         </article>

@@ -151,6 +151,42 @@ assertCondition(
     str_contains($outputText, 'No pending SQL migration files found')
 );
 
+$migrateSrc = (string)file_get_contents($rootDir . '/database/migrate.php');
+assertCondition(
+    "database/migrate.php bersih dari seeder Unit Siaga Konawe & Kolaka Utara serta menjaga re-seed hanya saat tabel kosong",
+    !str_contains($migrateSrc, 'pt-unit-konawe')
+        && !str_contains($migrateSrc, 'pt-unit-kolut')
+        && str_contains($migrateSrc, '$existingSarUnitCount === 0')
+        && str_contains($migrateSrc, '$existingBasePointsCount === 0')
+);
+
+try {
+    $dbCheck = Database::getConnection();
+    $fictionalGisCount = (int)$dbCheck->query(
+        "SELECT COUNT(*) FROM GisPoint WHERE id IN ('pt-unit-konawe', 'pt-unit-kolut') OR (id_operasi IS NULL AND UPPER(TRIM(label)) IN ('UNIT SIAGA SAR KONAWE', 'UNIT SIAGA SAR KOLAKA UTARA'))"
+    )->fetchColumn();
+    assertCondition(
+        "GisPoint bebas dari Unit Siaga SAR Konawe dan Kolaka Utara setelah migrasi",
+        $fictionalGisCount === 0
+    );
+
+    $fictionalSarCount = (int)$dbCheck->query(
+        "SELECT COUNT(*) FROM SarUnit WHERE UPPER(TRIM(nama_unit)) IN ('UNIT SIAGA SAR KONAWE', 'UNIT SIAGA SAR KOLAKA UTARA')"
+    )->fetchColumn();
+    assertCondition(
+        "SarUnit bebas dari Unit Siaga SAR Konawe dan Kolaka Utara setelah migrasi",
+        $fictionalSarCount === 0
+    );
+
+    $konutCount = (int)$dbCheck->query("SELECT COUNT(*) FROM GisPoint WHERE id = 'pt-pos-konut'")->fetchColumn();
+    assertCondition(
+        "Pos SAR Konawe Utara (pt-pos-konut) tetap dipertahankan di GisPoint",
+        $konutCount === 1
+    );
+} catch (Throwable $e) {
+    assertCondition("Verifikasi bebas titik fiktif di DB", false, $e->getMessage());
+}
+
 // ---------------------------------------------------------------------
 // RINGKASAN
 // ---------------------------------------------------------------------

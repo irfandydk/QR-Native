@@ -91,6 +91,9 @@ check('wrapCanvasLines wraps long Basarnas titles cleanly within maxWidth and ma
 check('formatCollageFilename generates clean filesystem-safe filenames', () => {
   const fname = mod.formatCollageFilename('H1', 'Kecelakaan Kapal / Perahu di Batauga!', 'jpg');
   assert.equal(fname, 'DOK_SAR_H1_KECELAKAAN_KAPAL_PERAHU_DI_BATAUGA.jpg');
+
+  const fnameUmum = mod.formatCollageFilename('LATIHAN', 'Dokumentasi Latihan SAR Gabungan Kendari', 'png', true);
+  assert.equal(fnameUmum, 'DOK_LATIHAN_LATIHAN_SAR_GABUNGAN_KENDARI.png');
 });
 
 check('COLLAGE_STYLES provides Klasik Resmi KPP and Editorial Modern themes', () => {

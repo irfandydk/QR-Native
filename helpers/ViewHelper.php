@@ -51,6 +51,7 @@ class ViewHelper
             'bra_list.php'           => 'bra/list.php',
             'bra_view.php'           => 'bra/view.php',
             'bra_verify_invalid.php' => 'bra/verify_invalid.php',
+            'dokumentasi.php'        => 'dokumentasi/index.php',
             'master.php'             => 'master/index.php',
             'master_settings.php'    => 'admin/index.php',
             'admin.php'              => 'admin/index.php',

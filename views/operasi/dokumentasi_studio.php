@@ -20,9 +20,28 @@ if (!defined('APP_NAME')) {
     exit('Akses langsung ditolak.');
 }
 
-$idOps = (int)$operasi['id_operasi'];
-$backDetailUrl = BASE_URL . '/operasi_detail.php?id=' . $idOps . '&tab=dokumentasi';
-$newStudioUrl = BASE_URL . '/operasi.php?action=dokumentasi&id=' . $idOps;
+$idOps = (isset($operasi) && is_array($operasi) && !empty($operasi['id_operasi'])) ? (int)$operasi['id_operasi'] : 0;
+$allowOperasiSelect = !empty($allowOperasiSelect);
+$activeOperasiOptions = (isset($activeOperasiOptions) && is_array($activeOperasiOptions)) ? $activeOperasiOptions : [];
+$generalDefaults = (isset($generalDefaults) && is_array($generalDefaults))
+    ? $generalDefaults
+    : ['hariLabel' => 'KEGIATAN', 'judulDefault' => 'Dokumentasi Kegiatan KPP Kelas A Kendari'];
+
+$backDetailUrl = (isset($backDetailUrl) && trim((string)$backDetailUrl) !== '')
+    ? (string)$backDetailUrl
+    : ($idOps > 0 ? BASE_URL . '/operasi_detail.php?id=' . $idOps . '&tab=dokumentasi' : BASE_URL . '/dokumentasi.php');
+$backDetailLabel = (isset($backDetailLabel) && trim((string)$backDetailLabel) !== '')
+    ? (string)$backDetailLabel
+    : ($idOps > 0 ? 'Kembali ke Detail Operasi SAR' : 'Kembali ke Arsip Dokumentasi');
+$newStudioUrl = (isset($newStudioUrl) && trim((string)$newStudioUrl) !== '')
+    ? (string)$newStudioUrl
+    : ($idOps > 0 && !$allowOperasiSelect ? BASE_URL . '/operasi.php?action=dokumentasi&id=' . $idOps : BASE_URL . '/dokumentasi.php?action=create');
+$apiEndpoint = (isset($apiEndpoint) && trim((string)$apiEndpoint) !== '')
+    ? (string)$apiEndpoint
+    : ($idOps > 0 && !$allowOperasiSelect ? BASE_URL . '/api/index.php?path=/operasi/' . $idOps . '/dokumentasi' : BASE_URL . '/api/index.php?path=/dokumentasi');
+$sourceApiEndpoint = (isset($sourceApiEndpoint) && trim((string)$sourceApiEndpoint) !== '')
+    ? (string)$sourceApiEndpoint
+    : ($idOps > 0 && !$allowOperasiSelect ? BASE_URL . '/api/index.php?path=/operasi/' . $idOps . '/dokumentasi/source' : BASE_URL . '/api/index.php?path=/dokumentasi/source');
 
 $editDok = (isset($editDok) && is_array($editDok)) ? $editDok : null;
 $editProject = (isset($editProject) && is_array($editProject)) ? $editProject : null;
@@ -125,7 +144,7 @@ if ($isEditMode) {
   <!-- Studio Header Bar -->
   <section class="dok-studio-card rounded-2xl px-4 sm:px-5 py-3.5 flex flex-wrap items-center justify-between gap-3">
     <div class="flex items-center gap-3 min-w-0">
-      <a href="<?= e($backDetailUrl) ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition shrink-0" title="Kembali ke Detail Operasi SAR" aria-label="Kembali ke Detail Operasi SAR">
+      <a href="<?= e($backDetailUrl) ?>" class="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition shrink-0" title="<?= e($backDetailLabel) ?>" aria-label="<?= e($backDetailLabel) ?>">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
       </a>
       <div class="min-w-0">
@@ -134,12 +153,12 @@ if ($isEditMode) {
           <?php if ($isEditMode): ?>
             <span class="px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-700 dark:text-sky-300 font-bold">MODE EDIT ARSIP #<?= $editDocId ?></span>
           <?php endif; ?>
-          <span>Operasi #<?= $idOps ?></span>
+          <span id="studioHeaderScopeLabel"><?= $idOps > 0 ? 'Operasi #' . $idOps : 'Dokumentasi Umum' ?></span>
           <span>&bull;</span>
-          <span><?= e($hariLabel) ?></span>
+          <span id="studioHeaderHariLabel"><?= e($hariLabel) ?></span>
         </div>
-        <h1 class="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate mt-0.5">
-          <?= e((string)$operasi['nama_operasi']) ?>
+        <h1 id="studioHeaderTitle" class="text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate mt-0.5">
+          <?= e($idOps > 0 ? (string)($operasi['nama_operasi'] ?? '') : 'Dokumentasi Kegiatan & Umum KPP Kelas A Kendari') ?>
         </h1>
       </div>
     </div>
@@ -163,7 +182,7 @@ if ($isEditMode) {
 
       <button type="button" id="btnSaveArchive" class="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-orange-700 hover:bg-orange-800 text-white text-xs font-bold transition cursor-pointer shadow-xs">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-        <span><?= $isEditMode ? 'Simpan Perubahan Arsip' : 'Simpan ke Arsip Operasi' ?></span>
+        <span><?= $isEditMode ? 'Simpan Perubahan Arsip' : ($allowOperasiSelect ? 'Simpan ke Arsip Dokumentasi' : 'Simpan ke Arsip Operasi') ?></span>
       </button>
     </div>
   </section>
@@ -183,10 +202,27 @@ if ($isEditMode) {
           <?php endif; ?>
         </div>
 
+        <?php if ($allowOperasiSelect): ?>
+          <div>
+            <label for="selectDokOperasi" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Kaitan Operasi SAR (Opsional)</label>
+            <select id="selectDokOperasi" class="control control-sm w-full font-semibold cursor-pointer">
+              <option value="0" <?= $idOps === 0 ? 'selected' : '' ?>>Dokumentasi Umum (Tanpa Operasi SAR)</option>
+              <?php foreach ($activeOperasiOptions as $opt): ?>
+                <option value="<?= (int)$opt['id'] ?>" <?= $idOps === (int)$opt['id'] ? 'selected' : '' ?>>
+                  <?= (($opt['status'] ?? 'OPEN') !== 'OPEN') ? '[SELESAI] ' : '[AKTIF] ' ?>OPS #<?= (int)$opt['id'] ?> - <?= e((string)$opt['nama']) ?> (<?= e((string)$opt['hariLabel']) ?>)
+                </option>
+              <?php endforeach; ?>
+            </select>
+            <p class="mt-1 text-[10.5px] text-slate-500 dark:text-slate-400 leading-snug">
+              Biarkan pada Dokumentasi Umum untuk giat rutin/latihan, atau pilih Operasi SAR aktif sebagai alternatif cepat tanpa membuka detail operasi.
+            </p>
+          </div>
+        <?php endif; ?>
+
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label for="inputDokHari" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Hari Operasi</label>
-            <input type="text" id="inputDokHari" value="<?= e($hariLabel) ?>" class="control control-sm w-full font-mono font-bold" placeholder="H1" />
+            <label id="labelInputDokHari" for="inputDokHari" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1"><?= $idOps > 0 ? 'Hari Operasi' : 'Label Kategori' ?></label>
+            <input type="text" id="inputDokHari" value="<?= e($hariLabel) ?>" class="control control-sm w-full font-mono font-bold" placeholder="<?= $idOps > 0 ? 'H1' : 'KEGIATAN' ?>" />
           </div>
           <div class="sm:col-span-2">
             <label for="inputDokTanggal" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Label Tanggal</label>
@@ -195,8 +231,8 @@ if ($isEditMode) {
         </div>
 
         <div>
-          <label for="inputDokJudul" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Judul Dokumentasi Operasi SAR</label>
-          <textarea id="inputDokJudul" rows="2" class="control control-sm w-full font-semibold leading-snug" placeholder="Dok Operasi SAR H1 ..."><?= e($judulDefault) ?></textarea>
+          <label id="labelInputDokJudul" for="inputDokJudul" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1"><?= $idOps > 0 ? 'Judul Dokumentasi Operasi SAR' : 'Judul Dokumentasi Kolase' ?></label>
+          <textarea id="inputDokJudul" rows="2" class="control control-sm w-full font-semibold leading-snug" placeholder="<?= $idOps > 0 ? 'Dok Operasi SAR H1 ...' : 'Dokumentasi Kegiatan KPP Kelas A Kendari ...' ?>"><?= e($judulDefault) ?></textarea>
         </div>
 
         <!-- 3 Logo Toggles -->
@@ -474,13 +510,16 @@ if ($isEditMode) {
 <script>
 window.__DOK_STUDIO_CONFIG__ = <?= jsonSafe([
     'idOperasi' => $idOps,
-    'namaOperasi' => (string)($operasi['nama_operasi'] ?? ''),
+    'namaOperasi' => $idOps > 0 ? (string)($operasi['nama_operasi'] ?? '') : '',
+    'allowOperasiSelect' => $allowOperasiSelect,
+    'activeOperasiOptions' => $activeOperasiOptions,
+    'generalDefaults' => $generalDefaults,
     'hariLabel' => $hariLabel,
     'tanggalDefault' => $tanggalDefault,
     'judulDefault' => $judulDefault,
     'backDetailUrl' => $backDetailUrl,
-    'apiEndpoint' => BASE_URL . '/api/index.php?path=/operasi/' . $idOps . '/dokumentasi',
-    'sourceApiEndpoint' => BASE_URL . '/api/index.php?path=/operasi/' . $idOps . '/dokumentasi/source',
+    'apiEndpoint' => $apiEndpoint,
+    'sourceApiEndpoint' => $sourceApiEndpoint,
     'editDoc' => $editDocPayload,
     'logos' => [
         'logo1' => $logo1DataUri,

@@ -1,11 +1,11 @@
 <?php
 /**
- * QR-SAR - Model Arsip Dokumentasi Kolase Operasi SAR (Foto & Video)
+ * QR-SAR - Model Arsip Dokumentasi Kolase Umum & Operasi SAR (Foto & Video)
  * Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
  *
- * Menyimpan hasil kolase dokumentasi operasi (gambar JPEG/PNG/WebP atau video WebM/MP4)
- * beserta metadata tata letak (4-12 slot, vertikal/persegi/horizontal), thumbnail video,
- * serta project_json + aset sumber per-slot agar arsip dapat diedit ulang secara penuh.
+ * Menyimpan hasil kolase dokumentasi umum (id_operasi = NULL) maupun operasi SAR (id_operasi > 0)
+ * berformat gambar (JPEG/PNG/WebP) atau video (WebM/MP4) beserta metadata tata letak (4-12 slot),
+ * thumbnail video, serta project_json + aset sumber per-slot agar arsip dapat diedit ulang penuh.
  */
 
 declare(strict_types=1);
@@ -49,7 +49,7 @@ class OperasiDokumentasiModel {
     }
 
     /**
-     * Pastikan tabel OperasiDokumentasi beserta kolom project_json tersedia secara idempoten.
+     * Pastikan tabel OperasiDokumentasi, kolom project_json, id_operasi nullable, dan indeks kronologis tersedia idempoten.
      * Aman terhadap transaksi aktif MySQL: cek SHOW TABLES/COLUMNS terlebih dulu agar tidak memicu DDL implicit commit.
      */
     public static function ensureSchemaUpdated(bool $force = false): void {
@@ -66,7 +66,7 @@ class OperasiDokumentasiModel {
                 }
                 $db->exec("CREATE TABLE IF NOT EXISTS `OperasiDokumentasi` (
                     `id_dokumentasi` INT AUTO_INCREMENT PRIMARY KEY,
-                    `id_operasi` INT NOT NULL,
+                    `id_operasi` INT NULL DEFAULT NULL,
                     `judul` VARCHAR(255) NOT NULL,
                     `hari_ke` VARCHAR(32) NOT NULL DEFAULT 'H1',
                     `tanggal_label` VARCHAR(100) NOT NULL DEFAULT '',
@@ -85,20 +85,46 @@ class OperasiDokumentasiModel {
                     `created_by` VARCHAR(64) NULL DEFAULT NULL,
                     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     KEY `idx_ops_dok_operasi` (`id_operasi`, `created_at`),
+                    KEY `idx_ops_dok_created_at` (`created_at`, `id_dokumentasi`),
                     CONSTRAINT `fk_ops_dok_operasi` FOREIGN KEY (`id_operasi`) REFERENCES `Operasi`(`id_operasi`) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
                 self::$schemaChecked = true;
                 return;
             }
 
-            $colExists = $db->query("SHOW COLUMNS FROM `OperasiDokumentasi` LIKE 'project_json'")->fetchColumn();
-            if ($colExists === false && !$db->inTransaction()) {
-                $db->exec("ALTER TABLE `OperasiDokumentasi` ADD COLUMN `project_json` LONGTEXT NULL DEFAULT NULL AFTER `file_size`");
+            if (!$db->inTransaction()) {
+                $colExists = $db->query("SHOW COLUMNS FROM `OperasiDokumentasi` LIKE 'project_json'")->fetchColumn();
+                if ($colExists === false) {
+                    $db->exec("ALTER TABLE `OperasiDokumentasi` ADD COLUMN `project_json` LONGTEXT NULL DEFAULT NULL AFTER `file_size`");
+                }
+
+                $idOpsCol = $db->query("SHOW COLUMNS FROM `OperasiDokumentasi` LIKE 'id_operasi'")->fetch(PDO::FETCH_ASSOC);
+                if (is_array($idOpsCol) && strtoupper((string)($idOpsCol['Null'] ?? '')) !== 'YES') {
+                    $db->exec("ALTER TABLE `OperasiDokumentasi` MODIFY COLUMN `id_operasi` INT NULL DEFAULT NULL");
+                }
+
+                $idxCreated = $db->query("SHOW INDEX FROM `OperasiDokumentasi` WHERE Key_name = 'idx_ops_dok_created_at'")->fetchAll();
+                if (empty($idxCreated)) {
+                    $db->exec("ALTER TABLE `OperasiDokumentasi` ADD INDEX `idx_ops_dok_created_at` (`created_at`, `id_dokumentasi`)");
+                }
             }
             self::$schemaChecked = true;
         } catch (Throwable $e) {
             error_log('[OperasiDokumentasiModel ensureSchemaUpdated] ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Normalisasi input id_operasi: NULL atau 0 berarti Dokumentasi Umum (NULL), negatif ditolak.
+     */
+    private static function normalizeOperasiId(?int $idOperasi): ?int {
+        if ($idOperasi === null || $idOperasi === 0) {
+            return null;
+        }
+        if ($idOperasi < 0) {
+            throw new InvalidArgumentException('ID Operasi SAR tidak valid.');
+        }
+        return $idOperasi;
     }
 
     /**
@@ -122,7 +148,120 @@ class OperasiDokumentasiModel {
     }
 
     /**
-     * Ambil satu arsip dokumentasi berdasarkan ID (murni read-only tanpa DDL).
+     * Ambil seluruh arsip dokumentasi terpadu (Dokumentasi Umum + Operasi SAR) diurutkan berdasarkan waktu pembuatan terbaru.
+     * Mendukung filter: scope ('all'|'umum'|'operasi'), id_operasi, media_type ('image'|'video'), month ('YYYY-MM'), dan q (kata kunci).
+     *
+     * @param array<string, mixed> $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getAllWithOperasi(array $filters = []): array {
+        try {
+            $db = getDB();
+            $where = [];
+            $params = [];
+
+            $scope = strtolower(trim((string)($filters['scope'] ?? 'all')));
+            if ($scope === 'umum') {
+                $where[] = 'd.id_operasi IS NULL';
+            } elseif ($scope === 'operasi') {
+                $where[] = 'd.id_operasi IS NOT NULL';
+            }
+
+            if (isset($filters['id_operasi']) && (int)$filters['id_operasi'] > 0) {
+                $where[] = 'd.id_operasi = :id_ops';
+                $params[':id_ops'] = (int)$filters['id_operasi'];
+            }
+
+            $mediaType = strtolower(trim((string)($filters['media_type'] ?? '')));
+            if (in_array($mediaType, ['image', 'video'], true)) {
+                $where[] = 'd.media_type = :mtype';
+                $params[':mtype'] = $mediaType;
+            }
+
+            $month = trim((string)($filters['month'] ?? ''));
+            if (preg_match('/^\d{4}-\d{2}$/', $month)) {
+                $where[] = "DATE_FORMAT(d.created_at, '%Y-%m') = :ym";
+                $params[':ym'] = $month;
+            }
+
+            $q = trim((string)($filters['q'] ?? ''));
+            if ($q !== '') {
+                $like = '%' . $q . '%';
+                $where[] = "(d.judul LIKE :q1 OR d.hari_ke LIKE :q2 OR d.tanggal_label LIKE :q3 OR COALESCE(o.nama_operasi, '') LIKE :q4)";
+                $params[':q1'] = $like;
+                $params[':q2'] = $like;
+                $params[':q3'] = $like;
+                $params[':q4'] = $like;
+            }
+
+            $sql = "SELECT d.*, o.nama_operasi, o.status AS status_operasi
+                    FROM OperasiDokumentasi d
+                    LEFT JOIN Operasi o ON o.id_operasi = d.id_operasi";
+            if (!empty($where)) {
+                $sql .= ' WHERE ' . implode(' AND ', $where);
+            }
+            $sql .= ' ORDER BY d.created_at DESC, d.id_dokumentasi DESC';
+
+            $stmt = $db->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll() ?: [];
+        } catch (Throwable $e) {
+            error_log('[OperasiDokumentasiModel getAllWithOperasi] ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Ringkasan statistik arsip dokumentasi terpadu dalam 1 kueri agregasi.
+     *
+     * @return array{total:int, umum:int, operasi:int, image:int, video:int}
+     */
+    public static function getArchiveStats(): array {
+        $defaults = ['total' => 0, 'umum' => 0, 'operasi' => 0, 'image' => 0, 'video' => 0];
+        try {
+            $db = getDB();
+            $row = $db->query("SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN id_operasi IS NULL THEN 1 ELSE 0 END) AS umum,
+                SUM(CASE WHEN id_operasi IS NOT NULL THEN 1 ELSE 0 END) AS operasi,
+                SUM(CASE WHEN media_type = 'image' THEN 1 ELSE 0 END) AS image,
+                SUM(CASE WHEN media_type = 'video' THEN 1 ELSE 0 END) AS video
+            FROM OperasiDokumentasi")->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row)) {
+                return $defaults;
+            }
+            return [
+                'total' => (int)($row['total'] ?? 0),
+                'umum' => (int)($row['umum'] ?? 0),
+                'operasi' => (int)($row['operasi'] ?? 0),
+                'image' => (int)($row['image'] ?? 0),
+                'video' => (int)($row['video'] ?? 0),
+            ];
+        } catch (Throwable) {
+            return $defaults;
+        }
+    }
+
+    /**
+     * Daftar bulan pembuatan arsip yang tersedia (format YYYY-MM, terbaru di atas).
+     *
+     * @return string[]
+     */
+    public static function getAvailableMonths(): array {
+        try {
+            $db = getDB();
+            $rows = $db->query("SELECT DISTINCT DATE_FORMAT(created_at, '%Y-%m') AS ym
+                                FROM OperasiDokumentasi
+                                WHERE created_at IS NOT NULL
+                                ORDER BY ym DESC")->fetchAll(PDO::FETCH_COLUMN);
+            return array_values(array_filter(array_map('strval', $rows ?: [])));
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * Ambil satu arsip dokumentasi berdasarkan ID beserta info operasi opsional (murni read-only tanpa DDL).
      */
     public static function getById(int $idDokumentasi): ?array {
         if ($idDokumentasi <= 0) {
@@ -130,7 +269,11 @@ class OperasiDokumentasiModel {
         }
         try {
             $db = getDB();
-            $stmt = $db->prepare("SELECT * FROM OperasiDokumentasi WHERE id_dokumentasi = :id LIMIT 1");
+            $stmt = $db->prepare("SELECT d.*, o.nama_operasi, o.status AS status_operasi
+                                  FROM OperasiDokumentasi d
+                                  LEFT JOIN Operasi o ON o.id_operasi = d.id_operasi
+                                  WHERE d.id_dokumentasi = :id
+                                  LIMIT 1");
             $stmt->execute([':id' => $idDokumentasi]);
             $row = $stmt->fetch();
             return $row ?: null;
@@ -141,23 +284,23 @@ class OperasiDokumentasiModel {
 
     /**
      * Simpan berkas sumber foto/video per-slot ke disk agar arsip dokumentasi dapat dibuka dan diedit ulang.
+     * Mendukung Dokumentasi Umum ($idOperasi === null atau 0 -> src_0_...) maupun Operasi SAR ($idOperasi > 0).
      *
      * @param array{tmp_name:string, size:int, name?:string} $fileInfo
      * @return array{path:string, media_type:string, mime_type:string, width_px:int, height_px:int, size:int}
      */
-    public static function storeSourceAsset(int $idOperasi, array $fileInfo): array {
-        if ($idOperasi <= 0) {
-            throw new InvalidArgumentException('ID Operasi SAR tidak valid.');
+    public static function storeSourceAsset(?int $idOperasi, array $fileInfo): array {
+        $normOps = self::normalizeOperasiId($idOperasi);
+        if ($normOps !== null) {
+            $db = getDB();
+            $chkOps = $db->prepare("SELECT id_operasi FROM Operasi WHERE id_operasi = :id LIMIT 1");
+            $chkOps->execute([':id' => $normOps]);
+            if ($chkOps->fetchColumn() === false) {
+                throw new InvalidArgumentException('Operasi SAR tidak ditemukan.');
+            }
         }
 
-        $db = getDB();
-        $chkOps = $db->prepare("SELECT id_operasi FROM Operasi WHERE id_operasi = :id LIMIT 1");
-        $chkOps->execute([':id' => $idOperasi]);
-        if ($chkOps->fetchColumn() === false) {
-            throw new InvalidArgumentException('Operasi SAR tidak ditemukan.');
-        }
-
-        $saved = self::validateAndWriteMediaPayload($idOperasi, $fileInfo, 'src');
+        $saved = self::validateAndWriteMediaPayload($normOps ?? 0, $fileInfo, 'src');
         return [
             'path' => $saved['rel_path'],
             'media_type' => $saved['media_type'],
@@ -170,6 +313,7 @@ class OperasiDokumentasiModel {
 
     /**
      * Simpan berkas kolase hasil render (gambar/video) beserta metadata, opsional thumbnail & project_json.
+     * $idOperasi === null atau 0 akan disimpan sebagai Dokumentasi Umum (id_operasi = NULL).
      *
      * @param array<string, mixed> $meta
      * @param array{tmp_name:string, size:int, name?:string} $fileInfo
@@ -177,35 +321,35 @@ class OperasiDokumentasiModel {
      * @return array<string, mixed>
      */
     public static function store(
-        int $idOperasi,
+        ?int $idOperasi,
         array $meta,
         array $fileInfo,
         ?array $thumbFileInfo = null,
         ?string $userId = null
     ): array {
         self::ensureSchemaUpdated();
-
-        if ($idOperasi <= 0) {
-            throw new InvalidArgumentException('ID Operasi SAR tidak valid.');
-        }
+        $normOps = self::normalizeOperasiId($idOperasi);
+        $fileSeg = $normOps ?? 0;
 
         $slotCount = (int)($meta['slot_count'] ?? 0);
         if ($slotCount < self::MIN_SLOTS || $slotCount > self::MAX_SLOTS) {
             throw new InvalidArgumentException('Jumlah foto/video kolase harus antara ' . self::MIN_SLOTS . ' hingga ' . self::MAX_SLOTS . ' slot.');
         }
 
-        $media = self::validateAndWriteMediaPayload($idOperasi, $fileInfo, 'dok', $meta);
-        $thumb = $media['media_type'] === 'video' ? self::storeOptionalThumb($idOperasi, $thumbFileInfo) : ['rel_path' => null, 'abs_path' => null];
-        $norm = self::normalizeMeta($meta, $slotCount);
-        $projectJson = self::sanitizeProjectJson(isset($meta['project_json']) ? (string)$meta['project_json'] : null, $idOperasi);
+        $media = self::validateAndWriteMediaPayload($fileSeg, $fileInfo, 'dok', $meta);
+        $thumb = $media['media_type'] === 'video' ? self::storeOptionalThumb($fileSeg, $thumbFileInfo) : ['rel_path' => null, 'abs_path' => null];
+        $norm = self::normalizeMeta($meta, $slotCount, $normOps !== null);
+        $projectJson = self::sanitizeProjectJson(isset($meta['project_json']) ? (string)$meta['project_json'] : null);
 
         $db = getDB();
         try {
             $db->beginTransaction();
-            $chkOps = $db->prepare("SELECT id_operasi FROM Operasi WHERE id_operasi = :id LIMIT 1");
-            $chkOps->execute([':id' => $idOperasi]);
-            if ($chkOps->fetchColumn() === false) {
-                throw new InvalidArgumentException('Operasi SAR tidak ditemukan.');
+            if ($normOps !== null) {
+                $chkOps = $db->prepare("SELECT id_operasi FROM Operasi WHERE id_operasi = :id LIMIT 1");
+                $chkOps->execute([':id' => $normOps]);
+                if ($chkOps->fetchColumn() === false) {
+                    throw new InvalidArgumentException('Operasi SAR tidak ditemukan.');
+                }
             }
 
             $stmt = $db->prepare("INSERT INTO OperasiDokumentasi (
@@ -218,7 +362,7 @@ class OperasiDokumentasiModel {
                 :w, :h, :fpath, :tpath, :fsize, :pjson, :uid
             )");
             $stmt->execute([
-                ':id_ops' => $idOperasi,
+                ':id_ops' => $normOps,
                 ':judul' => $norm['judul'],
                 ':hari_ke' => $norm['hari_ke'],
                 ':tgl' => $norm['tanggal_label'],
@@ -240,12 +384,13 @@ class OperasiDokumentasiModel {
             $db->commit();
 
             if (class_exists('AuditHelper')) {
-                AuditHelper::log('DOKUMENTASI_CREATE', "Menyimpan dokumentasi kolase ({$media['media_type']}, {$slotCount} slot): {$norm['judul']}", 'OperasiDokumentasi', (string)$newId);
+                $scopeLabel = $normOps !== null ? "Operasi #{$normOps}" : 'Dokumentasi Umum';
+                AuditHelper::log('DOKUMENTASI_CREATE', "Menyimpan dokumentasi kolase [{$scopeLabel}] ({$media['media_type']}, {$slotCount} slot): {$norm['judul']}", 'OperasiDokumentasi', (string)$newId);
             }
 
             return self::getById($newId) ?: [
                 'id_dokumentasi' => $newId,
-                'id_operasi' => $idOperasi,
+                'id_operasi' => $normOps,
                 'judul' => $norm['judul'],
                 'media_type' => $media['media_type'],
                 'file_path' => $media['rel_path'],
@@ -266,7 +411,7 @@ class OperasiDokumentasiModel {
 
     /**
      * Perbarui arsip dokumentasi yang sudah tersimpan secara in-place (mengganti hasil render, metadata,
-     * dan project_json, serta membersihkan berkas render lama & aset sumber yatim setelah commit).
+     * kaitan id_operasi opsional, dan project_json, serta membersihkan berkas render lama & aset sumber yatim pasca-commit).
      *
      * @param array<string, mixed> $meta
      * @param array{tmp_name:string, size:int, name?:string} $fileInfo
@@ -275,20 +420,28 @@ class OperasiDokumentasiModel {
      */
     public static function update(
         int $idDokumentasi,
-        int $idOperasi,
+        ?int $idOperasi,
         array $meta,
         array $fileInfo,
         ?array $thumbFileInfo = null,
-        ?string $userId = null
+        ?string $userId = null,
+        ?int $expectedOperasiId = null
     ): array {
         self::ensureSchemaUpdated();
 
-        if ($idDokumentasi <= 0 || $idOperasi <= 0) {
-            throw new InvalidArgumentException('ID dokumentasi atau Operasi SAR tidak valid.');
+        if ($idDokumentasi <= 0) {
+            throw new InvalidArgumentException('ID dokumentasi tidak valid.');
         }
 
+        $normOps = self::normalizeOperasiId($idOperasi);
+        $fileSeg = $normOps ?? 0;
+
         $existing = self::getById($idDokumentasi);
-        if (!$existing || (int)($existing['id_operasi'] ?? 0) !== $idOperasi) {
+        if (!$existing) {
+            throw new InvalidArgumentException('Arsip dokumentasi tidak ditemukan.');
+        }
+        $existingOps = $existing['id_operasi'] !== null ? (int)$existing['id_operasi'] : null;
+        if ($expectedOperasiId !== null && $existingOps !== $expectedOperasiId) {
             throw new InvalidArgumentException('Arsip dokumentasi tidak ditemukan pada operasi ini.');
         }
 
@@ -297,10 +450,10 @@ class OperasiDokumentasiModel {
             throw new InvalidArgumentException('Jumlah foto/video kolase harus antara ' . self::MIN_SLOTS . ' hingga ' . self::MAX_SLOTS . ' slot.');
         }
 
-        $media = self::validateAndWriteMediaPayload($idOperasi, $fileInfo, 'dok', $meta);
-        $thumb = $media['media_type'] === 'video' ? self::storeOptionalThumb($idOperasi, $thumbFileInfo) : ['rel_path' => null, 'abs_path' => null];
-        $norm = self::normalizeMeta($meta, $slotCount);
-        $projectJson = self::sanitizeProjectJson(isset($meta['project_json']) ? (string)$meta['project_json'] : null, $idOperasi);
+        $media = self::validateAndWriteMediaPayload($fileSeg, $fileInfo, 'dok', $meta);
+        $thumb = $media['media_type'] === 'video' ? self::storeOptionalThumb($fileSeg, $thumbFileInfo) : ['rel_path' => null, 'abs_path' => null];
+        $norm = self::normalizeMeta($meta, $slotCount, $normOps !== null);
+        $projectJson = self::sanitizeProjectJson(isset($meta['project_json']) ? (string)$meta['project_json'] : null);
 
         $oldFilePath = (string)($existing['file_path'] ?? '');
         $oldThumbPath = (string)($existing['thumb_path'] ?? '');
@@ -310,7 +463,16 @@ class OperasiDokumentasiModel {
         $db = getDB();
         try {
             $db->beginTransaction();
+            if ($normOps !== null) {
+                $chkOps = $db->prepare("SELECT id_operasi FROM Operasi WHERE id_operasi = :id LIMIT 1");
+                $chkOps->execute([':id' => $normOps]);
+                if ($chkOps->fetchColumn() === false) {
+                    throw new InvalidArgumentException('Operasi SAR tidak ditemukan.');
+                }
+            }
+
             $stmt = $db->prepare("UPDATE OperasiDokumentasi SET
+                id_operasi = :id_ops,
                 judul = :judul,
                 hari_ke = :hari_ke,
                 tanggal_label = :tgl,
@@ -326,8 +488,9 @@ class OperasiDokumentasiModel {
                 thumb_path = :tpath,
                 file_size = :fsize,
                 project_json = :pjson
-            WHERE id_dokumentasi = :id AND id_operasi = :id_ops");
+            WHERE id_dokumentasi = :id");
             $stmt->execute([
+                ':id_ops' => $normOps,
                 ':judul' => $norm['judul'],
                 ':hari_ke' => $norm['hari_ke'],
                 ':tgl' => $norm['tanggal_label'],
@@ -344,11 +507,10 @@ class OperasiDokumentasiModel {
                 ':fsize' => $media['size'],
                 ':pjson' => $projectJson,
                 ':id' => $idDokumentasi,
-                ':id_ops' => $idOperasi,
             ]);
             $db->commit();
 
-            // Pasca-commit: bersihkan berkas render lama & aset sumber per-slot yang tidak lagi dipakai
+            // Pasca-commit: bersihkan berkas render lama & aset sumber per-slot yang tidak lagi dipakai arsip mana pun
             $toDelete = [];
             if ($oldFilePath !== '' && $oldFilePath !== $media['rel_path']) {
                 $toDelete[] = $oldFilePath;
@@ -358,14 +520,15 @@ class OperasiDokumentasiModel {
             }
             $droppedSources = array_values(array_diff($oldSourcePaths, $newSourcePaths));
             if (!empty($droppedSources)) {
-                $toDelete = array_merge($toDelete, self::filterUnreferencedSourcePaths($idOperasi, $droppedSources, $idDokumentasi));
+                $toDelete = array_merge($toDelete, self::filterUnreferencedSourcePaths($droppedSources, $idDokumentasi));
             }
             if (!empty($toDelete)) {
                 self::deleteFiles($toDelete);
             }
 
             if (class_exists('AuditHelper')) {
-                AuditHelper::log('DOKUMENTASI_UPDATE', "Memperbarui dokumentasi kolase ({$media['media_type']}, {$slotCount} slot): {$norm['judul']}", 'OperasiDokumentasi', (string)$idDokumentasi);
+                $scopeLabel = $normOps !== null ? "Operasi #{$normOps}" : 'Dokumentasi Umum';
+                AuditHelper::log('DOKUMENTASI_UPDATE', "Memperbarui dokumentasi kolase [{$scopeLabel}] ({$media['media_type']}, {$slotCount} slot): {$norm['judul']}", 'OperasiDokumentasi', (string)$idDokumentasi);
             }
 
             return self::getById($idDokumentasi) ?: $existing;
@@ -393,8 +556,8 @@ class OperasiDokumentasiModel {
         if (!$row) {
             return false;
         }
-        $idOperasi = (int)$row['id_operasi'];
-        if ($expectedOperasiId !== null && $idOperasi !== $expectedOperasiId) {
+        $rowOps = $row['id_operasi'] !== null ? (int)$row['id_operasi'] : null;
+        if ($expectedOperasiId !== null && $rowOps !== $expectedOperasiId) {
             return false;
         }
 
@@ -406,7 +569,7 @@ class OperasiDokumentasiModel {
         if ($ok) {
             $paths = array_filter([(string)($row['file_path'] ?? ''), (string)($row['thumb_path'] ?? '')]);
             if (!empty($sourcePaths)) {
-                $paths = array_merge($paths, self::filterUnreferencedSourcePaths($idOperasi, $sourcePaths, $idDokumentasi));
+                $paths = array_merge($paths, self::filterUnreferencedSourcePaths($sourcePaths, $idDokumentasi));
             }
             self::deleteFiles($paths);
             if (class_exists('AuditHelper')) {
@@ -417,8 +580,8 @@ class OperasiDokumentasiModel {
     }
 
     /**
-     * Kumpulkan semua path fisik milik suatu operasi (hasil render, thumbnail, dan aset sumber per-slot)
-     * untuk dibersihkan pasca-commit OperasiModel::delete().
+     * Kumpulkan semua path fisik milik suatu operasi (hasil render, thumbnail, dan aset sumber per-slot yang tidak dipakai di luar operasi ini)
+     * untuk dibersihkan pasca-commit OperasiModel::delete(). Dokumentasi Umum (id_operasi IS NULL) tidak pernah tersentuh.
      *
      * @return string[]
      */
@@ -431,6 +594,7 @@ class OperasiDokumentasiModel {
             $stmt = $db->prepare("SELECT file_path, thumb_path, project_json FROM OperasiDokumentasi WHERE id_operasi = :id");
             $stmt->execute([':id' => $idOperasi]);
             $paths = [];
+            $candidateSources = [];
             foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
                 if (!empty($r['file_path'])) {
                     $paths[] = (string)$r['file_path'];
@@ -439,7 +603,22 @@ class OperasiDokumentasiModel {
                     $paths[] = (string)$r['thumb_path'];
                 }
                 if (!empty($r['project_json'])) {
-                    $paths = array_merge($paths, self::extractSourcePaths((string)$r['project_json']));
+                    $candidateSources = array_merge($candidateSources, self::extractSourcePaths((string)$r['project_json']));
+                }
+            }
+            if (!empty($candidateSources)) {
+                $stmtOther = $db->prepare("SELECT project_json FROM OperasiDokumentasi WHERE (id_operasi IS NULL OR id_operasi <> :id) AND project_json IS NOT NULL");
+                $stmtOther->execute([':id' => $idOperasi]);
+                $usedOutside = [];
+                foreach ($stmtOther->fetchAll(PDO::FETCH_COLUMN) as $pj) {
+                    foreach (self::extractSourcePaths((string)$pj) as $sp) {
+                        $usedOutside[$sp] = true;
+                    }
+                }
+                foreach ($candidateSources as $cs) {
+                    if (!isset($usedOutside[$cs])) {
+                        $paths[] = $cs;
+                    }
                 }
             }
             return array_values(array_unique($paths));
@@ -509,7 +688,7 @@ class OperasiDokumentasiModel {
      * @param array<string, mixed> $meta
      * @return array{media_type:string, mime_type:string, ext:string, width_px:int, height_px:int, rel_path:string, abs_path:string, size:int}
      */
-    private static function validateAndWriteMediaPayload(int $idOperasi, array $fileInfo, string $prefix, array $meta = []): array {
+    private static function validateAndWriteMediaPayload(int $fileSeg, array $fileInfo, string $prefix, array $meta = []): array {
         $tmpPath = (string)($fileInfo['tmp_name'] ?? '');
         $size = (int)($fileInfo['size'] ?? 0);
         if ($tmpPath === '' || !is_file($tmpPath) || $size <= 0) {
@@ -557,7 +736,7 @@ class OperasiDokumentasiModel {
         }
 
         $dir = self::ensureUploadDir();
-        $fileName = $prefix . '_' . $idOperasi . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
+        $fileName = $prefix . '_' . max(0, $fileSeg) . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
         $relPath = self::REL_DIR . '/' . $fileName;
         $absPath = ROOT_DIR . '/' . $relPath;
 
@@ -582,7 +761,7 @@ class OperasiDokumentasiModel {
      * @param array{tmp_name:string, size:int, name?:string}|null $thumbFileInfo
      * @return array{rel_path:?string, abs_path:?string}
      */
-    private static function storeOptionalThumb(int $idOperasi, ?array $thumbFileInfo): array {
+    private static function storeOptionalThumb(int $fileSeg, ?array $thumbFileInfo): array {
         $result = ['rel_path' => null, 'abs_path' => null];
         if (!is_array($thumbFileInfo) || empty($thumbFileInfo['tmp_name']) || !is_file((string)$thumbFileInfo['tmp_name'])) {
             return $result;
@@ -602,7 +781,7 @@ class OperasiDokumentasiModel {
             return $result;
         }
         $tExt = self::ALLOWED_IMAGE_MIME[$tMime];
-        $rel = self::REL_DIR . '/thumb_' . $idOperasi . '_' . bin2hex(random_bytes(8)) . '.' . $tExt;
+        $rel = self::REL_DIR . '/thumb_' . max(0, $fileSeg) . '_' . bin2hex(random_bytes(8)) . '.' . $tExt;
         $abs = ROOT_DIR . '/' . $rel;
         if (@file_put_contents($abs, $tBytes) === false) {
             @unlink($abs);
@@ -615,15 +794,16 @@ class OperasiDokumentasiModel {
      * @param array<string, mixed> $meta
      * @return array{judul:string, hari_ke:string, tanggal_label:string, aspect_ratio:string, orientation:string, layout_preset:string}
      */
-    private static function normalizeMeta(array $meta, int $slotCount): array {
+    private static function normalizeMeta(array $meta, int $slotCount, bool $hasOperasi = true): array {
         $judul = trim((string)($meta['judul'] ?? ''));
         if ($judul === '') {
-            $judul = 'Dokumentasi Operasi SAR';
+            $judul = $hasOperasi ? 'Dokumentasi Operasi SAR' : 'Dokumentasi Kegiatan KPP Kelas A Kendari';
         }
+        $defaultHari = $hasOperasi ? 'H1' : 'KEGIATAN';
         $orientationRaw = strtolower(trim((string)($meta['orientation'] ?? 'vertical')));
         return [
             'judul' => mb_substr($judul, 0, 255),
-            'hari_ke' => mb_substr(trim((string)($meta['hari_ke'] ?? 'H1')) ?: 'H1', 0, 32),
+            'hari_ke' => mb_substr(trim((string)($meta['hari_ke'] ?? $defaultHari)) ?: $defaultHari, 0, 32),
             'tanggal_label' => mb_substr(trim((string)($meta['tanggal_label'] ?? '')), 0, 100),
             'aspect_ratio' => mb_substr(trim((string)($meta['aspect_ratio'] ?? '2:3')) ?: '2:3', 0, 24),
             'orientation' => in_array($orientationRaw, ['vertical', 'horizontal', 'square'], true) ? $orientationRaw : 'vertical',
@@ -632,9 +812,9 @@ class OperasiDokumentasiModel {
     }
 
     /**
-     * Sanitasi payload JSON proyek kolase agar aman dan hanya mereferensikan aset src_{idOperasi}_* milik operasi ini.
+     * Sanitasi payload JSON proyek kolase agar aman dan hanya mereferensikan berkas sumber src_* valid di uploads/operasi_dokumentasi/.
      */
-    private static function sanitizeProjectJson(?string $rawJson, int $idOperasi): ?string {
+    private static function sanitizeProjectJson(?string $rawJson): ?string {
         if ($rawJson === null) {
             return null;
         }
@@ -648,7 +828,7 @@ class OperasiDokumentasiModel {
         }
 
         $safeSlots = [];
-        $pathRegex = '#^' . preg_quote(self::REL_DIR, '#') . '/src_' . $idOperasi . '_[A-Za-z0-9_\-]+\.(?:jpg|jpeg|png|webp|webm|mp4)\z#i';
+        $pathRegex = '#^' . preg_quote(self::REL_DIR, '#') . '/src_\d+_[A-Za-z0-9_\-]+\.(?:jpg|jpeg|png|webp|webm|mp4)\z#i';
         if (isset($decoded['slots']) && is_array($decoded['slots'])) {
             foreach (array_slice($decoded['slots'], 0, self::MAX_SLOTS) as $slot) {
                 if (!is_array($slot) || empty($slot['path'])) {
@@ -656,7 +836,7 @@ class OperasiDokumentasiModel {
                     continue;
                 }
                 $rel = ltrim(str_replace('\\', '/', trim((string)$slot['path'])), '/');
-                if (!preg_match($pathRegex, $rel)) {
+                if (!preg_match($pathRegex, $rel) || !is_file(ROOT_DIR . '/' . $rel)) {
                     $safeSlots[] = null;
                     continue;
                 }
@@ -740,23 +920,22 @@ class OperasiDokumentasiModel {
     }
 
     /**
-     * Saring daftar aset sumber agar hanya yang benar-benar tidak lagi dipakai arsip lain pada operasi sama yang dihapus.
+     * Saring daftar aset sumber agar hanya berkas yang benar-benar tidak lagi dipakai oleh arsip mana pun yang dihapus.
      *
      * @param string[] $candidatePaths
      * @return string[]
      */
-    private static function filterUnreferencedSourcePaths(int $idOperasi, array $candidatePaths, ?int $excludeDocId = null): array {
+    private static function filterUnreferencedSourcePaths(array $candidatePaths, ?int $excludeDocId = null): array {
         if (empty($candidatePaths)) {
             return [];
         }
         try {
             $db = getDB();
             if ($excludeDocId !== null) {
-                $stmt = $db->prepare("SELECT project_json FROM OperasiDokumentasi WHERE id_operasi = :id_ops AND id_dokumentasi <> :ex AND project_json IS NOT NULL");
-                $stmt->execute([':id_ops' => $idOperasi, ':ex' => $excludeDocId]);
+                $stmt = $db->prepare("SELECT project_json FROM OperasiDokumentasi WHERE id_dokumentasi <> :ex AND project_json IS NOT NULL");
+                $stmt->execute([':ex' => $excludeDocId]);
             } else {
-                $stmt = $db->prepare("SELECT project_json FROM OperasiDokumentasi WHERE id_operasi = :id_ops AND project_json IS NOT NULL");
-                $stmt->execute([':id_ops' => $idOperasi]);
+                $stmt = $db->query("SELECT project_json FROM OperasiDokumentasi WHERE project_json IS NOT NULL");
             }
             $stillUsed = [];
             foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $pj) {

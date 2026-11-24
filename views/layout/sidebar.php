@@ -107,6 +107,17 @@ $openOpsCount = class_exists('OperasiModel') ? OperasiModel::countOpen() : 0;
       </div>
     </a>
 
+    <!-- 4. Dokumentasi -->
+    <a href="<?= BASE_URL ?>/dokumentasi.php" title="Dokumentasi" class="sidebar-nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group relative cursor-pointer <?= $currentRoute === 'dokumentasi' ? 'sidebar-active bg-orange-50 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 font-bold' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white' ?>">
+      <svg class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110 <?= $currentRoute === 'dokumentasi' ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400' ?>" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+      <div class="sidebar-item-label flex-1 flex items-center justify-between min-w-0 text-left">
+        <span class="truncate">Dokumentasi</span>
+      </div>
+      <div class="sidebar-tooltip absolute left-full ml-2 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50 whitespace-nowrap shadow-lg border border-slate-700">
+        Dokumentasi
+      </div>
+    </a>
+
     <!-- 4. Master Data -->
     <a href="<?= BASE_URL ?>/master.php" title="Master Data" class="sidebar-nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all group relative cursor-pointer <?= ($currentRoute === 'master') ? 'sidebar-active bg-orange-50 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30 font-bold' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white' ?>">
       <svg class="w-4 h-4 shrink-0 transition-transform group-hover:scale-110 <?= ($currentRoute === 'master') ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400' ?>" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
