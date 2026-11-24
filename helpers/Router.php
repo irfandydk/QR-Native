@@ -253,6 +253,10 @@ class Router {
             'svg'   => 'image/svg+xml',
             'ico'   => 'image/x-icon',
             'webp'  => 'image/webp',
+            'mp4'   => 'video/mp4',
+            'webm'  => 'video/webm',
+            'mov'   => 'video/quicktime',
+            'm4v'   => 'video/x-m4v',
             'woff'  => 'font/woff',
             'woff2' => 'font/woff2',
             'ttf'   => 'font/ttf',
@@ -268,28 +272,87 @@ class Router {
         }
 
         $lastModified = filemtime($realPath) ?: time();
-        $etag = '"' . md5($lastModified . filesize($realPath)) . '"';
+        $fileSize = (int)filesize($realPath);
+        $etag = '"' . md5($lastModified . $fileSize) . '"';
 
-        header('Content-Type: ' . $mimeType);
-        header('X-Content-Type-Options: nosniff');
-        $uploadsDir = defined('UPLOADS_DIR') ? UPLOADS_DIR : ($rootDir . '/uploads');
-        $realUploads = realpath($uploadsDir);
-        if ($realUploads && str_starts_with($realPath, $realUploads . DIRECTORY_SEPARATOR)) {
-            // Cegah skrip di SVG unggahan berjalan bila berkas dibuka langsung (stored XSS)
-            header("Content-Security-Policy: default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+        if (!headers_sent()) {
+            header('Content-Type: ' . $mimeType);
+            header('X-Content-Type-Options: nosniff');
+            header('Accept-Ranges: bytes');
+            $uploadsDir = defined('UPLOADS_DIR') ? UPLOADS_DIR : ($rootDir . '/uploads');
+            $realUploads = realpath($uploadsDir);
+            if ($realUploads && str_starts_with($realPath, $realUploads . DIRECTORY_SEPARATOR)) {
+                // Cegah skrip di SVG unggahan berjalan bila berkas dibuka langsung (stored XSS)
+                header("Content-Security-Policy: default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+            }
+            header('Cache-Control: public, max-age=604800, immutable');
+            header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $lastModified) . ' GMT');
+            header('ETag: ' . $etag);
         }
-        header('Cache-Control: public, max-age=604800, immutable');
-        header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $lastModified) . ' GMT');
-        header('ETag: ' . $etag);
 
         $ifNoneMatch = $_SERVER['HTTP_IF_NONE_MATCH'] ?? '';
         $ifModifiedSince = $_SERVER['HTTP_IF_MODIFIED_SINCE'] ?? '';
         if ($ifNoneMatch === $etag || ($ifModifiedSince && strtotime($ifModifiedSince) >= $lastModified)) {
-            http_response_code(304);
+            if (!headers_sent()) {
+                http_response_code(304);
+            }
             return true;
         }
 
-        header('Content-Length: ' . (string)filesize($realPath));
+        // Dukungan HTTP Range (RFC 7233) untuk pemutaran video lancar & seeking di browser
+        $range = $_SERVER['HTTP_RANGE'] ?? '';
+        if ($range !== '' && preg_match('/^bytes=(\d*)-(\d*)$/i', $range, $matches)) {
+            $start = $matches[1] !== '' ? (int)$matches[1] : 0;
+            $end = $matches[2] !== '' ? (int)$matches[2] : ($fileSize - 1);
+
+            if ($matches[1] === '' && $matches[2] !== '') {
+                $suffix = (int)$matches[2];
+                $start = max(0, $fileSize - $suffix);
+                $end = $fileSize - 1;
+            }
+
+            if ($start > $end || $start >= $fileSize) {
+                if (!headers_sent()) {
+                    http_response_code(416);
+                    header("Content-Range: bytes */{$fileSize}");
+                }
+                return true;
+            }
+
+            $end = min($end, $fileSize - 1);
+            $length = ($end - $start) + 1;
+
+            if (!headers_sent()) {
+                http_response_code(206);
+                header("Content-Range: bytes {$start}-{$end}/{$fileSize}");
+                header("Content-Length: {$length}");
+            }
+
+            $fp = @fopen($realPath, 'rb');
+            if ($fp !== false) {
+                if ($start > 0) {
+                    fseek($fp, $start);
+                }
+                $chunkSize = 65536;
+                $bytesRemaining = $length;
+                while ($bytesRemaining > 0 && !feof($fp)) {
+                    $readLen = min($chunkSize, $bytesRemaining);
+                    $buf = fread($fp, $readLen);
+                    if ($buf === false) {
+                        break;
+                    }
+                    echo $buf;
+                    flush();
+                    $bytesRemaining -= strlen($buf);
+                }
+                fclose($fp);
+            }
+            return true;
+        }
+
+        if (!headers_sent()) {
+            header('Content-Length: ' . (string)$fileSize);
+        }
         readfile($realPath);
         return true;
     }

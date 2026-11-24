@@ -13,9 +13,9 @@ declare(strict_types=1);
 class OperasiDokumentasiModel {
     public const MIN_SLOTS = 4;
     public const MAX_SLOTS = 12;
-    public const MAX_IMAGE_BYTES = 20971520; // 20 MB (mendukung ekspor 4K PNG/JPG tajam)
-    public const MAX_VIDEO_BYTES = 20971520; // 20 MB (selaras .user.ini upload_max_filesize)
-    public const MAX_THUMB_BYTES = 3145728;  // 3 MB
+    public const MAX_IMAGE_BYTES = 20971520;  // 20 MB (mendukung ekspor 4K PNG/JPG tajam)
+    public const MAX_VIDEO_BYTES = 104857600; // 100 MB (selaras .user.ini upload_max_filesize)
+    public const MAX_THUMB_BYTES = 3145728;   // 3 MB
     public const MAX_PIXELS = 40000000;
     public const MAX_PROJECT_JSON_BYTES = 65535;
     public const REL_DIR = 'uploads/operasi_dokumentasi';
@@ -34,16 +34,36 @@ class OperasiDokumentasiModel {
     private static bool $schemaChecked = false;
 
     /**
-     * Pastikan direktori unggahan ada dan terlindungi index.php 403.
+     * Pastikan direktori unggahan ada, memiliki izin tulis (0775) dan kepemilikan sinkron, serta terlindungi index.php 403.
      */
     public static function ensureUploadDir(): string {
         $dir = ROOT_DIR . '/' . self::REL_DIR;
         if (!is_dir($dir)) {
-            @mkdir($dir, 0755, true);
+            @mkdir($dir, 0775, true);
         }
+        $parent = ROOT_DIR . '/uploads';
+        if (is_dir($parent)) {
+            $pOwner = @fileowner($parent);
+            $pGroup = @filegroup($parent);
+            if ($pOwner !== false && @fileowner($dir) !== $pOwner) {
+                @chown($dir, $pOwner);
+            }
+            if ($pGroup !== false && @filegroup($dir) !== $pGroup) {
+                @chgrp($dir, $pGroup);
+            }
+        }
+        @chmod($dir, 0775);
+
         $index = $dir . '/index.php';
         if (is_dir($dir) && !is_file($index)) {
             @file_put_contents($index, "<?php\nhttp_response_code(403);\nexit('Akses Ditolak.');\n");
+            if (isset($pOwner) && $pOwner !== false) {
+                @chown($index, $pOwner);
+            }
+            if (isset($pGroup) && $pGroup !== false) {
+                @chgrp($index, $pGroup);
+            }
+            @chmod($index, 0664);
         }
         return $dir;
     }
@@ -682,7 +702,7 @@ class OperasiDokumentasiModel {
     }
 
     /**
-     * Validasi & tulis berkas gambar/video terverifikasi MIME + struktur biner ke direktori unggahan.
+     * Validasi & tulis berkas gambar/video terverifikasi MIME + struktur biner ke direktori unggahan (stream-based tanpa memory spike).
      *
      * @param array{tmp_name:string, size:int, name?:string} $fileInfo
      * @param array<string, mixed> $meta
@@ -694,18 +714,24 @@ class OperasiDokumentasiModel {
         if ($tmpPath === '' || !is_file($tmpPath) || $size <= 0) {
             throw new InvalidArgumentException('Berkas media tidak ditemukan atau kosong.');
         }
-        if ($size > self::MAX_VIDEO_BYTES) {
-            throw new InvalidArgumentException('Ukuran berkas melebihi batas maksimal 20 MB.');
+        $actualSize = (int)(filesize($tmpPath) ?: $size);
+        if ($actualSize <= 0 || $actualSize > self::MAX_VIDEO_BYTES) {
+            throw new InvalidArgumentException('Ukuran berkas melebihi batas maksimal 100 MB.');
         }
 
-        $rawBytes = @file_get_contents($tmpPath, false, null, 0, self::MAX_VIDEO_BYTES + 1);
-        if ($rawBytes === false || $rawBytes === '' || strlen($rawBytes) > self::MAX_VIDEO_BYTES) {
-            throw new InvalidArgumentException('Berkas media tidak dapat dibaca atau melebihi batas ukuran.');
+        // Baca 64 KB pertama untuk deteksi MIME & integritas struktur kontainer biner
+        $fp = @fopen($tmpPath, 'rb');
+        if ($fp === false) {
+            throw new InvalidArgumentException('Berkas media tidak dapat dibaca.');
+        }
+        $headBytes = fread($fp, 65536);
+        fclose($fp);
+        if ($headBytes === false || strlen($headBytes) < 12) {
+            throw new InvalidArgumentException('Berkas media tidak valid atau rusak.');
         }
 
-        $actualSize = strlen($rawBytes);
         $finfo = new finfo(FILEINFO_MIME_TYPE);
-        $detectedMime = strtolower((string)$finfo->buffer($rawBytes));
+        $detectedMime = strtolower((string)($finfo->file($tmpPath) ?: $finfo->buffer($headBytes)));
 
         $mediaType = '';
         $ext = '';
@@ -717,7 +743,7 @@ class OperasiDokumentasiModel {
             if ($actualSize > self::MAX_IMAGE_BYTES) {
                 throw new InvalidArgumentException('Ukuran berkas gambar maksimal 20 MB.');
             }
-            $imgInfo = @getimagesizefromstring($rawBytes);
+            $imgInfo = @getimagesize($tmpPath);
             if ($imgInfo === false || $imgInfo[0] < 1 || $imgInfo[1] < 1) {
                 throw new InvalidArgumentException('Berkas gambar tidak valid atau rusak.');
             }
@@ -729,7 +755,7 @@ class OperasiDokumentasiModel {
             $ext = self::ALLOWED_IMAGE_MIME[$detectedMime];
             $widthPx = min(65535, (int)$imgInfo[0]);
             $heightPx = min(65535, (int)$imgInfo[1]);
-        } elseif (self::isValidVideoPayload($rawBytes, $detectedMime, $finalMime, $ext)) {
+        } elseif (self::isValidVideoPayload($headBytes, $detectedMime, $finalMime, $ext)) {
             $mediaType = 'video';
         } else {
             throw new InvalidArgumentException('Format berkas tidak diizinkan. Gunakan gambar (JPG, PNG, WebP) atau video (WebM, MP4) yang valid.');
@@ -740,9 +766,29 @@ class OperasiDokumentasiModel {
         $relPath = self::REL_DIR . '/' . $fileName;
         $absPath = ROOT_DIR . '/' . $relPath;
 
-        if (!is_dir($dir) || @file_put_contents($absPath, $rawBytes) === false) {
+        $written = false;
+        if (is_uploaded_file($tmpPath)) {
+            $written = @move_uploaded_file($tmpPath, $absPath);
+        } else {
+            $written = @copy($tmpPath, $absPath);
+        }
+
+        if (!$written || !is_file($absPath)) {
             @unlink($absPath);
             throw new RuntimeException('Gagal menyimpan berkas media ke penyimpanan server.');
+        }
+
+        @chmod($absPath, 0664);
+        $parent = ROOT_DIR . '/uploads';
+        if (is_dir($parent)) {
+            $pOwner = @fileowner($parent);
+            $pGroup = @filegroup($parent);
+            if ($pOwner !== false) {
+                @chown($absPath, $pOwner);
+            }
+            if ($pGroup !== false) {
+                @chgrp($absPath, $pGroup);
+            }
         }
 
         return [
@@ -950,32 +996,48 @@ class OperasiDokumentasiModel {
     }
 
     /**
-     * Validasi ketat container video WebM (EBML header + doctype webm) atau MP4 (ISO BMFF ftyp box).
+     * Validasi ketat container video WebM (EBML header + doctype webm) atau MP4/MOV/M4V (ISO BMFF box sequence).
      */
     private static function isValidVideoPayload(string $bytes, string $detectedMime, string &$outMime, string &$outExt): bool {
-        if (strlen($bytes) < 16) {
+        if (strlen($bytes) < 12) {
             return false;
         }
         // 1. WebM (EBML magic bytes 0x1A45DFA3)
         if (str_starts_with($bytes, "\x1A\x45\xDF\xA3")) {
-            $head = substr($bytes, 0, 128);
+            $head = substr($bytes, 0, 256);
             if (
                 in_array($detectedMime, ['video/webm', 'video/x-matroska', 'application/octet-stream'], true)
-                && (stripos($head, 'webm') !== false || $detectedMime === 'video/webm')
+                && (stripos($head, 'webm') !== false || stripos($head, 'matroska') !== false || $detectedMime === 'video/webm')
             ) {
                 $outMime = 'video/webm';
                 $outExt = 'webm';
                 return true;
             }
         }
-        // 2. MP4 / ISO BMFF ('ftyp' at byte offset 4)
-        if (substr($bytes, 4, 4) === 'ftyp') {
-            if (in_array($detectedMime, ['video/mp4', 'video/quicktime', 'application/octet-stream'], true)) {
-                $outMime = 'video/mp4';
-                $outExt = 'mp4';
-                return true;
-            }
+
+        // 2. MP4 / ISO BMFF / QuickTime MOV ('ftyp' box, atau container atoms moov/mdat/wide/free)
+        $isIsoBmff = false;
+        if (substr($bytes, 4, 4) === 'ftyp' || str_contains(substr($bytes, 0, 128), 'ftyp')) {
+            $isIsoBmff = true;
+        } elseif (in_array(substr($bytes, 4, 4), ['moov', 'mdat', 'wide', 'free', 'skip'], true)) {
+            $isIsoBmff = true;
         }
+
+        $mp4AllowedMimes = [
+            'video/mp4',
+            'video/quicktime',
+            'video/x-m4v',
+            'video/3gpp',
+            'video/x-matroska',
+            'application/octet-stream',
+        ];
+
+        if ($isIsoBmff && in_array($detectedMime, $mp4AllowedMimes, true)) {
+            $outMime = 'video/mp4';
+            $outExt = 'mp4';
+            return true;
+        }
+
         return false;
     }
 }

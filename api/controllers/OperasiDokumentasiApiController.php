@@ -163,7 +163,7 @@ class OperasiDokumentasiApiController extends BaseApiController {
         if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
             $errCode = is_array($file) ? (int)($file['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
             $msg = ($errCode === UPLOAD_ERR_INI_SIZE || $errCode === UPLOAD_ERR_FORM_SIZE)
-                ? 'Ukuran berkas sumber melebihi batas unggahan server (maksimal 20 MB).'
+                ? 'Ukuran berkas sumber melebihi batas unggahan server (maksimal 100 MB untuk video, 20 MB untuk gambar).'
                 : 'Berkas sumber media slot tidak diterima dengan lengkap.';
             self::error($msg, 422);
         }
@@ -190,7 +190,7 @@ class OperasiDokumentasiApiController extends BaseApiController {
         if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
             $errCode = is_array($file) ? (int)($file['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
             $msg = ($errCode === UPLOAD_ERR_INI_SIZE || $errCode === UPLOAD_ERR_FORM_SIZE)
-                ? 'Ukuran berkas melebihi batas unggahan server (maksimal 20 MB).'
+                ? 'Ukuran berkas melebihi batas unggahan server (maksimal 100 MB untuk video, 20 MB untuk gambar).'
                 : 'Berkas kolase tidak diterima dengan lengkap.';
             self::error($msg, 422);
         }

@@ -26,6 +26,10 @@ echo "=== TEST BACKEND DOKUMENTASI KOLASE OPERASI SAR ===\n\n";
 assertDok(class_exists('OperasiDokumentasiModel'), 'Class OperasiDokumentasiModel tersedia via autoloader');
 assertDok(class_exists('OperasiDokumentasiApiController'), 'Class OperasiDokumentasiApiController tersedia via autoloader');
 assertDok(
+    OperasiDokumentasiModel::MAX_VIDEO_BYTES === 104857600,
+    'OperasiDokumentasiModel::MAX_VIDEO_BYTES mendukung video hingga 100 MB'
+);
+assertDok(
     in_array('OperasiDokumentasi', BackupService::MANAGED_TABLES, true),
     'BackupService::MANAGED_TABLES mencakup tabel OperasiDokumentasi'
 );
@@ -336,6 +340,95 @@ try {
     assertDok(
         !is_file($vidDiskPath) && !is_file($thumbDiskPath),
         'OperasiModel::delete() membersihkan file fisik video & thumbnail dokumentasi pasca-commit'
+    );
+
+    // 8. Uji validasi container video expanded (MP4 ftyp, MP4/MOV wide/moov, dan penolakan payload korup)
+    $mp4FtypBytes = "\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00isommp42" . str_repeat("\x00", 256);
+    $tmpMp4Ftyp = $makeTmp($mp4FtypBytes, '.mp4');
+    $assetMp4Ftyp = OperasiDokumentasiModel::storeSourceAsset(null, [
+        'tmp_name' => $tmpMp4Ftyp,
+        'size' => strlen($mp4FtypBytes),
+        'name' => 'clip_ftyp.mp4',
+    ]);
+    assertDok(
+        $assetMp4Ftyp['media_type'] === 'video' && str_ends_with($assetMp4Ftyp['path'], '.mp4') && is_file(ROOT_DIR . '/' . $assetMp4Ftyp['path']),
+        'storeSourceAsset() menerima video MP4 standar dengan ftyp box'
+    );
+
+    // MOV/MP4 dengan box wide/mdat di awal
+    $movWideBytes = "\x00\x00\x00\x08wide\x00\x00\x00\x18mdat\x00\x00\x00\x00isom" . str_repeat("\x00", 256);
+    $tmpMovWide = $makeTmp($movWideBytes, '.mov');
+    $assetMovWide = OperasiDokumentasiModel::storeSourceAsset(null, [
+        'tmp_name' => $tmpMovWide,
+        'size' => strlen($movWideBytes),
+        'name' => 'clip_wide.mov',
+    ]);
+    assertDok(
+        $assetMovWide['media_type'] === 'video' && str_ends_with($assetMovWide['path'], '.mp4') && is_file(ROOT_DIR . '/' . $assetMovWide['path']),
+        'storeSourceAsset() menerima container MOV/MP4 dengan atom wide/mdat di awal'
+    );
+
+    // Payload bukan video/gambar harus ditolak dengan InvalidArgumentException
+    $invalidBytes = "Bukan berkas media melainkan skrip shell biasa\n";
+    $tmpInvalid = $makeTmp($invalidBytes, '.txt');
+    $rejectedOk = false;
+    try {
+        OperasiDokumentasiModel::storeSourceAsset(null, [
+            'tmp_name' => $tmpInvalid,
+            'size' => strlen($invalidBytes),
+            'name' => 'fake.mp4',
+        ]);
+    } catch (InvalidArgumentException) {
+        $rejectedOk = true;
+    }
+    assertDok($rejectedOk, 'storeSourceAsset() menolak berkas dengan format atau magic byte tidak valid');
+
+    // Bersihkan file uji tambahan
+    OperasiDokumentasiModel::deleteFiles([$assetMp4Ftyp['path'], $assetMovWide['path']]);
+
+    // 9. Uji HTTP Range (RFC 7233) pada Router::serveStaticFile() untuk streaming video
+    $rangeTestFile = ROOT_DIR . '/uploads/range_test_' . bin2hex(random_bytes(4)) . '.mp4';
+    $rangeData = str_repeat('0123456789ABCDEF', 64); // 1024 bytes
+    file_put_contents($rangeTestFile, $rangeData);
+    $tmpFiles[] = $rangeTestFile;
+
+    $runRangeSubproc = function (string $rangeHdr, string $filePath): array {
+        $cmd = escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg("
+            \$_SERVER['HTTP_RANGE'] = '{$rangeHdr}';
+            require_once '" . __DIR__ . "/../helpers/Router.php';
+            ob_start();
+            Router::serveStaticFile('{$filePath}');
+            \$body = ob_get_clean();
+            echo json_encode([
+                'code' => http_response_code(),
+                'len' => strlen(\$body),
+                'body' => \$body,
+            ]);
+        ");
+        $raw = (string)shell_exec($cmd);
+        $res = json_decode($raw, true);
+        return is_array($res) ? $res : ['code' => 0, 'len' => 0, 'body' => ''];
+    };
+
+    // Uji range bytes=0-99 (100 byte pertama) -> HTTP 206
+    $r1 = $runRangeSubproc('bytes=0-99', $rangeTestFile);
+    assertDok(
+        $r1['code'] === 206 && $r1['len'] === 100 && $r1['body'] === substr($rangeData, 0, 100),
+        "Router::serveStaticFile() melayani HTTP 206 Partial Content untuk Range: bytes=0-99 (panjang: {$r1['len']})"
+    );
+
+    // Uji suffix range bytes=-50 (50 byte terakhir) -> HTTP 206
+    $r2 = $runRangeSubproc('bytes=-50', $rangeTestFile);
+    assertDok(
+        $r2['code'] === 206 && $r2['len'] === 50 && $r2['body'] === substr($rangeData, -50),
+        "Router::serveStaticFile() melayani HTTP 206 Partial Content untuk suffix Range: bytes=-50"
+    );
+
+    // Uji out of bounds range bytes=5000-6000 -> HTTP 416
+    $r3 = $runRangeSubproc('bytes=5000-6000', $rangeTestFile);
+    assertDok(
+        $r3['code'] === 416,
+        "Router::serveStaticFile() mengembalikan HTTP 416 Range Not Satisfiable saat range di luar ukuran berkas (code: {$r3['code']})"
     );
 } finally {
     if ($testOpsId > 0) {

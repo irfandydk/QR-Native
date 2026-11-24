@@ -572,9 +572,16 @@
       }));
 
       if (item.type === 'video') {
-        botRow.appendChild(makeMiniBtn(item.muted ? 'Bisu' : 'Suara', 'Aktifkan atau bisukan audio klip video ini', () => {
+        const muteLabel = item.muted ? 'Bisu' : 'Suara';
+        const muteTitle = item.muted ? 'Aktifkan audio klip video ini' : 'Bisukan audio klip video ini';
+        botRow.appendChild(makeMiniBtn(muteLabel, muteTitle, () => {
           item.muted = !item.muted;
-          if (item.el) item.el.muted = item.muted;
+          if (item._previewGain && state.audioCtx) {
+            item._previewGain.gain.setValueAtTime(item.muted ? 0 : 1, state.audioCtx.currentTime);
+          }
+          if (item.el && !item._previewGain) {
+            item.el.muted = item.muted;
+          }
           syncInteractiveOverlay();
         }));
       }
@@ -605,6 +612,14 @@
     if (!slot) return;
     if (slot.type === 'video' && slot.el) {
       try { slot.el.pause(); } catch (e) {}
+    }
+    if (slot._previewGain) {
+      try { slot._previewGain.disconnect(); } catch (e) {}
+      slot._previewGain = null;
+    }
+    if (slot._recordGain) {
+      try { slot._recordGain.disconnect(); } catch (e) {}
+      slot._recordGain = null;
     }
     if (slot.isObjectUrl && slot.url) {
       try { URL.revokeObjectURL(slot.url); } catch (e) {}
@@ -653,19 +668,25 @@
 
     return new Promise((resolve) => {
       const video = document.createElement('video');
-      video.src = objUrl;
-      video.muted = true;
+      video.crossOrigin = 'anonymous';
+      video.preload = 'auto';
       video.loop = true;
       video.playsInline = true;
-      video.preload = 'auto';
-      video.crossOrigin = 'anonymous';
+      video.src = objUrl;
+
+      // Slot video pertama default bersuara (unmuted) agar langsung terdengar alami;
+      // slot video berikutnya default bisu (muted) untuk mencegah tabrakan audio ganda.
+      const existingVideos = activeSlotsSlice().filter((s) => s && s.type === 'video');
+      const hasAudible = existingVideos.some((s) => !s.muted);
+      const initialMuted = hasAudible;
+      video.muted = initialMuted;
 
       let settled = false;
       const finish = () => {
         if (settled) return;
         settled = true;
         const dur = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 10;
-        const startT = Math.min(0.2, dur * 0.1);
+        const startT = Math.min(dur, Math.max(0, dur > 1 ? 0.2 : 0));
         state.slots[index] = {
           type: 'video',
           el: video,
@@ -677,7 +698,7 @@
           zoom: 1,
           offsetX: 0,
           offsetY: 0,
-          muted: true,
+          muted: initialMuted,
           videoTime: startT,
           duration: dur,
         };
@@ -686,6 +707,8 @@
       };
 
       video.addEventListener('loadeddata', finish, { once: true });
+      video.addEventListener('canplay', finish, { once: true });
+      video.addEventListener('loadedmetadata', finish, { once: true });
       video.addEventListener('seeked', () => {
         if (!state.isPlaying) drawCollage(false, true);
       });
@@ -696,6 +719,7 @@
         notify(`Format video "${file.name}" tidak dapat diputar di browser ini.`, 'error');
         resolve();
       }, { once: true });
+      setTimeout(finish, 8000);
       video.load();
     });
   }
@@ -732,19 +756,20 @@
 
     return new Promise((resolve) => {
       const video = document.createElement('video');
-      video.src = remoteUrl;
-      video.muted = slotMeta.muted !== false;
+      video.crossOrigin = 'anonymous';
+      video.preload = 'auto';
       video.loop = true;
       video.playsInline = true;
-      video.preload = 'auto';
-      video.crossOrigin = 'anonymous';
+      video.src = remoteUrl;
+      const isMuted = slotMeta.muted !== false;
+      video.muted = isMuted;
 
       let settled = false;
       const finish = () => {
         if (settled) return;
         settled = true;
         const dur = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 10;
-        const startT = Math.min(dur, Math.max(0, Number(slotMeta.videoTime) || 0.2));
+        const startT = Math.min(dur, Math.max(0, Number(slotMeta.videoTime) || (dur > 1 ? 0.2 : 0)));
         state.slots[index] = {
           type: 'video',
           el: video,
@@ -756,7 +781,7 @@
           zoom: Math.max(1, Math.min(3, Number(slotMeta.zoom) || 1)),
           offsetX: Math.max(-100, Math.min(100, Number(slotMeta.offsetX) || 0)),
           offsetY: Math.max(-100, Math.min(100, Number(slotMeta.offsetY) || 0)),
-          muted: slotMeta.muted !== false,
+          muted: isMuted,
           videoTime: startT,
           duration: dur,
         };
@@ -765,6 +790,8 @@
       };
 
       video.addEventListener('loadeddata', finish, { once: true });
+      video.addEventListener('canplay', finish, { once: true });
+      video.addEventListener('loadedmetadata', finish, { once: true });
       video.addEventListener('seeked', () => {
         if (!state.isPlaying) drawCollage(false, true);
       });
@@ -773,6 +800,7 @@
         settled = true;
         resolve();
       }, { once: true });
+      setTimeout(finish, 10000);
       video.load();
     });
   }
@@ -1500,15 +1528,53 @@
     }
   }
 
+  // --- Audio Graph Helpers (Web Audio Live Preview & Stream Mixing) ---
+  function ensureAudioContext() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!state.audioCtx || state.audioCtx.state === 'closed') {
+      state.audioCtx = new AC();
+    }
+    if (state.audioCtx.state === 'suspended') {
+      state.audioCtx.resume().catch(() => {});
+    }
+    return state.audioCtx;
+  }
+
+  function attachSlotAudio(s) {
+    if (!s || s.type !== 'video' || !s.el) return;
+    const ctx = ensureAudioContext();
+    if (!ctx) {
+      if (s.el) s.el.muted = !!s.muted;
+      return;
+    }
+    try {
+      if (!s._sourceNode) {
+        s._sourceNode = ctx.createMediaElementSource(s.el);
+        s._previewGain = ctx.createGain();
+        s._sourceNode.connect(s._previewGain);
+        s._previewGain.connect(ctx.destination);
+      }
+      s.el.muted = false;
+      if (s._previewGain) {
+        s._previewGain.gain.setValueAtTime(s.muted ? 0 : 1, ctx.currentTime);
+      }
+    } catch (e) {
+      if (s.el) s.el.muted = !!s.muted;
+    }
+  }
+
   // --- Video Live Preview Loop ---
   function startPlayback() {
     if (!hasVideoSlot()) return;
     state.isPlaying = true;
     if (els.labelToggleVideoPlay) els.labelToggleVideoPlay.textContent = 'Jeda Video';
 
+    ensureAudioContext();
+
     activeSlotsSlice().forEach((s) => {
       if (s && s.type === 'video' && s.el) {
-        s.el.muted = !!s.muted;
+        attachSlotAudio(s);
         s.el.play().catch(() => {});
       }
     });
@@ -1530,7 +1596,9 @@
       state.rafId = null;
     }
     activeSlotsSlice().forEach((s) => {
-      if (s && s.type === 'video' && s.el) s.el.pause();
+      if (s && s.type === 'video' && s.el) {
+        try { s.el.pause(); } catch (e) {}
+      }
     });
     drawCollage(false, true);
   }
@@ -1556,15 +1624,25 @@
     });
   }
 
-  function pickSupportedVideoMime() {
+  function pickSupportedVideoMime(hasAudio = false) {
     if (typeof MediaRecorder === 'undefined') return '';
-    const candidates = [
+    const candidatesWithAudio = [
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+      'video/mp4;codecs=avc1,mp4a.40.2',
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=h264,opus',
+      'video/webm',
+      'video/mp4',
+    ];
+    const candidatesWithoutAudio = [
       'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
       'video/mp4',
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp8,opus',
       'video/webm',
     ];
+    const candidates = hasAudio ? candidatesWithAudio : candidatesWithoutAudio;
     for (const mime of candidates) {
       if (typeof MediaRecorder.isTypeSupported === 'function' && MediaRecorder.isTypeSupported(mime)) {
         return mime;
@@ -1595,7 +1673,9 @@
   }
 
   async function exportVideoBlob(forArchive) {
-    const mime = pickSupportedVideoMime();
+    const videoSlots = activeSlotsSlice().filter((s) => s && s.type === 'video' && s.el);
+    const hasAudioSlot = videoSlots.some((s) => !s.muted);
+    const mime = pickSupportedVideoMime(hasAudioSlot);
     if (!mime || typeof canvas.captureStream !== 'function') {
       throw new Error('Browser ini tidak mendukung perekaman video kolase (MediaRecorder). Gunakan Chrome/Edge terbaru atau ekspor sebagai gambar.');
     }
@@ -1612,11 +1692,8 @@
     recCanvas.height = expDim.height;
     const recCtx = recCanvas.getContext('2d');
 
-    const videoSlots = activeSlotsSlice().filter((s) => s && s.type === 'video' && s.el);
-    const hasAudioSlot = videoSlots.some((s) => !s.muted);
     await Promise.all(videoSlots.map((s) => new Promise((res) => {
       const v = s.el;
-      v.muted = !hasAudioSlot || !!s.muted;
       const done = () => res();
       v.addEventListener('seeked', done, { once: true });
       try { v.currentTime = 0; } catch (e) { res(); }
@@ -1625,31 +1702,35 @@
 
     const videoStream = recCanvas.captureStream(30);
     let audioDest = null;
-    const connectedAudioSources = [];
+    const connectedAudioNodes = [];
     let combinedStream = videoStream;
     if (hasAudioSlot && (window.AudioContext || window.webkitAudioContext)) {
       try {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!state.audioCtx || state.audioCtx.state === 'closed') {
-          state.audioCtx = new AC();
-        }
-        if (state.audioCtx.state === 'suspended') {
-          await state.audioCtx.resume();
-        }
-        audioDest = state.audioCtx.createMediaStreamDestination();
-        videoSlots.forEach((s) => {
-          if (s.muted || !s.el) return;
-          if (!s._audioSource) {
-            s._audioSource = state.audioCtx.createMediaElementSource(s.el);
+        const ctx = ensureAudioContext();
+        if (ctx) {
+          audioDest = ctx.createMediaStreamDestination();
+          videoSlots.forEach((s) => {
+            if (s.muted || !s.el) return;
+            attachSlotAudio(s);
+            if (s._sourceNode) {
+              if (!s._recordGain) {
+                s._recordGain = ctx.createGain();
+                s._sourceNode.connect(s._recordGain);
+              }
+              s._recordGain.gain.setValueAtTime(1, ctx.currentTime);
+              s._recordGain.connect(audioDest);
+              connectedAudioNodes.push(s._recordGain);
+            }
+            if (s._previewGain) {
+              s._previewGain.gain.setValueAtTime(0, ctx.currentTime);
+            }
+          });
+          if (connectedAudioNodes.length > 0 && audioDest.stream.getAudioTracks().length > 0) {
+            combinedStream = new MediaStream([
+              ...videoStream.getVideoTracks(),
+              ...audioDest.stream.getAudioTracks(),
+            ]);
           }
-          s._audioSource.connect(audioDest);
-          connectedAudioSources.push(s._audioSource);
-        });
-        if (connectedAudioSources.length > 0 && audioDest.stream.getAudioTracks().length > 0) {
-          combinedStream = new MediaStream([
-            ...videoStream.getVideoTracks(),
-            ...audioDest.stream.getAudioTracks(),
-          ]);
         }
       } catch (e) {
         combinedStream = videoStream;
@@ -1657,15 +1738,20 @@
     }
 
     const disconnectAudio = () => {
-      connectedAudioSources.forEach((src) => {
-        try { if (audioDest) src.disconnect(audioDest); } catch (e) {}
+      connectedAudioNodes.forEach((node) => {
+        try { if (audioDest) node.disconnect(audioDest); } catch (e) {}
+      });
+      videoSlots.forEach((s) => {
+        if (s._previewGain && state.audioCtx) {
+          s._previewGain.gain.setValueAtTime(s.muted ? 0 : 1, state.audioCtx.currentTime);
+        }
       });
     };
 
-    // Untuk simpan arsip (batas 20 MB), jaga bitrate agar muat dengan aman
+    // Untuk simpan arsip (server mendukung hingga 100 MB), jaga bitrate visual tajam
     let targetBps = expDim.videoBitsPerSecond;
     if (forArchive) {
-      const maxArchiveBps = Math.floor((18 * 1024 * 1024 * 8) / Math.max(4, durationSec));
+      const maxArchiveBps = Math.floor((85 * 1024 * 1024 * 8) / Math.max(4, durationSec));
       targetBps = Math.min(targetBps, maxArchiveBps);
     }
 
@@ -1813,15 +1899,24 @@
     });
     if (!pending.length) return;
 
+    const maxVideoBytes = 100 * 1024 * 1024; // 100 MB
+    const maxImageBytes = 20 * 1024 * 1024;  // 20 MB
+
     for (let i = 0; i < pending.length; i++) {
       const { slot } = pending[i];
       const pct = Math.round(((i + 1) / pending.length) * 35);
       setProgressUI(true, `Menyimpan sumber media slot ${i + 1}/${pending.length} agar dapat diedit ulang...`, pct);
       try {
         const payload = slot.type === 'image' ? await prepareImageSourceBlob(slot) : slot.file;
-        if (!payload || payload.size > 20 * 1024 * 1024) continue;
+        if (!payload) continue;
+        const limit = slot.type === 'video' ? maxVideoBytes : maxImageBytes;
+        if (payload.size > limit) {
+          notify(`Ukuran berkas "${slot.name}" (${Math.round(payload.size / (1024 * 1024))} MB) melebihi batas simpan server (${Math.round(limit / (1024 * 1024))} MB).`, 'warning');
+          continue;
+        }
         const sfd = new FormData();
-        const fname = slot.name || (slot.type === 'video' ? 'slot.webm' : 'slot.jpg');
+        const fallbackName = slot.type === 'video' ? 'slot.mp4' : 'slot.jpg';
+        const fname = slot.name || fallbackName;
         sfd.append('source_file', payload, fname);
         sfd.append('id_operasi', String(state.idOperasi || 0));
         if (csrfToken) sfd.append('csrf_token', csrfToken);
@@ -1834,9 +1929,11 @@
         const sData = await sResp.json();
         if (sResp.ok && sData.success && sData.path) {
           slot.serverPath = sData.path;
+        } else {
+          console.warn('[DokumentasiStudio] Gagal menyimpan sumber slot:', sData.message || sResp.statusText);
         }
       } catch (e) {
-        // Non-fatal: kolase tetap disimpan meski aset sumber satu slot gagal terunggah
+        console.warn('[DokumentasiStudio] Gagal menyimpan sumber slot:', e);
       }
     }
   }
