@@ -45,7 +45,6 @@ class DokumentasiController extends BaseController {
 
     public function handle(): void {
         $this->requireLogin();
-        OperasiDokumentasiModel::ensureSchemaUpdated();
 
         $action = strtolower(trim((string)($_GET['action'] ?? '')));
         if ($action === '' && (isset($_GET['id']) || isset($_GET['doc_id']))) {

@@ -64,14 +64,10 @@ assertCondition(
 echo "\n[2] Verifikasi Fitur Undo Titik Manual Pada Jalur Peta (Point 1)...\n";
 
 assertCondition(
-    "views/gis.php memiliki tombol btnUndoMeasureRouteWaypoint pada header counter",
-    str_contains($gisViewContent, 'id="btnUndoMeasureRouteWaypoint"') &&
+    "views/gis.php bebas dari tombol hidden legacy btnUndoMeasureRouteWaypoint dan memakai btnBottomUndoRoute",
+    !str_contains($gisViewContent, 'id="btnUndoMeasureRouteWaypoint"') &&
+    str_contains($gisViewContent, 'id="btnBottomUndoRoute"') &&
     str_contains($gisViewContent, 'window.SAR_GIS.undoRoutePoint()')
-);
-
-assertCondition(
-    "views/gis.php memiliki tombol btnBottomUndoRoute pada action bar bawah",
-    str_contains($gisViewContent, 'id="btnBottomUndoRoute"')
 );
 
 assertCondition(
@@ -233,10 +229,10 @@ try {
 echo "\n[5] Verifikasi Pola Pencarian E-SAR (Point 2)...\n";
 
 assertCondition(
-    "views/gis.php memiliki UI selector arah orientasi sapuan E-SAR",
-    str_contains($gisViewContent, 'id="esarOrientationWrapper"') &&
-    str_contains($gisViewContent, 'id="btnEsarOrientHorizontal"') &&
-    str_contains($gisViewContent, 'id="btnEsarOrientVertical"')
+    "views/gis.php menyediakan pemilih pola E-SAR & slider orientasi tanpa wrapper tombol kosong hidden",
+    str_contains($gisViewContent, 'data-ptype="e_sar"') &&
+    str_contains($gisViewContent, 'id="patternRotationSlider"') &&
+    !str_contains($gisViewContent, 'id="esarOrientationWrapper"')
 );
 
 assertCondition(

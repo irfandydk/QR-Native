@@ -1324,7 +1324,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             <?php if (!empty($customLogo)): ?>
               <img src="<?= htmlspecialchars($customLogo) ?>" alt="Logo Basarnas" class="w-full h-full object-contain">
             <?php else: ?>
-              <img src="<?= BASE_URL ?>/assets/images/logo_basarnas.svg" alt="Logo Basarnas" class="w-full h-full object-contain">
+              <img src="<?= assetUrl('assets/images/logo_basarnas.svg') ?>" alt="Logo Basarnas" class="w-full h-full object-contain">
             <?php endif; ?>
           </div>
           <div class="text-center">
@@ -1576,7 +1576,6 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
 <!-- ════════════════════════════════════════════════════════ -->
 <!-- JAVASCRIPT ENGINE & DYNAMIC LOGIC                       -->
 <!-- ════════════════════════════════════════════════════════ -->
-<script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>"></script>
 <script>
 window.__BRA_FORM_CONFIG__ = <?= jsonSafe([
     'twuPlaceholder' => $twuPlaceholder,
@@ -1589,6 +1588,7 @@ window.__BRA_FORM_CONFIG__ = <?= jsonSafe([
     'idBra' => (int)($id ?: 0),
     'logoDataUri' => $logoDataUri,
     'autoDraft' => $autoDraft,
+    'html2pdfUrl' => assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js'),
 ]) ?>;
 </script>
 <script src="<?= assetUrl('assets/js/bra/bra_templates.js') ?>"></script>

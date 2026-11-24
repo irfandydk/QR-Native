@@ -135,7 +135,7 @@ $braKategoriLabel = $bra['kategori'] === 'MAPEL'
             <?php if (!empty($customLogo)): ?>
               <img src="<?= htmlspecialchars($customLogo) ?>" alt="Logo Basarnas" class="w-full h-full object-contain">
             <?php else: ?>
-              <img src="<?= BASE_URL ?>/assets/images/logo_basarnas.svg" alt="Logo Basarnas" class="w-full h-full object-contain">
+              <img src="<?= assetUrl('assets/images/logo_basarnas.svg') ?>" alt="Logo Basarnas" class="w-full h-full object-contain">
             <?php endif; ?>
           </div>
           <div class="text-center">
@@ -402,8 +402,8 @@ $braKategoriLabel = $bra['kategori'] === 'MAPEL'
 
 <!-- QR Code & PDF Libraries (Local Offline Vendor) -->
 <script src="<?= assetUrl('assets/vendor/qrcode/qrcode.min.js') ?>"></script>
-<script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>"></script>
-<script src="<?= assetUrl('assets/js/pdf_document_exporter.js') ?>"></script>
+<script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>" defer fetchpriority="low"></script>
+<script src="<?= assetUrl('assets/js/pdf_document_exporter.js') ?>" defer fetchpriority="low"></script>
 <script>
 (function() {
   const verifyUrl = <?= jsonSafe($verifyUrl) ?>;

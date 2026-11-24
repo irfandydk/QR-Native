@@ -8,10 +8,12 @@ declare(strict_types=1);
 
 class RenopsModel {
     private static ?bool $weatherColsAvailable = null;
+    private static ?bool $satuanJarakColAvailable = null;
 
     public static function ensureSchemaUpdated(bool $force = false): void {
         if (!$force) return;
         self::$weatherColsAvailable = null;
+        self::$satuanJarakColAvailable = null;
         try {
             $db = getDB();
             if ($db->inTransaction()) return;
@@ -39,8 +41,21 @@ class RenopsModel {
                 }
             }
             self::$weatherColsAvailable = true;
+            self::$satuanJarakColAvailable = true;
         } catch (Throwable $e) {
             error_log("[RenopsModel Schema Check] " . $e->getMessage());
+        }
+    }
+
+    private static function hasSatuanJarakColumn(PDO $db): bool {
+        if (self::$satuanJarakColAvailable !== null) {
+            return self::$satuanJarakColAvailable;
+        }
+        try {
+            self::$satuanJarakColAvailable = !empty($db->query("SHOW COLUMNS FROM Renops LIKE 'satuan_jarak'")->fetchAll());
+            return self::$satuanJarakColAvailable;
+        } catch (Throwable) {
+            return false;
         }
     }
 
@@ -212,10 +227,7 @@ class RenopsModel {
 
             $satuanRaw = strtoupper(trim((string)($data['satuan_jarak'] ?? 'NM')));
             $satuanJarak = in_array($satuanRaw, ['KM', 'M', 'NM']) ? $satuanRaw : 'NM';
-            $hasSatuanCol = false;
-            try {
-                $hasSatuanCol = !empty($db->query("SHOW COLUMNS FROM Renops LIKE 'satuan_jarak'")->fetchAll());
-            } catch (Throwable $e) {}
+            $hasSatuanCol = self::hasSatuanJarakColumn($db);
             $hasWeatherCols = self::hasWeatherColumns($db);
 
             $cols = [
@@ -334,10 +346,7 @@ class RenopsModel {
             $waktuMulaiOps = OperasiModel::normalizeDateTime($data['waktu_mulai_ops'] ?? $renops['waktu_mulai_ops']);
 
             $satuanJarak = in_array(strtoupper(trim((string)($data['satuan_jarak'] ?? ($renops['satuan_jarak'] ?? 'NM')))), ['KM', 'M', 'NM']) ? strtoupper(trim((string)($data['satuan_jarak'] ?? ($renops['satuan_jarak'] ?? 'NM')))) : 'NM';
-            $hasSatuanCol = false;
-            try {
-                $hasSatuanCol = !empty($db->query("SHOW COLUMNS FROM Renops LIKE 'satuan_jarak'")->fetchAll());
-            } catch (Throwable $e) {}
+            $hasSatuanCol = self::hasSatuanJarakColumn($db);
             $hasWeatherCols = self::hasWeatherColumns($db);
 
             $sets = [

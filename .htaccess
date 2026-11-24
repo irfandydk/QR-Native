@@ -41,15 +41,27 @@ RedirectMatch 403 (?i)(?:^|/)(database|config|models|controllers|services|helper
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# Batas unggahan (mod_php): foto dokumen RENOPS maks 5 MB per berkas, hingga 12 foto
+# 5. Kompresi Gzip & Cache Aset Statis (dibungkus IfModule agar aman bila modul tidak aktif)
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css application/javascript application/json image/svg+xml
+</IfModule>
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+</IfModule>
+
+# Batas unggahan (mod_php): video kolase maks 100 MB, foto maks 20 MB
 <IfModule mod_php.c>
-    php_value upload_max_filesize 20M
+    php_value upload_max_filesize 100M
     php_value post_max_size 128M
     php_value memory_limit 512M
     php_value max_file_uploads 30
 </IfModule>
 <IfModule mod_php7.c>
-    php_value upload_max_filesize 20M
+    php_value upload_max_filesize 100M
     php_value post_max_size 128M
     php_value memory_limit 512M
     php_value max_file_uploads 30

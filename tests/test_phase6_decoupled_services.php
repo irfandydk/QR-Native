@@ -164,8 +164,9 @@ assertCondition("TemplateHelper::formatDmsPair identik dengan GeoHelper::formatD
     TemplateHelper::formatDmsPair(-4.037664, 122.486662) === GeoHelper::formatDmsPair(-4.037664, 122.486662)
 );
 
-assertCondition("GisModel::calculateDistanceHaversine mendelegasikan ke GeoHelper::calculateDistanceHaversine",
-    GisModel::calculateDistanceHaversine(-4.0, 122.4, -4.1, 122.5) === GeoHelper::calculateDistanceHaversine(-4.0, 122.4, -4.1, 122.5)
+assertCondition("Wrapper redundan GisModel::calculateDistanceHaversine sudah dibersihkan (SSOT: GeoHelper)",
+    !method_exists('GisModel', 'calculateDistanceHaversine')
+    && GeoHelper::calculateDistanceHaversine(-4.0, 122.4, -4.1, 122.5)['km'] > 0
 );
 
 assertCondition("GisModel::calculatePolygonAreaNm2 mendelegasikan ke GeoHelper::calculatePolygonAreaNm2",

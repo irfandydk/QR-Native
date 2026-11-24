@@ -21,7 +21,8 @@ Sistem ini mengadopsi arsitektur **Modular MVC (Model-View-Controller) dengan Se
 7. **Studio Capture Peta 16:9 & Map Snapshot**: Fitur tangkapan layar peta taktikal rasio 16:9 terintegrasi pada GIS yang secara otomatis mendeteksi komponen spasial di dalam bingkai (titik LKP, lokasi korban, poligon pencarian, rute alut) untuk Dokumen RENOPS: Peta Lokasi LKP (1x per operasi) dan Peta Rencana Operasi (per hari RENOPS).
 8. **Tactical Maritime GIS & Kalkulator Pola IAMSAR**: Peta interaktif Leaflet dengan citra Satelit Resolusi Tinggi (Esri World Imagery) dan Peta Vektor OSM, radar pulsing LKP, pengukur rute berkecepatan knot alut Basarnas, kalkulator pola pencarian maritim IAMSAR (*Parallel Sweep, Creeping Line, Expanding Square, Sector Search*), serta ekspor data spasial GeoJSON & KML.
 9. **Official PDF Exporter (Anti-Cut Smart Slicing)**: Konversi lembar naskah dinas A4 Portrait menjadi dokumen elektronik PDF yang tajam, presisi, dan bebas huruf terpotong melalui algoritma deteksi spasi putih antar-baris teks (*safe page-cut detection*).
-10. **Master Data & Pengaturan Terpusat**: Manajemen 9 Pangkalan Resmi Basarnas Sultra (Kansar Kendari, Pos SAR Kolaka, Baubau, Wakatobi, Konawe Utara, Unit Siaga Muna, Konawe, Kolaka Utara, Dermaga Sandar Bungkutoko), armada Alut, potensi SAR gabungan, data Pejabat SMC, profil Satker `SAR-304`, backup JSON/SQL, dan audit trail log pengguna.
+10. **Master Data & Pengaturan Terpusat**: Manajemen pangkalan resmi Basarnas Sultra (Kansar Kendari, Pos SAR, Unit Siaga, Dermaga Sandar), armada Alut, potensi SAR gabungan, data Pejabat SMC, profil Satker `SAR-304`, backup JSON/SQL, dan audit trail log pengguna.
+11. **Pusat Dokumentasi & Studio Kolase Foto/Video**: Pembuatan kolase dokumentasi operasional SAR maupun dokumentasi umum (tanpa kaitannya dengan operasi SAR), mendukung foto dan video hingga 100 MB dengan pemutaran & ekspor audio, arsip kronologis, serta penyuntingan ulang proyek kolase.
 
 ---
 
@@ -37,6 +38,7 @@ QR-SAR/
 ├── controllers/             # Controller Layer (Pemisahan Logika Alur Bisnis)
 │   ├── BaseController.php       # Controller dasar, session guard, CSRF validation, response JSON/view
 │   ├── OperasiController.php    # Manajemen Operasi SAR, Renops, Sitrep, Penutupan & cetak dokumen
+│   ├── DokumentasiController.php # Pusat Dokumentasi & Studio Kolase Foto/Video (Operasi SAR & Umum)
 │   ├── BraController.php        # Dokumen Berita Radio SAR, nomor atomik Senkom & cetak telegram
 │   ├── DashboardController.php  # Agregasi data KPI operasi aktif/selesai & statistik real-time
 │   ├── GisController.php        # Endpoint halaman GIS maritim taktis & workstation pemetaan
@@ -67,6 +69,7 @@ QR-SAR/
 │   ├── LaporanModel.php              # SITREP harian, status korban (S/MD/DP/H), timeline lapangan
 │   ├── BraModel.php                  # Dokumen telegram radio, nomor atomik & validasi token QR
 │   ├── DokumenPetaSnapshotModel.php  # Model snapshot peta taktis 16:9 untuk dokumen cetak resmi
+│   ├── OperasiDokumentasiModel.php   # Model arsip & proyek kolase dokumentasi foto/video (Operasi SAR & Umum)
 │   ├── GisModel.php                  # Titik taktis, poligon pencarian, rute berkecepatan knot & pola IAMSAR
 │   ├── SarUnitModel.php              # Data 9 Pangkalan resmi Basarnas Sultra (Kansar, Pos, Unit Siaga)
 │   ├── PejabatModel.php              # Pejabat penandatangan, Kansar & Kepala Seksi Operasi
@@ -108,18 +111,21 @@ QR-SAR/
 │   │   └── partials/                 # Tab satker, manajemen user, backup/restore, dan audit log
 │   ├── auth/                # Modul Otentikasi
 │   │   └── login.php                 # Portal login petugas SAR
+│   ├── dokumentasi/         # Modul Pusat Dokumentasi & Studio Kolase Foto/Video
+│   │   ├── index.php                 # Arsip dokumentasi kronologis & filter Operasi SAR / Umum
+│   │   └── studio.php                # Studio penyusun kolase foto/video & pratinjau ekspor
 │   ├── layout/              # Template Tata Letak Bersama
 │   │   ├── header.php, sidebar.php, navbar.php, footer.php
 │   │   ├── public_header.php, public_footer.php # Layout khusus portal verifikasi publik mandiri
-│   └── errors/              # Halaman HTTP Error Terstandarisasi (403.php, 404.php, 500.php)
+│   └── errors/              # Halaman HTTP Error Terstandarisasi (500.php)
 ├── api/                     # RESTful JSON API Backend
 │   ├── controllers/         # API Controllers per Domain
 │   │   ├── BaseApiController.php, AuthApiController.php, OperasiApiController.php
-│   │   ├── RenopsApiController.php, SitrepApiController.php, BraApiController.php
-│   │   ├── MasterApiController.php, SettingsApiController.php, GisApiController.php, AiApiController.php
+│   │   ├── RenopsApiController.php, RenopsDokumenApiController.php, SitrepApiController.php
+│   │   ├── BraApiController.php, GisApiController.php, OperasiDokumentasiApiController.php, AiApiController.php
 │   └── index.php            # API Front Controller & request dispatcher
 ├── assets/                  # Static Web Assets (CSS, JS, Fonts, Images)
-│   ├── vendor/              # Third-Party Libraries Offline (Leaflet, SweetAlert2, QRCode.js, Tailwind)
+│   ├── vendor/              # Third-Party Libraries Offline (lihat assets/vendor/VERSIONS.md)
 │   ├── js/                  # Application JavaScript
 │   │   ├── pdf_document_exporter.js  # Engine PDF resmi dengan algoritma safe page-cut multi-halaman
 │   │   ├── gis_master.js             # Workstation GIS lengkap, Studio Capture 16:9, rute, IAMSAR
@@ -135,8 +141,9 @@ QR-SAR/
 │   ├── logs/                # Berkas log aplikasi & audit trail
 │   ├── backups/             # Berkas cadangan dump SQL & snapshot JSON
 │   └── cache/               # Cache sementara sistem
-├── tests/                   # Automated Regression Test Suites (39+ Unit & E2E Tests)
-│   ├── run_all.php                   # Master Test Runner CLI (menjalankan seluruh test suite)
+├── tests/                   # Automated Regression Test Suites (100 PHP Suites + 8 Node.js Tests)
+│   ├── run_all.php                   # Master Test Runner CLI (menjalankan seluruh suite PHP & JS)
+│   ├── js/                           # Unit test JavaScript (Node.js) untuk GIS, BRA, Alut, Kolase
 │   ├── test_buttons_and_navigation_e2e.php  # Verifikasi navigasi & tombol antarmuka
 │   ├── test_crud_audit_end_to_end.php       # Verifikasi siklus CRUD lengkap & pencatatan audit log
 │   ├── test_doc_verify_and_barcode.php      # Verifikasi token HMAC & Barcode QR keabsahan dokumen
@@ -211,14 +218,14 @@ Aplikasi QR-SAR mendukung dua opsi eksekusi:
 Sangat praktis untuk pengujian di laptop dinas menggunakan PHP Built-in Server:
 
 ```bash
-php -d upload_max_filesize=6M -d post_max_size=64M -S 127.0.0.1:8000 router.php
+php -d upload_max_filesize=100M -d post_max_size=128M -S 127.0.0.1:8000 router.php
 ```
 
 #### Opsi B: Mode Standar Produksi (Public Document Root)
 Direkomendasikan untuk keamanan maksimal pada server produksi (seluruh kode privat berada di luar Document Root):
 
 ```bash
-php -d upload_max_filesize=6M -d post_max_size=64M -S 127.0.0.1:8000 -t public public/router.php
+php -d upload_max_filesize=100M -d post_max_size=128M -S 127.0.0.1:8000 -t public public/router.php
 ```
 
 #### Manajemen Aset Publik (Single Source of Truth)
@@ -321,11 +328,11 @@ Kredensial akun tidak dicantumkan di repositori. Segera ganti kata sandi bawaan 
 
 ## 🧪 Pengujian Otomatis (Automated Test Suites)
 
-Proyek ini dilengkapi **39+ automated test suites** berbasis PHP CLI yang mencakup pengujian unit, integrasi arsitektur, kalkulasi spasial, dan alur end-to-end:
+Proyek ini dilengkapi **100 automated test suites PHP** dan **8 unit test JavaScript (Node.js)** yang mencakup pengujian unit, integrasi arsitektur, kalkulasi spasial, dan alur end-to-end:
 
 ```bash
-# Menjalankan seluruh test suite secara otomatis:
-php tests/run_all.php
+# Menjalankan seluruh test suite PHP & JS secara otomatis (gunakan DB *_test):
+DB_DATABASE=qrsar_test php tests/run_all.php
 
 # Atau menjalankan modul pengujian spesifik:
 php tests/test_phase4_refactoring_architecture.php

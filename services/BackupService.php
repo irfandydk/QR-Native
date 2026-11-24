@@ -439,11 +439,18 @@ class BackupService {
             if (class_exists('RenopsModel')) {
                 RenopsModel::ensureSchemaUpdated(true);
             }
+            if (class_exists('DokumenPetaSnapshotModel')) {
+                DokumenPetaSnapshotModel::ensureSchemaUpdated(true);
+            }
+            if (class_exists('OperasiDokumentasiModel')) {
+                OperasiDokumentasiModel::ensureSchemaUpdated(true);
+            }
             AlutKategori::pulihkan($db);
             if (class_exists('SettingsModel')) {
                 SettingsModel::clearCache();
             }
             if (class_exists('AuditHelper')) {
+                AuditHelper::ensureTableExists(true);
                 AuditHelper::log('DATABASE_RESTORE', "Memulihkan basis data dari berkas cadangan SQL Dump", 'Database', 'SYSTEM');
             }
             return true;

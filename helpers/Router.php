@@ -281,11 +281,14 @@ class Router {
             header('Accept-Ranges: bytes');
             $uploadsDir = defined('UPLOADS_DIR') ? UPLOADS_DIR : ($rootDir . '/uploads');
             $realUploads = realpath($uploadsDir);
-            if ($realUploads && str_starts_with($realPath, $realUploads . DIRECTORY_SEPARATOR)) {
+            $isUploadFile = $realUploads && str_starts_with($realPath, $realUploads . DIRECTORY_SEPARATOR);
+            if ($isUploadFile) {
                 // Cegah skrip di SVG unggahan berjalan bila berkas dibuka langsung (stored XSS)
                 header("Content-Security-Policy: default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+                header('Cache-Control: public, max-age=86400');
+            } else {
+                header('Cache-Control: public, max-age=31536000, immutable');
             }
-            header('Cache-Control: public, max-age=604800, immutable');
             header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $lastModified) . ' GMT');
             header('ETag: ' . $etag);
         }

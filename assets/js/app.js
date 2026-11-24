@@ -26,21 +26,7 @@ function applyThemeToDOM(theme) {
         }
     }
 
-    // 2. Update Sidebar Icon & Label
-    const sidebarIcon = document.getElementById('sidebarThemeIcon');
-    const sidebarLabel = document.getElementById('sidebarThemeLabel');
-    if (sidebarIcon) {
-        if (isDark) {
-            sidebarIcon.innerHTML = `<svg class="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`;
-        } else {
-            sidebarIcon.innerHTML = `<svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
-        }
-    }
-    if (sidebarLabel) {
-        sidebarLabel.textContent = isDark ? 'Terang' : 'Gelap';
-    }
-
-    // 3. Update Login Screen Toggle
+    // 2. Update Login Screen Toggle
     const loginText = document.getElementById('loginThemeText');
     const loginIcon = document.getElementById('loginThemeIcon');
     if (loginText) {
@@ -180,12 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const themeToggleBtn = document.getElementById('theme-toggle-btn');
     if (themeToggleBtn) {
         themeToggleBtn.addEventListener('click', toggleAppTheme);
-    }
-
-    // Sidebar Toggle Listener (Single unified listener)
-    const sidebarThemeToggleBtn = document.getElementById('sidebarThemeToggleBtn');
-    if (sidebarThemeToggleBtn) {
-        sidebarThemeToggleBtn.addEventListener('click', toggleAppTheme);
     }
 
     // Mobile sidebar toggle fallback if backdrop handler not active
@@ -559,24 +539,13 @@ window.addEventListener('pageshow', () => {
 });
 
 // ==========================================
-// GLOBAL HTML SANITIZATION UTILITY
-// ==========================================
-window.escapeHtml = function (str) {
-    if (str === null || str === undefined) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-};
-
-// ==========================================
-// GLOBAL AUTOMATIC FETCH CSRF INTERCEPTOR
+// GLOBAL AUTOMATIC FETCH CSRF INTERCEPTOR (fallback bila header.php tidak dimuat, mis. login.php)
 // ==========================================
 (function() {
+    if (window.__qrsarCsrfFetchPatched) return;
     const originalFetch = window.fetch;
     if (!originalFetch) return;
+    window.__qrsarCsrfFetchPatched = true;
 
     window.fetch = function(input, init) {
         init = init || {};

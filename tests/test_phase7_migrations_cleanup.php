@@ -58,9 +58,9 @@ assertCondition(
     !str_contains($viewHelperContent, "'master/settings.php'")
 );
 
-$resolvedView = ViewHelper::resolve('master_settings.php');
+$resolvedView = ViewHelper::resolveViewFile('master_settings.php');
 assertCondition(
-    "ViewHelper::resolve('master_settings.php') dialihkan dengan aman ke admin/index.php",
+    "ViewHelper::resolveViewFile('master_settings.php') dialihkan dengan aman ke admin/index.php",
     str_ends_with(str_replace('\\', '/', $resolvedView), 'views/admin/index.php')
 );
 

@@ -138,9 +138,49 @@ $bak = (string)file_get_contents(ROOT_DIR . '/services/BackupService.php');
 assertCondition(
     substr_count($bak, 'GisModel::ensureSchemaUpdated(true)') === 1
     && substr_count($bak, 'OperasiModel::ensureSchemaUpdated(true)') === 1
-    && substr_count($bak, 'RenopsModel::ensureSchemaUpdated(true)') === 1,
-    'Restore SQL memulihkan skema (GisModel, OperasiModel, RenopsModel)'
+    && substr_count($bak, 'RenopsModel::ensureSchemaUpdated(true)') === 1
+    && substr_count($bak, 'DokumenPetaSnapshotModel::ensureSchemaUpdated(true)') === 1
+    && substr_count($bak, 'OperasiDokumentasiModel::ensureSchemaUpdated(true)') === 1
+    && substr_count($bak, 'AuditHelper::ensureTableExists(true)') === 1,
+    'Restore SQL memulihkan seluruh skema (Gis, Operasi, Renops, Snapshot, Dokumentasi, AuditLog)'
 );
+
+// Uji cakupan array id_operasi pada GisModel (hanya memuat base map + operasi aktif, mengecualikan operasi lain/CLOSED)
+$openOpId = 999901;
+$closedOpId = 999902;
+$ptOpenId = 'pt-scope-open-' . time();
+$ptClosedId = 'pt-scope-closed-' . time();
+$ptBaseId = 'pt-scope-base-' . time();
+try {
+    GisModel::savePoint(['id' => $ptOpenId, 'label' => 'Titik Open Scope', 'lat' => -4.01, 'lng' => 122.51, 'id_operasi' => $openOpId]);
+    GisModel::savePoint(['id' => $ptClosedId, 'label' => 'Titik Closed Scope', 'lat' => -4.02, 'lng' => 122.52, 'id_operasi' => $closedOpId]);
+    GisModel::savePoint(['id' => $ptBaseId, 'label' => 'Titik Base Scope', 'lat' => -4.03, 'lng' => 122.53, 'id_operasi' => null]);
+
+    $scopedPts = GisModel::getPoints([$openOpId], true);
+    $scopedIds = array_column($scopedPts, 'id');
+    assertCondition(
+        in_array($ptOpenId, $scopedIds, true)
+        && in_array($ptBaseId, $scopedIds, true)
+        && !in_array($ptClosedId, $scopedIds, true),
+        'GisModel::getPoints(array, true) memuat base map + operasi aktif saja dan mengecualikan operasi CLOSED'
+    );
+
+    $baseOnlyPts = GisModel::getPoints([], true);
+    $baseOnlyIds = array_column($baseOnlyPts, 'id');
+    assertCondition(
+        in_array($ptBaseId, $baseOnlyIds, true)
+        && !in_array($ptOpenId, $baseOnlyIds, true)
+        && !in_array($ptClosedId, $baseOnlyIds, true),
+        'GisModel::getPoints([], true) hanya memuat base map saat tidak ada operasi aktif'
+    );
+
+    $limitedOpen = OperasiModel::getListSimple('OPEN', 3);
+    assertCondition(count($limitedOpen) <= 3, 'OperasiModel::getListSimple(OPEN, 3) membatasi hasil maksimal 3 baris di SQL');
+} finally {
+    GisModel::deletePoint($ptOpenId);
+    GisModel::deletePoint($ptClosedId);
+    GisModel::deletePoint($ptBaseId);
+}
 
 echo "\nTotal: {$testTotal}, Lolos: {$testPassed}\n";
 exit($testPassed === $testTotal ? 0 : 1);

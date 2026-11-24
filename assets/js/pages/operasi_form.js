@@ -331,18 +331,6 @@ function pickMasterAlut(jsonStr) {
   } catch (e) {}
 }
 
-function quickAddAlutPreset(nama, jml, sat) {
-  currentAlutList.push({
-    nama_alut: nama,
-    jumlah_alut: jml || 1,
-    satuan: sat || 'Unit'
-  });
-  renderAlutList();
-  if (typeof showToast === 'function') {
-    showToast(`Alut "${nama}" ditambahkan ke daftar!`, 'success');
-  }
-}
-
 function handleAddAlutClick() {
   const namaInput = document.getElementById('alut-input-nama');
   const jmlInput = document.getElementById('alut-input-jml');
@@ -792,32 +780,6 @@ function initLkpTacticalMap() {
     }
   }
 
-  // Set speed inputs & presets
-  const speedNumEl = document.getElementById('input_vessel_speed_num');
-  const unitSelectEl = document.getElementById('select_speed_unit');
-  const speedPresetSel = document.getElementById('select_speed_preset');
-  if (speedPresetSel) {
-    const matchedOpt = Array.from(speedPresetSel.options).find(o => {
-      const u = o.getAttribute('data-unit') || 'knots';
-      const val = parseFloat(o.value);
-      if (isNaN(val)) return false;
-      const knotsVal = u === 'kmh' ? (val / 1.852) : val;
-      return Math.abs(knotsVal - tacticalState.vesselSpeedKnots) < 0.05;
-    });
-    if (matchedOpt) {
-      speedPresetSel.value = matchedOpt.value;
-      const u = matchedOpt.getAttribute('data-unit') || 'knots';
-      tacticalState.speedUnit = u;
-      if (unitSelectEl) unitSelectEl.value = u;
-      if (speedNumEl) speedNumEl.value = matchedOpt.value;
-    } else {
-      speedPresetSel.value = '__CUSTOM__';
-      if (speedNumEl) speedNumEl.value = tacticalState.vesselSpeedKnots.toFixed(1);
-      if (unitSelectEl) unitSelectEl.value = 'knots';
-      tacticalState.speedUnit = 'knots';
-    }
-  }
-
   // Create Leaflet Map
   tacticalState.inlineMap = L.map('lkp_inline_map', {
     center: [tacticalState.lkpLat, tacticalState.lkpLng],
@@ -1230,39 +1192,7 @@ function redrawTacticalRoute() {
   }
 }
 
-// ── Speed Presets & Manual Speed Calculation ──
-function handleSpeedPresetChange(sel) {
-  if (!sel) return;
-  const speedNumInput = document.getElementById('input_vessel_speed_num');
-  const unitSelect = document.getElementById('select_speed_unit');
-
-  if (sel.value === '__CUSTOM__') {
-    if (speedNumInput) speedNumInput.focus();
-    return;
-  }
-
-  const opt = sel.options[sel.selectedIndex];
-  const unit = opt ? (opt.getAttribute('data-unit') || 'knots') : 'knots';
-  const speedVal = parseFloat(sel.value);
-
-  if (!isNaN(speedVal) && speedVal > 0) {
-    tacticalState.speedUnit = unit;
-    if (unitSelect) unitSelect.value = unit;
-    if (speedNumInput) speedNumInput.value = speedVal.toString();
-
-    if (unit === 'kmh') {
-      tacticalState.vesselSpeedKnots = speedVal / 1.852;
-    } else {
-      tacticalState.vesselSpeedKnots = speedVal;
-    }
-
-    const speedKnotsHidden = document.getElementById('vessel_speed_knots');
-    if (speedKnotsHidden) speedKnotsHidden.value = tacticalState.vesselSpeedKnots.toFixed(2);
-
-    recalculateTacticalMetrics(false);
-  }
-}
-
+// ── Manual Speed Calculation ──
 function handleManualSpeedInput(val) {
   const num = parseFloat(val);
   if (isNaN(num) || num <= 0) return;
@@ -1275,16 +1205,6 @@ function handleManualSpeedInput(val) {
 
   const speedKnotsHidden = document.getElementById('vessel_speed_knots');
   if (speedKnotsHidden) speedKnotsHidden.value = tacticalState.vesselSpeedKnots.toFixed(2);
-
-  // Set preset select to custom if value doesn't match
-  const speedPresetSel = document.getElementById('select_speed_preset');
-  if (speedPresetSel) {
-    const matched = Array.from(speedPresetSel.options).find(o => {
-      const oUnit = o.getAttribute('data-unit') || 'knots';
-      return oUnit === tacticalState.speedUnit && Math.abs(parseFloat(o.value) - num) < 0.05;
-    });
-    speedPresetSel.value = matched ? matched.value : '__CUSTOM__';
-  }
 
   recalculateTacticalMetrics(false);
 }
@@ -1300,17 +1220,6 @@ function handleSpeedUnitChange(unit) {
     speedNumInput.value = (Math.round(kmh * 10) / 10).toString();
   } else if (unit === 'knots' && prevUnit === 'kmh') {
     speedNumInput.value = (Math.round(tacticalState.vesselSpeedKnots * 10) / 10).toString();
-  }
-
-  // Match preset dropdown if applicable
-  const speedPresetSel = document.getElementById('select_speed_preset');
-  if (speedPresetSel) {
-    const curVal = parseFloat(speedNumInput.value);
-    const matched = Array.from(speedPresetSel.options).find(o => {
-      const oUnit = o.getAttribute('data-unit') || 'knots';
-      return oUnit === unit && Math.abs(parseFloat(o.value) - curVal) < 0.05;
-    });
-    speedPresetSel.value = matched ? matched.value : '__CUSTOM__';
   }
 
   recalculateTacticalMetrics(false);
@@ -1412,23 +1321,6 @@ function recalculateTacticalMetrics(autoApply = false) {
   const manualRouteHidden = document.getElementById('manual_route_json');
   if (manualRouteHidden) {
     manualRouteHidden.value = JSON.stringify(pts);
-  }
-
-  const tacticalRouteHidden = document.getElementById('tactical_route_data');
-  if (tacticalRouteHidden) {
-    tacticalRouteHidden.value = JSON.stringify({
-      routingMode: tacticalState.routingMode,
-      origin: { lat: tacticalState.originLat, lng: tacticalState.originLng, name: tacticalState.originName },
-      lkp: { lat: tacticalState.lkpLat, lng: tacticalState.lkpLng },
-      waypoints: tacticalState.manualWaypoints,
-      totalNm: totalNm,
-      totalKm: totalKm,
-      radial: departureRadial,
-      speedKnots: tacticalState.vesselSpeedKnots,
-      etaMinutes: totalMins,
-      etaStr: etaStr,
-      points: pts
-    });
   }
 
   const speedHidden = document.getElementById('vessel_speed_knots');
@@ -2292,26 +2184,6 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch((window.BASE_URL || '') + '/api/index.php?path=/auth/ping', { method: 'GET' }).catch(() => {});
   }, 300000);
 });
-
-// Standardized QRSAR Global Namespace
-window.QRSAR = window.QRSAR || {};
-window.QRSAR.OperasiForm = {
-  renderUnsurList,
-  handleSelectTimBerangkat,
-  pickMasterTim,
-  removeUnsurRow,
-  updateUnsurItem,
-  syncUnsurFields,
-  renderAlutList,
-  pickMasterAlut,
-  quickAddAlutPreset,
-  handleAddAlutClick,
-  removeAlutRow,
-  updateAlutItem,
-  syncAlutFields,
-  addKorbanRow,
-  removeKorbanRow
-};
 
 // Kategori input alut: tebakan otomatis dari nama sampai pengguna memilih sendiri.
 document.addEventListener('DOMContentLoaded', () => AlutKategoriUI.bindInput('alut-input-nama', 'alut-input-kategori'));

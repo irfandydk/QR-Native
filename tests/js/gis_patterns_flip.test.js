@@ -48,6 +48,24 @@ test('E-SAR tidak terpengaruh flip', () => {
   assert.deepEqual(b, a);
 });
 
+test('E-SAR mendukung 4 arah sapuan dengan bearing dan sweepDir konsisten di dalam poligon', () => {
+  const cases = [
+    { direction: 'west_to_east', orientation: 'horizontal', expectedBearing: 90, expectedSweepDir: 'horizontal' },
+    { direction: 'east_to_west', orientation: 'horizontal', expectedBearing: 270, expectedSweepDir: 'horizontal' },
+    { direction: 'north_to_south', orientation: 'vertical', expectedBearing: 180, expectedSweepDir: 'vertical' },
+    { direction: 'south_to_north', orientation: 'vertical', expectedBearing: 0, expectedSweepDir: 'vertical' },
+  ];
+  for (const tc of cases) {
+    const wps = P.generateFittedPatternInsidePolygon('e_sar', persegi, 1, 4, {
+      direction: tc.direction,
+      orientation: tc.orientation,
+    });
+    assert.ok(wps.length >= 4, `E-SAR ${tc.direction} menghasilkan minimal 4 waypoint`);
+    assert.equal(wps[0].bearing, tc.expectedBearing, `E-SAR ${tc.direction} bearing=${tc.expectedBearing}`);
+    assert.equal(wps[0].sweepDir, tc.expectedSweepDir, `E-SAR ${tc.direction} sweepDir=${tc.expectedSweepDir}`);
+  }
+});
+
 test('Rotasi bebas 0..345 derajat (step 15) pada poligon cekung (L): semua waypoint tetap 100% di dalam poligon', () => {
   const L = [
     { lat: -4.0, lng: 122.0 }, { lat: -4.0, lng: 122.1 }, { lat: -4.1, lng: 122.1 },

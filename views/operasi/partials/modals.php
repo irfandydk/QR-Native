@@ -69,11 +69,9 @@
                 <p class="font-bold text-xs text-slate-800 dark:text-slate-200">
                     <?= e($operasi['nama_operasi']) ?>
                 </p>
-                <div class="form-group">
-                    <div class="field">
-                      <label class="field-label">Waktu Debriefing Selesai (WITA):</label>
-                      <input placeholder=" " type="datetime-local" name="waktu_selesai" class="field-input form-control" required value="<?= date('Y-m-d\TH:i') ?>">
-                    </div>
+                <div class="field">
+                    <label class="field-label">Waktu Debriefing Selesai (WITA):</label>
+                    <input placeholder=" " type="datetime-local" name="waktu_selesai" class="field-input" required value="<?= date('Y-m-d\TH:i') ?>">
                 </div>
                 <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 text-xs text-slate-500">
                     Seluruh unsur SAR yang terlibat diusulkan kembali ke kesatuannya masing-masing dengan ucapan terima kasih. Status operasi akan menjadi <strong>CLOSED</strong>.

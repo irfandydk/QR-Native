@@ -70,10 +70,13 @@ class OperasiDokumentasiModel {
 
     /**
      * Pastikan tabel OperasiDokumentasi, kolom project_json, id_operasi nullable, dan indeks kronologis tersedia idempoten.
-     * Aman terhadap transaksi aktif MySQL: cek SHOW TABLES/COLUMNS terlebih dulu agar tidak memicu DDL implicit commit.
+     * Hanya dieksekusi bila dipaksa ($force = true, mis. dari database/migrate.php atau setelah restore backup).
      */
     public static function ensureSchemaUpdated(bool $force = false): void {
-        if (self::$schemaChecked && !$force) {
+        if (!$force) {
+            return;
+        }
+        if (self::$schemaChecked) {
             return;
         }
 

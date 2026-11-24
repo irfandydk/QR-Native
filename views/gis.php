@@ -82,10 +82,12 @@ $includeBase = isset($_GET['include_base'])
 
 $currentOperasi = $selectedOperasiId ? ($activeOperasiMap[$selectedOperasiId] ?? null) : null;
 
-$savedPoints = GisModel::getPoints();
-$savedPolygons = GisModel::getPolygons();
-$savedPatterns = GisModel::getSearchPatterns();
-$savedRoutes = GisModel::getRoutes();
+// Muat hanya peta dasar (id_operasi IS NULL) + operasi aktif (OPEN) + operasi terpilih capture_doc
+// agar objek milik operasi CLOSED tidak membengkakkan payload HTML/JSON awal.
+$savedPoints = GisModel::getPoints($activeOperasiIds, true);
+$savedPolygons = GisModel::getPolygons($activeOperasiIds, true);
+$savedPatterns = GisModel::getSearchPatterns($activeOperasiIds, true);
+$savedRoutes = GisModel::getRoutes($activeOperasiIds, true);
 $sarUnits = MasterModel::getSarUnits();
 $alutList = MasterModel::getAlut();
 
@@ -1073,31 +1075,13 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             </div>
           </div>
 
-          <!-- 4. Arah Orientasi (Cukup Slide Bar 0°-359°) -->
+          <!-- 4. Arah Orientasi (Slide Bar 0°-359°) -->
           <div id="patternFlipWrapper" class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-1.5">
             <div class="flex items-center justify-between text-[11px]">
               <label for="patternRotationSlider" class="font-semibold text-slate-600 dark:text-slate-400">Arah Orientasi</label>
               <span id="patternOrientationBadge" class="font-mono font-bold text-orange-600 dark:text-orange-400 tabular-nums">0°</span>
             </div>
             <input type="range" id="patternRotationSlider" min="0" max="359" step="1" value="0" class="w-full accent-orange-500 cursor-pointer">
-            <button type="button" id="btnPatternFlipH" aria-pressed="false" class="hidden"></button>
-            <button type="button" id="btnPatternFlipV" aria-pressed="false" class="hidden"></button>
-          </div>
-
-          <!-- E-SAR Sweep Direction Selector (Hidden for legacy test compatibility) -->
-          <div id="esarOrientationWrapper" class="hidden">
-            <button type="button" id="btnEsarOrientHorizontal" data-orientation="horizontal" class="esar-orient-btn"></button>
-            <button type="button" id="btnEsarOrientVertical" data-orientation="vertical" class="esar-orient-btn"></button>
-            <div id="esarDirectionControls">
-              <div id="esarDirHorizontalGroup">
-                <button type="button" id="btnEsarDirWtoE" data-direction="west_to_east" data-dir="west_to_east" class="esar-dir-btn"></button>
-                <button type="button" id="btnEsarDirEtoW" data-direction="east_to_west" data-dir="east_to_west" class="esar-dir-btn"></button>
-              </div>
-              <div id="esarDirVerticalGroup" class="hidden">
-                <button type="button" id="btnEsarDirNtoS" data-direction="north_to_south" data-dir="north_to_south" class="esar-dir-btn"></button>
-                <button type="button" id="btnEsarDirStoN" data-direction="south_to_north" data-dir="south_to_north" class="esar-dir-btn"></button>
-              </div>
-            </div>
           </div>
 
           <!-- 5. Track Spacing & Jumlah Sweep -->
@@ -1390,8 +1374,6 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
             <button type="button" id="btnClearMeasureRoute" onclick="window.SAR_GIS && window.SAR_GIS.clearRoute()" class="px-3 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer" title="Kosongkan seluruh titik garis rute (reset garis)">
               Bersihkan
             </button>
-            <button type="button" id="btnResetMeasureLine" class="hidden" onclick="window.SAR_GIS && window.SAR_GIS.resetMeasureLine()"></button>
-            <button type="button" id="btnUndoMeasureRouteWaypoint" class="hidden" onclick="window.SAR_GIS && window.SAR_GIS.undoRoutePoint()"></button>
             <button type="button" id="btnBottomUndoRoute" onclick="window.SAR_GIS && window.SAR_GIS.undoRoutePoint()" class="px-3 py-2 text-xs font-semibold rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-400 border border-amber-500/30 transition cursor-pointer flex items-center gap-1.5" title="Batalkan titik rute terakhir (1 per 1)">
               <svg class="w-3.5 h-3.5" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7v6h6M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
               <span>Undo</span>

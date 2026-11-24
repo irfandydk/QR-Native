@@ -31,7 +31,7 @@ function assertCondition(bool $cond, string $message): void {
     }
 }
 
-AuditHelper::ensureTableExists();
+AuditHelper::ensureTableExists(true);
 $db = getDB();
 $marker = 'CSVFORMULA' . bin2hex(random_bytes(4));
 $cases = [

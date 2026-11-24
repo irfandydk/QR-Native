@@ -114,13 +114,15 @@
     }
   }
 
-  function escapeHtml(str) {
-    return String(str || '')
+  const escapeHtml = (window.QrSarUtils && window.QrSarUtils.escapeHtml) || function (str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
 
   function ensureSlotsLength(count) {
     while (state.slots.length < count) {

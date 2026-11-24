@@ -274,7 +274,7 @@ $loginHeroUrl = assetUrl('assets/images/auth/login-sar-hero.jpg');
             width="34"
             height="34"
             class="w-8 h-8 object-contain drop-shadow"
-            onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'"
+            onerror="this.src='<?= assetUrl('assets/images/logo_basarnas.svg') ?>'"
           >
           <span class="text-xs font-semibold tracking-wide text-white/90 drop-shadow-sm">
             QR-SAR &middot; BASARNAS
@@ -307,7 +307,7 @@ $loginHeroUrl = assetUrl('assets/images/auth/login-sar-hero.jpg');
             width="32"
             height="32"
             class="w-8 h-8 object-contain shrink-0"
-            onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'"
+            onerror="this.src='<?= assetUrl('assets/images/logo_basarnas.svg') ?>'"
           >
           <span class="text-xs font-bold tracking-tight text-slate-800 dark:text-slate-100 truncate">QR-SAR</span>
         </div>
@@ -351,7 +351,7 @@ $loginHeroUrl = assetUrl('assets/images/auth/login-sar-hero.jpg');
             width="44"
             height="44"
             class="hidden lg:block w-11 h-11 object-contain mb-4"
-            onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'"
+            onerror="this.src='<?= assetUrl('assets/images/logo_basarnas.svg') ?>'"
           >
           <h1 id="loginHeading" class="login-form-heading font-bold text-slate-900 dark:text-white">
             Masuk ke QR-SAR
@@ -481,8 +481,9 @@ $loginHeroUrl = assetUrl('assets/images/auth/login-sar-hero.jpg');
 
   </main>
 
-  <!-- SweetAlert2 JS (Local Offline Vendor) & App JS -->
+  <!-- SweetAlert2 JS (Local Offline Vendor), Common Utils & App JS -->
   <script src="<?= assetUrl('assets/vendor/sweetalert2/sweetalert2.all.min.js') ?>"></script>
+  <script src="<?= assetUrl('assets/js/utils/common.js') ?>"></script>
   <script src="<?= assetUrl('assets/js/app.js') ?>"></script>
 
   <script>

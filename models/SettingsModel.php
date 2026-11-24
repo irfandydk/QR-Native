@@ -49,10 +49,6 @@ class SettingsModel {
         return $settings;
     }
 
-    public static function getDbStats(): array {
-        return BackupService::getDbStats();
-    }
-
     public static function updateSettings(array $data): bool {
         $db = getDB();
         $fields = [

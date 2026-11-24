@@ -156,7 +156,7 @@ assertCondition("views/layout/footer.php memuat assets/js/gis/export.js", str_co
 // 4. Memeriksa Delegasi pada TacticalGisMap (assets/js/gis.js)
 echo "\n4. Memeriksa Delegasi SSOT pada assets/js/gis.js:\n";
 $gisJsContent = file_get_contents($rootDir . '/assets/js/gis.js');
-assertCondition("assets/js/gis.js getDistanceKm mendelegasikan ke QrSarGis.Geodesy", str_contains($gisJsContent, 'window.QrSarGis.Geodesy.calculateDistanceHaversine'));
+assertCondition("assets/js/gis.js sudah menghapus mode ukur tak terpakai dan overlay kosong", !str_contains($gisJsContent, 'toggleMeasureMode'));
 assertCondition("assets/js/gis.js formatDms mendelegasikan ke QrSarGis.Geodesy", str_contains($gisJsContent, 'window.QrSarGis.Geodesy.decimalToDms'));
 assertCondition("assets/js/gis.js marker rendering mendelegasikan ke QrSarGis.Markers", str_contains($gisJsContent, 'window.QrSarGis.Markers.createMarkerHtml'));
 

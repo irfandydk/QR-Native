@@ -1746,8 +1746,6 @@ function saveRenopsDraft() {
     cuaca: document.getElementById('renops_cuaca')?.value,
     gelombang: document.getElementById('renops_gelombang')?.value,
     angin: document.getElementById('renops_angin')?.value,
-    komunikasi: document.getElementById('input-komunikasi')?.value,
-    catatan: document.getElementById('input-catatan')?.value,
     srus: currentSrus,
     unsur: currentUnsurList,
     alut: currentAlutList,
@@ -1770,8 +1768,6 @@ function restoreRenopsDraft() {
     setVal('renops_cuaca', d.cuaca);
     setVal('renops_gelombang', d.gelombang);
     setVal('renops_angin', d.angin);
-    setVal('input-komunikasi', d.komunikasi);
-    setVal('input-catatan', d.catatan);
     if (Array.isArray(d.srus) && d.srus.length > 0) { currentSrus = d.srus; renderSruList(); }
     if (Array.isArray(d.unsur) && d.unsur.length > 0) { currentUnsurList = d.unsur; renderUnsurList(); }
     if (Array.isArray(d.alut) && d.alut.length > 0) { currentAlutList = d.alut; renderAlutList(); }

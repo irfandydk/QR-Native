@@ -34,39 +34,43 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - QR SAR Basarnas" : "QR SAR - Si
             };
         }
 
-        // Global Fetch Interceptor to automatically attach CSRF Token to state-changing requests
+        // Global Fetch Interceptor to automatically attach CSRF Token to state-changing requests (single-wrap)
         (function() {
+            if (window.__qrsarCsrfFetchPatched) return;
             var origFetch = window.fetch;
-            if (typeof origFetch === 'function') {
-                window.fetch = function(resource, config) {
-                    config = config || {};
-                    var method = (config.method || 'GET').toUpperCase();
-                    if (['POST', 'PUT', 'DELETE', 'PATCH'].indexOf(method) !== -1) {
+            if (typeof origFetch !== 'function') return;
+            window.__qrsarCsrfFetchPatched = true;
+            window.fetch = function(resource, config) {
+                config = config || {};
+                var method = (config.method || (typeof Request !== 'undefined' && resource instanceof Request ? resource.method : 'GET')).toUpperCase();
+                if (['POST', 'PUT', 'DELETE', 'PATCH'].indexOf(method) !== -1) {
+                    var token = window.CSRF_TOKEN ||
+                        (document.querySelector('meta[name="csrf-token"]')
+                            ? document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            : null);
+                    if (token) {
                         config.headers = config.headers || {};
-                        var token = window.CSRF_TOKEN;
-                        if (token) {
-                            if (typeof Headers !== 'undefined' && config.headers instanceof Headers) {
-                                if (!config.headers.has('X-CSRF-Token')) {
-                                    config.headers.append('X-CSRF-Token', token);
+                        if (typeof Headers !== 'undefined' && config.headers instanceof Headers) {
+                            if (!config.headers.has('X-CSRF-Token')) {
+                                config.headers.set('X-CSRF-Token', token);
+                            }
+                        } else if (Array.isArray(config.headers)) {
+                            var found = false;
+                            for (var i = 0; i < config.headers.length; i++) {
+                                if (config.headers[i][0] && config.headers[i][0].toLowerCase() === 'x-csrf-token') {
+                                    found = true; break;
                                 }
-                            } else if (Array.isArray(config.headers)) {
-                                var found = false;
-                                for (var i = 0; i < config.headers.length; i++) {
-                                    if (config.headers[i][0] && config.headers[i][0].toLowerCase() === 'x-csrf-token') {
-                                        found = true; break;
-                                    }
-                                }
-                                if (!found) config.headers.push(['X-CSRF-Token', token]);
-                            } else {
-                                if (!config.headers['X-CSRF-Token'] && !config.headers['x-csrf-token']) {
-                                    config.headers['X-CSRF-Token'] = token;
-                                }
+                            }
+                            if (!found) config.headers.push(['X-CSRF-Token', token]);
+                        } else {
+                            if (!config.headers['X-CSRF-Token'] && !config.headers['x-csrf-token']) {
+                                config.headers['X-CSRF-Token'] = token;
                             }
                         }
                     }
-                    return origFetch.call(this, resource, config);
-                };
-            }
+                }
+                return origFetch.call(this, resource, config);
+            };
         })();
 
         (function() {

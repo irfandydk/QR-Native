@@ -979,7 +979,34 @@ function initBraForm() {
     window.print();
   };
 
-  // High-fidelity Client-Side PDF Downloader (html2pdf A4 Retina 300 DPI)
+  let html2pdfLoadPromise = null;
+  function ensureHtml2PdfLoaded() {
+    if (typeof html2pdf !== 'undefined') {
+      return Promise.resolve();
+    }
+    if (html2pdfLoadPromise) {
+      return html2pdfLoadPromise;
+    }
+    const cfg = window.__BRA_FORM_CONFIG__ || {};
+    const url = cfg.html2pdfUrl || ((window.BASE_URL || '') + '/assets/vendor/html2pdf/html2pdf.bundle.min.js');
+    html2pdfLoadPromise = new Promise(function(resolve, reject) {
+      const script = document.createElement('script');
+      script.src = url;
+      script.async = true;
+      script.onload = function() {
+        if (typeof html2pdf !== 'undefined') resolve();
+        else reject(new Error('html2pdf gagal diinisialisasi'));
+      };
+      script.onerror = function() {
+        html2pdfLoadPromise = null;
+        reject(new Error('Gagal mengunduh modul generator PDF'));
+      };
+      document.head.appendChild(script);
+    });
+    return html2pdfLoadPromise;
+  }
+
+  // High-fidelity Client-Side PDF Downloader (html2pdf A4 Retina 300 DPI, lazy-loaded on demand)
   window.downloadBraPdf = function(targetElementId = 'braLivePaperPreview') {
     syncLivePreview();
     updateLiveQrCode();
@@ -999,8 +1026,18 @@ function initBraForm() {
 
     if (typeof html2pdf === 'undefined') {
       if (typeof showToast === 'function') {
-        showToast('Modul generator PDF sedang dimuat...', 'info');
+        showToast('Memuat modul generator PDF...', 'info');
       }
+      ensureHtml2PdfLoaded()
+        .then(function() {
+          window.downloadBraPdf(targetElementId);
+        })
+        .catch(function(err) {
+          console.error('Lazy load html2pdf error:', err);
+          if (typeof showToast === 'function') {
+            showToast('Gagal memuat modul PDF: ' + (err && err.message ? err.message : err), 'error');
+          }
+        });
       return;
     }
 

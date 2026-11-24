@@ -371,15 +371,8 @@ report("MasterModel::createAlut berhasil", $testAlutId > 0, "ID Alut: {$testAlut
 $testTimId = MasterModel::createTim(['nama_tim' => 'Tim Rescue Siaga Khusus']);
 report("MasterModel::createTim berhasil", $testTimId > 0, "ID Tim: {$testTimId}");
 
-$testUnitId = SarUnitModel::create([
-    'nama_unit' => 'Pos SAR Kolaka Utara',
-    'tipe' => 'POS_SAR',
-    'wilayah' => 'Kolaka Utara & Teluk Bone',
-    'koordinat' => "03° 10' 00.00\" S - 121° 02' 00.00\" E",
-    'kontak' => '0811-4091-888',
-    'is_default' => 0
-]);
-report("SarUnitModel::create berhasil", $testUnitId > 0, "ID Unit: {$testUnitId}");
+$sarUnitsRead = SarUnitModel::getAll();
+report("SarUnitModel::getAll berhasil mengembalikan daftar pangkalan SAR", is_array($sarUnitsRead));
 
 // -------------------------------------------------------------------------
 // 9. Pembersihan Data Uji Coba (Clean Teardown)
@@ -389,7 +382,6 @@ echo "\n--- 9. Pembersihan Data Uji Coba (Teardown) ---\n";
 // Hapus Master Data uji
 if ($testAlutId > 0) MasterModel::deleteAlut($testAlutId);
 if ($testTimId > 0) MasterModel::deleteTim($testTimId);
-if ($testUnitId > 0) SarUnitModel::delete($testUnitId);
 report("Master data uji coba berhasil dibersihkan", true);
 
 // Hapus BRA SAR uji

@@ -101,8 +101,8 @@ assertCondition(
     "operasi_form.js mengisi input manual_route_json dengan rute titik waypoints"
 );
 assertCondition(
-    strpos($opsFormContent, "tacticalRouteHidden.value = JSON.stringify") !== false,
-    "operasi_form.js mengisi input tactical_route_data dengan metadata lengkap"
+    strpos($opsFormContent, "tactical_route_data") === false,
+    "operasi_form.js sudah menghapus pengisian yatim #tactical_route_data yang tidak dipakai backend"
 );
 assertCondition(
     strpos($opsFormContent, "oLatIn.value = tacticalState.originLat") !== false,

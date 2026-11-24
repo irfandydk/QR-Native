@@ -82,19 +82,38 @@ $testFiles = [];
 foreach ($preferredOrder as $name) {
     $path = $testsDir . '/' . $name;
     if (file_exists($path)) {
-        $testFiles[] = $path;
+        $testFiles[] = ['type' => 'php', 'path' => $path, 'label' => basename($path)];
     }
 }
 
-// Add any test files not in preferred list
+// Add any PHP test files not in preferred list
 foreach ($allFiles as $path) {
-    if (!in_array($path, $testFiles, true)) {
-        $testFiles[] = $path;
+    $already = false;
+    foreach ($testFiles as $entry) {
+        if ($entry['path'] === $path) {
+            $already = true;
+            break;
+        }
     }
+    if (!$already) {
+        $testFiles[] = ['type' => 'php', 'path' => $path, 'label' => basename($path)];
+    }
+}
+
+// Discover Node.js unit test suites in tests/js/*.test.js
+$nodeBinary = trim((string)@shell_exec('command -v node 2>/dev/null'));
+$jsFiles = glob($testsDir . '/js/*.test.js') ?: [];
+sort($jsFiles);
+if ($nodeBinary !== '' && !empty($jsFiles)) {
+    foreach ($jsFiles as $jsPath) {
+        $testFiles[] = ['type' => 'js', 'path' => $jsPath, 'label' => 'js/' . basename($jsPath)];
+    }
+} elseif (!empty($jsFiles)) {
+    echo color("[WARN] Node.js tidak ditemukan di PATH; " . count($jsFiles) . " berkas uji JS dilewati.\n\n", "1;33");
 }
 
 if ($filter) {
-    $testFiles = array_filter($testFiles, fn($f) => stripos(basename($f), $filter) !== false);
+    $testFiles = array_values(array_filter($testFiles, fn($e) => stripos($e['label'], $filter) !== false));
     echo color("[INFO] Filter aktif: '{$filter}' (" . count($testFiles) . " berkas uji)\n\n", "1;36");
 }
 
@@ -105,12 +124,14 @@ $suiteResults = [];
 
 echo color("[MENJALANKAN SELURUH SUITE PENGUJIAN OTOMATIS...]\n\n", "1;37");
 
-foreach ($testFiles as $index => $testFile) {
-    $baseName = basename($testFile);
-    $num = str_pad((string)($index + 1), 2, '0', STR_PAD_LEFT);
+foreach ($testFiles as $index => $entry) {
+    $testFile = $entry['path'];
+    $baseName = $entry['label'];
+    $num = str_pad((string)($index + 1), 3, '0', STR_PAD_LEFT);
     $suiteStart = microtime(true);
 
-    $cmd = escapeshellarg($phpBinary) . ' ' . escapeshellarg($testFile);
+    $runnerBin = $entry['type'] === 'js' ? $nodeBinary : $phpBinary;
+    $cmd = escapeshellarg($runnerBin) . ' ' . escapeshellarg($testFile);
     $descriptorSpec = [
         0 => ["pipe", "r"],
         1 => ["pipe", "w"],
@@ -130,7 +151,7 @@ foreach ($testFiles as $index => $testFile) {
         $exitCode = proc_close($process);
     } else {
         $exitCode = -1;
-        $stderr = "Gagal menjalankan sub-proses PHP.";
+        $stderr = "Gagal menjalankan sub-proses " . strtoupper($entry['type']) . ".";
     }
 
     $elapsed = round(microtime(true) - $suiteStart, 2);
@@ -141,10 +162,10 @@ foreach ($testFiles as $index => $testFile) {
     $failCount = 0;
     if (preg_match('/(\d+)\s*\/\s*(\d+)\s*(?:Passed|test|berhasil)/i', $stdout, $m)) {
         $passCount = (int)$m[1];
-    } elseif (preg_match_all('/\[PASS\]/i', $stdout, $mPass)) {
+    } elseif (preg_match_all('/(?:\[PASS\]|^PASS\b|^ok \d+)/mi', $stdout, $mPass)) {
         $passCount = count($mPass[0]);
     }
-    if (preg_match_all('/\[FAIL\]/i', $stdout, $mFail)) {
+    if (preg_match_all('/(?:\[FAIL\]|^FAIL\b|^not ok \d+)/mi', $stdout, $mFail)) {
         $failCount = count($mFail[0]);
     }
 
@@ -158,7 +179,7 @@ foreach ($testFiles as $index => $testFile) {
         $detail = color("(exit code {$exitCode}, {$elapsed}s)", "1;31");
     }
 
-    printf(" [%s/%s] %-42s [%s] %s\n", $num, str_pad((string)$totalSuites, 2, '0', STR_PAD_LEFT), $baseName, $statusStr, $detail);
+    printf(" [%s/%s] %-46s [%s] %s\n", $num, str_pad((string)$totalSuites, 3, '0', STR_PAD_LEFT), $baseName, $statusStr, $detail);
 
     $suiteResults[] = [
         'file' => $baseName,

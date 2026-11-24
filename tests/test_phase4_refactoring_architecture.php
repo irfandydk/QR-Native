@@ -64,9 +64,8 @@ assertCondition("BackupService memiliki method splitSqlStatements", method_exist
 assertCondition("BackupService tidak lagi menyimpan metode JSON backup mati", !method_exists('BackupService', 'exportJsonBackup') && !method_exists('BackupService', 'restoreFromJson'));
 
 $backupStats = BackupService::getDbStats();
-$settingsStats = SettingsModel::getDbStats();
 assertCondition("BackupService::getDbStats() mengembalikan array statistik lengkap", isset($backupStats['total_operasi'], $backupStats['total_renops'], $backupStats['total_bra_sar']));
-assertCondition("SettingsModel::getDbStats() identik 100% dengan BackupService::getDbStats()", $backupStats === $settingsStats);
+assertCondition("Wrapper redundan SettingsModel::getDbStats() sudah dibersihkan", !method_exists('SettingsModel', 'getDbStats'));
 
 // 4. Uji Thin Dispatcher pada File Entrypoint Root
 echo "\n4. Memeriksa Kontrak Thin Dispatcher pada Seluruh Entrypoint Root:\n";

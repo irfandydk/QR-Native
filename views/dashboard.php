@@ -390,7 +390,7 @@ $benefits = [
               width="32"
               height="32"
               class="w-8 h-8 object-contain shrink-0"
-              onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'"
+              onerror="this.src='<?= assetUrl('assets/images/logo_basarnas.svg') ?>'"
             >
             <p class="text-xs font-medium text-slate-500 dark:text-slate-400 truncate">
               <span class="font-semibold text-slate-800 dark:text-slate-200"><?= e($satkerNama) ?></span>

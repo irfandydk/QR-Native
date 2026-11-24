@@ -77,7 +77,6 @@ class DokumenPetaSnapshotModel {
      * Menyimpan atau memperbarui snapshot peta untuk dokumen tertentu.
      */
     public static function saveSnapshot(array $data): array {
-        self::ensureSchemaUpdated();
         $db = getDB();
 
         $idOperasi = (int)($data['id_operasi'] ?? 0);
@@ -214,7 +213,6 @@ class DokumenPetaSnapshotModel {
      * Mengambil snapshot berdasarkan ID primary key.
      */
     public static function getById(int $idSnapshot): ?array {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $stmt = $db->prepare("SELECT * FROM DokumenPetaSnapshot WHERE id_snapshot = :id LIMIT 1");
         $stmt->execute([':id' => $idSnapshot]);
@@ -230,7 +228,6 @@ class DokumenPetaSnapshotModel {
         if ($idOperasi <= 0 || $jenis === null || ($jenis === 'RENOPS_RENCANA' && (int)$idReferensi <= 0)) {
             return null;
         }
-        self::ensureSchemaUpdated();
         $sql = "SELECT * FROM DokumenPetaSnapshot WHERE id_operasi = :op AND jenis_dokumen = :jenis AND "
             . ($jenis === 'RENOPS' ? 'id_referensi IS NULL' : 'id_referensi = :ref')
             . ' ORDER BY updated_at DESC, id_snapshot DESC LIMIT 1';
@@ -248,7 +245,6 @@ class DokumenPetaSnapshotModel {
         if ($idOperasi <= 0) {
             return [];
         }
-        self::ensureSchemaUpdated();
         $db = getDB();
         $stmt = $db->prepare("SELECT * FROM DokumenPetaSnapshot WHERE id_operasi = :op ORDER BY updated_at DESC, id_snapshot DESC");
         $stmt->execute([':op' => $idOperasi]);
@@ -260,7 +256,6 @@ class DokumenPetaSnapshotModel {
      * Menghapus snapshot berdasarkan ID.
      */
     public static function deleteSnapshot(int $idSnapshot): bool {
-        self::ensureSchemaUpdated();
         $db = getDB();
         $existing = self::getById($idSnapshot);
         if (!$existing) {
@@ -280,7 +275,6 @@ class DokumenPetaSnapshotModel {
      * @return array<string>
      */
     public static function deleteByOperasi(int $idOperasi, bool $deleteFilesImmediately = true): array {
-        self::ensureSchemaUpdated();
         $filePaths = [];
         try {
             $db = getDB();
@@ -307,7 +301,6 @@ class DokumenPetaSnapshotModel {
      * Menghapus snapshot peta milik satu hari RENOPS (Peta Rencana Operasi) beserta berkasnya.
      */
     public static function deleteByReferensi(string $tipeDokumen, int $idReferensi): void {
-        self::ensureSchemaUpdated();
         $jenisDokumen = self::normalizeJenisDokumen($tipeDokumen);
         if ($jenisDokumen === null) {
             return;

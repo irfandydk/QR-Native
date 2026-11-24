@@ -140,28 +140,20 @@ assertTest(
 echo "\n[3] Verifikasi E-SAR Arah Sapuan dan Render Panah Tersimpan (Poin 2)...\n";
 
 assertTest(
-    "views/gis.php menyediakan 4 tombol vektor arah E-SAR dengan data-direction dan data-dir",
-    str_contains($gisView, 'id="btnEsarDirWtoE"') &&
-    str_contains($gisView, 'data-direction="west_to_east"') &&
-    str_contains($gisView, 'id="btnEsarDirEtoW"') &&
-    str_contains($gisView, 'data-direction="east_to_west"') &&
-    str_contains($gisView, 'id="btnEsarDirNtoS"') &&
-    str_contains($gisView, 'data-direction="north_to_south"') &&
-    str_contains($gisView, 'id="btnEsarDirStoN"') &&
-    str_contains($gisView, 'data-direction="south_to_north"')
+    "views/gis.php tidak merender wrapper tombol kosong #esarOrientationWrapper dan memakai slider orientasi",
+    !str_contains($gisView, 'id="esarOrientationWrapper"') &&
+    !str_contains($gisView, 'id="btnEsarDirWtoE"') &&
+    str_contains($gisView, 'id="patternRotationSlider"')
 );
 
 assertTest(
-    "assets/js/gis_master.js updateEsarDirectionButtonsUI men-toggle kelas hidden antara grup horizontal dan vertikal",
-    str_contains($gisMasterJs, "const hGroup = document.getElementById('esarDirHorizontalGroup');") &&
-    str_contains($gisMasterJs, "const vGroup = document.getElementById('esarDirVerticalGroup');") &&
-    str_contains($gisMasterJs, "hGroup.classList.remove('hidden');") &&
-    str_contains($gisMasterJs, "vGroup.classList.remove('hidden');")
+    "assets/js/gis_master.js tidak lagi meng-unhide #esarOrientationWrapper saat mode E-SAR",
+    !str_contains($gisMasterJs, "document.getElementById('esarOrientationWrapper')")
 );
 
 assertTest(
-    "assets/js/gis_master.js tombol arah E-SAR memicu regenerasi real-time generateSearchPatternRoute()",
-    str_contains($gisMasterJs, "document.querySelectorAll('.esar-dir-btn').forEach") &&
+    "assets/js/gis_master.js slider orientasi memicu regenerasi real-time generateSearchPatternRoute()",
+    str_contains($gisMasterJs, "applyManualRotationDeg") &&
     str_contains($gisMasterJs, "generateSearchPatternRoute();")
 );
 

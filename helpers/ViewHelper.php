@@ -25,11 +25,6 @@ class ViewHelper
     /**
      * Resolve view file path with support for both modular subdirectories and legacy flat aliases
      */
-    public static function resolve(string $view): string
-    {
-        return self::resolveViewFile($view);
-    }
-
     public static function resolveViewFile(string $view): string
     {
         if (!str_ends_with($view, '.php')) {

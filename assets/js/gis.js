@@ -17,16 +17,11 @@ class TacticalGisMap {
             points: L.layerGroup(),         // Titik Taktis & Icon
             polygons: L.layerGroup(),       // Area Pencarian (Polygon)
             searchPatterns: L.layerGroup(), // Pola SAR
-            routes: L.layerGroup(),         // Jalur & Rute (Garis)
-            measurements: L.layerGroup()    // Penggaris & Sudut
+            routes: L.layerGroup()          // Jalur & Rute (Garis)
         };
         this.baseLayers = {};
         this.currentBaseLayerKey = this.options.defaultLayer || 'hybrid';
         this.componentLayers = {};
-
-        this.measureMode = false;
-        this.measurePoints = [];
-        this.measureLine = null;
 
         this.init();
     }
@@ -136,8 +131,7 @@ class TacticalGisMap {
             "📍 Titik Taktis & Icon": this.layers.points,
             "⬡ Area Pencarian (Polygon)": this.layers.polygons,
             "⚡ Pola Pencarian SAR": this.layers.searchPatterns,
-            "↗️ Jalur & Rute (Garis)": this.layers.routes,
-            "📐 Alat Ukur Jarak": this.layers.measurements
+            "↗️ Jalur & Rute (Garis)": this.layers.routes
         };
 
         L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(this.map);
@@ -152,9 +146,6 @@ class TacticalGisMap {
                 setTimeout(() => this.map.invalidateSize(), 150);
             }
         });
-
-        // Click handler for coordinates
-        this.map.on('click', (e) => this.onMapClick(e));
     }
 
     switchBaseLayer(layerKey) {
@@ -166,83 +157,6 @@ class TacticalGisMap {
         });
         this.baseLayers[layerKey].addTo(this.map);
         this.currentBaseLayerKey = layerKey;
-    }
-
-    onMapClick(e) {
-        if (this.measureMode) {
-            this.handleMeasureClick(e.latlng);
-            return;
-        }
-
-        const lat = e.latlng.lat;
-        const lng = e.latlng.lng;
-
-        // Dispatch custom event for picker
-        const event = new CustomEvent('map-coordinate-picked', {
-            detail: { lat, lng }
-        });
-        window.dispatchEvent(event);
-    }
-
-    // Toggle Distance & Bearing Measurement Mode
-    toggleMeasureMode() {
-        this.measureMode = !this.measureMode;
-        if (!this.measureMode) {
-            this.clearMeasurements();
-            showToast('Mode Pengukuran Jarak Dinonaktifkan', 'info');
-        } else {
-            this.clearMeasurements();
-            showToast('Klik titik awal di peta, lalu klik titik tujuan untuk mengukur jarak & arah kompas.', 'info');
-        }
-    }
-
-    handleMeasureClick(latlng) {
-        this.measurePoints.push(latlng);
-
-        const marker = L.circleMarker(latlng, {
-            radius: 5,
-            fillColor: '#F97316',
-            color: '#FFFFFF',
-            weight: 2,
-            fillOpacity: 1
-        }).addTo(this.layers.measurements);
-
-        if (this.measurePoints.length === 2) {
-            const pt1 = this.measurePoints[0];
-            const pt2 = this.measurePoints[1];
-
-            this.measureLine = L.polyline([pt1, pt2], {
-                color: '#F97316',
-                weight: 3.5,
-                dashArray: '6, 6'
-            }).addTo(this.layers.measurements);
-
-            // Compute distance and bearing
-            const distKm = this.getDistanceKm(pt1.lat, pt1.lng, pt2.lat, pt2.lng);
-            const distNm = (distKm * 0.539957).toFixed(1);
-            const bearing = this.getBearing(pt1.lat, pt1.lng, pt2.lat, pt2.lng);
-
-            const midLat = (pt1.lat + pt2.lat) / 2;
-            const midLng = (pt1.lng + pt2.lng) / 2;
-
-            L.popup()
-                .setLatLng([midLat, midLng])
-                .setContent(`
-                    <div style="font-size:12px;font-weight:bold;color:#0F172A;">
-                        <div style="color:#EA580C;margin-bottom:4px;">📐 HASIL PENGUKURAN TAKTIS</div>
-                        <div>Jarak: <span style="color:#0284C7;">${distNm} Nm</span> (${distKm.toFixed(1)} Km)</div>
-                        <div>Arah/Sudut: <span style="color:#059669;">${bearing.deg}° ${bearing.cardinal}</span></div>
-                    </div>
-                `)
-                .openOn(this.map);
-
-            this.measurePoints = [];
-        }
-    }
-
-    clearMeasurements() {
-        this.layers.measurements.clearLayers();
-        this.measurePoints = [];
     }
 
     // Security & Sanitization Helpers (SEC-01)
@@ -306,34 +220,6 @@ class TacticalGisMap {
         `).openPopup();
 
         this.map.setView([numLat, numLng], 11);
-    }
-
-    // Math Helpers (Unified with QrSarGis.Geodesy SSOT)
-    getDistanceKm(lat1, lon1, lat2, lon2) {
-        if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.calculateDistanceHaversine === 'function') {
-            return window.QrSarGis.Geodesy.calculateDistanceHaversine(lat1, lon1, lat2, lon2).km;
-        }
-        const R = 6371;
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                  Math.sin(dLon/2) * Math.sin(dLon/2);
-        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    }
-
-    getBearing(lat1, lon1, lat2, lon2) {
-        if (window.QrSarGis && window.QrSarGis.Geodesy && typeof window.QrSarGis.Geodesy.calculateDistanceHaversine === 'function') {
-            const res = window.QrSarGis.Geodesy.calculateDistanceHaversine(lat1, lon1, lat2, lon2);
-            return { deg: Math.round(res.bearing), cardinal: res.headingName };
-        }
-        const y = Math.sin((lon2 - lon1) * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180);
-        const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
-                  Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos((lon2 - lon1) * Math.PI / 180);
-        const brng = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-        const cardinals = ['Utara', 'Timur Laut', 'Timur', 'Tenggara', 'Selatan', 'Barat Daya', 'Barat', 'Barat Laut', 'Utara'];
-        const card = cardinals[Math.round(brng / 45)];
-        return { deg: Math.round(brng), cardinal: card };
     }
 
     // DMS Formatter Helper

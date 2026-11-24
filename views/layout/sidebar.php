@@ -325,34 +325,7 @@ $openOpsCount = class_exists('OperasiModel') ? OperasiModel::countOpen() : 0;
     });
   }
 
-  // 3. Theme State Display in Sidebar
-  const themeIcon = document.getElementById('sidebarThemeIcon');
-  const themeLabel = document.getElementById('sidebarThemeLabel');
-
-  function updateSidebarThemeUI(theme) {
-    if (themeIcon) {
-      if (theme === 'dark') {
-        themeIcon.innerHTML = `<svg class="w-3.5 h-3.5 text-amber-300" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>`;
-      } else {
-        themeIcon.innerHTML = `<svg class="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
-      }
-    }
-    if (themeLabel) {
-      themeLabel.textContent = theme === 'dark' ? 'Terang' : 'Gelap';
-    }
-  }
-
-  const currentTheme = localStorage.getItem('qr_sar_theme') || document.documentElement.getAttribute('data-theme') || 'dark';
-  updateSidebarThemeUI(currentTheme);
-
-  // React to theme changes emitted globally by app.js (no duplicate click listener)
-  window.addEventListener('themeChanged', (e) => {
-    if (e && e.detail && e.detail.theme) {
-      updateSidebarThemeUI(e.detail.theme);
-    }
-  });
-
-  // 4. Color Palette Picker Popover
+  // 3. Color Palette Picker Popover
   const paletteBtn = document.getElementById('sidebarPaletteBtn');
   const palettePopover = document.getElementById('sidebarPalettePopover');
 

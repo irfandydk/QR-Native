@@ -15,7 +15,7 @@ class DashboardController extends BaseController {
         $this->requireLogin();
 
         $stats = OperasiModel::getStats();
-        $activeOperations = array_slice(OperasiModel::getListSimple('OPEN'), 0, 3);
+        $activeOperations = OperasiModel::getListSimple('OPEN', 3);
         $appSettings = SettingsModel::getSettings();
         $currentUser = AuthHelper::getCurrentUser();
         $isAdmin = AuthHelper::isAdmin();

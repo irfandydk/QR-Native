@@ -34,13 +34,13 @@ assertCondition(str_contains($js, 'opacity: polyStrokeOpacity') && str_contains(
 assertCondition(str_contains($js, 'opacity: poly.strokeOpacity'), 'Area tersimpan dirender dengan transparansi garisnya');
 assertCondition(str_contains($js, 'sar-rect-center-pin'), 'Persegi punya pin tengah untuk digeser utuh');
 
-// Task 7: jarak lurus terkunci setelah A–B, tombol Reset Garis
+// Task 7: jarak lurus terkunci setelah A–B, tombol Bersihkan / Reset Garis
 $fnAdd = substr($js, (int)strpos($js, 'function addMeasurePoint('), 1600);
-assertCondition(str_contains($view, 'id="btnResetMeasureLine"') && str_contains($js, 'resetMeasureLine: () => resetMeasureLine()'), 'Tombol Reset Garis');
+assertCondition(str_contains($view, 'id="btnClearMeasureRoute"') && !str_contains($view, 'id="btnResetMeasureLine"') && str_contains($js, 'resetMeasureLine: () => resetMeasureLine()'), 'Tombol Bersihkan Garis aktif tanpa tombol hidden legacy');
 assertCondition(!str_contains($fnAdd, 'measurePoints = [{ lat, lng }]') && str_contains($js, 'Garis lengkap — tekan Reset untuk membuat ulang'), 'Klik setelah A–B tidak me-reset garis lurus');
 
-// Task 8: tombol flip pola PS/CS tersambung & tersimpan
-assertCondition(str_contains($view, 'id="btnPatternFlipH"') && str_contains($view, 'id="btnPatternFlipV"') && str_contains($view, 'id="patternFlipWrapper"'), 'Tombol Flip ⇆ / ⇅ di form pola');
+// Task 8: kontrol orientasi slider 0-359 & dukungan flip pola PS/CS tersimpan
+assertCondition(str_contains($view, 'id="patternRotationSlider"') && str_contains($view, 'id="patternFlipWrapper"') && !str_contains($view, 'id="btnPatternFlipH"'), 'Slider orientasi aktif tanpa tombol flip hidden kosong');
 assertCondition(str_contains($js, 'flipH: activePatternFlipH') && str_contains($js, 'flipV: activePatternFlipV') && str_contains($js, 'activePatternFlipH = !!pat.flipH'), 'Flip diteruskan ke generator, disimpan & dipulihkan saat edit');
 
 // Task 9: tile citra kosong (laut lepas z>=17) diganti tile induk, bukan blank

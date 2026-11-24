@@ -74,7 +74,7 @@ class OperasiModel {
         return $stmt->fetchAll();
     }
 
-    public static function getListSimple(?string $status = null): array {
+    public static function getListSimple(?string $status = null, ?int $limit = null): array {
         $db = getDB();
         $sql = "SELECT id_operasi, nama_operasi, status, lokasi_kejadian, koordinat, waktu_kejadian, waktu_berangkat, waktu_lapor, waktu_selesai, waktu_reopen, created_at FROM Operasi";
         $params = [];
@@ -89,6 +89,9 @@ class OperasiModel {
             }
         }
         $sql .= " ORDER BY id_operasi DESC";
+        if ($limit !== null && $limit > 0) {
+            $sql .= " LIMIT " . (int)$limit;
+        }
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();

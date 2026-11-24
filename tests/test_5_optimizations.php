@@ -40,7 +40,7 @@ echo "\n=== TEST 4: Mathematical Formula Verification ===\n";
 // 4a. Haversine 1 degree of latitude
 $p1 = ['lat' => -4.0, 'lng' => 122.0];
 $p2 = ['lat' => -3.0, 'lng' => 122.0];
-$distHaversine = GisModel::calculateDistanceHaversine($p1['lat'], $p1['lng'], $p2['lat'], $p2['lng']);
+$distHaversine = GeoHelper::calculateDistanceHaversine($p1['lat'], $p1['lng'], $p2['lat'], $p2['lng']);
 echo "Haversine 1 deg latitude: " . $distHaversine['nm'] . " NM (" . $distHaversine['km'] . " km)\n";
 assert(abs($distHaversine['nm'] - 60.0) < 0.2, "Haversine latitude distance should be ~60 NM");
 echo "✓ Haversine Distance OK\n";

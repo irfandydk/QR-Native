@@ -4035,150 +4035,8 @@
       });
     });
 
-    // E-SAR Orientation Buttons (Horizontal vs Vertical)
-    const btnEsarH = document.getElementById('btnEsarOrientHorizontal');
-    const btnEsarV = document.getElementById('btnEsarOrientVertical');
-
-    function updateEsarDirectionButtonsUI() {
-      document.querySelectorAll('.esar-dir-btn').forEach((btn) => {
-        const dir = btn.getAttribute('data-direction') || btn.getAttribute('data-dir');
-        const isActive = dir === activeEsarDirection;
-        if (isActive) {
-          btn.className = 'esar-dir-btn p-2 rounded-xl border border-sky-500 bg-sky-500/20 text-sky-700 dark:text-sky-300 font-bold transition shadow-xs cursor-pointer flex items-center justify-center gap-1 text-xs';
-        } else {
-          btn.className = 'esar-dir-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-sky-500 font-semibold transition cursor-pointer flex items-center justify-center gap-1 text-xs';
-        }
-      });
-
-      // Toggle Horizontal vs Vertical direction button groups
-      const hGroup = document.getElementById('esarDirHorizontalGroup');
-      const vGroup = document.getElementById('esarDirVerticalGroup');
-      if (hGroup && vGroup) {
-        if (activeEsarOrientation === 'horizontal') {
-          hGroup.classList.remove('hidden');
-          vGroup.classList.add('hidden');
-        } else {
-          hGroup.classList.add('hidden');
-          vGroup.classList.remove('hidden');
-        }
-      }
-
-      if (btnEsarH) {
-        btnEsarH.className = activeEsarOrientation === 'horizontal'
-          ? 'esar-orient-btn p-2 rounded-xl border border-sky-500 bg-sky-500/20 text-sky-700 dark:text-sky-300 flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer font-bold'
-          : 'esar-orient-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-sky-500 flex items-center justify-center gap-1.5 transition cursor-pointer';
-      }
-      if (btnEsarV) {
-        btnEsarV.className = activeEsarOrientation === 'vertical'
-          ? 'esar-orient-btn p-2 rounded-xl border border-sky-500 bg-sky-500/20 text-sky-700 dark:text-sky-300 flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer font-bold'
-          : 'esar-orient-btn p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-sky-500 flex items-center justify-center gap-1.5 transition cursor-pointer';
-      }
-    }
-
-    [btnEsarH, btnEsarV].forEach((btn) => {
-      if (btn) {
-        btn.addEventListener('click', () => {
-          activeEsarOrientation = btn.getAttribute('data-orientation') || 'horizontal';
-          if (activeEsarOrientation === 'horizontal') {
-            if (activeEsarDirection !== 'west_to_east' && activeEsarDirection !== 'east_to_west') {
-              activeEsarDirection = 'west_to_east';
-            }
-          } else {
-            if (activeEsarDirection !== 'north_to_south' && activeEsarDirection !== 'south_to_north') {
-              activeEsarDirection = 'north_to_south';
-            }
-          }
-          updateEsarDirectionButtonsUI();
-          updatePatternAutoCalculation({ source: 'auto' });
-          generateSearchPatternRoute();
-        });
-      }
-    });
-
-    // 4-Vector Direction Buttons for E-SAR (West->East, East->West, North->South, South->North)
-    document.querySelectorAll('.esar-dir-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const dir = btn.getAttribute('data-direction') || btn.getAttribute('data-dir') || 'west_to_east';
-        activeEsarDirection = dir;
-        if (dir === 'north_to_south' || dir === 'south_to_north') {
-          activeEsarOrientation = 'vertical';
-        } else {
-          activeEsarOrientation = 'horizontal';
-        }
-        updateEsarDirectionButtonsUI();
-        updatePatternAutoCalculation({ source: 'auto' });
-        generateSearchPatternRoute();
-      });
-    });
-
-    // Flip pola PS/CS: toggle cermin, regenerasi lintasan
-    [['btnPatternFlipH', 'H'], ['btnPatternFlipV', 'V']].forEach(([id, axis]) => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
-      btn.addEventListener('click', () => {
-        if (axis === 'H') activePatternFlipH = !activePatternFlipH;
-        else activePatternFlipV = !activePatternFlipV;
-        activePatternAutoMode = false;
-        activePatternPresetDir = '';
-        updatePatternFlipButtonsUI();
-        updatePatternAutoCalculation({ source: 'auto' });
-        generateSearchPatternRoute();
-      });
-    });
-
-    // Mode Auto-Orientasi mengikuti bentuk area & titik LKP/rute
-    const btnAutoOrient = document.getElementById('btnPatternAutoOrient');
-    if (btnAutoOrient) {
-      btnAutoOrient.addEventListener('click', () => {
-        applyAutoPatternOrientation(true);
-      });
-    }
-
-    // Reset Utara Default (0°)
-    const btnResetNorth = document.getElementById('btnPatternResetNorth');
-    if (btnResetNorth) {
-      btnResetNorth.addEventListener('click', () => {
-        activePatternRotationDeg = 0;
-        activePatternFlipH = false;
-        activePatternFlipV = false;
-        activePatternAutoMode = false;
-        activePatternPresetDir = 'N_S';
-        activePatternAutoLabel = '';
-        updatePatternFlipButtonsUI();
-        updatePatternAutoCalculation({ source: 'auto' });
-        generateSearchPatternRoute();
-      });
-    }
-
-    // 8-Compass Preset Arah Penerapan Pola
-    document.querySelectorAll('.pat-dir-preset-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const dirCode = btn.getAttribute('data-pat-dir') || 'N_S';
-        activePatternAutoMode = false;
-        activePatternPresetDir = dirCode;
-        activePatternAutoLabel = '';
-        if (window.QrSarGis && window.QrSarGis.Patterns && typeof window.QrSarGis.Patterns.directionPresetToConfig === 'function') {
-          const cfg = window.QrSarGis.Patterns.directionPresetToConfig(activePatternType, dirCode);
-          activePatternRotationDeg = cfg.rotationDeg;
-          activePatternFlipH = !!cfg.flipH;
-          activePatternFlipV = !!cfg.flipV;
-        }
-        if (activePatternType === 'e_sar' || activePatternType === 'sector_search') {
-          if (dirCode === 'W_E') { activeEsarOrientation = 'horizontal'; activeEsarDirection = 'west_to_east'; }
-          else if (dirCode === 'E_W') { activeEsarOrientation = 'horizontal'; activeEsarDirection = 'east_to_west'; }
-          else if (dirCode === 'N_S') { activeEsarOrientation = 'vertical'; activeEsarDirection = 'north_to_south'; }
-          else if (dirCode === 'S_N') { activeEsarOrientation = 'vertical'; activeEsarDirection = 'south_to_north'; }
-          updateEsarDirectionButtonsUI();
-        }
-        updatePatternFlipButtonsUI();
-        updatePatternAutoCalculation({ source: 'auto' });
-        generateSearchPatternRoute();
-      });
-    });
-
-    // Slider & Input Sudut Rotasi Bebas (0° - 359°)
+    // Slider Sudut Rotasi Bebas (0° - 359°)
     const rotSlider = document.getElementById('patternRotationSlider');
-    const rotInput = document.getElementById('patternRotationInput');
     const applyManualRotationDeg = (rawDeg) => {
       const deg = ((Math.round(parseFloat(rawDeg) || 0)) % 360 + 360) % 360;
       activePatternRotationDeg = deg;
@@ -4194,30 +4052,6 @@
         applyManualRotationDeg(e.target.value);
       });
     }
-    if (rotInput) {
-      rotInput.addEventListener('change', (e) => {
-        applyManualRotationDeg(e.target.value);
-      });
-      rotInput.addEventListener('input', (e) => {
-        if (e.target.value !== '') {
-          applyManualRotationDeg(e.target.value);
-        }
-      });
-    }
-
-    // Tombol Step Rotasi Cepat (-15°, +15°, +90°)
-    [
-      ['btnPatternRotateCCW', -15],
-      ['btnPatternRotateCW', 15],
-      ['btnPatternRotate90', 90]
-    ].forEach(([btnId, deltaDeg]) => {
-      const stepBtn = document.getElementById(btnId);
-      if (stepBtn) {
-        stepBtn.addEventListener('click', () => {
-          applyManualRotationDeg((Number(activePatternRotationDeg) || 0) + deltaDeg);
-        });
-      }
-    });
 
     updatePatternFlipButtonsUI();
 
@@ -4279,24 +4113,6 @@
         if (activeGeneratedWaypoints && activeGeneratedWaypoints.length >= 2) {
           generateSearchPatternRoute();
         }
-      });
-    }
-
-    // Generate Button
-    const btnGen = document.getElementById('btnGenerateSearchPattern');
-    if (btnGen) {
-      btnGen.addEventListener('click', generateSearchPatternRoute);
-    }
-
-    // Clear Button (Batal / Bersihkan)
-    const btnClear = document.getElementById('btnClearCurrentPattern');
-    if (btnClear) {
-      btnClear.addEventListener('click', () => {
-        clearCurrentPatternVisual();
-        const card = document.getElementById('patternCreationCard');
-        if (card) card.classList.add('hidden');
-        const btnNew = document.getElementById('btnStartNewPattern');
-        if (btnNew) btnNew.classList.remove('hidden');
       });
     }
 
@@ -4524,12 +4340,10 @@
     const isEsar = (activePatternType === 'sector_search' || activePatternType === 'e_sar');
     const flipWrapper = document.getElementById('patternFlipWrapper');
     if (flipWrapper) flipWrapper.classList.remove('hidden');
-    const esarWrapper = document.getElementById('esarOrientationWrapper');
     const esarPersonnelInfo = document.getElementById('patternEsarPersonnelInfo');
     const personnelReadout = document.getElementById('patternPersonnelCalcReadout');
 
     if (isEsar) {
-      if (esarWrapper) esarWrapper.classList.remove('hidden');
       if (esarPersonnelInfo) esarPersonnelInfo.classList.remove('hidden');
 
       const areaStats = calculatePolygonSphericalArea(coords);
@@ -4596,7 +4410,6 @@
         marginInfoEl.textContent = `${formatDynamicDistance(marginVal, marginVal * 1.852)}`;
       }
     } else {
-      if (esarWrapper) esarWrapper.classList.add('hidden');
       if (esarPersonnelInfo) esarPersonnelInfo.classList.add('hidden');
 
       // Recommended sweeps for marine search (Parallel Track & Creeping Line)
@@ -4719,47 +4532,11 @@
   }
 
   function updatePatternFlipButtonsUI() {
-    [['btnPatternFlipH', activePatternFlipH], ['btnPatternFlipV', activePatternFlipV]].forEach(([id, on]) => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
-      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      btn.classList.toggle('border-orange-500', on);
-      btn.classList.toggle('bg-orange-500/10', on);
-      btn.classList.toggle('text-orange-600', on);
-    });
-
     const normRot = ((Math.round(Number(activePatternRotationDeg) || 0)) % 360 + 360) % 360;
     const rotSlider = document.getElementById('patternRotationSlider');
     if (rotSlider && String(rotSlider.value) !== String(normRot)) {
       rotSlider.value = String(normRot);
     }
-    const rotInput = document.getElementById('patternRotationInput');
-    if (rotInput && String(rotInput.value) !== String(normRot)) {
-      rotInput.value = String(normRot);
-    }
-
-    const btnAuto = document.getElementById('btnPatternAutoOrient');
-    if (btnAuto) {
-      btnAuto.setAttribute('aria-pressed', activePatternAutoMode ? 'true' : 'false');
-      btnAuto.classList.toggle('ring-2', activePatternAutoMode);
-      btnAuto.classList.toggle('ring-orange-400', activePatternAutoMode);
-    }
-
-    document.querySelectorAll('.pat-dir-preset-btn').forEach((btn) => {
-      const code = btn.getAttribute('data-pat-dir');
-      const isPresetActive = !activePatternAutoMode && activePatternPresetDir === code;
-      btn.setAttribute('aria-pressed', isPresetActive ? 'true' : 'false');
-      btn.classList.toggle('border-orange-500', isPresetActive);
-      btn.classList.toggle('bg-orange-500/15', isPresetActive);
-      btn.classList.toggle('text-orange-600', isPresetActive);
-      btn.classList.toggle('dark:text-orange-400', isPresetActive);
-      btn.classList.toggle('border-slate-200', !isPresetActive);
-      btn.classList.toggle('dark:border-slate-800', !isPresetActive);
-      btn.classList.toggle('bg-white', !isPresetActive);
-      btn.classList.toggle('dark:bg-slate-900', !isPresetActive);
-      btn.classList.toggle('text-slate-600', !isPresetActive);
-      btn.classList.toggle('dark:text-slate-300', !isPresetActive);
-    });
 
     const badgeEl = document.getElementById('patternOrientationBadge');
     if (badgeEl) {
@@ -5949,13 +5726,10 @@
     }
 
     // Tombol "Undo" (Tunggal): Membatalkan Titik Terakhir 1 per 1
-    const btnUndoWaypoint = document.getElementById('btnUndoMeasureRouteWaypoint');
     const btnBottomUndo = document.getElementById('btnBottomUndoRoute');
-    [btnUndoWaypoint, btnBottomUndo].forEach((btn) => {
-      if (btn && !btn.getAttribute('onclick')) {
-        btn.addEventListener('click', () => undoLastMeasurePoint());
-      }
-    });
+    if (btnBottomUndo && !btnBottomUndo.getAttribute('onclick')) {
+      btnBottomUndo.addEventListener('click', () => undoLastMeasurePoint());
+    }
 
     // Initialize default mode
     setMeasureMode(measureModeType);
@@ -7736,7 +7510,6 @@
       }
     },
 
-    togglePointGroup: (key) => togglePointGroup(key),
     toggleEntityGroup: (type, key) => toggleEntityGroup(type, key),
     toggleItemSelect: (type, id, checked) => toggleItemSelect(type, id, checked),
     toggleSelectAll: (type, checked) => toggleSelectAll(type, checked),
@@ -7922,22 +7695,15 @@
       }
     },
 
-    setMeasureMode: (mode) => setMeasureMode(mode),
     saveRoute: () => performSaveRoute({ isManualClick: true }),
     clearRoute: () => resetMeasureLine(),
-    cancelRoute: () => clearMeasureVisual(),
     resetMeasureLine: () => resetMeasureLine(),
     undoRoutePoint: () => undoLastMeasurePoint(),
     copyPointCoordinates: (id) => copyPointCoordinates(id),
-    setSearchAreaShape: (shape) => setSearchAreaShape(shape),
     setUnit: (u) => setGlobalMeasurementUnit(u),
     getUnit: () => activeGlobalUnit,
     updateBadges: () => updateGisBadges()
   };
-
-  window.QRSAR = window.QRSAR || {};
-  window.QRSAR.GIS = window.QRSAR.GIS || {};
-  window.QRSAR.GIS.Facade = window.SAR_GIS;
 
   function initOperasiSelector() {
     const sel = document.getElementById('selectGisOperasi');

@@ -84,7 +84,7 @@ assertTest(strpos($jsContent, 'function addManualWaypoint(') !== false, "operasi
 assertTest(strpos($jsContent, 'function undoLastWaypoint()') !== false, "operasi_form.js provides Undo for intermediate waypoints");
 assertTest(strpos($jsContent, 'function clearManualRouteWaypoints()') !== false, "operasi_form.js provides Reset Route functionality");
 assertTest(strpos($jsContent, 'function recalculateTacticalMetrics(') !== false, "operasi_form.js calculates cumulative distance, initial radial, and speed-based ETA");
-assertTest(strpos($jsContent, 'function handleSpeedPresetChange(') !== false, "operasi_form.js handles speed preset selection");
+assertTest(strpos($jsContent, 'function handleSpeedPresetChange(') === false, "operasi_form.js removed dead handleSpeedPresetChange after speed preset UI removal");
 assertTest(strpos($jsContent, 'function handleManualSpeedInput(') !== false, "operasi_form.js handles manual numeric speed input with live recalculation");
 assertTest(strpos($jsContent, 'function applyTacticalRouteToForm()') !== false, "operasi_form.js applies distance, radial, and ETA to form inputs");
 assertTest(strpos($jsContent, 'function openFullscreenMapModal()') !== false, "operasi_form.js manages Fullscreen Map Modal lifecycle");
@@ -254,12 +254,9 @@ echo "\n7. Checking Phase 7 Refinement (Radial Lock, Speed Units, Defaults & Dis
 assertTest(strpos($jsContentUpdated, 'const directLkp = calculateDistanceAndBearing(tacticalState.originLat, tacticalState.originLng, tacticalState.lkpLat, tacticalState.lkpLng);') !== false, "operasi_form.js locks departure radial to direct Origin -> LKP line (no distortion on manual waypoints)");
 assertTest(strpos($jsContentUpdated, 'const departureRadial = Math.round(directLkp.bearing);') !== false, "operasi_form.js computes departureRadial from directLkp.bearing");
 
-// Speed presets & units
-// Preset kecepatan armada dihapus (redesain UI): kecepatan diisi manual.
-// Preset kecepatan armada dihapus (redesain UI): kecepatan diisi manual.
-// Preset kecepatan armada dihapus (redesain UI): kecepatan diisi manual.
-assertTest(strpos($jsContentUpdated, "opt.getAttribute('data-unit')") !== false, "operasi_form.js handleSpeedPresetChange extracts data-unit attribute from selected option");
-assertTest(strpos($jsContentUpdated, "unitSelect.value = unit") !== false, "operasi_form.js handleSpeedPresetChange dynamically switches speed unit select to preset unit");
+// Speed units (manual input & unit toggle)
+assertTest(strpos($jsContentUpdated, 'function handleSpeedUnitChange(unit)') !== false, "operasi_form.js handles switching speed unit between knots and kmh");
+assertTest(strpos($jsContentUpdated, "document.getElementById('select_speed_preset')") === false, "operasi_form.js no longer queries removed #select_speed_preset element");
 
 // Default Unsur & Alut
 // Unsur bawaan satu baris "SMC dan Staf" (2 personil), bukan dua baris SMC & Staf

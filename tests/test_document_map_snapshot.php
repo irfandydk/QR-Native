@@ -49,7 +49,7 @@ foreach ($filesToLint as $relPath) {
 }
 
 // 2. Uji Database Schema & CRUD DokumenPetaSnapshotModel
-DokumenPetaSnapshotModel::ensureSchemaUpdated();
+DokumenPetaSnapshotModel::ensureSchemaUpdated(true);
 
 $pdo = getDB();
 $stmtCheck = $pdo->query("SHOW TABLES LIKE 'DokumenPetaSnapshot'");

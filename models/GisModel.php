@@ -74,51 +74,11 @@ class GisModel {
     }
 
     /**
-     * Ringkasan jumlah komponen peta GIS secara agregat (1 query skalar ringan tanpa memuat geometri).
-     *
-     * @return array{points: int, polygons: int, patterns: int, routes: int, total: int}
-     */
-    public static function getStatsSummary(): array {
-        try {
-            $db = getDB();
-            $row = $db->query("
-                SELECT
-                    (SELECT COUNT(*) FROM GisPoint) AS points,
-                    (SELECT COUNT(*) FROM GisPolygon) AS polygons,
-                    (SELECT COUNT(*) FROM GisSearchPattern) AS patterns,
-                    (SELECT COUNT(*) FROM GisRoute) AS routes
-            ")->fetch(PDO::FETCH_ASSOC) ?: [];
-            $points = (int)($row['points'] ?? 0);
-            $polygons = (int)($row['polygons'] ?? 0);
-            $patterns = (int)($row['patterns'] ?? 0);
-            $routes = (int)($row['routes'] ?? 0);
-            return [
-                'points' => $points,
-                'polygons' => $polygons,
-                'patterns' => $patterns,
-                'routes' => $routes,
-                'total' => $points + $polygons + $patterns + $routes,
-            ];
-        } catch (Throwable $e) {
-            return ['points' => 0, 'polygons' => 0, 'patterns' => 0, 'routes' => 0, 'total' => 0];
-        }
-    }
-
-    /**
      * Compute exact geodesic / spherical polygon area in Nautical Miles squared (Nm²)
      * Delegates to GeoHelper::calculatePolygonAreaNm2 SSOT
      */
     public static function calculatePolygonAreaNm2(array $points, ?string $shapeType = null, ?float $radiusNm = null, ?float $boxWidthNm = null, ?float $boxHeightNm = null): float {
         return GeoHelper::calculatePolygonAreaNm2($points, $shapeType, $radiusNm, $boxWidthNm, $boxHeightNm);
-    }
-
-    /**
-     * Calculate Haversine distance and bearing between two coordinates.
-     * Returns ['km' => float, 'nm' => float, 'bearing' => int, 'headingName' => string]
-     * Delegates to GeoHelper::calculateDistanceHaversine SSOT
-     */
-    public static function calculateDistanceHaversine(float $lat1, float $lon1, float $lat2, float $lon2): array {
-        return GeoHelper::calculateDistanceHaversine($lat1, $lon1, $lat2, $lon2);
     }
 
     /**
@@ -231,22 +191,54 @@ class GisModel {
         return $rel;
     }
 
-    public static function getPoints(?int $idOperasi = null, bool $includeGlobal = true): array {
-        $db = getDB();
-        if ($idOperasi !== null && $idOperasi > 0) {
-            if ($includeGlobal) {
-                $stmt = $db->prepare("SELECT * FROM GisPoint WHERE id_operasi = :id_ops OR id_operasi IS NULL ORDER BY id DESC");
-                $stmt->execute([':id_ops' => $idOperasi]);
-                return $stmt->fetchAll();
-            } else {
-                $stmt = $db->prepare("SELECT * FROM GisPoint WHERE id_operasi = :id_ops ORDER BY id DESC");
-                $stmt->execute([':id_ops' => $idOperasi]);
-                return $stmt->fetchAll();
-            }
-        } elseif ($idOperasi === 0) {
-            return $db->query("SELECT * FROM GisPoint WHERE id_operasi IS NULL ORDER BY id DESC")->fetchAll();
+    /**
+     * Membangun klausa WHERE untuk penyaringan entitas GIS menurut satu id_operasi,
+     * daftar id_operasi (array), base map saja (0 / array kosong + includeGlobal), atau seluruh data (null).
+     *
+     * @param int|array<int>|null $idOperasi
+     * @return array{where: string, params: array<int>, empty: bool}
+     */
+    private static function buildOperasiScopeSql(int|array|null $idOperasi, bool $includeGlobal): array {
+        if ($idOperasi === null) {
+            return ['where' => '', 'params' => [], 'empty' => false];
         }
-        return $db->query("SELECT * FROM GisPoint ORDER BY id DESC")->fetchAll();
+        if (is_array($idOperasi)) {
+            $ids = array_values(array_unique(array_filter(array_map('intval', $idOperasi), static fn(int $v): bool => $v > 0)));
+            if (empty($ids)) {
+                return $includeGlobal
+                    ? ['where' => ' WHERE id_operasi IS NULL', 'params' => [], 'empty' => false]
+                    : ['where' => '', 'params' => [], 'empty' => true];
+            }
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $where = $includeGlobal
+                ? " WHERE (id_operasi IN ({$placeholders}) OR id_operasi IS NULL)"
+                : " WHERE id_operasi IN ({$placeholders})";
+            return ['where' => $where, 'params' => $ids, 'empty' => false];
+        }
+        if ($idOperasi > 0) {
+            return [
+                'where' => $includeGlobal ? ' WHERE id_operasi = ? OR id_operasi IS NULL' : ' WHERE id_operasi = ?',
+                'params' => [$idOperasi],
+                'empty' => false,
+            ];
+        }
+        if ($idOperasi === 0) {
+            return ['where' => ' WHERE id_operasi IS NULL', 'params' => [], 'empty' => false];
+        }
+        return ['where' => '', 'params' => [], 'empty' => false];
+    }
+
+    public static function getPoints(int|array|null $idOperasi = null, bool $includeGlobal = true): array {
+        $scope = self::buildOperasiScopeSql($idOperasi, $includeGlobal);
+        if ($scope['empty']) return [];
+        $db = getDB();
+        $sql = "SELECT * FROM GisPoint{$scope['where']} ORDER BY id DESC";
+        if (empty($scope['params'])) {
+            return $db->query($sql)->fetchAll();
+        }
+        $stmt = $db->prepare($sql);
+        $stmt->execute($scope['params']);
+        return $stmt->fetchAll();
     }
 
     /**
@@ -426,22 +418,17 @@ class GisModel {
         return $stmt->execute([':id' => $id]);
     }
 
-    public static function getPolygons(?int $idOperasi = null, bool $includeGlobal = true): array {
+    public static function getPolygons(int|array|null $idOperasi = null, bool $includeGlobal = true): array {
+        $scope = self::buildOperasiScopeSql($idOperasi, $includeGlobal);
+        if ($scope['empty']) return [];
         $db = getDB();
-        if ($idOperasi !== null && $idOperasi > 0) {
-            if ($includeGlobal) {
-                $stmt = $db->prepare("SELECT * FROM GisPolygon WHERE id_operasi = :id_ops OR id_operasi IS NULL ORDER BY id DESC");
-                $stmt->execute([':id_ops' => $idOperasi]);
-                $polys = $stmt->fetchAll();
-            } else {
-                $stmt = $db->prepare("SELECT * FROM GisPolygon WHERE id_operasi = :id_ops ORDER BY id DESC");
-                $stmt->execute([':id_ops' => $idOperasi]);
-                $polys = $stmt->fetchAll();
-            }
-        } elseif ($idOperasi === 0) {
-            $polys = $db->query("SELECT * FROM GisPolygon WHERE id_operasi IS NULL ORDER BY id DESC")->fetchAll();
+        $sql = "SELECT * FROM GisPolygon{$scope['where']} ORDER BY id DESC";
+        if (empty($scope['params'])) {
+            $polys = $db->query($sql)->fetchAll();
         } else {
-            $polys = $db->query("SELECT * FROM GisPolygon ORDER BY id DESC")->fetchAll();
+            $stmt = $db->prepare($sql);
+            $stmt->execute($scope['params']);
+            $polys = $stmt->fetchAll();
         }
 
         if (empty($polys)) return [];
@@ -610,22 +597,17 @@ class GisModel {
         }
     }
 
-    public static function getRoutes(?int $idOperasi = null, bool $includeGlobal = true): array {
+    public static function getRoutes(int|array|null $idOperasi = null, bool $includeGlobal = true): array {
+        $scope = self::buildOperasiScopeSql($idOperasi, $includeGlobal);
+        if ($scope['empty']) return [];
         $db = getDB();
-        if ($idOperasi !== null && $idOperasi > 0) {
-            if ($includeGlobal) {
-                $stmt = $db->prepare("SELECT * FROM GisRoute WHERE id_operasi = :id_ops OR id_operasi IS NULL ORDER BY id DESC");
-                $stmt->execute([':id_ops' => $idOperasi]);
-                $routes = $stmt->fetchAll();
-            } else {
-                $stmt = $db->prepare("SELECT * FROM GisRoute WHERE id_operasi = :id_ops ORDER BY id DESC");
-                $stmt->execute([':id_ops' => $idOperasi]);
-                $routes = $stmt->fetchAll();
-            }
-        } elseif ($idOperasi === 0) {
-            $routes = $db->query("SELECT * FROM GisRoute WHERE id_operasi IS NULL ORDER BY id DESC")->fetchAll();
+        $sql = "SELECT * FROM GisRoute{$scope['where']} ORDER BY id DESC";
+        if (empty($scope['params'])) {
+            $routes = $db->query($sql)->fetchAll();
         } else {
-            $routes = $db->query("SELECT * FROM GisRoute ORDER BY id DESC")->fetchAll();
+            $stmt = $db->prepare($sql);
+            $stmt->execute($scope['params']);
+            $routes = $stmt->fetchAll();
         }
 
         if (empty($routes)) return [];
@@ -767,22 +749,17 @@ class GisModel {
         }
     }
 
-    public static function getSearchPatterns(?int $idOperasi = null, bool $includeGlobal = true): array {
+    public static function getSearchPatterns(int|array|null $idOperasi = null, bool $includeGlobal = true): array {
+        $scope = self::buildOperasiScopeSql($idOperasi, $includeGlobal);
+        if ($scope['empty']) return [];
         $db = getDB();
-        if ($idOperasi !== null && $idOperasi > 0) {
-            if ($includeGlobal) {
-                $stmt = $db->prepare("SELECT * FROM GisSearchPattern WHERE id_operasi = :id_ops OR id_operasi IS NULL ORDER BY id DESC");
-                $stmt->execute([':id_ops' => $idOperasi]);
-                $patterns = $stmt->fetchAll();
-            } else {
-                $stmt = $db->prepare("SELECT * FROM GisSearchPattern WHERE id_operasi = :id_ops ORDER BY id DESC");
-                $stmt->execute([':id_ops' => $idOperasi]);
-                $patterns = $stmt->fetchAll();
-            }
-        } elseif ($idOperasi === 0) {
-            $patterns = $db->query("SELECT * FROM GisSearchPattern WHERE id_operasi IS NULL ORDER BY id DESC")->fetchAll();
+        $sql = "SELECT * FROM GisSearchPattern{$scope['where']} ORDER BY id DESC";
+        if (empty($scope['params'])) {
+            $patterns = $db->query($sql)->fetchAll();
         } else {
-            $patterns = $db->query("SELECT * FROM GisSearchPattern ORDER BY id DESC")->fetchAll();
+            $stmt = $db->prepare($sql);
+            $stmt->execute($scope['params']);
+            $patterns = $stmt->fetchAll();
         }
 
         if (empty($patterns)) return [];

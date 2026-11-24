@@ -197,45 +197,6 @@
   }
 
   /**
-   * Clip ray segment within polygon boundary with safety buffer
-   */
-  function clipSegmentToPolygon(fromPt, toPt, poly, safeMarginDeg = 0.0005) {
-    const n = poly.length;
-    let closestInter = null;
-    let minT = 1.0;
-
-    for (let i = 0; i < n; i++) {
-      const j = (i + 1) % n;
-      const inter = lineSegmentIntersection(fromPt, toPt, poly[i], poly[j]);
-      if (inter && inter.t < minT && inter.t > 1e-5) {
-        minT = inter.t;
-        closestInter = inter;
-      }
-    }
-
-    if (closestInter) {
-      const dist = Math.hypot(toPt.lat - fromPt.lat, toPt.lng - fromPt.lng) || 1e-5;
-      const pullT = Math.max(0.01, minT - (safeMarginDeg / dist));
-      const safeT = Math.max(0.05, Math.min(minT * 0.96, pullT));
-      return {
-        lat: fromPt.lat + safeT * (toPt.lat - fromPt.lat),
-        lng: fromPt.lng + safeT * (toPt.lng - fromPt.lng),
-        clipped: true
-      };
-    }
-
-    if (isPointInPolygon(toPt.lat, toPt.lng, poly)) {
-      return { lat: toPt.lat, lng: toPt.lng, clipped: false };
-    }
-
-    return {
-      lat: fromPt.lat + 0.9 * (toPt.lat - fromPt.lat),
-      lng: fromPt.lng + 0.9 * (toPt.lng - fromPt.lng),
-      clipped: true
-    };
-  }
-
-  /**
    * Rotate polygon/waypoint array around centerPt in local conformal metric space (isometric NM).
    * Positive angleDeg rotates clockwise (compass bearing); negative angleDeg rotates counter-clockwise.
    */
@@ -893,7 +854,6 @@
     getHorizontalIntersections,
     getVerticalIntersections,
     lineSegmentIntersection,
-    clipSegmentToPolygon,
     rotatePointsConformal,
     analyzePolygonOrientation,
     computeOptimalPatternConfig,

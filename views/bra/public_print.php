@@ -36,7 +36,7 @@ $braTitleDisplay = trim((string)($bra['nama_operasi'] ?? '')) !== ''
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>BRA SAR <?= e((string)($bra['no_bra'] ?? '')) ?> - <?= e($braTitleDisplay) ?></title>
-    <link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/images/logo_basarnas.svg">
+    <link rel="icon" type="image/svg+xml" href="<?= assetUrl('assets/images/logo_basarnas.svg') ?>">
     <link rel="stylesheet" href="<?= assetUrl('assets/css/tailwind.css') ?>">
     <link rel="stylesheet" href="<?= assetUrl('assets/vendor/sweetalert2/sweetalert2.min.css') ?>">
     <style>
@@ -89,7 +89,7 @@ $braTitleDisplay = trim((string)($bra['nama_operasi'] ?? '')) !== ''
                             <?php if (!empty($customLogo)): ?>
                                 <img src="<?= htmlspecialchars($customLogo) ?>" alt="Logo Basarnas" class="w-full h-full object-contain">
                             <?php else: ?>
-                                <img src="<?= BASE_URL ?>/assets/images/logo_basarnas.svg" alt="Logo Basarnas" class="w-full h-full object-contain">
+                                <img src="<?= assetUrl('assets/images/logo_basarnas.svg') ?>" alt="Logo Basarnas" class="w-full h-full object-contain">
                             <?php endif; ?>
                         </div>
                         <div class="text-center">
@@ -326,8 +326,8 @@ $braTitleDisplay = trim((string)($bra['nama_operasi'] ?? '')) !== ''
 
     <script src="<?= assetUrl('assets/vendor/sweetalert2/sweetalert2.all.min.js') ?>"></script>
     <script src="<?= assetUrl('assets/vendor/qrcode/qrcode.min.js') ?>"></script>
-    <script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>"></script>
-    <script src="<?= assetUrl('assets/js/pdf_document_exporter.js') ?>"></script>
+    <script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>" defer fetchpriority="low"></script>
+    <script src="<?= assetUrl('assets/js/pdf_document_exporter.js') ?>" defer fetchpriority="low"></script>
     <script>
     (function() {
         const verifyUrl = <?= jsonSafe($verifyUrl) ?>;

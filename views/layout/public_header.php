@@ -129,7 +129,7 @@ $pageTitle = isset($pageTitle) ? "{$pageTitle} - Verifikasi Resmi Basarnas" : "V
     <header class="print:hidden top-navbar sticky top-0 z-40 bg-white/95 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-xs">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 min-h-[64px] flex items-center justify-between gap-3">
             <div class="flex items-center gap-3 min-w-0">
-                <img src="<?= e($logoUrl) ?>" alt="Logo Basarnas" class="w-8 h-8 object-contain shrink-0" onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'">
+                <img src="<?= e($logoUrl) ?>" alt="Logo Basarnas" class="w-8 h-8 object-contain shrink-0" onerror="this.src='<?= assetUrl('assets/images/logo_basarnas.svg') ?>'">
                 <div class="min-w-0">
                     <span class="text-sm font-bold tracking-tight text-slate-900 dark:text-slate-100 uppercase block truncate">BASARNAS KPP KENDARI</span>
                     <p class="text-[11px] text-slate-600 dark:text-slate-400 font-medium tracking-tight truncate">

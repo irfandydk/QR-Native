@@ -11,9 +11,12 @@ class AuditHelper {
     private static bool $tableChecked = false;
 
     /**
-     * Ensures AuditLog table exists with appropriate indexes
+     * Ensures AuditLog table exists with appropriate indexes.
+     * Hanya dieksekusi bila dipaksa ($force = true, mis. dari database/migrate.php atau setelah restore backup)
+     * agar request normal tidak menjalankan DDL CREATE TABLE IF NOT EXISTS (metadata lock).
      */
-    public static function ensureTableExists(): void {
+    public static function ensureTableExists(bool $force = false): void {
+        if (!$force) return;
         if (self::$tableChecked) return;
 
         try {

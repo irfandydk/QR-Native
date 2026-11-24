@@ -154,7 +154,7 @@ assertTest(
 
 assertTest(
     "initMeasureUI di gis_master.js tidak menambahkan listener duplikat jika elemen sudah memiliki inline onclick",
-    str_contains($gisMasterJs, "!btn.getAttribute('onclick')")
+    str_contains($gisMasterJs, "!btnBottomUndo.getAttribute('onclick')")
 );
 
 // -------------------------------------------------------------------------
@@ -221,17 +221,16 @@ assertTest(
 echo "\n[6] Verifikasi Fleksibilitas 4 Arah Sapuan E-SAR (Poin 6)...\n";
 
 assertTest(
-    "views/gis.php memiliki 4 tombol selector arah E-SAR",
-    str_contains($gisView, 'id="btnEsarDirWtoE"') &&
-    str_contains($gisView, 'id="btnEsarDirEtoW"') &&
-    str_contains($gisView, 'id="btnEsarDirNtoS"') &&
-    str_contains($gisView, 'id="btnEsarDirStoN"')
+    "views/gis.php bebas dari tombol kosong hidden E-SAR dan memakai slider orientasi 0-359",
+    !str_contains($gisView, 'id="esarOrientationWrapper"') &&
+    !str_contains($gisView, 'id="btnEsarDirWtoE"') &&
+    str_contains($gisView, 'id="patternRotationSlider"')
 );
 
 assertTest(
-    "gis_master.js menangani event click pada tombol arah .esar-dir-btn",
-    str_contains($gisMasterJs, "document.querySelectorAll('.esar-dir-btn').forEach") &&
-    str_contains($gisMasterJs, "activeEsarDirection = dir;")
+    "gis_master.js memicu regenerasi pola real-time saat slider orientasi digeser",
+    str_contains($gisMasterJs, "document.getElementById('patternRotationSlider')") &&
+    str_contains($gisMasterJs, "applyManualRotationDeg(e.target.value)")
 );
 
 assertTest(

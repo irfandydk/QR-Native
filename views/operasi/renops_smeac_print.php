@@ -91,8 +91,8 @@ if (!empty($isPublic) && !empty($_GET['token'])) {
 
     <script src="<?= assetUrl('assets/vendor/sweetalert2/sweetalert2.all.min.js') ?>"></script>
     <script src="<?= assetUrl('assets/vendor/qrcode/qrcode.min.js') ?>"></script>
-    <script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>"></script>
-    <script src="<?= assetUrl('assets/js/pdf_document_exporter.js') ?>"></script>
+    <script src="<?= assetUrl('assets/vendor/html2pdf/html2pdf.bundle.min.js') ?>" defer fetchpriority="low"></script>
+    <script src="<?= assetUrl('assets/js/pdf_document_exporter.js') ?>" defer fetchpriority="low"></script>
     <script>
     // Muat pas lebar layar (ponsel setelah pindai QR). Layar saja: @media print & exporter PDF memakai zoom 1.
     (function () {

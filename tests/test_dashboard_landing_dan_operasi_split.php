@@ -34,7 +34,7 @@ function assertDash(string $label, bool $cond, string $detail = ''): void {
 
 $db = getDB();
 
-echo "\n=== 1. HELPER STATISTIK RINGAN (OperasiModel::countOpen & GisModel::getStatsSummary) ===\n";
+echo "\n=== 1. HELPER STATISTIK RINGAN (OperasiModel::countOpen) ===\n";
 
 $hasCountOpen = method_exists('OperasiModel', 'countOpen');
 assertDash('OperasiModel::countOpen() tersedia', $hasCountOpen);
@@ -48,27 +48,7 @@ if ($hasCountOpen) {
     );
 }
 
-$hasGisSummary = method_exists('GisModel', 'getStatsSummary');
-assertDash('GisModel::getStatsSummary() tersedia', $hasGisSummary);
-if ($hasGisSummary) {
-    $summary = GisModel::getStatsSummary();
-    $expectedPts = (int)$db->query('SELECT COUNT(*) FROM GisPoint')->fetchColumn();
-    $expectedPolys = (int)$db->query('SELECT COUNT(*) FROM GisPolygon')->fetchColumn();
-    $expectedPats = (int)$db->query('SELECT COUNT(*) FROM GisSearchPattern')->fetchColumn();
-    $expectedRts = (int)$db->query('SELECT COUNT(*) FROM GisRoute')->fetchColumn();
-    $expectedTotal = $expectedPts + $expectedPolys + $expectedPats + $expectedRts;
-
-    assertDash(
-        'GisModel::getStatsSummary() mengembalikan struktur points/polygons/patterns/routes/total yang akurat',
-        isset($summary['points'], $summary['polygons'], $summary['patterns'], $summary['routes'], $summary['total'])
-            && $summary['points'] === $expectedPts
-            && $summary['polygons'] === $expectedPolys
-            && $summary['patterns'] === $expectedPats
-            && $summary['routes'] === $expectedRts
-            && $summary['total'] === $expectedTotal,
-        json_encode($summary)
-    );
-}
+assertDash('GisModel::getStatsSummary() sudah dibersihkan karena tidak dipakai dashboard', !method_exists('GisModel', 'getStatsSummary'));
 
 echo "\n=== 2. PEMISAHAN HALAMAN OPERASI SAR & MENU SIDEBAR ===\n";
 
@@ -107,9 +87,9 @@ $dashCtrlSrc = (string)file_get_contents($rootDir . '/controllers/DashboardContr
 $dashViewSrc = (string)file_get_contents($rootDir . '/views/dashboard.php');
 
 assertDash(
-    'DashboardController::index() mengirimkan stats, activeOperations, dan appSettings ke views/dashboard.php',
+    'DashboardController::index() mengirimkan stats, activeOperations (LIMIT 3), dan appSettings ke views/dashboard.php',
     str_contains($dashCtrlSrc, 'OperasiModel::getStats()')
-        && str_contains($dashCtrlSrc, "OperasiModel::getListSimple('OPEN')")
+        && str_contains($dashCtrlSrc, "OperasiModel::getListSimple('OPEN', 3)")
         && str_contains($dashCtrlSrc, "SettingsModel::getSettings()")
         && str_contains($dashCtrlSrc, "'route' => 'dashboard'")
 );

@@ -138,6 +138,13 @@ try {
         echo "[OK] OperasiDokumentasi schema validated.\n";
     }
 
+    // 1c-5. Ensure AuditLog table exists
+    if (class_exists('AuditHelper')) {
+        echo "[RUN] Checking AuditLog table...\n";
+        AuditHelper::ensureTableExists(true);
+        echo "[OK] AuditLog table validated.\n";
+    }
+
     // 1d. Validate and Apply Composite Indexes for High Performance
     echo "[RUN] Checking Composite Indexes (Korban, Operasi, Renops, LaporanHarian)...\n";
     $compositeIndexes = [
