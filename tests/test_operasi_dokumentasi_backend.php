@@ -26,8 +26,8 @@ echo "=== TEST BACKEND DOKUMENTASI KOLASE OPERASI SAR ===\n\n";
 assertDok(class_exists('OperasiDokumentasiModel'), 'Class OperasiDokumentasiModel tersedia via autoloader');
 assertDok(class_exists('OperasiDokumentasiApiController'), 'Class OperasiDokumentasiApiController tersedia via autoloader');
 assertDok(
-    OperasiDokumentasiModel::MAX_VIDEO_BYTES === 104857600,
-    'OperasiDokumentasiModel::MAX_VIDEO_BYTES mendukung video hingga 100 MB'
+    OperasiDokumentasiModel::MAX_VIDEO_BYTES === 157286400 && OperasiDokumentasiModel::MAX_FINAL_BYTES === 157286400,
+    'OperasiDokumentasiModel::MAX_FINAL_BYTES & MAX_VIDEO_BYTES mendukung hasil kolase hingga 150 MB'
 );
 assertDok(
     in_array('OperasiDokumentasi', BackupService::MANAGED_TABLES, true),
@@ -200,22 +200,28 @@ try {
         );
     }
 
-    // 5d. Studio view bersih dari daftar mini-card slot & panel inspector kiri, urutan kartu dimulai dari Teks Kolase (1), dan tombol Edit arsip tersedia
+    // 5d. Studio view bersih tanpa sub-teks penjelasan, fokus pratinjau >=75% di laptop, kontrol slot kontekstual, & modal trim 3 menit
     $studioView = (string)file_get_contents(ROOT_DIR . '/views/operasi/dokumentasi_studio.php');
-    $posTeks = strpos($studioView, '>1. Teks Kolase');
-    $posGaya = strpos($studioView, '>2. Gaya Desain');
-    $posJumlah = strpos($studioView, '>3. Jumlah Foto');
-    $posUnggah = strpos($studioView, '>4. Unggah Media Sekaligus');
+    $posTeks = strpos($studioView, 'data-studio-panel="teks"');
+    $posDesain = strpos($studioView, 'data-studio-panel="desain"');
+    $posGrid = strpos($studioView, 'data-studio-panel="grid"');
+    $posMedia = strpos($studioView, 'data-studio-panel="media"');
     assertDok(
         !str_contains($studioView, 'id="slotListGrid"')
             && !str_contains($studioView, 'id="slotInspectorPanel"')
+            && str_contains($studioView, 'dok-studio-grid')
             && str_contains($studioView, 'id="collageInteractiveOverlay"')
+            && str_contains($studioView, 'id="slotActionBar"')
+            && str_contains($studioView, 'id="videoTrimModal"')
             && str_contains($studioView, 'id="stylePresetGrid"')
             && str_contains($studioView, 'id="selectExportQuality"')
             && str_contains($studioView, 'id="previewBulkBar"')
-            && $posTeks !== false && $posGaya !== false && $posJumlah !== false && $posUnggah !== false
-            && $posTeks < $posGaya && $posGaya < $posJumlah && $posJumlah < $posUnggah,
-        'dokumentasi_studio.php menempatkan Teks Kolase sebagai Kartu #1, menghapus slotInspectorPanel, dan menjaga seluruh kontrol langsung pratinjau'
+            && str_contains($studioView, 'value="180"')
+            && str_contains($studioView, 'studio_draft_store.js')
+            && str_contains($studioView, 'chunk_uploader.js')
+            && $posTeks !== false && $posDesain !== false && $posGrid !== false && $posMedia !== false
+            && $posTeks < $posDesain && $posDesain < $posGrid && $posGrid < $posMedia,
+        'dokumentasi_studio.php memakai layout fokus pratinjau >=75%, tab terurut (Teks/Desain/Grid/Media), slotActionBar anti-overflow, modal Trim 3 menit, dan modul draft/chunk'
     );
 
     $tabDokView = (string)file_get_contents(ROOT_DIR . '/views/operasi/partials/tab_dokumentasi.php');

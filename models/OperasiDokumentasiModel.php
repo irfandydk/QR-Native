@@ -13,10 +13,12 @@ declare(strict_types=1);
 class OperasiDokumentasiModel {
     public const MIN_SLOTS = 4;
     public const MAX_SLOTS = 12;
-    public const MAX_IMAGE_BYTES = 20971520;  // 20 MB (mendukung ekspor 4K PNG/JPG tajam)
-    public const MAX_VIDEO_BYTES = 104857600; // 100 MB (selaras .user.ini upload_max_filesize)
-    public const MAX_THUMB_BYTES = 3145728;   // 3 MB
-    public const MAX_PIXELS = 40000000;
+    public const MAX_FINAL_BYTES = 157286400; // 150 MB (batas ukuran hasil kolase foto & video)
+    public const MAX_IMAGE_BYTES = 157286400; // 150 MB (selaras batas hasil kolase)
+    public const MAX_VIDEO_BYTES = 157286400; // 150 MB (batas hasil video kolase)
+    public const MAX_VIDEO_DURATION_SECONDS = 180; // 3 menit
+    public const MAX_THUMB_BYTES = 5242880;   // 5 MB
+    public const MAX_PIXELS = 80000000;       // 80 MP (mendukung foto kamera resolusi tinggi)
     public const MAX_PROJECT_JSON_BYTES = 65535;
     public const REL_DIR = 'uploads/operasi_dokumentasi';
 
@@ -323,7 +325,7 @@ class OperasiDokumentasiModel {
             }
         }
 
-        $saved = self::validateAndWriteMediaPayload($normOps ?? 0, $fileInfo, 'src');
+        $saved = self::validateAndWriteMediaPayload($normOps ?? 0, $fileInfo, 'src', [], true);
         return [
             'path' => $saved['rel_path'],
             'media_type' => $saved['media_type'],
@@ -711,15 +713,25 @@ class OperasiDokumentasiModel {
      * @param array<string, mixed> $meta
      * @return array{media_type:string, mime_type:string, ext:string, width_px:int, height_px:int, rel_path:string, abs_path:string, size:int}
      */
-    private static function validateAndWriteMediaPayload(int $fileSeg, array $fileInfo, string $prefix, array $meta = []): array {
+    private static function validateAndWriteMediaPayload(
+        int $fileSeg,
+        array $fileInfo,
+        string $prefix,
+        array $meta = [],
+        bool $isSource = false
+    ): array {
         $tmpPath = (string)($fileInfo['tmp_name'] ?? '');
         $size = (int)($fileInfo['size'] ?? 0);
         if ($tmpPath === '' || !is_file($tmpPath) || $size <= 0) {
             throw new InvalidArgumentException('Berkas media tidak ditemukan atau kosong.');
         }
         $actualSize = (int)(filesize($tmpPath) ?: $size);
-        if ($actualSize <= 0 || $actualSize > self::MAX_VIDEO_BYTES) {
-            throw new InvalidArgumentException('Ukuran berkas melebihi batas maksimal 100 MB.');
+        if ($actualSize <= 0) {
+            throw new InvalidArgumentException('Berkas media tidak ditemukan atau kosong.');
+        }
+        // Sumber per-slot tidak dibatasi ukuran per file; hanya hasil akhir kolase yang dibatasi maksimal 150 MB.
+        if (!$isSource && $actualSize > self::MAX_FINAL_BYTES) {
+            throw new InvalidArgumentException('Ukuran hasil kolase melebihi batas maksimal 150 MB.');
         }
 
         // Baca 64 KB pertama untuk deteksi MIME & integritas struktur kontainer biner
@@ -743,15 +755,12 @@ class OperasiDokumentasiModel {
         $heightPx = max(0, min(65535, (int)($meta['height_px'] ?? 0)));
 
         if (isset(self::ALLOWED_IMAGE_MIME[$detectedMime])) {
-            if ($actualSize > self::MAX_IMAGE_BYTES) {
-                throw new InvalidArgumentException('Ukuran berkas gambar maksimal 20 MB.');
-            }
             $imgInfo = @getimagesize($tmpPath);
             if ($imgInfo === false || $imgInfo[0] < 1 || $imgInfo[1] < 1) {
                 throw new InvalidArgumentException('Berkas gambar tidak valid atau rusak.');
             }
             if ((int)$imgInfo[0] * (int)$imgInfo[1] > self::MAX_PIXELS) {
-                throw new InvalidArgumentException('Resolusi gambar terlalu besar (maksimal 40 megapiksel).');
+                throw new InvalidArgumentException('Resolusi gambar terlalu besar (maksimal 80 megapiksel).');
             }
             $mediaType = 'image';
             $finalMime = $detectedMime;
@@ -761,7 +770,7 @@ class OperasiDokumentasiModel {
         } elseif (self::isValidVideoPayload($headBytes, $detectedMime, $finalMime, $ext)) {
             $mediaType = 'video';
         } else {
-            throw new InvalidArgumentException('Format berkas tidak diizinkan. Gunakan gambar (JPG, PNG, WebP) atau video (WebM, MP4) yang valid.');
+            throw new InvalidArgumentException('Format berkas tidak diizinkan. Gunakan gambar (JPG, PNG, WebP) atau video (WebM, MP4, MOV) yang valid.');
         }
 
         $dir = self::ensureUploadDir();
@@ -772,6 +781,14 @@ class OperasiDokumentasiModel {
         $written = false;
         if (is_uploaded_file($tmpPath)) {
             $written = @move_uploaded_file($tmpPath, $absPath);
+        } elseif (!empty($fileInfo['move_local'])) {
+            $written = @rename($tmpPath, $absPath);
+            if (!$written) {
+                $written = @copy($tmpPath, $absPath);
+                if ($written) {
+                    @unlink($tmpPath);
+                }
+            }
         } else {
             $written = @copy($tmpPath, $absPath);
         }
@@ -890,7 +907,19 @@ class OperasiDokumentasiModel {
                     continue;
                 }
                 $type = (($slot['type'] ?? 'image') === 'video') ? 'video' : 'image';
-                $safeSlots[] = [
+                $trimStart = max(0.0, round((float)($slot['trimStart'] ?? 0.0), 2));
+                $rawTrimEnd = isset($slot['trimEnd']) && is_numeric($slot['trimEnd']) ? round((float)$slot['trimEnd'], 2) : null;
+                if ($rawTrimEnd !== null) {
+                    if ($rawTrimEnd <= $trimStart) {
+                        $rawTrimEnd = null;
+                    } elseif (($rawTrimEnd - $trimStart) > self::MAX_VIDEO_DURATION_SECONDS) {
+                        $rawTrimEnd = round($trimStart + self::MAX_VIDEO_DURATION_SECONDS, 2);
+                    }
+                }
+                $durationVal = isset($slot['duration']) && is_numeric($slot['duration'])
+                    ? max(0.0, round((float)$slot['duration'], 2))
+                    : null;
+                $entry = [
                     'type' => $type,
                     'path' => $rel,
                     'name' => mb_substr(trim((string)($slot['name'] ?? '')), 0, 120),
@@ -899,7 +928,13 @@ class OperasiDokumentasiModel {
                     'offsetY' => max(-100, min(100, (int)round((float)($slot['offsetY'] ?? 0)))),
                     'muted' => !isset($slot['muted']) || (bool)$slot['muted'],
                     'videoTime' => max(0.0, round((float)($slot['videoTime'] ?? 0.0), 2)),
+                    'trimStart' => $trimStart,
+                    'trimEnd' => $rawTrimEnd,
                 ];
+                if ($durationVal !== null && $durationVal > 0) {
+                    $entry['duration'] = $durationVal;
+                }
+                $safeSlots[] = $entry;
             }
         }
 
