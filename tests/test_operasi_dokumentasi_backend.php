@@ -200,28 +200,38 @@ try {
         );
     }
 
-    // 5d. Studio view bersih tanpa sub-teks penjelasan, fokus pratinjau >=75% di laptop, kontrol slot kontekstual, & modal trim 3 menit
+    // 5d. Studio view 3 tab ringkas (Utama/Desain/Grid), fokus pratinjau >=75%, edit judul inline, date picker, default FHD/PNG, tanpa logo/kop/tukar/set-trim
     $studioView = (string)file_get_contents(ROOT_DIR . '/views/operasi/dokumentasi_studio.php');
-    $posTeks = strpos($studioView, 'data-studio-panel="teks"');
+    $posUtama = strpos($studioView, 'data-studio-panel="utama"');
     $posDesain = strpos($studioView, 'data-studio-panel="desain"');
     $posGrid = strpos($studioView, 'data-studio-panel="grid"');
-    $posMedia = strpos($studioView, 'data-studio-panel="media"');
     assertDok(
         !str_contains($studioView, 'id="slotListGrid"')
             && !str_contains($studioView, 'id="slotInspectorPanel"')
+            && !str_contains($studioView, 'id="chkShowLogo1"')
+            && !str_contains($studioView, 'id="inputHeaderNama"')
+            && !str_contains($studioView, 'id="btnSlotSwap"')
+            && !str_contains($studioView, 'id="btnTrimSetStartHere"')
             && str_contains($studioView, 'dok-studio-grid')
+            && str_contains($studioView, 'id="inputDokTanggalDate"')
+            && str_contains($studioView, 'id="titleStyleBar"')
             && str_contains($studioView, 'id="collageInteractiveOverlay"')
             && str_contains($studioView, 'id="slotActionBar"')
             && str_contains($studioView, 'id="videoTrimModal"')
+            && str_contains($studioView, 'id="trimDualSlider"')
+            && str_contains($studioView, 'id="iconVideoPlay"')
+            && str_contains($studioView, 'id="iconVideoPause"')
+            && str_contains($studioView, 'value="fhd" selected')
+            && str_contains($studioView, 'value="image/png" selected')
             && str_contains($studioView, 'id="stylePresetGrid"')
             && str_contains($studioView, 'id="selectExportQuality"')
             && str_contains($studioView, 'id="previewBulkBar"')
             && str_contains($studioView, 'value="180"')
             && str_contains($studioView, 'studio_draft_store.js')
             && str_contains($studioView, 'chunk_uploader.js')
-            && $posTeks !== false && $posDesain !== false && $posGrid !== false && $posMedia !== false
-            && $posTeks < $posDesain && $posDesain < $posGrid && $posGrid < $posMedia,
-        'dokumentasi_studio.php memakai layout fokus pratinjau >=75%, tab terurut (Teks/Desain/Grid/Media), slotActionBar anti-overflow, modal Trim 3 menit, dan modul draft/chunk'
+            && $posUtama !== false && $posDesain !== false && $posGrid !== false
+            && $posUtama < $posDesain && $posDesain < $posGrid,
+        'dokumentasi_studio.php memenuhi 3 tab ringkas (Utama/Desain/Grid), edit judul inline, date picker otomatis, default FHD+PNG, dual-thumb trim, & icon play/pause'
     );
 
     $tabDokView = (string)file_get_contents(ROOT_DIR . '/views/operasi/partials/tab_dokumentasi.php');

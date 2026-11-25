@@ -942,20 +942,29 @@ class OperasiDokumentasiModel {
             return mb_substr(trim((string)$v), 0, $max);
         };
 
+        $titleAlignRaw = strtolower(trim((string)($decoded['titleAlign'] ?? '')));
+        $titleAlign = in_array($titleAlignRaw, ['left', 'center', 'right'], true) ? $titleAlignRaw : '';
+        $titleScale = isset($decoded['titleScale']) && is_numeric($decoded['titleScale'])
+            ? max(0.7, min(1.6, round((float)$decoded['titleScale'], 2)))
+            : 1.0;
+
         $clean = [
             'version' => 1,
             'styleId' => in_array((string)($decoded['styleId'] ?? ''), ['klasik_kpp', 'editorial_modern'], true) ? (string)$decoded['styleId'] : 'klasik_kpp',
             'orientation' => in_array((string)($decoded['orientation'] ?? ''), ['vertical', 'horizontal', 'square'], true) ? (string)$decoded['orientation'] : 'vertical',
             'canvasPresetId' => $cleanStr($decoded['canvasPresetId'] ?? 'portrait_2_3', 48),
-            'qualityId' => in_array((string)($decoded['qualityId'] ?? ''), ['fhd', 'qhd', 'uhd_4k'], true) ? (string)$decoded['qualityId'] : 'qhd',
-            'imageFormat' => (($decoded['imageFormat'] ?? '') === 'image/png') ? 'image/png' : 'image/jpeg',
+            'qualityId' => in_array((string)($decoded['qualityId'] ?? ''), ['fhd', 'qhd', 'uhd_4k'], true) ? (string)$decoded['qualityId'] : 'fhd',
+            'imageFormat' => (($decoded['imageFormat'] ?? '') === 'image/jpeg') ? 'image/jpeg' : 'image/png',
             'slotCount' => max(self::MIN_SLOTS, min(self::MAX_SLOTS, (int)($decoded['slotCount'] ?? 6))),
             'layoutId' => $cleanStr($decoded['layoutId'] ?? 'v_6_2x3', 64),
             'videoDuration' => $cleanStr($decoded['videoDuration'] ?? 'auto', 16),
+            'titleAlign' => $titleAlign,
+            'titleScale' => $titleScale,
+            'tanggalIso' => preg_match('/^\d{4}-\d{2}-\d{2}\z/', (string)($decoded['tanggalIso'] ?? '')) ? (string)$decoded['tanggalIso'] : '',
             'logos' => [
-                'logo1' => !isset($decoded['logos']['logo1']) || (bool)$decoded['logos']['logo1'],
-                'logo2' => !isset($decoded['logos']['logo2']) || (bool)$decoded['logos']['logo2'],
-                'logo3' => !isset($decoded['logos']['logo3']) || (bool)$decoded['logos']['logo3'],
+                'logo1' => true,
+                'logo2' => true,
+                'logo3' => true,
             ],
             'header' => [
                 'nama' => $cleanStr($decoded['header']['nama'] ?? '', 180),

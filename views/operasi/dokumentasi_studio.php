@@ -4,10 +4,13 @@
  * Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
  *
  * Fitur:
- * - Layout laptop fokus pratinjau (>= 75% layar) dengan panel form kiri ringkas tanpa sub-teks
- * - Kontrol slot kontekstual terpadu anti-overflow untuk mobile & desktop + fitur Trim video maks 3 menit
- * - Auto-draft IndexedDB (tahan refresh halaman), chunked upload 4 MB (lolos batas Cloudflare/PHP),
- *   render video FFmpeg server-side hingga 150 MB, dan 1 proses loading terpadu (0% -> 100%)
+ * - Layout laptop fokus pratinjau (>= 75% layar) dengan 3 tab ringkas (Utama, Desain, Grid)
+ * - Edit judul langsung pada pratinjau kanvas dengan pengaturan alignment (Kiri/Tengah/Kanan) & ukuran font
+ * - Date picker otomatis memuat Hari & Tanggal Bahasa Indonesia
+ * - 3 Logo resmi KOP & identitas Kop/Footer baku otomatis
+ * - Default ekspor Full HD (1080p) untuk foto & video, format PNG untuk foto
+ * - Reorder media langsung di grid (desktop & touch), dual-thumb Trim video maks 3 menit, icon-only Play/Pause
+ * - Auto-draft IndexedDB, chunked upload 4 MB, render FFmpeg server-side <= 150 MB, 1 loading terpadu
  */
 
 declare(strict_types=1);
@@ -60,22 +63,39 @@ $editDocId = $isEditMode ? (int)$editDok['id_dokumentasi'] : 0;
 
 $pHeader = ($isEditMode && isset($editProject['header']) && is_array($editProject['header'])) ? $editProject['header'] : [];
 $pFooter = ($isEditMode && isset($editProject['footer']) && is_array($editProject['footer'])) ? $editProject['footer'] : [];
-$pLogos = ($isEditMode && isset($editProject['logos']) && is_array($editProject['logos'])) ? $editProject['logos'] : [];
 
-$satkerNama = trim((string)($pHeader['nama'] ?? ($settings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI')));
-$satkerAlamat = trim((string)($pHeader['alamat'] ?? ($settings['alamat'] ?? 'Jl. Kapten Pierre Tendean, Kota Kendari-Sulawesi Tenggara 93116')));
-$satkerTelp = trim((string)($pHeader['telp'] ?? ($settings['no_telp'] ?? '0401 3196 557')));
-$satkerWa = trim((string)($pHeader['wa'] ?? ($settings['no_wa'] ?? '')));
-$satkerEmail = trim((string)($pHeader['email'] ?? ($settings['email'] ?? 'sar.kendari@basarnas.go.id')));
+// Identitas Kop & Footer baku resmi KPP Kendari (otomatis dari pengaturan satker)
+$officialHeader = [
+    'nama' => mb_strtoupper(trim((string)($pHeader['nama'] ?? ($settings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI'))), 'UTF-8'),
+    'alamat' => trim((string)($pHeader['alamat'] ?? ($settings['alamat'] ?? 'Jl. Kapten Pierre Tendean, Kota Kendari-Sulawesi Tenggara 93116'))),
+    'telp' => trim((string)($pHeader['telp'] ?? ($settings['no_telp'] ?? '0401 3196 557'))),
+    'wa' => trim((string)($pHeader['wa'] ?? ($settings['no_wa'] ?? ''))),
+    'email' => trim((string)($pHeader['email'] ?? ($settings['email'] ?? 'sar.kendari@basarnas.go.id'))),
+];
+$officialFooter = [
+    'web' => trim((string)($pFooter['web'] ?? 'www.kendari.basarnas.go.id')),
+    'ig' => trim((string)($pFooter['ig'] ?? 'kantorsar_kendari')),
+    'fb' => trim((string)($pFooter['fb'] ?? 'Basarnas Kendari')),
+    'x' => trim((string)($pFooter['x'] ?? 'basarnaskendari')),
+];
 
-$footerWeb = trim((string)($pFooter['web'] ?? 'www.kendari.basarnas.go.id'));
-$footerIg = trim((string)($pFooter['ig'] ?? 'kantorsar_kendari'));
-$footerFb = trim((string)($pFooter['fb'] ?? 'Basarnas Kendari'));
-$footerX = trim((string)($pFooter['x'] ?? 'basarnaskendari'));
-
-$showLogo1 = !array_key_exists('logo1', $pLogos) || (bool)$pLogos['logo1'];
-$showLogo2 = !array_key_exists('logo2', $pLogos) || (bool)$pLogos['logo2'];
-$showLogo3 = !array_key_exists('logo3', $pLogos) || (bool)$pLogos['logo3'];
+// Resolusi nilai ISO YYYY-MM-DD untuk date picker
+$tanggalIsoDefault = date('Y-m-d');
+if ($isEditMode && !empty($editProject['tanggalIso']) && preg_match('/^\d{4}-\d{2}-\d{2}\z/', (string)$editProject['tanggalIso'])) {
+    $tanggalIsoDefault = (string)$editProject['tanggalIso'];
+} elseif (!empty($tanggalDefault)) {
+    $bulanMap = [
+        'januari' => '01', 'februari' => '02', 'maret' => '03', 'april' => '04',
+        'mei' => '05', 'juni' => '06', 'juli' => '07', 'agustus' => '08',
+        'september' => '09', 'oktober' => '10', 'november' => '11', 'desember' => '12',
+    ];
+    if (preg_match('/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/u', (string)$tanggalDefault, $dm)) {
+        $mCode = $bulanMap[strtolower($dm[2])] ?? null;
+        if ($mCode !== null) {
+            $tanggalIsoDefault = sprintf('%04d-%s-%02d', (int)$dm[3], $mCode, (int)$dm[1]);
+        }
+    }
+}
 
 $editDocPayload = null;
 if ($isEditMode) {
@@ -143,7 +163,7 @@ if ($isEditMode) {
     pointer-events: auto;
     border-radius: 10px;
     overflow: hidden;
-    transition: box-shadow 140ms ease, background-color 140ms ease;
+    transition: box-shadow 140ms ease, background-color 140ms ease, opacity 140ms ease;
     touch-action: none;
   }
   .dok-ov-slot[data-filled="true"] { cursor: grab; }
@@ -151,39 +171,139 @@ if ($isEditMode) {
   .dok-ov-slot[data-filled="false"] { cursor: pointer; }
   .dok-ov-slot[data-filled="false"]:hover { background-color: rgba(234, 88, 12, 0.08); box-shadow: inset 0 0 0 2px rgba(234, 88, 12, 0.55); }
   .dok-ov-slot[data-selected="true"] { box-shadow: inset 0 0 0 2.5px #ea580c; }
-  .dok-ov-slot[data-swap-source="true"] { box-shadow: inset 0 0 0 3px #0284c7 !important; background-color: rgba(2, 132, 199, 0.16) !important; }
-  .dok-ov-slot[data-swap-ready="true"]:hover { box-shadow: inset 0 0 0 3px #10b981 !important; background-color: rgba(16, 185, 129, 0.16) !important; cursor: pointer; }
+  .dok-ov-slot.is-dragging-source { opacity: 0.45; box-shadow: inset 0 0 0 3px #f97316 !important; }
   .dok-ov-slot[data-bulk-checked="true"] { box-shadow: inset 0 0 0 3px #e11d48; background-color: rgba(225, 29, 72, 0.14); }
-  .dok-ov-slot.is-drop-target { box-shadow: inset 0 0 0 3px #0ea5e9 !important; background-color: rgba(14, 165, 233, 0.16) !important; }
+  .dok-ov-slot.is-drop-target { box-shadow: inset 0 0 0 3px #0ea5e9 !important; background-color: rgba(14, 165, 233, 0.2) !important; }
   .dok-ov-badge {
-    background: rgba(15, 23, 42, 0.78);
+    background: rgba(15, 23, 42, 0.8);
     color: #ffffff;
     backdrop-filter: blur(4px);
     line-height: 1;
   }
-  .dok-trim-range {
-    -webkit-appearance: none;
-    appearance: none;
+  .dok-ov-title-zone {
+    position: absolute;
+    pointer-events: auto;
+    border-radius: 8px;
+    cursor: text;
+    transition: box-shadow 140ms ease, background-color 140ms ease;
+  }
+  .dok-ov-title-zone:hover {
+    box-shadow: inset 0 0 0 1.5px rgba(234, 88, 12, 0.7);
+    background-color: rgba(234, 88, 12, 0.06);
+  }
+  .dok-ov-title-zone.is-editing {
+    box-shadow: inset 0 0 0 2px #ea580c;
+    background-color: rgba(255, 255, 255, 0.94);
+    z-index: 25;
+  }
+  .dok-inline-title-editor {
     width: 100%;
-    height: 6px;
+    height: 100%;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: #0b1120;
+    font-family: "Plus Jakarta Sans", Arial, sans-serif;
+    font-weight: 800;
+    line-height: 1.24;
+    padding: 2px 6px;
+    overflow: hidden;
+  }
+  .dok-align-btn[data-active="true"] {
+    background-color: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+  }
+  .dok-drag-ghost {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: rgba(15, 23, 42, 0.92);
+    color: #ffffff;
+    border: 2px solid #f97316;
+    border-radius: 10px;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    white-space: nowrap;
+  }
+  /* Dual-Thumb Single-Track Video Trim Slider */
+  .dok-dual-slider {
+    position: relative;
+    height: 30px;
+    display: flex;
+    align-items: center;
+  }
+  .dok-dual-rail {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 8px;
     border-radius: 9999px;
     background: #334155;
-    outline: none;
+    overflow: hidden;
   }
-  .dok-trim-range::-webkit-slider-thumb {
+  .dok-dual-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, #ea580c, #f97316);
+    border-radius: 9999px;
+  }
+  .dok-dual-input {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: transparent;
+    pointer-events: none;
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
+  }
+  .dok-dual-input::-webkit-slider-runnable-track {
+    height: 8px;
+    background: transparent;
+  }
+  .dok-dual-input::-moz-range-track {
+    height: 8px;
+    background: transparent;
+  }
+  .dok-dual-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    pointer-events: auto;
+    width: 22px;
+    height: 22px;
     border-radius: 9999px;
     background: #f97316;
-    border: 2px solid #ffffff;
-    cursor: pointer;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    border: 3px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    cursor: ew-resize;
+    margin-top: -7px;
+  }
+  .dok-dual-input::-moz-range-thumb {
+    pointer-events: auto;
+    width: 22px;
+    height: 22px;
+    border-radius: 9999px;
+    background: #f97316;
+    border: 3px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+    cursor: ew-resize;
   }
 </style>
 
 <div class="dok-studio-shell space-y-3">
+  <!-- Hidden synced fields for title, formatted Indonesian date & hari_ke -->
+  <input type="hidden" id="inputDokJudul" value="<?= e($judulDefault) ?>" />
+  <input type="hidden" id="inputDokTanggal" value="<?= e($tanggalDefault) ?>" />
+  <input type="hidden" id="inputDokHari" value="<?= e($hariLabel) ?>" />
+
   <!-- Studio Header Bar (Ringkas & Anti-Overflow pada Mobile) -->
   <section class="dok-studio-card rounded-2xl px-3.5 sm:px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
     <div class="flex items-center gap-2.5 min-w-0">
@@ -230,21 +350,19 @@ if ($isEditMode) {
     </div>
   </section>
 
-  <!-- Main Studio Workbench: <= 24% Compact Left Form | >= 76% Preview Focus on Laptop -->
+  <!-- Main Studio Workbench: <= 23% Compact Left Form | >= 76% Preview Focus on Laptop -->
   <div class="dok-studio-grid">
 
-    <!-- LEFT PANEL: Ultra-Clean Compact Tabbed Controls (No Explanatory Sub-Texts) -->
+    <!-- LEFT PANEL: Ultra-Clean 3-Tab Controls (Utama, Desain, Grid) -->
     <aside class="dok-studio-card rounded-2xl overflow-hidden lg:sticky lg:top-20">
-      <!-- 4-Tab Studio Inspector Navigation -->
-      <div class="grid grid-cols-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40" role="tablist" aria-label="Pengaturan Kolase">
-        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer" data-studio-tab="teks" data-active="true">Teks</button>
+      <div class="grid grid-cols-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40" role="tablist" aria-label="Pengaturan Kolase">
+        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer" data-studio-tab="utama" data-active="true">Utama</button>
         <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer" data-studio-tab="desain" data-active="false">Desain</button>
         <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer" data-studio-tab="grid" data-active="false">Grid</button>
-        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer" data-studio-tab="media" data-active="false">Media</button>
       </div>
 
-      <!-- TAB 1: Teks & Identitas -->
-      <div data-studio-panel="teks" class="p-3 space-y-2.5">
+      <!-- TAB 1: Utama (Operasi SAR + Date Picker Hari/Tanggal + Unggah Media Sekaligus) -->
+      <div data-studio-panel="utama" class="p-3 space-y-3">
         <?php if ($allowOperasiSelect): ?>
           <div>
             <label for="selectDokOperasi" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Operasi SAR</label>
@@ -259,93 +377,36 @@ if ($isEditMode) {
           </div>
         <?php endif; ?>
 
-        <div class="space-y-2">
-          <div>
-            <label id="labelInputDokHari" for="inputDokHari" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1"><?= $idOps > 0 ? 'Hari' : 'Kategori' ?></label>
-            <input type="text" id="inputDokHari" value="<?= e($hariLabel) ?>" class="control control-sm w-full font-mono font-bold text-xs" placeholder="<?= $idOps > 0 ? 'H1' : 'KEGIATAN' ?>" />
-          </div>
-          <div>
-            <label for="inputDokTanggal" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Tanggal</label>
-            <input type="text" id="inputDokTanggal" value="<?= e($tanggalDefault) ?>" class="control control-sm w-full font-semibold text-xs" placeholder="Kamis, 12 November 2026" />
-          </div>
-        </div>
-
+        <!-- Pilihan Tanggal (otomatis memuat Hari & Tanggal Bahasa Indonesia) -->
         <div>
-          <label id="labelInputDokJudul" for="inputDokJudul" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Judul Dokumentasi</label>
-          <textarea id="inputDokJudul" rows="3" class="control control-sm w-full font-semibold text-xs leading-snug" placeholder="<?= $idOps > 0 ? 'Dok Operasi SAR H1 ...' : 'Dokumentasi Kegiatan KPP Kelas A Kendari ...' ?>"><?= e($judulDefault) ?></textarea>
-        </div>
-
-        <!-- Logo Toggles -->
-        <div>
-          <span class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Logo Kop</span>
-          <div class="flex flex-wrap items-center gap-1.5">
-            <label class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-              <input type="checkbox" id="chkShowLogo1" <?= $showLogo1 ? 'checked' : '' ?> class="rounded accent-orange-600" />
-              <span>Basarnas</span>
-            </label>
-            <label class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-              <input type="checkbox" id="chkShowLogo2" <?= $showLogo2 ? 'checked' : '' ?> class="rounded accent-orange-600" />
-              <span>SAR Nas</span>
-            </label>
-            <label class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
-              <input type="checkbox" id="chkShowLogo3" <?= $showLogo3 ? 'checked' : '' ?> class="rounded accent-orange-600" />
-              <span>ANOA</span>
-            </label>
+          <label for="inputDokTanggalDate" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Hari &amp; Tanggal</label>
+          <input type="date" id="inputDokTanggalDate" value="<?= e($tanggalIsoDefault) ?>" class="control control-sm w-full font-semibold text-xs cursor-pointer" />
+          <div id="displayDokTanggalIndo" class="mt-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 text-[11px] font-semibold text-slate-700 dark:text-slate-200 truncate">
+            <?= e($tanggalDefault) ?>
           </div>
         </div>
 
-        <!-- Collapsible Kop & Footer -->
-        <details class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40 px-3 py-2">
-          <summary class="text-[11px] font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-            Identitas Kop &amp; Footer
-          </summary>
-          <div class="pt-2.5 space-y-2 text-xs">
-            <div>
-              <label for="inputHeaderNama" class="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Kantor SAR</label>
-              <input type="text" id="inputHeaderNama" value="<?= e(mb_strtoupper($satkerNama, 'UTF-8')) ?>" class="control control-sm w-full text-xs" />
-            </div>
-            <div>
-              <label for="inputHeaderAlamat" class="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Alamat</label>
-              <input type="text" id="inputHeaderAlamat" value="<?= e($satkerAlamat) ?>" class="control control-sm w-full text-xs" />
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label for="inputHeaderTelp" class="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Telepon</label>
-                <input type="text" id="inputHeaderTelp" value="<?= e($satkerTelp) ?>" class="control control-sm w-full text-xs" />
-              </div>
-              <div>
-                <label for="inputHeaderWa" class="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">WhatsApp</label>
-                <input type="text" id="inputHeaderWa" value="<?= e($satkerWa) ?>" class="control control-sm w-full font-mono text-xs" />
-              </div>
-            </div>
-            <div>
-              <label for="inputHeaderEmail" class="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Email</label>
-              <input type="text" id="inputHeaderEmail" value="<?= e($satkerEmail) ?>" class="control control-sm w-full text-xs" />
-            </div>
-            <div class="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200 dark:border-slate-800">
-              <div>
-                <label for="inputFooterWeb" class="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Website</label>
-                <input type="text" id="inputFooterWeb" value="<?= e($footerWeb) ?>" class="control control-sm w-full text-xs" />
-              </div>
-              <div>
-                <label for="inputFooterIg" class="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Instagram</label>
-                <input type="text" id="inputFooterIg" value="<?= e($footerIg) ?>" class="control control-sm w-full text-xs" />
-              </div>
-              <div>
-                <label for="inputFooterFb" class="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">Facebook</label>
-                <input type="text" id="inputFooterFb" value="<?= e($footerFb) ?>" class="control control-sm w-full text-xs" />
-              </div>
-              <div>
-                <label for="inputFooterX" class="block text-[10.5px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5">X / Twitter</label>
-                <input type="text" id="inputFooterX" value="<?= e($footerX) ?>" class="control control-sm w-full text-xs" />
-              </div>
-            </div>
+        <!-- Unggah Media Sekaligus (langsung di Tab Utama) -->
+        <div class="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Media</span>
+            <button type="button" id="btnClearAllSlots" class="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer">Hapus Semua</button>
           </div>
-        </details>
+
+          <label id="bulkMediaDropzone" class="dok-dropzone rounded-xl p-4 flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer">
+            <svg class="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-100">Unggah Foto / Video</span>
+            <input type="file" id="bulkMediaInput" accept="image/*,video/*" multiple class="hidden" />
+          </label>
+
+          <div class="flex items-center justify-between text-[11px] font-mono text-slate-500 dark:text-slate-400">
+            <span id="filledSlotsSummaryText">0 / 6 terisi</span>
+          </div>
+        </div>
       </div>
 
-      <!-- TAB 2: Gaya, Kanvas & Kualitas -->
-      <div data-studio-panel="desain" class="hidden p-3.5 space-y-3">
+      <!-- TAB 2: Gaya, Kanvas & Kualitas (Default Full HD & PNG) -->
+      <div data-studio-panel="desain" class="hidden p-3 space-y-3">
         <div>
           <span class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Gaya Desain</span>
           <div id="stylePresetGrid" class="grid grid-cols-2 gap-1.5">
@@ -363,7 +424,7 @@ if ($isEditMode) {
         <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
           <div class="flex items-center justify-between gap-2">
             <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Orientasi</span>
-            <span id="activeCanvasDimBadge" class="font-mono text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">1620 &times; 2430 px</span>
+            <span id="activeCanvasDimBadge" class="font-mono text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">1080 &times; 1620 px</span>
           </div>
           <div class="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80">
             <button type="button" class="dok-orient-tab h-7 rounded-lg text-[11px] font-semibold transition cursor-pointer" data-orient="vertical" data-active="true">Vertikal</button>
@@ -377,23 +438,23 @@ if ($isEditMode) {
           <div>
             <label for="selectExportQuality" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Kualitas</label>
             <select id="selectExportQuality" class="control control-sm w-full text-xs font-semibold cursor-pointer">
-              <option value="fhd">Full HD (1080p)</option>
-              <option value="qhd" selected>2K QHD</option>
+              <option value="fhd" selected>Full HD (1080p)</option>
+              <option value="qhd">2K QHD</option>
               <option value="uhd_4k">4K UHD</option>
             </select>
           </div>
           <div id="wrapSelectImageFormat">
             <label for="selectImageFormat" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">Format Foto</label>
             <select id="selectImageFormat" class="control control-sm w-full text-xs font-semibold cursor-pointer">
-              <option value="image/jpeg" selected>JPG</option>
-              <option value="image/png">PNG</option>
+              <option value="image/png" selected>PNG</option>
+              <option value="image/jpeg">JPG</option>
             </select>
           </div>
         </div>
       </div>
 
       <!-- TAB 3: Jumlah Slot & Pola Grid -->
-      <div data-studio-panel="grid" class="hidden p-3.5 space-y-3">
+      <div data-studio-panel="grid" class="hidden p-3 space-y-3">
         <div>
           <div class="flex items-center justify-between mb-1.5">
             <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Jumlah Slot</span>
@@ -417,20 +478,6 @@ if ($isEditMode) {
         </div>
       </div>
 
-      <!-- TAB 4: Unggah Media -->
-      <div data-studio-panel="media" class="hidden p-3.5 space-y-3">
-        <label id="bulkMediaDropzone" class="dok-dropzone rounded-xl p-4 flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer">
-          <svg class="w-6 h-6 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
-          <span class="text-xs font-bold text-slate-800 dark:text-slate-100">Pilih Foto / Video</span>
-          <input type="file" id="bulkMediaInput" accept="image/*,video/*" multiple class="hidden" />
-        </label>
-
-        <div class="flex items-center justify-between gap-2 pt-1">
-          <span id="filledSlotsSummaryText" class="text-[11px] font-mono font-semibold text-slate-600 dark:text-slate-400">0 / 6 slot terisi</span>
-          <button type="button" id="btnClearAllSlots" class="text-[11px] font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer">Hapus Semua</button>
-        </div>
-      </div>
-
       <!-- Hidden Single Slot Replace Input -->
       <input type="file" id="singleSlotInput" accept="image/*,video/*" class="hidden" />
     </aside>
@@ -440,16 +487,35 @@ if ($isEditMode) {
       <!-- Compact Preview Status & Quick Toolbar -->
       <div class="px-3.5 py-2 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/40 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div class="flex flex-wrap items-center gap-1.5 min-w-0">
-          <span id="previewMetaPill" class="px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-semibold">2:3 &bull; 6 Slot &bull; 2K</span>
+          <span id="previewMetaPill" class="px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-semibold">2:3 &bull; 6 Slot &bull; FHD</span>
           <span id="filledSlotsBadge" class="px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-semibold">0/6</span>
           <span id="previewModeBadge" class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold text-[10px] uppercase tracking-wider">FOTO</span>
         </div>
 
         <div class="flex flex-wrap items-center gap-1.5">
-          <button type="button" id="btnQuickAddMedia" class="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-orange-500/10 hover:bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-500/30 text-[11px] font-bold transition cursor-pointer">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
-            <span>Media</span>
-          </button>
+          <!-- Inline Title Alignment & Size Quick Controls -->
+          <div id="titleStyleBar" class="inline-flex items-center gap-1">
+            <button type="button" id="btnFocusInlineTitle" class="inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-semibold cursor-pointer" title="Edit Judul">
+              <span>Judul</span>
+            </button>
+            <div class="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden" role="group" aria-label="Perataan Judul">
+              <button type="button" class="dok-align-btn h-7 w-7 inline-flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer" data-title-align="left" data-active="false" title="Rata Kiri" aria-label="Rata Kiri">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M4 12h10M4 18h14"/></svg>
+              </button>
+              <button type="button" class="dok-align-btn h-7 w-7 inline-flex items-center justify-center border-x border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer" data-title-align="center" data-active="true" title="Rata Tengah" aria-label="Rata Tengah">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M7 12h10M5 18h14"/></svg>
+              </button>
+              <button type="button" class="dok-align-btn h-7 w-7 inline-flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer" data-title-align="right" data-active="false" title="Rata Kanan" aria-label="Rata Kanan">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M4 6h16M10 12h10M6 18h14"/></svg>
+              </button>
+            </div>
+            <div class="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden" role="group" aria-label="Ukuran Judul">
+              <button type="button" id="btnTitleSizeDown" class="h-7 px-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-mono text-[11px] font-bold cursor-pointer" title="Perkecil Judul">A&minus;</button>
+              <span id="titleSizePctLabel" class="h-7 px-1.5 inline-flex items-center border-x border-slate-300 dark:border-slate-700 font-mono text-[10.5px] font-semibold text-slate-600 dark:text-slate-300">100%</span>
+              <button type="button" id="btnTitleSizeUp" class="h-7 px-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-mono text-[11px] font-bold cursor-pointer" title="Perbesar Judul">A+</button>
+            </div>
+          </div>
+
           <button type="button" id="btnToggleBulkMode" class="hidden inline-flex items-center gap-1 h-7 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-semibold transition cursor-pointer">
             <span>Pilih Banyak</span>
           </button>
@@ -482,12 +548,12 @@ if ($isEditMode) {
         </div>
       </div>
 
-      <!-- Video Playback & Max 3-Minute Duration Strip (Auto-visible when >= 1 video slot) -->
+      <!-- Video Playback (Icon-Only Play/Pause) & Max 3-Minute Duration Strip -->
       <div id="videoPlaybackBar" class="hidden px-3.5 py-2 border-b border-slate-200/80 dark:border-slate-800 bg-orange-500/5 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div class="flex flex-wrap items-center gap-2">
-          <button type="button" id="btnToggleVideoPlay" class="inline-flex items-center gap-1.5 h-7 px-3 rounded-lg bg-orange-700 hover:bg-orange-800 text-white font-semibold text-[11px] cursor-pointer transition">
-            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-            <span id="labelToggleVideoPlay">Putar</span>
+          <button type="button" id="btnToggleVideoPlay" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-orange-700 hover:bg-orange-800 text-white cursor-pointer transition" title="Putar Video" aria-label="Putar Video">
+            <svg id="iconVideoPlay" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="iconVideoPause" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
           </button>
           <label class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 dark:text-slate-300">
             <span>Durasi</span>
@@ -504,7 +570,7 @@ if ($isEditMode) {
         <span id="videoEffectiveDurPill" class="font-mono text-[11px] font-semibold text-slate-600 dark:text-slate-300">00:00 / 03:00</span>
       </div>
 
-      <!-- Contextual Selected Slot Action Bar (100% Inside Card — Fixes Mobile Button Overflow) -->
+      <!-- Contextual Selected Slot Action Bar (100% Inside Card — Tanpa Tombol Tukar, Reorder Langsung di Grid) -->
       <div id="slotActionBar" class="hidden px-3 py-2 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/90 flex flex-wrap items-center justify-between gap-1.5 text-xs">
         <div class="flex items-center gap-1.5 min-w-0">
           <span id="slotBarBadge" class="px-1.5 py-0.5 rounded bg-orange-600 text-white font-mono text-[10.5px] font-bold shrink-0">#1</span>
@@ -523,10 +589,6 @@ if ($isEditMode) {
             <button type="button" id="btnSlotZoomIn" class="h-7 px-2 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-mono text-xs font-bold cursor-pointer" title="Perbesar">+</button>
           </div>
 
-          <button type="button" id="btnSlotSwap" class="inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-sky-950/50 text-slate-700 dark:text-slate-200 text-[11px] font-semibold cursor-pointer">
-            Tukar
-          </button>
-
           <button type="button" id="btnSlotMute" class="hidden inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-semibold cursor-pointer">
             Suara
           </button>
@@ -539,12 +601,6 @@ if ($isEditMode) {
             Hapus
           </button>
         </div>
-      </div>
-
-      <!-- Swap Mode Notice Strip -->
-      <div id="swapModeBar" class="hidden px-3.5 py-1.5 border-b border-sky-200 dark:border-sky-900 bg-sky-50 dark:bg-sky-950/40 flex items-center justify-between gap-2 text-[11px]">
-        <span id="swapModeLabel" class="font-semibold text-sky-800 dark:text-sky-200">Pilih slot tujuan untuk ditukar</span>
-        <button type="button" id="btnCancelSwap" class="px-2 py-0.5 rounded bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 text-sky-700 dark:text-sky-300 font-semibold cursor-pointer">Batal</button>
       </div>
 
       <!-- Interactive Canvas Viewport -->
@@ -562,7 +618,7 @@ if ($isEditMode) {
   </div>
 </div>
 
-<!-- Video Trim Modal (Maksimal 3 Menit / 180 Detik) -->
+<!-- Video Trim Modal (Dual-Thumb Single Slider Bar, Maks 3 Menit) -->
 <div id="videoTrimModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-3 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="trimModalTitle">
   <div class="w-full max-w-xl bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
     <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
@@ -577,44 +633,36 @@ if ($isEditMode) {
         <video id="trimPreviewVideo" controls playsinline class="w-full max-h-[38vh] bg-black"></video>
       </div>
 
-      <!-- Visual Window Bar -->
+      <!-- Dual-Thumb Single Track Slider (Titik Awal & Akhir) -->
       <div class="space-y-2">
-        <div class="relative h-2.5 w-full rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-          <div id="trimSelectionTrack" class="absolute top-0 bottom-0 bg-orange-500 rounded-full" style="left: 0%; width: 100%;"></div>
+        <div class="flex items-center justify-between text-[11px] font-mono font-semibold">
+          <span id="trimStartLabel" class="text-slate-900 dark:text-white">00:00.0</span>
+          <span id="trimDurationBadge" class="text-orange-600 dark:text-orange-400 font-bold">00:10 / 03:00</span>
+          <span id="trimEndLabel" class="text-slate-900 dark:text-white">00:10.0</span>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div class="space-y-1">
-            <div class="flex items-center justify-between text-[11px] font-semibold">
-              <span class="text-slate-600 dark:text-slate-400">Mulai</span>
-              <span id="trimStartLabel" class="font-mono text-slate-900 dark:text-white">00:00.0</span>
-            </div>
-            <input type="range" id="trimStartRange" min="0" max="10" step="0.1" value="0" class="dok-trim-range" />
+        <div id="trimDualSlider" class="dok-dual-slider">
+          <div class="dok-dual-rail">
+            <div id="trimSelectionTrack" class="dok-dual-fill" style="left: 0%; width: 100%;"></div>
           </div>
-          <div class="space-y-1">
-            <div class="flex items-center justify-between text-[11px] font-semibold">
-              <span class="text-slate-600 dark:text-slate-400">Akhir</span>
-              <span id="trimEndLabel" class="font-mono text-slate-900 dark:text-white">00:10.0</span>
-            </div>
-            <input type="range" id="trimEndRange" min="0" max="10" step="0.1" value="10" class="dok-trim-range" />
-          </div>
+          <input type="range" id="trimStartRange" min="0" max="10" step="0.1" value="0" aria-label="Titik Mulai Video" class="dok-dual-input" />
+          <input type="range" id="trimEndRange" min="0" max="10" step="0.1" value="10" aria-label="Titik Akhir Video" class="dok-dual-input" />
         </div>
       </div>
 
       <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
         <div class="flex flex-wrap items-center gap-1.5">
-          <button type="button" id="btnTrimSetStartHere" class="h-7 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">Set Mulai</button>
-          <button type="button" id="btnTrimSetEndHere" class="h-7 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">Set Akhir</button>
-          <button type="button" id="btnTrimPlaySelection" class="h-7 px-2.5 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-[11px] font-semibold cursor-pointer">Putar Potongan</button>
-          <button type="button" id="btnTrimReset" class="h-7 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 text-[11px] font-semibold text-slate-600 dark:text-slate-300 cursor-pointer">Reset</button>
+          <button type="button" id="btnTrimPlaySelection" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-900 dark:bg-slate-700 hover:bg-slate-800 text-white cursor-pointer" title="Putar Potongan" aria-label="Putar Potongan">
+            <svg id="iconTrimPlay" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <svg id="iconTrimPause" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+          </button>
+          <button type="button" id="btnTrimReset" class="h-8 px-3 rounded-lg border border-slate-300 dark:border-slate-700 text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">Reset</button>
         </div>
-        <span id="trimDurationBadge" class="font-mono text-xs font-bold text-orange-600 dark:text-orange-400">00:10 / 03:00</span>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btnCancelTrim" class="h-8 px-3.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">Batal</button>
+          <button type="button" id="btnApplyTrim" class="h-8 px-4 rounded-lg bg-orange-700 hover:bg-orange-800 text-white text-xs font-bold cursor-pointer">Terapkan</button>
+        </div>
       </div>
-    </div>
-
-    <div class="px-4 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 flex items-center justify-end gap-2">
-      <button type="button" id="btnCancelTrim" class="h-8 px-3.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 cursor-pointer">Batal</button>
-      <button type="button" id="btnApplyTrim" class="h-8 px-4 rounded-lg bg-orange-700 hover:bg-orange-800 text-white text-xs font-bold cursor-pointer">Terapkan</button>
     </div>
   </div>
 </div>
@@ -628,7 +676,10 @@ window.__DOK_STUDIO_CONFIG__ = <?= jsonSafe([
     'generalDefaults' => $generalDefaults,
     'hariLabel' => $hariLabel,
     'tanggalDefault' => $tanggalDefault,
+    'tanggalIsoDefault' => $tanggalIsoDefault,
     'judulDefault' => $judulDefault,
+    'officialHeader' => $officialHeader,
+    'officialFooter' => $officialFooter,
     'backDetailUrl' => $backDetailUrl,
     'apiEndpoint' => $apiEndpoint,
     'sourceApiEndpoint' => $sourceApiEndpoint,

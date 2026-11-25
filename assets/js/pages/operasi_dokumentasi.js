@@ -3,11 +3,12 @@
  * Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari - Basarnas
  *
  * Fitur:
- * - 2 Gaya Desain: Klasik Resmi KPP & Editorial Modern
- * - Kontrol slot kontekstual anti-overflow (mobile & desktop): pan langsung, zoom, tap-to-swap, mute, Trim maks 3 menit
- * - Auto-draft IndexedDB tahan refresh halaman (memulihkan seluruh berkas File/Blob, serverPath, trim, & job render aktif)
- * - Unggah bertahap (chunked 4 MB) tanpa batas ukuran per sumber, batas hasil akhir 150 MB
- * - Render video server-side FFmpeg (MP4 H.264/AAC) dengan fallback client teroptimasi & 1 loading bar terpadu (0% -> 100%)
+ * - Edit judul langsung pada kanvas pratinjau + kontrol perataan (Kiri/Tengah/Kanan) & ukuran teks
+ * - Pemilih tanggal (date picker) otomatis menghasilkan format Hari & Tanggal Bahasa Indonesia
+ * - 3 Logo resmi KOP & identitas Kop/Footer baku otomatis
+ * - Default ekspor Full HD (1080p) untuk foto & video, format PNG untuk foto
+ * - Reorder langsung di grid (mouse & touch via pointer events), dual-thumb Trim maks 3 menit, icon-only Play/Pause
+ * - Auto-draft IndexedDB tahan refresh, chunked upload 4 MB, render FFmpeg server-side <= 150 MB, 1 loading terpadu
  */
 (function () {
   'use strict';
@@ -28,6 +29,12 @@
   const MAX_VIDEO_SECONDS = Number(CAPS.max_video_duration_seconds) || 180;    // 3 menit
   const CHUNK_BYTES = Number(CAPS.chunk_size_bytes) || (4 * 1024 * 1024);      // 4 MB
 
+  const HARI_INDO = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const BULAN_INDO = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+  ];
+
   const DRAFT_SCOPE_KEY = (cfg.editDoc && cfg.editDoc.id)
     ? `edit:${cfg.editDoc.id}`
     : `create:ops:${Number(cfg.idOperasi) || 0}`;
@@ -39,12 +46,14 @@
     styleId: 'klasik_kpp',
     orientation: 'vertical',
     canvasPresetId: 'portrait_2_3',
-    qualityId: 'qhd',
-    userPickedQuality: false,
+    qualityId: 'fhd', // Default Full HD baik foto maupun video
     slotCount: 6,
     layoutId: 'v_6_2x3',
+    titleAlign: 'center', // 'left' | 'center' | 'right'
+    titleScale: 1.0,      // 0.7 .. 1.6
+    isEditingTitle: false,
+    titleBoxCache: null,
     selectedSlotIndex: 0,
-    swapSourceIndex: null,
     bulkMode: false,
     bulkSelected: new Set(),
     slots: [], // { type, el, url, isObjectUrl, file, serverPath, name, zoom, offsetX, offsetY, muted, videoTime, duration, trimStart, trimEnd }
@@ -68,8 +77,6 @@
     tabBtns: Array.from(document.querySelectorAll('[data-studio-tab]')),
     tabPanels: Array.from(document.querySelectorAll('[data-studio-panel]')),
     selectDokOperasi: document.getElementById('selectDokOperasi'),
-    labelInputDokHari: document.getElementById('labelInputDokHari'),
-    labelInputDokJudul: document.getElementById('labelInputDokJudul'),
     studioHeaderScopeLabel: document.getElementById('studioHeaderScopeLabel'),
     studioHeaderHariLabel: document.getElementById('studioHeaderHariLabel'),
     studioHeaderTitle: document.getElementById('studioHeaderTitle'),
@@ -83,27 +90,21 @@
     filledSlotsBadge: document.getElementById('filledSlotsBadge'),
     filledSlotsSummaryText: document.getElementById('filledSlotsSummaryText'),
     btnClearAllSlots: document.getElementById('btnClearAllSlots'),
-    btnQuickAddMedia: document.getElementById('btnQuickAddMedia'),
     bulkMediaDropzone: document.getElementById('bulkMediaDropzone'),
     bulkMediaInput: document.getElementById('bulkMediaInput'),
     singleSlotInput: document.getElementById('singleSlotInput'),
     inputDokHari: document.getElementById('inputDokHari'),
     inputDokTanggal: document.getElementById('inputDokTanggal'),
+    inputDokTanggalDate: document.getElementById('inputDokTanggalDate'),
+    displayDokTanggalIndo: document.getElementById('displayDokTanggalIndo'),
     inputDokJudul: document.getElementById('inputDokJudul'),
-    chkShowLogo1: document.getElementById('chkShowLogo1'),
-    chkShowLogo2: document.getElementById('chkShowLogo2'),
-    chkShowLogo3: document.getElementById('chkShowLogo3'),
-    inputHeaderNama: document.getElementById('inputHeaderNama'),
-    inputHeaderAlamat: document.getElementById('inputHeaderAlamat'),
-    inputHeaderTelp: document.getElementById('inputHeaderTelp'),
-    inputHeaderWa: document.getElementById('inputHeaderWa'),
-    inputHeaderEmail: document.getElementById('inputHeaderEmail'),
-    inputFooterWeb: document.getElementById('inputFooterWeb'),
-    inputFooterIg: document.getElementById('inputFooterIg'),
-    inputFooterFb: document.getElementById('inputFooterFb'),
-    inputFooterX: document.getElementById('inputFooterX'),
     previewMetaPill: document.getElementById('previewMetaPill'),
     previewModeBadge: document.getElementById('previewModeBadge'),
+    btnFocusInlineTitle: document.getElementById('btnFocusInlineTitle'),
+    titleAlignBtns: Array.from(document.querySelectorAll('[data-title-align]')),
+    btnTitleSizeDown: document.getElementById('btnTitleSizeDown'),
+    btnTitleSizeUp: document.getElementById('btnTitleSizeUp'),
+    titleSizePctLabel: document.getElementById('titleSizePctLabel'),
     btnToggleBulkMode: document.getElementById('btnToggleBulkMode'),
     previewBulkBar: document.getElementById('previewBulkBar'),
     bulkSelectedCountLabel: document.getElementById('bulkSelectedCountLabel'),
@@ -112,7 +113,8 @@
     btnBulkCancel: document.getElementById('btnBulkCancel'),
     videoPlaybackBar: document.getElementById('videoPlaybackBar'),
     btnToggleVideoPlay: document.getElementById('btnToggleVideoPlay'),
-    labelToggleVideoPlay: document.getElementById('labelToggleVideoPlay'),
+    iconVideoPlay: document.getElementById('iconVideoPlay'),
+    iconVideoPause: document.getElementById('iconVideoPause'),
     selectVideoDuration: document.getElementById('selectVideoDuration'),
     videoEffectiveDurPill: document.getElementById('videoEffectiveDurPill'),
     exportProgressWrap: document.getElementById('exportProgressWrap'),
@@ -135,14 +137,10 @@
     btnSlotZoomOut: document.getElementById('btnSlotZoomOut'),
     btnSlotZoomFit: document.getElementById('btnSlotZoomFit'),
     btnSlotZoomIn: document.getElementById('btnSlotZoomIn'),
-    btnSlotSwap: document.getElementById('btnSlotSwap'),
     btnSlotMute: document.getElementById('btnSlotMute'),
     btnSlotTrim: document.getElementById('btnSlotTrim'),
     btnSlotDelete: document.getElementById('btnSlotDelete'),
-    swapModeBar: document.getElementById('swapModeBar'),
-    swapModeLabel: document.getElementById('swapModeLabel'),
-    btnCancelSwap: document.getElementById('btnCancelSwap'),
-    // Video Trim Modal
+    // Video Trim Modal (Dual-Thumb Slider)
     videoTrimModal: document.getElementById('videoTrimModal'),
     trimModalTitle: document.getElementById('trimModalTitle'),
     btnCloseTrimModal: document.getElementById('btnCloseTrimModal'),
@@ -152,9 +150,9 @@
     trimEndLabel: document.getElementById('trimEndLabel'),
     trimStartRange: document.getElementById('trimStartRange'),
     trimEndRange: document.getElementById('trimEndRange'),
-    btnTrimSetStartHere: document.getElementById('btnTrimSetStartHere'),
-    btnTrimSetEndHere: document.getElementById('btnTrimSetEndHere'),
     btnTrimPlaySelection: document.getElementById('btnTrimPlaySelection'),
+    iconTrimPlay: document.getElementById('iconTrimPlay'),
+    iconTrimPause: document.getElementById('iconTrimPause'),
     btnTrimReset: document.getElementById('btnTrimReset'),
     trimDurationBadge: document.getElementById('trimDurationBadge'),
     btnCancelTrim: document.getElementById('btnCancelTrim'),
@@ -162,7 +160,9 @@
   };
 
   let replaceTargetIndex = 0;
-  let dragSourceIndex = null;
+
+  // Pointer-based direct grid reorder state (bekerja di desktop mouse & mobile touch!)
+  let pointerReorder = null;
 
   function notify(msg, type) {
     if (typeof window.showToast === 'function') {
@@ -185,6 +185,26 @@
   function getCsrfToken() {
     const meta = document.querySelector('meta[name="csrf-token"]');
     return (meta ? meta.getAttribute('content') : '') || window.CSRF_TOKEN || '';
+  }
+
+  function formatDateIndoFromIso(isoStr) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoStr || '').trim());
+    if (!m) return '';
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return '';
+    const dt = new Date(y, mo - 1, d);
+    const dayName = HARI_INDO[dt.getDay()] || '';
+    const monthName = BULAN_INDO[mo - 1] || '';
+    return `${dayName}, ${d} ${monthName} ${y}`;
+  }
+
+  function syncDateFromPicker(isoVal) {
+    const formatted = formatDateIndoFromIso(isoVal);
+    if (!formatted) return;
+    if (els.inputDokTanggal) els.inputDokTanggal.value = formatted;
+    if (els.displayDokTanggalIndo) els.displayDokTanggalIndo.textContent = formatted;
   }
 
   function formatTimeMMSS(sec, withDec) {
@@ -235,15 +255,41 @@
     });
   }
 
+  function syncTitleStyleControls() {
+    els.titleAlignBtns.forEach((b) => {
+      b.dataset.active = b.dataset.titleAlign === state.titleAlign ? 'true' : 'false';
+    });
+    if (els.titleSizePctLabel) {
+      els.titleSizePctLabel.textContent = `${Math.round(state.titleScale * 100)}%`;
+    }
+  }
+
+  function syncPlayPauseButtonUI(playing) {
+    if (els.iconVideoPlay) els.iconVideoPlay.classList.toggle('hidden', !!playing);
+    if (els.iconVideoPause) els.iconVideoPause.classList.toggle('hidden', !playing);
+    if (els.btnToggleVideoPlay) {
+      const lbl = playing ? 'Jeda Video' : 'Putar Video';
+      els.btnToggleVideoPlay.title = lbl;
+      els.btnToggleVideoPlay.setAttribute('aria-label', lbl);
+    }
+  }
+
+  function syncTrimPlayIconUI(playing) {
+    if (els.iconTrimPlay) els.iconTrimPlay.classList.toggle('hidden', !!playing);
+    if (els.iconTrimPause) els.iconTrimPause.classList.toggle('hidden', !playing);
+    if (els.btnTrimPlaySelection) {
+      const lbl = playing ? 'Jeda Potongan' : 'Putar Potongan';
+      els.btnTrimPlaySelection.title = lbl;
+      els.btnTrimPlaySelection.setAttribute('aria-label', lbl);
+    }
+  }
+
   function ensureSlotsLength(count) {
     while (state.slots.length < count) {
       state.slots.push(null);
     }
     if (state.selectedSlotIndex >= count) {
       state.selectedSlotIndex = count - 1;
-    }
-    if (state.swapSourceIndex !== null && state.swapSourceIndex >= count) {
-      state.swapSourceIndex = null;
     }
     Array.from(state.bulkSelected).forEach((idx) => {
       if (idx >= count || !state.slots[idx]) {
@@ -289,18 +335,6 @@
     const genHari = (cfg.generalDefaults && cfg.generalDefaults.hariLabel) || 'KEGIATAN';
     const genJudul = (cfg.generalDefaults && cfg.generalDefaults.judulDefault) || 'Dokumentasi Kegiatan KPP Kelas A Kendari';
     const opt = general ? null : findOperasiOption(state.idOperasi);
-
-    if (els.labelInputDokHari) {
-      els.labelInputDokHari.textContent = general ? 'Kategori' : 'Hari';
-    }
-    if (els.inputDokHari) {
-      els.inputDokHari.placeholder = general ? 'KEGIATAN' : 'H1';
-    }
-    if (els.inputDokJudul) {
-      els.inputDokJudul.placeholder = general
-        ? 'Dokumentasi Kegiatan KPP Kelas A Kendari ...'
-        : 'Dok Operasi SAR H1 ...';
-    }
 
     if (applyDefaultTexts) {
       if (general) {
@@ -357,27 +391,17 @@
       orientation: state.orientation,
       canvasPresetId: state.canvasPresetId,
       qualityId: state.qualityId,
-      userPickedQuality: state.userPickedQuality,
       slotCount: state.slotCount,
       layoutId: state.layoutId,
-      imageFormat: (els.selectImageFormat && els.selectImageFormat.value) || 'image/jpeg',
+      titleAlign: state.titleAlign,
+      titleScale: state.titleScale,
+      imageFormat: (els.selectImageFormat && els.selectImageFormat.value) || 'image/png',
       videoDuration: (els.selectVideoDuration && els.selectVideoDuration.value) || 'auto',
       form: {
         hari: els.inputDokHari ? els.inputDokHari.value : '',
         tanggal: els.inputDokTanggal ? els.inputDokTanggal.value : '',
+        tanggalIso: els.inputDokTanggalDate ? els.inputDokTanggalDate.value : '',
         judul: els.inputDokJudul ? els.inputDokJudul.value : '',
-        logo1: !(els.chkShowLogo1 && !els.chkShowLogo1.checked),
-        logo2: !(els.chkShowLogo2 && !els.chkShowLogo2.checked),
-        logo3: !(els.chkShowLogo3 && !els.chkShowLogo3.checked),
-        headerNama: els.inputHeaderNama ? els.inputHeaderNama.value : '',
-        headerAlamat: els.inputHeaderAlamat ? els.inputHeaderAlamat.value : '',
-        headerTelp: els.inputHeaderTelp ? els.inputHeaderTelp.value : '',
-        headerWa: els.inputHeaderWa ? els.inputHeaderWa.value : '',
-        headerEmail: els.inputHeaderEmail ? els.inputHeaderEmail.value : '',
-        footerWeb: els.inputFooterWeb ? els.inputFooterWeb.value : '',
-        footerIg: els.inputFooterIg ? els.inputFooterIg.value : '',
-        footerFb: els.inputFooterFb ? els.inputFooterFb.value : '',
-        footerX: els.inputFooterX ? els.inputFooterX.value : '',
       },
       slots: slotsSnap,
       activeJob: activeJobOverride !== undefined
@@ -393,7 +417,6 @@
       state.draftSaveTimer = null;
     }
     const persist = () => {
-      // Hanya simpan bila ada media terisi atau teks sudah diubah dari kosong
       const hasMedia = filledSlotCount() > 0;
       const hasCustomTitle = els.inputDokJudul && els.inputDokJudul.value.trim() !== '' && els.inputDokJudul.value.trim() !== cfg.judulDefault;
       if (!hasMedia && !hasCustomTitle && !state.activeServerJobId) {
@@ -415,7 +438,7 @@
     }
   }
 
-  // --- Preload 3 Official Basarnas Logos ---
+  // --- Preload 3 Official Basarnas Logos (Baku Selalu Aktif) ---
   function preloadLogos() {
     ['logo1', 'logo2', 'logo3'].forEach((key) => {
       const uri = cfg.logos && cfg.logos[key];
@@ -506,41 +529,28 @@
     const slot = (idx >= 0 && idx < state.slotCount) ? state.slots[idx] : null;
     if (!slot || state.bulkMode) {
       els.slotActionBar.classList.add('hidden');
-    } else {
-      els.slotActionBar.classList.remove('hidden');
-      if (els.slotBarBadge) els.slotBarBadge.textContent = `#${idx + 1}`;
-      if (els.slotBarName) els.slotBarName.textContent = slot.name || `Slot ${idx + 1}`;
-
-      const isVid = slot.type === 'video';
-      if (els.btnSlotMute) {
-        els.btnSlotMute.classList.toggle('hidden', !isVid);
-        els.btnSlotMute.textContent = slot.muted ? 'Bisu' : 'Suara';
-      }
-      if (els.btnSlotTrim) {
-        els.btnSlotTrim.classList.toggle('hidden', !isVid);
-      }
-      if (els.slotBarTrimPill) {
-        if (isVid) {
-          const rng = getEffectiveClipRange(slot);
-          els.slotBarTrimPill.textContent = `${formatTimeMMSS(rng.start)}-${formatTimeMMSS(rng.end)}`;
-          els.slotBarTrimPill.classList.remove('hidden');
-        } else {
-          els.slotBarTrimPill.classList.add('hidden');
-        }
-      }
-      if (els.btnSlotSwap) {
-        const isSwapSrc = state.swapSourceIndex === idx;
-        els.btnSlotSwap.className = isSwapSrc
-          ? 'inline-flex items-center gap-1 h-7 px-2 rounded-lg bg-sky-600 text-white text-[11px] font-bold cursor-pointer'
-          : 'inline-flex items-center gap-1 h-7 px-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-sky-950/50 text-slate-700 dark:text-slate-200 text-[11px] font-semibold cursor-pointer';
-      }
+      return;
     }
 
-    if (els.swapModeBar) {
-      const swapping = state.swapSourceIndex !== null;
-      els.swapModeBar.classList.toggle('hidden', !swapping);
-      if (swapping && els.swapModeLabel) {
-        els.swapModeLabel.textContent = `Ketuk slot tujuan untuk ditukar dengan Slot #${state.swapSourceIndex + 1}`;
+    els.slotActionBar.classList.remove('hidden');
+    if (els.slotBarBadge) els.slotBarBadge.textContent = `#${idx + 1}`;
+    if (els.slotBarName) els.slotBarName.textContent = slot.name || `Slot ${idx + 1}`;
+
+    const isVid = slot.type === 'video';
+    if (els.btnSlotMute) {
+      els.btnSlotMute.classList.toggle('hidden', !isVid);
+      els.btnSlotMute.textContent = slot.muted ? 'Bisu' : 'Suara';
+    }
+    if (els.btnSlotTrim) {
+      els.btnSlotTrim.classList.toggle('hidden', !isVid);
+    }
+    if (els.slotBarTrimPill) {
+      if (isVid) {
+        const rng = getEffectiveClipRange(slot);
+        els.slotBarTrimPill.textContent = `${formatTimeMMSS(rng.start)}-${formatTimeMMSS(rng.end)}`;
+        els.slotBarTrimPill.classList.remove('hidden');
+      } else {
+        els.slotBarTrimPill.classList.add('hidden');
       }
     }
   }
@@ -548,16 +558,6 @@
   function syncModeAndCounters() {
     const filled = filledSlotCount();
     const hasVid = hasVideoSlot();
-
-    // Default kualitas cerdas: Full HD (1080p) otomatis saat video pertama ditambahkan (jika belum dipilih manual)
-    if (hasVid && !state.userPickedQuality && state.qualityId !== 'fhd') {
-      state.qualityId = 'fhd';
-      if (els.selectExportQuality) els.selectExportQuality.value = 'fhd';
-    } else if (!hasVid && !state.userPickedQuality && state.qualityId !== 'qhd') {
-      state.qualityId = 'qhd';
-      if (els.selectExportQuality) els.selectExportQuality.value = 'qhd';
-    }
-
     const preset = Layouts.getCanvasPreset(state.canvasPresetId);
     const expDim = Layouts.resolveExportDimensions(preset, state.qualityId);
     const qShort = state.qualityId === 'uhd_4k' ? '4K' : (state.qualityId === 'qhd' ? '2K' : 'FHD');
@@ -566,7 +566,7 @@
       els.filledSlotsBadge.textContent = `${filled}/${state.slotCount}`;
     }
     if (els.filledSlotsSummaryText) {
-      els.filledSlotsSummaryText.textContent = `${filled} / ${state.slotCount} slot terisi`;
+      els.filledSlotsSummaryText.textContent = `${filled} / ${state.slotCount} terisi`;
     }
     if (els.previewMetaPill) {
       els.previewMetaPill.textContent = `${preset.ratio} \u2022 ${state.slotCount} Slot \u2022 ${qShort}`;
@@ -609,6 +609,7 @@
     if (!hasVid && state.isPlaying) {
       stopPlayback();
     }
+    syncTitleStyleControls();
     syncSelectedSlotActionBar();
   }
 
@@ -619,21 +620,169 @@
     syncModeAndCounters();
   }
 
-  // --- Minimal Anti-Overflow Interactive Overlay on Live Preview ---
+  // --- Pointer-Based Direct Grid Reorder (Desktop Mouse + Mobile Touch) ---
+  function startPointerReorder(fromIdx, clientX, clientY) {
+    if (pointerReorder) cancelPointerReorder();
+    const srcSlot = state.slots[fromIdx];
+    if (!srcSlot) return;
+
+    const ghost = document.createElement('div');
+    ghost.className = 'dok-drag-ghost';
+    ghost.textContent = `Pindah #${fromIdx + 1}`;
+    ghost.style.left = clientX + 'px';
+    ghost.style.top = clientY + 'px';
+    document.body.appendChild(ghost);
+
+    const srcBox = overlayEl ? overlayEl.querySelector(`.dok-ov-slot[data-slot-index="${fromIdx}"]`) : null;
+    if (srcBox) srcBox.classList.add('is-dragging-source');
+
+    pointerReorder = { fromIdx, targetIdx: null, ghost };
+
+    const onMove = (ev) => {
+      if (!pointerReorder) return;
+      ev.preventDefault();
+      pointerReorder.ghost.style.left = ev.clientX + 'px';
+      pointerReorder.ghost.style.top = ev.clientY + 'px';
+
+      let hitIdx = null;
+      if (overlayEl) {
+        overlayEl.querySelectorAll('.dok-ov-slot').forEach((node) => {
+          const r = node.getBoundingClientRect();
+          const inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+          const idx = Number(node.dataset.slotIndex);
+          if (inside && idx !== pointerReorder.fromIdx) {
+            hitIdx = idx;
+            node.classList.add('is-drop-target');
+          } else {
+            node.classList.remove('is-drop-target');
+          }
+        });
+      }
+      pointerReorder.targetIdx = hitIdx;
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (!pointerReorder) return;
+      const { fromIdx: fIdx, targetIdx: tIdx } = pointerReorder;
+      cancelPointerReorder();
+      if (tIdx !== null && tIdx !== fIdx) {
+        swapSlots(fIdx, tIdx);
+      }
+    };
+
+    window.addEventListener('pointermove', onMove, { passive: false });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  function cancelPointerReorder() {
+    if (!pointerReorder) return;
+    if (pointerReorder.ghost && pointerReorder.ghost.parentNode) {
+      pointerReorder.ghost.parentNode.removeChild(pointerReorder.ghost);
+    }
+    if (overlayEl) {
+      overlayEl.querySelectorAll('.is-dragging-source, .is-drop-target').forEach((n) => {
+        n.classList.remove('is-dragging-source', 'is-drop-target');
+      });
+    }
+    pointerReorder = null;
+  }
+
+  // --- Inline Editable Title Overlay Directly on Canvas ---
+  function openInlineTitleEditor() {
+    if (state.isEditingTitle || !overlayEl || !state.titleBoxCache) return;
+    state.isEditingTitle = true;
+    drawCollage(false, true);
+
+    const W = canvas.width || 1080;
+    const H = canvas.height || 1620;
+    const tb = state.titleBoxCache;
+    const zone = overlayEl.querySelector('.dok-ov-title-zone');
+    if (!zone) {
+      state.isEditingTitle = false;
+      drawCollage(false, false);
+      return;
+    }
+
+    zone.classList.add('is-editing');
+    zone.innerHTML = '';
+
+    const ta = document.createElement('textarea');
+    ta.className = 'dok-inline-title-editor';
+    ta.value = (els.inputDokJudul && els.inputDokJudul.value) || '';
+    ta.placeholder = 'Tulis judul dokumentasi...';
+    ta.setAttribute('aria-label', 'Edit Judul Dokumentasi');
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const scalePx = canvasRect.width / Math.max(1, W);
+    ta.style.fontSize = Math.max(11, Math.round(tb.fontSize * scalePx)) + 'px';
+    ta.style.textAlign = state.titleAlign || tb.align || 'center';
+
+    const commitTitle = () => {
+      if (!state.isEditingTitle) return;
+      if (els.inputDokJudul) {
+        els.inputDokJudul.value = ta.value.replace(/\s+/g, ' ').trim();
+      }
+      state.isEditingTitle = false;
+      drawCollage(false, false);
+      scheduleDraftSave();
+    };
+
+    ta.addEventListener('input', () => {
+      if (els.inputDokJudul) {
+        els.inputDokJudul.value = ta.value;
+      }
+      scheduleDraftSave();
+    });
+    ta.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' || (ev.key === 'Enter' && !ev.shiftKey)) {
+        ev.preventDefault();
+        ta.blur();
+      }
+    });
+    ta.addEventListener('blur', commitTitle);
+
+    zone.appendChild(ta);
+    const tightHPercent = Math.max((tb.h / H) * 100, 3.8);
+    zone.style.height = tightHPercent.toFixed(4) + '%';
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+  }
+
+  // --- Interactive Overlay: Inline Title Zone + Direct Grid Reorder Slots ---
   function syncInteractiveOverlay() {
-    if (!overlayEl) return;
+    if (!overlayEl || state.isEditingTitle) return;
     const W = canvas.width || 1080;
     const H = canvas.height || 1620;
     const rects = state.slotRectsCache || [];
     overlayEl.innerHTML = '';
 
+    // 1. Inline Click-to-Edit Title Zone directly on preview
+    if (state.titleBoxCache) {
+      const tb = state.titleBoxCache;
+      const tZone = document.createElement('div');
+      tZone.className = 'dok-ov-title-zone';
+      tZone.title = 'Klik untuk menulis atau mengedit judul';
+      tZone.style.left = ((tb.x / W) * 100).toFixed(4) + '%';
+      tZone.style.top = ((tb.y / H) * 100).toFixed(4) + '%';
+      tZone.style.width = ((tb.w / W) * 100).toFixed(4) + '%';
+      tZone.style.height = ((Math.max(tb.h, 48) / H) * 100).toFixed(4) + '%';
+      tZone.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openInlineTitleEditor();
+      });
+      overlayEl.appendChild(tZone);
+    }
+
+    // 2. Interactive Media Slots (Pan + Direct Pointer Reorder via #N Handle or Long-Press)
     rects.forEach((rect, idx) => {
       const item = state.slots[idx];
       const isFilled = !!item;
       const isSelected = idx === state.selectedSlotIndex;
       const isChecked = state.bulkSelected.has(idx);
-      const isSwapSource = state.swapSourceIndex === idx;
-      const isSwapReady = state.swapSourceIndex !== null && state.swapSourceIndex !== idx;
 
       const box = document.createElement('div');
       box.className = 'dok-ov-slot';
@@ -642,14 +791,12 @@
       box.dataset.selected = isSelected ? 'true' : 'false';
       box.dataset.bulkMode = state.bulkMode ? 'true' : 'false';
       box.dataset.bulkChecked = isChecked ? 'true' : 'false';
-      box.dataset.swapSource = isSwapSource ? 'true' : 'false';
-      box.dataset.swapReady = isSwapReady ? 'true' : 'false';
       box.style.left = ((rect.x / W) * 100).toFixed(4) + '%';
       box.style.top = ((rect.y / H) * 100).toFixed(4) + '%';
       box.style.width = ((rect.w / W) * 100).toFixed(4) + '%';
       box.style.height = ((rect.h / H) * 100).toFixed(4) + '%';
 
-      // Drag-and-drop file or reorder (desktop)
+      // Drag-and-drop berkas langsung dari Finder/Explorer ke slot
       box.addEventListener('dragover', (e) => {
         e.preventDefault();
         box.classList.add('is-drop-target');
@@ -661,19 +808,12 @@
         e.preventDefault();
         e.stopPropagation();
         box.classList.remove('is-drop-target');
-        if (dragSourceIndex !== null && dragSourceIndex !== idx) {
-          const fromIdx = dragSourceIndex;
-          dragSourceIndex = null;
-          swapSlots(fromIdx, idx);
-          return;
-        }
-        dragSourceIndex = null;
         const droppedFiles = e.dataTransfer && e.dataTransfer.files;
         if (droppedFiles && droppedFiles.length === 1) {
           await loadFileIntoSlot(droppedFiles[0], idx);
           state.selectedSlotIndex = idx;
           refreshAllUI();
-          scheduleDraftSave();
+          scheduleDraftSave(true);
         } else if (droppedFiles && droppedFiles.length > 1) {
           handleBulkFiles(droppedFiles);
         }
@@ -682,12 +822,6 @@
       if (!isFilled) {
         box.title = `Slot #${idx + 1}`;
         box.addEventListener('click', () => {
-          if (state.swapSourceIndex !== null) {
-            const fromIdx = state.swapSourceIndex;
-            state.swapSourceIndex = null;
-            swapSlots(fromIdx, idx);
-            return;
-          }
           state.selectedSlotIndex = idx;
           replaceTargetIndex = idx;
           if (els.singleSlotInput) {
@@ -700,18 +834,18 @@
         return;
       }
 
-      // Filled Slot: Clean Pan-by-Drag + Tap to Select/Swap (ZERO overflowing button bars inside slot!)
+      // Filled Slot: Pan-by-Drag + Long-Press (350ms) Reorder
       let panActive = false;
       let startX = 0;
       let startY = 0;
       let origOffX = 0;
       let origOffY = 0;
       let moved = false;
+      let holdTimer = null;
 
       box.addEventListener('pointerdown', (e) => {
         if (e.target.closest('input, label, [data-reorder-handle]')) return;
         if (e.button !== 0) return;
-        if (state.swapSourceIndex !== null) return;
         state.selectedSlotIndex = idx;
         panActive = true;
         moved = false;
@@ -721,13 +855,29 @@
         origOffY = item.offsetY || 0;
         box.classList.add('is-panning');
         try { box.setPointerCapture(e.pointerId); } catch (err) {}
+
+        // Tekan tahan 350ms tanpa menggeser -> langsung aktifkan mode reorder seret pada grid
+        holdTimer = setTimeout(() => {
+          if (panActive && !moved && !state.bulkMode) {
+            panActive = false;
+            box.classList.remove('is-panning');
+            try { box.releasePointerCapture(e.pointerId); } catch (err) {}
+            startPointerReorder(idx, startX, startY);
+          }
+        }, 350);
       });
 
       box.addEventListener('pointermove', (e) => {
         if (!panActive) return;
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+          moved = true;
+          if (holdTimer) {
+            clearTimeout(holdTimer);
+            holdTimer = null;
+          }
+        }
         if (!moved) return;
         const rectPx = box.getBoundingClientRect();
         const sensX = (dx / Math.max(40, rectPx.width)) * 180;
@@ -738,6 +888,10 @@
       });
 
       const endPan = (e) => {
+        if (holdTimer) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
         if (!panActive) return;
         panActive = false;
         box.classList.remove('is-panning');
@@ -755,21 +909,7 @@
       box.addEventListener('pointerup', endPan);
       box.addEventListener('pointercancel', endPan);
 
-      box.addEventListener('click', (e) => {
-        if (e.target.closest('input, label')) return;
-        if (state.swapSourceIndex !== null) {
-          const fromIdx = state.swapSourceIndex;
-          state.swapSourceIndex = null;
-          if (fromIdx !== idx) {
-            swapSlots(fromIdx, idx);
-          } else {
-            syncSelectedSlotActionBar();
-            syncInteractiveOverlay();
-          }
-        }
-      });
-
-      // Minimal corner indicator inside slot (strictly small & clipped inside overflow-hidden slot)
+      // Minimal corner grip handle (#N) -> seret langsung untuk reorder di desktop & mobile!
       const topBadgeRow = document.createElement('div');
       topBadgeRow.className = 'absolute top-1 left-1 right-1 flex items-center justify-between gap-1 pointer-events-none';
 
@@ -790,17 +930,17 @@
       } else {
         const grip = document.createElement('span');
         grip.setAttribute('data-reorder-handle', 'true');
-        grip.draggable = true;
-        grip.className = 'dok-ov-badge inline-flex items-center px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold cursor-move pointer-events-auto select-none';
-        grip.textContent = '#' + (idx + 1);
-        grip.addEventListener('dragstart', (ev) => {
-          dragSourceIndex = idx;
-          ev.dataTransfer.effectAllowed = 'move';
-          try { ev.dataTransfer.setData('text/plain', String(idx)); } catch (err) {}
-        });
-        grip.addEventListener('dragend', () => {
-          dragSourceIndex = null;
-          overlayEl.querySelectorAll('.is-drop-target').forEach((n) => n.classList.remove('is-drop-target'));
+        grip.title = 'Seret untuk ubah urutan slot';
+        grip.className = 'dok-ov-badge inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold cursor-move pointer-events-auto select-none';
+        grip.innerHTML =
+          '<svg class="w-2.5 h-2.5 opacity-85" fill="currentColor" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>' +
+          '<span>#' + (idx + 1) + '</span>';
+        grip.addEventListener('pointerdown', (ev) => {
+          if (ev.button !== 0) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          state.selectedSlotIndex = idx;
+          startPointerReorder(idx, ev.clientX, ev.clientY);
         });
         topBadgeRow.appendChild(grip);
       }
@@ -852,7 +992,7 @@
     }
   }
 
-  // --- Media Loading (Images & Videos: Local File, Draft Blob, & Saved Server Asset) ---
+  // --- Media Loading ---
   function loadFileIntoSlot(file, index, presetMeta) {
     if (!file) return Promise.resolve();
     const fname = (presetMeta && presetMeta.name) || file.name || `media_${index + 1}`;
@@ -1091,10 +1231,9 @@
     refreshAllUI();
     scheduleDraftSave(true);
 
-    // Peringatkan halus jika ada video berdurasi > 3 menit bahwa jendela otomatis dipotong 00:00-03:00
     const longVid = activeSlotsSlice().find((s) => s && s.type === 'video' && s.duration > MAX_VIDEO_SECONDS + 0.5);
     if (longVid) {
-      notify(`${tasks.length} media dimuat. Video > 3 menit disetel otomatis 00:00–03:00 (gunakan tombol Trim untuk mengubah).`, 'info');
+      notify(`${tasks.length} media dimuat. Video > 3 menit disetel 00:00–03:00 (buka Trim untuk mengubah).`, 'info');
     } else {
       notify(`${tasks.length} media berhasil dimuat.`, 'success');
     }
@@ -1104,7 +1243,6 @@
     releaseSlotResources(state.slots[idx]);
     state.slots[idx] = null;
     state.bulkSelected.delete(idx);
-    if (state.swapSourceIndex === idx) state.swapSourceIndex = null;
     refreshAllUI();
     if (filledSlotCount() === 0) {
       clearDraftStorage();
@@ -1139,7 +1277,6 @@
     }
     state.bulkSelected.clear();
     state.bulkMode = false;
-    state.swapSourceIndex = null;
     clearDraftStorage();
     refreshAllUI();
   }
@@ -1158,7 +1295,7 @@
     state.selectedSlotIndex = idxB;
     refreshAllUI();
     scheduleDraftSave(true);
-    notify(`Slot #${idxA + 1} dan #${idxB + 1} ditukar.`, 'success');
+    notify(`Urutan Slot #${idxA + 1} dan #${idxB + 1} ditukar.`, 'success');
   }
 
   function setStyle(styleId) {
@@ -1204,13 +1341,17 @@
     scheduleDraftSave();
   }
 
-  // --- Video Trim Modal Logic (Maksimal 3 Menit / 180 Detik) ---
+  // --- Video Trim Modal Logic (Single-Track Dual-Thumb Slider, Maks 3 Menit) ---
   function updateTrimModalVisuals() {
     if (!els.trimStartRange || !els.trimEndRange) return;
     const maxDur = Math.max(0.5, Number(els.trimStartRange.max) || 10);
     const s = Math.max(0, Number(els.trimStartRange.value) || 0);
     const e = Math.max(s + 0.5, Math.min(maxDur, Number(els.trimEndRange.value) || maxDur));
     const selDur = Math.max(0.5, e - s);
+
+    // Atur z-index dinamis agar 2 titik slider tidak pernah saling mengunci di ujung
+    els.trimStartRange.style.zIndex = (s >= maxDur * 0.85) ? '5' : '3';
+    els.trimEndRange.style.zIndex = '4';
 
     if (els.trimStartLabel) els.trimStartLabel.textContent = formatTimeMMSS(s, true);
     if (els.trimEndLabel) els.trimEndLabel.textContent = formatTimeMMSS(e, true);
@@ -1225,10 +1366,22 @@
     }
   }
 
+  function stopTrimPreviewPlayback() {
+    if (state.trimPreviewLoopId) {
+      clearInterval(state.trimPreviewLoopId);
+      state.trimPreviewLoopId = null;
+    }
+    if (els.trimPreviewVideo) {
+      try { els.trimPreviewVideo.pause(); } catch (err) {}
+    }
+    syncTrimPlayIconUI(false);
+  }
+
   function openVideoTrimModal(slotIdx) {
     const slot = state.slots[slotIdx];
     if (!slot || slot.type !== 'video' || !els.videoTrimModal || !els.trimPreviewVideo) return;
     stopPlayback();
+    stopTrimPreviewPlayback();
 
     state.trimSlotIndex = slotIdx;
     const rng = getEffectiveClipRange(slot);
@@ -1242,7 +1395,7 @@
     els.trimStartRange.max = String(Math.round(srcDur * 10) / 10);
     els.trimStartRange.value = String(Math.round(rng.start * 10) / 10);
 
-    els.trimEndRange.min = '0.5';
+    els.trimEndRange.min = '0';
     els.trimEndRange.max = String(Math.round(srcDur * 10) / 10);
     els.trimEndRange.value = String(Math.round(rng.end * 10) / 10);
 
@@ -1258,12 +1411,8 @@
   }
 
   function closeVideoTrimModal() {
-    if (state.trimPreviewLoopId) {
-      clearInterval(state.trimPreviewLoopId);
-      state.trimPreviewLoopId = null;
-    }
+    stopTrimPreviewPlayback();
     if (els.trimPreviewVideo) {
-      try { els.trimPreviewVideo.pause(); } catch (e) {}
       els.trimPreviewVideo.removeAttribute('src');
       els.trimPreviewVideo.load();
     }
@@ -1348,32 +1497,50 @@
   }
 
   function collectFormTexts() {
-    const telpVal = (els.inputHeaderTelp && els.inputHeaderTelp.value.trim()) || '0401 3196 557';
-    const waVal = (els.inputHeaderWa && els.inputHeaderWa.value.trim()) || '';
+    const hdr = cfg.officialHeader || {};
+    const ftr = cfg.officialFooter || {};
+    const telpVal = String(hdr.telp || '0401 3196 557').trim();
+    const waVal = String(hdr.wa || '').trim();
     const general = isGeneralMode();
     return {
       hari: (els.inputDokHari && els.inputDokHari.value.trim()) || (general ? 'KEGIATAN' : (cfg.hariLabel || 'H1')),
-      tanggal: (els.inputDokTanggal && els.inputDokTanggal.value.trim()) || '',
+      tanggal: (els.inputDokTanggal && els.inputDokTanggal.value.trim()) || cfg.tanggalDefault || '',
       judul: (els.inputDokJudul && els.inputDokJudul.value.trim()) || (general ? 'Dokumentasi Kegiatan KPP Kelas A Kendari' : (cfg.judulDefault || 'Dokumentasi Operasi SAR')),
-      namaSatker: (els.inputHeaderNama && els.inputHeaderNama.value.trim()) || 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI',
-      alamat: (els.inputHeaderAlamat && els.inputHeaderAlamat.value.trim()) || '',
+      namaSatker: String(hdr.nama || 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI').trim(),
+      alamat: String(hdr.alamat || '').trim(),
       emergencyLine: Layouts.formatEmergencyLine(telpVal, waVal),
-      email: (els.inputHeaderEmail && els.inputHeaderEmail.value.trim()) || '',
-      web: (els.inputFooterWeb && els.inputFooterWeb.value.trim()) || '',
+      email: String(hdr.email || '').trim(),
+      web: String(ftr.web || '').trim(),
       socials: [
-        { kind: 'ig', label: (els.inputFooterIg && els.inputFooterIg.value.trim()) || '' },
-        { kind: 'fb', label: (els.inputFooterFb && els.inputFooterFb.value.trim()) || '' },
-        { kind: 'x', label: (els.inputFooterX && els.inputFooterX.value.trim()) || '' },
+        { kind: 'ig', label: String(ftr.ig || '').trim() },
+        { kind: 'fb', label: String(ftr.fb || '').trim() },
+        { kind: 'x', label: String(ftr.x || '').trim() },
       ].filter((s) => s.label !== ''),
     };
   }
 
+  // Semua 3 logo KOP resmi aktif baku tanpa checkbox
   function getActiveLogos() {
     const list = [];
-    if (els.chkShowLogo1 && els.chkShowLogo1.checked && state.logoImages.logo1) list.push(state.logoImages.logo1);
-    if (els.chkShowLogo2 && els.chkShowLogo2.checked && state.logoImages.logo2) list.push(state.logoImages.logo2);
-    if (els.chkShowLogo3 && els.chkShowLogo3.checked && state.logoImages.logo3) list.push(state.logoImages.logo3);
+    if (state.logoImages.logo1) list.push(state.logoImages.logo1);
+    if (state.logoImages.logo2) list.push(state.logoImages.logo2);
+    if (state.logoImages.logo3) list.push(state.logoImages.logo3);
     return list;
+  }
+
+  function drawAlignedTitle(c, lines, align, boxX, boxW, startY, lineH, color, forExport) {
+    if (!forExport && state.isEditingTitle) {
+      return;
+    }
+    c.fillStyle = color;
+    c.textAlign = align;
+    c.textBaseline = 'top';
+    const anchorX = align === 'left'
+      ? boxX
+      : (align === 'right' ? (boxX + boxW) : (boxX + Math.round(boxW / 2)));
+    lines.forEach((line, idx) => {
+      c.fillText(line, anchorX, startY + idx * lineH, boxW);
+    });
   }
 
   function drawMediaSlots(c, rects, W, H, scaleBase, forExport, frameBorderColor, cutoutVideoSlots) {
@@ -1381,7 +1548,6 @@
       const slot = state.slots[idx];
       const isVideoCutout = Boolean(cutoutVideoSlots && slot && slot.type === 'video');
 
-      // Soft elevation shadow (tetap tergambar di luar sudut membulat untuk foto maupun lubang video)
       c.save();
       c.shadowColor = 'rgba(15, 23, 42, 0.16)';
       c.shadowBlur = Math.round(14 * scaleBase);
@@ -1393,7 +1559,6 @@
       c.restore();
 
       if (isVideoCutout) {
-        // Lubangi presisi berbentuk rounded-rectangle transparan (alpha=0) agar video FFmpeg tampil di bawahnya
         c.save();
         c.globalCompositeOperation = 'destination-out';
         c.fillStyle = '#000000';
@@ -1440,7 +1605,6 @@
         c.restore();
       }
 
-      // Subtle frame hairline
       c.save();
       roundRectPath(c, rect.x, rect.y, rect.w, rect.h, rect.radius);
       c.strokeStyle = frameBorderColor || 'rgba(15, 23, 42, 0.08)';
@@ -1531,25 +1695,33 @@
       c.restore();
     }
 
+    // Dynamic Alignment & Size Title
     const titleTopY = pillY + pillH + Math.round(H * (isLandscape ? 0.016 : 0.014));
+    const titleBoxX = Math.round(W * 0.05);
     const titleMaxW = Math.round(W * 0.90);
-    let titleFontSize = Math.round(Math.min(W, H) * (isLandscape ? 0.031 : 0.034));
+    const tScale = Math.max(0.7, Math.min(1.6, Number(state.titleScale) || 1.0));
+    let titleFontSize = Math.round(Math.min(W, H) * (isLandscape ? 0.031 : 0.034) * tScale);
     c.font = `800 ${titleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
     let titleLines = Layouts.wrapCanvasLines((t) => c.measureText(t).width, txt.judul, titleMaxW, isLandscape ? 2 : 3);
-    if (titleLines.length >= 3 && titleFontSize > 24 * scaleBase) {
+    if (titleLines.length >= 3 && titleFontSize > 24 * scaleBase && tScale <= 1.05) {
       titleFontSize = Math.round(titleFontSize * 0.9);
       c.font = `800 ${titleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
       titleLines = Layouts.wrapCanvasLines((t) => c.measureText(t).width, txt.judul, titleMaxW, isLandscape ? 2 : 3);
     }
 
-    const titleLineH = Math.round(titleFontSize * 1.28);
-    c.fillStyle = '#0B1120';
-    c.textAlign = 'center';
-    c.textBaseline = 'top';
-    titleLines.forEach((line, idx) => {
-      c.fillText(line, Math.round(W / 2), titleTopY + idx * titleLineH, titleMaxW);
-    });
-    const titleBottomY = titleTopY + titleLines.length * titleLineH;
+    const titleLineH = Math.round(titleFontSize * 1.26);
+    const titleAlign = ['left', 'center', 'right'].includes(state.titleAlign) ? state.titleAlign : 'center';
+    drawAlignedTitle(c, titleLines, titleAlign, titleBoxX, titleMaxW, titleTopY, titleLineH, '#0B1120', forExport);
+    const titleHeight = Math.max(titleLineH, titleLines.length * titleLineH);
+    const titleBottomY = titleTopY + titleHeight;
+    const titleBox = {
+      x: titleBoxX,
+      y: titleTopY - Math.round(4 * scaleBase),
+      w: titleMaxW,
+      h: titleHeight + Math.round(8 * scaleBase),
+      fontSize: titleFontSize,
+      align: titleAlign,
+    };
 
     const footerH = Math.round(isLandscape ? H * 0.088 : (isSquare ? H * 0.085 : H * 0.072));
     const footerY = H - footerH;
@@ -1615,7 +1787,7 @@
     const rects = Layouts.computeSlotRects(layoutObj, gridBox, gapPx);
     drawMediaSlots(c, rects, W, H, scaleBase, forExport, 'rgba(15, 23, 42, 0.08)', cutoutVideoSlots);
     c.restore();
-    return rects;
+    return { rects, titleBox };
   }
 
   // --- STYLE 2: Editorial Modern ---
@@ -1762,22 +1934,28 @@
 
     const titleY = headlineTopY + kickerH + Math.round(12 * scaleBase);
     const titleMaxW = W - padX * 2;
-    let titleFontSize = Math.round(Math.min(W, H) * (isLandscape ? 0.032 : 0.035));
+    const tScale = Math.max(0.7, Math.min(1.6, Number(state.titleScale) || 1.0));
+    let titleFontSize = Math.round(Math.min(W, H) * (isLandscape ? 0.032 : 0.035) * tScale);
     c.font = `800 ${titleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
     let titleLines = Layouts.wrapCanvasLines((t) => c.measureText(t).width, txt.judul, titleMaxW, isLandscape ? 2 : 3);
-    if (titleLines.length >= 3 && titleFontSize > 24 * scaleBase) {
+    if (titleLines.length >= 3 && titleFontSize > 24 * scaleBase && tScale <= 1.05) {
       titleFontSize = Math.round(titleFontSize * 0.88);
       c.font = `800 ${titleFontSize}px "Plus Jakarta Sans", Arial, sans-serif`;
       titleLines = Layouts.wrapCanvasLines((t) => c.measureText(t).width, txt.judul, titleMaxW, isLandscape ? 2 : 3);
     }
     const titleLineH = Math.round(titleFontSize * 1.24);
-    c.fillStyle = '#0F172A';
-    c.textAlign = 'left';
-    c.textBaseline = 'top';
-    titleLines.forEach((ln, idx) => {
-      c.fillText(ln, padX, titleY + idx * titleLineH, titleMaxW);
-    });
-    const titleBottomY = titleY + titleLines.length * titleLineH;
+    const titleAlign = ['left', 'center', 'right'].includes(state.titleAlign) ? state.titleAlign : 'left';
+    drawAlignedTitle(c, titleLines, titleAlign, padX, titleMaxW, titleY, titleLineH, '#0F172A', forExport);
+    const titleHeight = Math.max(titleLineH, titleLines.length * titleLineH);
+    const titleBottomY = titleY + titleHeight;
+    const titleBox = {
+      x: padX,
+      y: titleY - Math.round(4 * scaleBase),
+      w: titleMaxW,
+      h: titleHeight + Math.round(8 * scaleBase),
+      fontSize: titleFontSize,
+      align: titleAlign,
+    };
 
     const footerH = Math.round(isLandscape ? H * 0.064 : (isSquare ? H * 0.088 : H * 0.072));
     const footerY = H - footerH;
@@ -1861,7 +2039,7 @@
     const rects = Layouts.computeSlotRects(layoutObj, gridBox, gapPx);
     drawMediaSlots(c, rects, W, H, scaleBase, forExport, 'rgba(15, 23, 42, 0.12)', cutoutVideoSlots);
     c.restore();
-    return rects;
+    return { rects, titleBox };
   }
 
   function renderCollageToContext(targetCtx, targetW, targetH, forExport, cutoutVideoSlots) {
@@ -1872,8 +2050,9 @@
   }
 
   function drawCollage(forExport, skipOverlayRebuild) {
-    const rects = renderCollageToContext(ctx, canvas.width, canvas.height, !!forExport, false);
-    state.slotRectsCache = rects;
+    const res = renderCollageToContext(ctx, canvas.width, canvas.height, !!forExport, false);
+    state.slotRectsCache = res.rects;
+    state.titleBoxCache = res.titleBox;
     if (!forExport && !skipOverlayRebuild) {
       syncInteractiveOverlay();
     }
@@ -1918,7 +2097,7 @@
   function startPlayback() {
     if (!hasVideoSlot()) return;
     state.isPlaying = true;
-    if (els.labelToggleVideoPlay) els.labelToggleVideoPlay.textContent = 'Jeda';
+    syncPlayPauseButtonUI(true);
 
     ensureAudioContext();
 
@@ -1952,7 +2131,7 @@
 
   function stopPlayback() {
     state.isPlaying = false;
-    if (els.labelToggleVideoPlay) els.labelToggleVideoPlay.textContent = 'Putar';
+    syncPlayPauseButtonUI(false);
     if (state.rafId) {
       window.cancelAnimationFrame(state.rafId);
       state.rafId = null;
@@ -1965,7 +2144,7 @@
     drawCollage(false, true);
   }
 
-  // --- Single Unified Monotonic Progress Bar (0% -> 100%, NEVER resets!) ---
+  // --- Single Unified Monotonic Progress Bar (0% -> 100%) ---
   function setUnifiedProgress(visible, label, pct, resetHighWater) {
     if (!els.exportProgressWrap) return;
     if (resetHighWater) {
@@ -2001,35 +2180,34 @@
     offCanvas.width = expDim.width;
     offCanvas.height = expDim.height;
     const offCtx = offCanvas.getContext('2d');
-    const rects = renderCollageToContext(offCtx, expDim.width, expDim.height, true, false);
+    const rendered = renderCollageToContext(offCtx, expDim.width, expDim.height, true, false);
 
     return new Promise((resolve, reject) => {
       offCanvas.toBlob((blob) => {
         if (blob) {
-          resolve({ blob, width: expDim.width, height: expDim.height, rects });
+          resolve({ blob, width: expDim.width, height: expDim.height, rects: rendered.rects });
         } else {
           reject(new Error('Gagal merender gambar kolase.'));
         }
-      }, mimeType || 'image/jpeg', expDim.jpegQuality);
+      }, mimeType || 'image/png', expDim.jpegQuality);
     });
   }
 
   function exportVideoOverlayPng(qualityOverride) {
     const preset = Layouts.getCanvasPreset(state.canvasPresetId);
     const expDim = Layouts.resolveExportDimensions(preset, qualityOverride || state.qualityId);
-    // Pastikan dimensi genap untuk kompatibilitas libx264 yuv420p
     const outW = expDim.width & ~1;
     const outH = expDim.height & ~1;
     const offCanvas = document.createElement('canvas');
     offCanvas.width = outW;
     offCanvas.height = outH;
     const offCtx = offCanvas.getContext('2d');
-    const rects = renderCollageToContext(offCtx, outW, outH, true, true);
+    const rendered = renderCollageToContext(offCtx, outW, outH, true, true);
 
     return new Promise((resolve, reject) => {
       offCanvas.toBlob((blob) => {
         if (blob) {
-          resolve({ blob, width: outW, height: outH, rects });
+          resolve({ blob, width: outW, height: outH, rects: rendered.rects });
         } else {
           reject(new Error('Gagal membuat frame overlay kolase.'));
         }
@@ -2037,7 +2215,6 @@
     });
   }
 
-  // --- Prepare Image Source Blob (Optimal tanpa menurunkan ketajaman) ---
   function prepareImageSourceBlob(slot) {
     return new Promise((resolve) => {
       if (!slot || !slot.el || !slot.file) {
@@ -2065,7 +2242,6 @@
     });
   }
 
-  // --- Upload All Pending Slot Sources via 4 MB Chunked Upload (Unlimited Source Size!) ---
   async function uploadPendingSourcesChunked(csrfToken, signal, progressStart, progressEnd, loadingLabel) {
     const active = activeSlotsSlice();
     const pending = [];
@@ -2115,12 +2291,13 @@
       item.slot.serverPath = res.path;
       uploadedSoFar += item.size;
       setUnifiedProgress(true, loadingLabel, progressStart + (uploadedSoFar / Math.max(1, totalBytes)) * span);
-      // Simpan langsung ke IndexedDB draft sehingga bila halaman di-refresh, slot ini tidak perlu diunggah ulang!
       scheduleDraftSave(true);
     }
   }
 
   function buildProjectJson() {
+    const hdr = cfg.officialHeader || {};
+    const ftr = cfg.officialFooter || {};
     const slotsMeta = activeSlotsSlice().map((slot) => {
       if (!slot || !slot.serverPath) return null;
       const entry = {
@@ -2148,33 +2325,32 @@
       orientation: state.orientation,
       canvasPresetId: state.canvasPresetId,
       qualityId: state.qualityId,
-      imageFormat: (els.selectImageFormat && els.selectImageFormat.value) || 'image/jpeg',
+      imageFormat: (els.selectImageFormat && els.selectImageFormat.value) || 'image/png',
       slotCount: state.slotCount,
       layoutId: state.layoutId,
       videoDuration: (els.selectVideoDuration && els.selectVideoDuration.value) || 'auto',
-      logos: {
-        logo1: !(els.chkShowLogo1 && !els.chkShowLogo1.checked),
-        logo2: !(els.chkShowLogo2 && !els.chkShowLogo2.checked),
-        logo3: !(els.chkShowLogo3 && !els.chkShowLogo3.checked),
-      },
+      titleAlign: state.titleAlign,
+      titleScale: Math.round(state.titleScale * 100) / 100,
+      tanggalIso: (els.inputDokTanggalDate && els.inputDokTanggalDate.value) || '',
+      logos: { logo1: true, logo2: true, logo3: true },
       header: {
-        nama: (els.inputHeaderNama && els.inputHeaderNama.value.trim()) || '',
-        alamat: (els.inputHeaderAlamat && els.inputHeaderAlamat.value.trim()) || '',
-        telp: (els.inputHeaderTelp && els.inputHeaderTelp.value.trim()) || '',
-        wa: (els.inputHeaderWa && els.inputHeaderWa.value.trim()) || '',
-        email: (els.inputHeaderEmail && els.inputHeaderEmail.value.trim()) || '',
+        nama: String(hdr.nama || ''),
+        alamat: String(hdr.alamat || ''),
+        telp: String(hdr.telp || ''),
+        wa: String(hdr.wa || ''),
+        email: String(hdr.email || ''),
       },
       footer: {
-        web: (els.inputFooterWeb && els.inputFooterWeb.value.trim()) || '',
-        ig: (els.inputFooterIg && els.inputFooterIg.value.trim()) || '',
-        fb: (els.inputFooterFb && els.inputFooterFb.value.trim()) || '',
-        x: (els.inputFooterX && els.inputFooterX.value.trim()) || '',
+        web: String(ftr.web || ''),
+        ig: String(ftr.ig || ''),
+        fb: String(ftr.fb || ''),
+        x: String(ftr.x || ''),
       },
       slots: slotsMeta,
     });
   }
 
-  // --- Poll Background Server-Side FFmpeg Job (Anti-Cloudflare 524 Timeout) ---
+  // --- Poll Background Server-Side FFmpeg Job ---
   async function pollServerRenderJob(jobId, signal, progressStart, progressEnd, loadingLabel) {
     const jobsBase = (cfg.jobsApiBase || ((window.BASE_URL || '') + '/api/index.php?path=/dokumentasi/jobs')).replace(/\/+$/, '');
     const span = Math.max(1, progressEnd - progressStart);
@@ -2200,12 +2376,8 @@
       const srvPct = Math.max(0, Math.min(100, Number(data.progress) || 0));
       setUnifiedProgress(true, loadingLabel, progressStart + (srvPct / 100) * span);
 
-      if (data.status === 'completed') {
-        return data;
-      }
-      if (data.status === 'failed') {
-        throw new Error(data.error || data.message || 'Pemrosesan video kolase gagal di server.');
-      }
+      if (data.status === 'completed') return data;
+      if (data.status === 'failed') throw new Error(data.error || data.message || 'Pemrosesan video kolase gagal di server.');
       if (data.status === 'cancelled') {
         const err = new Error('Proses dibatalkan oleh pengguna.');
         err.name = 'AbortError';
@@ -2228,7 +2400,6 @@
     }
   }
 
-  // --- Server-Side FFmpeg Video Pipeline (Archive or Download) ---
   async function runServerFfmpegPipeline(mode, csrfToken, signal, loadingLabel) {
     const preset = Layouts.getCanvasPreset(state.canvasPresetId);
     const general = isGeneralMode();
@@ -2238,11 +2409,9 @@
     const tanggal = (els.inputDokTanggal && els.inputDokTanggal.value.trim()) || cfg.tanggalDefault;
     const durationSec = resolveVideoExportSeconds();
 
-    // 1. Upload sumber media yang belum tersimpan di server (4% -> 46%)
     setUnifiedProgress(true, loadingLabel, 3);
     await uploadPendingSourcesChunked(csrfToken, signal, 4, 46, loadingLabel);
 
-    // 2. Render frame PNG berlubang transparan & thumbnail poster (46% -> 50%)
     const overlayRes = await exportVideoOverlayPng(state.qualityId);
     let thumbUploadId = '';
     if (mode === 'archive') {
@@ -2261,7 +2430,6 @@
     }
     setUnifiedProgress(true, loadingLabel, 50);
 
-    // 3. Upload frame overlay PNG (50% -> 54%)
     const ovUp = await ChunkUploader.uploadBlobChunked({
       blob: overlayRes.blob,
       fileName: 'overlay.png',
@@ -2278,7 +2446,6 @@
     });
     setUnifiedProgress(true, loadingLabel, 55);
 
-    // 4. Kumpulkan spesifikasi slot video + trim + koordinat piksel eksak
     const videoSlotsPayload = [];
     activeSlotsSlice().forEach((slot, idx) => {
       if (!slot || slot.type !== 'video' || !slot.serverPath) return;
@@ -2307,8 +2474,6 @@
     }
 
     const downloadFilename = Layouts.formatCollageFilename(hari, general ? judul : state.namaOperasi, 'mp4', general);
-
-    // 5. Mulai job FFmpeg background di server
     const renderEndpoint = cfg.renderApiEndpoint || ((window.BASE_URL || '') + '/api/index.php?path=/dokumentasi/render');
     const startResp = await fetch(renderEndpoint, {
       method: 'POST',
@@ -2352,7 +2517,6 @@
       DraftStore.save(DRAFT_SCOPE_KEY, buildDraftPayload({ jobId: startData.job_id, mode: 'archive' })).catch(() => {});
     }
 
-    // 6. Pantau progres FFmpeg real-time (55% -> 99%)
     const jobResult = await pollServerRenderJob(startData.job_id, signal, 55, 99, loadingLabel);
     state.activeServerJobId = null;
     setUnifiedProgress(true, loadingLabel, 100);
@@ -2364,7 +2528,7 @@
     };
   }
 
-  // --- Optimized Client Fallback Video Recorder (ONLY used if server FFmpeg is unavailable) ---
+  // --- Optimized Client Fallback Video Recorder ---
   function pickSupportedVideoMime(hasAudio) {
     if (typeof MediaRecorder === 'undefined') return '';
     const candidates = hasAudio
@@ -2394,12 +2558,12 @@
     const outW = expDim.width & ~1;
     const outH = expDim.height & ~1;
 
-    // Pre-render static layer SEKALI saja (tidak menggambar ulang kop/logo/foto statis di setiap frame!)
     const staticCanvas = document.createElement('canvas');
     staticCanvas.width = outW;
     staticCanvas.height = outH;
     const staticCtx = staticCanvas.getContext('2d');
-    const rects = renderCollageToContext(staticCtx, outW, outH, true, true);
+    const rendered = renderCollageToContext(staticCtx, outW, outH, true, true);
+    const rects = rendered.rects;
 
     const recCanvas = document.createElement('canvas');
     recCanvas.width = outW;
@@ -2557,8 +2721,8 @@
       notify('Tambahkan foto/video terlebih dahulu.', 'warning');
       return;
     }
-    const fmt = (els.selectImageFormat && els.selectImageFormat.value) || 'image/jpeg';
-    const ext = fmt === 'image/png' ? 'png' : 'jpg';
+    const fmt = (els.selectImageFormat && els.selectImageFormat.value) || 'image/png';
+    const ext = fmt === 'image/jpeg' ? 'jpg' : 'png';
     const general = isGeneralMode();
     const hari = (els.inputDokHari && els.inputDokHari.value.trim()) || (general ? 'KEGIATAN' : cfg.hariLabel);
     const judul = (els.inputDokJudul && els.inputDokJudul.value.trim()) || cfg.judulDefault;
@@ -2648,7 +2812,6 @@
     }
   }
 
-  // --- Unified 1-Step Save Archive Pipeline (0% -> 100%, <= 150 MB Final, Unlimited Sources) ---
   async function handleSaveToArchive() {
     if (state.isExporting) return;
     const filled = filledSlotCount();
@@ -2665,8 +2828,6 @@
     const isEdit = !!(cfg.editDoc && cfg.editDoc.id);
     const loadingLabel = isEdit ? 'Menyimpan perubahan dokumentasi...' : 'Menyimpan dokumentasi...';
     setUnifiedProgress(true, loadingLabel, 2, true);
-
-    // Pastikan draf tersimpan ke IndexedDB sebelum mulai mengunggah
     scheduleDraftSave(true);
 
     try {
@@ -2674,14 +2835,12 @@
       const signal = state.activeAbortController.signal;
       const hasVid = hasVideoSlot();
 
-      // JALUR 1 (Utama): Kolase Video via Server-Side FFmpeg + Chunked Upload
       if (hasVid && CAPS.server_render && ChunkUploader) {
         const res = await runServerFfmpegPipeline('archive', csrfToken, signal, loadingLabel);
         await finalizeSavedSuccess(res.width, res.height, isEdit);
         return;
       }
 
-      // JALUR 2: Kolase Foto (atau Fallback Video Client bila FFmpeg tidak ada) via Chunked Upload
       const preset = Layouts.getCanvasPreset(state.canvasPresetId);
       const general = isGeneralMode();
       const hari = (els.inputDokHari && els.inputDokHari.value.trim()) || (general ? 'KEGIATAN' : cfg.hariLabel);
@@ -2707,8 +2866,8 @@
         outW = vidRes.width;
         outH = vidRes.height;
       } else {
-        const fmt = (els.selectImageFormat && els.selectImageFormat.value) || 'image/jpeg';
-        const ext = fmt === 'image/png' ? 'png' : 'jpg';
+        const fmt = (els.selectImageFormat && els.selectImageFormat.value) || 'image/png';
+        const ext = fmt === 'image/jpeg' ? 'jpg' : 'png';
         setUnifiedProgress(true, loadingLabel, 8);
         const imgRes = await exportImageBlob(fmt);
         if (imgRes.blob.size > MAX_FINAL_BYTES) {
@@ -2722,7 +2881,6 @@
         await uploadPendingSourcesChunked(csrfToken, signal, 12, 62, loadingLabel);
       }
 
-      // Unggah hasil akhir via chunked upload (lolos batas Cloudflare/PHP hingga 150 MB)
       const upStart = hasVid ? 74 : 62;
       const mediaUp = await ChunkUploader.uploadBlobChunked({
         blob: mediaBlob,
@@ -2838,10 +2996,61 @@
     btn.addEventListener('click', () => setSlotCount(Number(btn.dataset.slotCount)));
   });
 
+  // Date Picker -> otomatis format Hari & Tanggal Indonesia
+  if (els.inputDokTanggalDate) {
+    els.inputDokTanggalDate.addEventListener('change', () => {
+      syncDateFromPicker(els.inputDokTanggalDate.value);
+      drawCollage(false, true);
+      scheduleDraftSave();
+    });
+  }
+
+  // Inline Title Style Controls (Focus, Alignment, Size)
+  if (els.btnFocusInlineTitle) {
+    els.btnFocusInlineTitle.addEventListener('click', () => openInlineTitleEditor());
+  }
+  els.titleAlignBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const al = btn.dataset.titleAlign;
+      if (!['left', 'center', 'right'].includes(al)) return;
+      state.titleAlign = al;
+      syncTitleStyleControls();
+      const inlineTa = overlayEl ? overlayEl.querySelector('.dok-inline-title-editor') : null;
+      if (inlineTa) inlineTa.style.textAlign = al;
+      drawCollage(false, state.isEditingTitle);
+      scheduleDraftSave();
+    });
+  });
+  if (els.btnTitleSizeDown) {
+    els.btnTitleSizeDown.addEventListener('click', () => {
+      state.titleScale = Math.max(0.7, Math.round((state.titleScale - 0.1) * 100) / 100);
+      syncTitleStyleControls();
+      drawCollage(false, state.isEditingTitle);
+      const inlineTa = overlayEl ? overlayEl.querySelector('.dok-inline-title-editor') : null;
+      if (inlineTa && state.titleBoxCache) {
+        const scalePx = canvas.getBoundingClientRect().width / Math.max(1, canvas.width || 1080);
+        inlineTa.style.fontSize = Math.max(11, Math.round(state.titleBoxCache.fontSize * scalePx)) + 'px';
+      }
+      scheduleDraftSave();
+    });
+  }
+  if (els.btnTitleSizeUp) {
+    els.btnTitleSizeUp.addEventListener('click', () => {
+      state.titleScale = Math.min(1.6, Math.round((state.titleScale + 0.1) * 100) / 100);
+      syncTitleStyleControls();
+      drawCollage(false, state.isEditingTitle);
+      const inlineTa = overlayEl ? overlayEl.querySelector('.dok-inline-title-editor') : null;
+      if (inlineTa && state.titleBoxCache) {
+        const scalePx = canvas.getBoundingClientRect().width / Math.max(1, canvas.width || 1080);
+        inlineTa.style.fontSize = Math.max(11, Math.round(state.titleBoxCache.fontSize * scalePx)) + 'px';
+      }
+      scheduleDraftSave();
+    });
+  }
+
   if (els.selectExportQuality) {
     els.selectExportQuality.addEventListener('change', () => {
-      state.userPickedQuality = true;
-      state.qualityId = els.selectExportQuality.value || 'qhd';
+      state.qualityId = els.selectExportQuality.value || 'fhd';
       syncModeAndCounters();
       scheduleDraftSave();
     });
@@ -2856,13 +3065,6 @@
 
   if (els.selectImageFormat) {
     els.selectImageFormat.addEventListener('change', () => scheduleDraftSave());
-  }
-
-  if (els.btnQuickAddMedia && els.bulkMediaInput) {
-    els.btnQuickAddMedia.addEventListener('click', () => {
-      els.bulkMediaInput.value = '';
-      els.bulkMediaInput.click();
-    });
   }
 
   if (els.bulkMediaInput) {
@@ -2906,7 +3108,7 @@
     els.btnClearAllSlots.addEventListener('click', clearAllSlots);
   }
 
-  // Contextual Selected Slot Action Bar Wiring
+  // Contextual Selected Slot Action Bar Wiring (Tanpa Tombol Tukar)
   if (els.btnSlotReplace) {
     els.btnSlotReplace.addEventListener('click', () => {
       replaceTargetIndex = state.selectedSlotIndex;
@@ -2945,20 +3147,6 @@
       scheduleDraftSave();
     });
   }
-  if (els.btnSlotSwap) {
-    els.btnSlotSwap.addEventListener('click', () => {
-      state.swapSourceIndex = (state.swapSourceIndex === state.selectedSlotIndex) ? null : state.selectedSlotIndex;
-      syncSelectedSlotActionBar();
-      syncInteractiveOverlay();
-    });
-  }
-  if (els.btnCancelSwap) {
-    els.btnCancelSwap.addEventListener('click', () => {
-      state.swapSourceIndex = null;
-      syncSelectedSlotActionBar();
-      syncInteractiveOverlay();
-    });
-  }
   if (els.btnSlotMute) {
     els.btnSlotMute.addEventListener('click', () => {
       const slot = state.slots[state.selectedSlotIndex];
@@ -2985,17 +3173,15 @@
     });
   }
 
-  // Video Trim Modal Wiring
+  // Video Trim Modal Dual-Thumb Slider Wiring (Tanpa tombol Set Mulai / Set Akhir)
   if (els.trimStartRange) {
     els.trimStartRange.addEventListener('input', () => {
       const maxDur = Number(els.trimStartRange.max) || 10;
       let s = Number(els.trimStartRange.value) || 0;
       let e = Number(els.trimEndRange.value) || maxDur;
       if (s > e - 0.5) {
-        e = Math.min(maxDur, s + 0.5);
-        if (s > e - 0.5) s = Math.max(0, e - 0.5);
+        s = Math.max(0, e - 0.5);
         els.trimStartRange.value = String(Math.round(s * 10) / 10);
-        els.trimEndRange.value = String(Math.round(e * 10) / 10);
       }
       if ((e - s) > MAX_VIDEO_SECONDS) {
         e = Math.min(maxDur, s + MAX_VIDEO_SECONDS);
@@ -3013,9 +3199,7 @@
       let s = Number(els.trimStartRange.value) || 0;
       let e = Number(els.trimEndRange.value) || maxDur;
       if (e < s + 0.5) {
-        s = Math.max(0, e - 0.5);
-        if (e < s + 0.5) e = Math.min(maxDur, s + 0.5);
-        els.trimStartRange.value = String(Math.round(s * 10) / 10);
+        e = Math.min(maxDur, s + 0.5);
         els.trimEndRange.value = String(Math.round(e * 10) / 10);
       }
       if ((e - s) > MAX_VIDEO_SECONDS) {
@@ -3028,45 +3212,40 @@
       updateTrimModalVisuals();
     });
   }
-  if (els.btnTrimSetStartHere) {
-    els.btnTrimSetStartHere.addEventListener('click', () => {
-      if (!els.trimPreviewVideo) return;
-      els.trimStartRange.value = String(Math.round((els.trimPreviewVideo.currentTime || 0) * 10) / 10);
-      els.trimStartRange.dispatchEvent(new Event('input'));
-    });
-  }
-  if (els.btnTrimSetEndHere) {
-    els.btnTrimSetEndHere.addEventListener('click', () => {
-      if (!els.trimPreviewVideo) return;
-      els.trimEndRange.value = String(Math.round((els.trimPreviewVideo.currentTime || 0) * 10) / 10);
-      els.trimEndRange.dispatchEvent(new Event('input'));
-    });
-  }
   if (els.btnTrimPlaySelection) {
     els.btnTrimPlaySelection.addEventListener('click', () => {
       if (!els.trimPreviewVideo) return;
+      if (!els.trimPreviewVideo.paused) {
+        stopTrimPreviewPlayback();
+        return;
+      }
       const s = Number(els.trimStartRange.value) || 0;
       const e = Number(els.trimEndRange.value) || 10;
       if (state.trimPreviewLoopId) clearInterval(state.trimPreviewLoopId);
-      try { els.trimPreviewVideo.currentTime = s; } catch (err) {}
-      els.trimPreviewVideo.play().catch(() => {});
+      if (els.trimPreviewVideo.currentTime < s || els.trimPreviewVideo.currentTime >= e - 0.1) {
+        try { els.trimPreviewVideo.currentTime = s; } catch (err) {}
+      }
+      syncTrimPlayIconUI(true);
+      els.trimPreviewVideo.play().catch(() => syncTrimPlayIconUI(false));
       state.trimPreviewLoopId = setInterval(() => {
         if (!els.trimPreviewVideo || els.trimPreviewVideo.paused) {
-          clearInterval(state.trimPreviewLoopId);
-          state.trimPreviewLoopId = null;
+          stopTrimPreviewPlayback();
           return;
         }
         if (els.trimPreviewVideo.currentTime >= e) {
-          els.trimPreviewVideo.pause();
+          stopTrimPreviewPlayback();
           try { els.trimPreviewVideo.currentTime = s; } catch (err) {}
-          clearInterval(state.trimPreviewLoopId);
-          state.trimPreviewLoopId = null;
         }
       }, 100);
     });
   }
+  if (els.trimPreviewVideo) {
+    els.trimPreviewVideo.addEventListener('pause', () => syncTrimPlayIconUI(false));
+    els.trimPreviewVideo.addEventListener('play', () => syncTrimPlayIconUI(true));
+  }
   if (els.btnTrimReset) {
     els.btnTrimReset.addEventListener('click', () => {
+      stopTrimPreviewPlayback();
       const maxDur = Number(els.trimEndRange.max) || 10;
       els.trimStartRange.value = '0';
       els.trimEndRange.value = String(Math.round(Math.min(maxDur, MAX_VIDEO_SECONDS) * 10) / 10);
@@ -3089,7 +3268,6 @@
   if (els.btnToggleBulkMode) {
     els.btnToggleBulkMode.addEventListener('click', () => {
       state.bulkMode = !state.bulkMode;
-      state.swapSourceIndex = null;
       if (!state.bulkMode) state.bulkSelected.clear();
       syncModeAndCounters();
       syncInteractiveOverlay();
@@ -3124,42 +3302,10 @@
       const opt = state.idOperasi > 0 ? findOperasiOption(state.idOperasi) : null;
       state.namaOperasi = opt ? String(opt.nama || '') : '';
       syncOperasiSelectionUI(true);
-      drawCollage(false, true);
+      drawCollage(false, false);
       scheduleDraftSave();
     });
   }
-
-  if (els.inputDokHari && els.inputDokJudul) {
-    els.inputDokHari.addEventListener('input', () => {
-      const hariVal = els.inputDokHari.value.trim().toUpperCase();
-      if (els.studioHeaderHariLabel) {
-        els.studioHeaderHariLabel.textContent = hariVal || (isGeneralMode() ? 'KEGIATAN' : 'H1');
-      }
-      if (!isGeneralMode() && hariVal && /^Dok Operasi SAR\s+H\.?\d+/i.test(els.inputDokJudul.value)) {
-        els.inputDokJudul.value = els.inputDokJudul.value.replace(/^Dok Operasi SAR\s+H\.?\d+/i, 'Dok Operasi SAR ' + hariVal);
-      }
-    });
-  }
-
-  [
-    els.inputDokHari, els.inputDokTanggal, els.inputDokJudul,
-    els.inputHeaderNama, els.inputHeaderAlamat, els.inputHeaderTelp, els.inputHeaderWa, els.inputHeaderEmail,
-    els.inputFooterWeb, els.inputFooterIg, els.inputFooterFb, els.inputFooterX,
-  ].forEach((inp) => {
-    if (!inp) return;
-    inp.addEventListener('input', () => {
-      drawCollage(false, true);
-      scheduleDraftSave();
-    });
-  });
-
-  [els.chkShowLogo1, els.chkShowLogo2, els.chkShowLogo3].forEach((chk) => {
-    if (!chk) return;
-    chk.addEventListener('change', () => {
-      drawCollage(false, true);
-      scheduleDraftSave();
-    });
-  });
 
   if (els.btnToggleVideoPlay) {
     els.btnToggleVideoPlay.addEventListener('click', () => {
@@ -3187,20 +3333,21 @@
       if (draft.form) {
         const f = draft.form;
         if (els.inputDokHari && typeof f.hari === 'string') els.inputDokHari.value = f.hari;
-        if (els.inputDokTanggal && typeof f.tanggal === 'string') els.inputDokTanggal.value = f.tanggal;
+        if (els.inputDokTanggalDate && typeof f.tanggalIso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(f.tanggalIso)) {
+          els.inputDokTanggalDate.value = f.tanggalIso;
+          syncDateFromPicker(f.tanggalIso);
+        } else if (els.inputDokTanggal && typeof f.tanggal === 'string') {
+          els.inputDokTanggal.value = f.tanggal;
+          if (els.displayDokTanggalIndo) els.displayDokTanggalIndo.textContent = f.tanggal;
+        }
         if (els.inputDokJudul && typeof f.judul === 'string') els.inputDokJudul.value = f.judul;
-        if (els.chkShowLogo1 && typeof f.logo1 === 'boolean') els.chkShowLogo1.checked = f.logo1;
-        if (els.chkShowLogo2 && typeof f.logo2 === 'boolean') els.chkShowLogo2.checked = f.logo2;
-        if (els.chkShowLogo3 && typeof f.logo3 === 'boolean') els.chkShowLogo3.checked = f.logo3;
-        if (els.inputHeaderNama && typeof f.headerNama === 'string') els.inputHeaderNama.value = f.headerNama;
-        if (els.inputHeaderAlamat && typeof f.headerAlamat === 'string') els.inputHeaderAlamat.value = f.headerAlamat;
-        if (els.inputHeaderTelp && typeof f.headerTelp === 'string') els.inputHeaderTelp.value = f.headerTelp;
-        if (els.inputHeaderWa && typeof f.headerWa === 'string') els.inputHeaderWa.value = f.headerWa;
-        if (els.inputHeaderEmail && typeof f.headerEmail === 'string') els.inputHeaderEmail.value = f.headerEmail;
-        if (els.inputFooterWeb && typeof f.footerWeb === 'string') els.inputFooterWeb.value = f.footerWeb;
-        if (els.inputFooterIg && typeof f.footerIg === 'string') els.inputFooterIg.value = f.footerIg;
-        if (els.inputFooterFb && typeof f.footerFb === 'string') els.inputFooterFb.value = f.footerFb;
-        if (els.inputFooterX && typeof f.footerX === 'string') els.inputFooterX.value = f.footerX;
+      }
+
+      if (['left', 'center', 'right'].includes(draft.titleAlign)) {
+        state.titleAlign = draft.titleAlign;
+      }
+      if (Number.isFinite(Number(draft.titleScale))) {
+        state.titleScale = Math.max(0.7, Math.min(1.6, Number(draft.titleScale)));
       }
 
       state.styleId = draft.styleId === 'editorial_modern' ? 'editorial_modern' : 'klasik_kpp';
@@ -3231,7 +3378,6 @@
 
       if (draft.qualityId && els.selectExportQuality) {
         state.qualityId = draft.qualityId;
-        state.userPickedQuality = !!draft.userPickedQuality;
         els.selectExportQuality.value = draft.qualityId;
       }
       if (draft.imageFormat && els.selectImageFormat) {
@@ -3257,9 +3403,7 @@
             tasks.push(loadRemoteSlotIntoSlot(Object.assign({}, sMeta, { url, path: sMeta.serverPath }), idx).then(() => { loadedCount++; }));
           }
         });
-        if (tasks.length > 0) {
-          await Promise.all(tasks);
-        }
+        if (tasks.length > 0) await Promise.all(tasks);
       }
 
       const firstFilled = activeSlotsSlice().findIndex(Boolean);
@@ -3271,7 +3415,6 @@
         notify(`Draf otomatis dipulihkan (${loadedCount} media siap disimpan).`, 'info');
       }
 
-      // Sambung kembali job server FFmpeg jika masih aktif saat refresh!
       if (draft.activeJob && draft.activeJob.jobId && CAPS.server_render) {
         resumeServerJobAfterRefresh(draft.activeJob.jobId);
       }
@@ -3343,6 +3486,15 @@
       state.styleId = targetStyle === 'editorial_modern' ? 'editorial_modern' : 'klasik_kpp';
       els.styleBtns.forEach((b) => { b.dataset.active = b.dataset.styleId === state.styleId ? 'true' : 'false'; });
 
+      if (proj && ['left', 'center', 'right'].includes(proj.titleAlign)) {
+        state.titleAlign = proj.titleAlign;
+      } else {
+        state.titleAlign = state.styleId === 'editorial_modern' ? 'left' : 'center';
+      }
+      if (proj && Number.isFinite(Number(proj.titleScale))) {
+        state.titleScale = Math.max(0.7, Math.min(1.6, Number(proj.titleScale)));
+      }
+
       state.orientation = ['vertical', 'horizontal', 'square'].includes(targetOrient) ? targetOrient : 'vertical';
       els.orientTabs.forEach((t) => {
         const active = t.dataset.orient === state.orientation;
@@ -3375,7 +3527,6 @@
 
       if (proj && proj.qualityId && els.selectExportQuality) {
         state.qualityId = proj.qualityId;
-        state.userPickedQuality = true;
         els.selectExportQuality.value = proj.qualityId;
       }
       if (proj && proj.imageFormat && els.selectImageFormat) {
@@ -3419,6 +3570,9 @@
       orientation: state.orientation,
       canvasPresetId: state.canvasPresetId,
       qualityId: state.qualityId,
+      imageFormat: els.selectImageFormat ? els.selectImageFormat.value : 'image/png',
+      titleAlign: state.titleAlign,
+      titleScale: state.titleScale,
       slotCount: state.slotCount,
       layoutId: state.layoutId,
       filled: filledSlotCount(),
@@ -3427,8 +3581,10 @@
     }),
     setStyle,
     setActiveStudioTab,
+    openInlineTitleEditor,
     loadFileIntoSlot,
     openVideoTrimModal,
+    swapSlots,
     refreshAllUI,
     drawCollage,
   };
@@ -3436,10 +3592,14 @@
   // --- Initial Boot ---
   async function bootStudio() {
     ensureSlotsLength(state.slotCount);
+    if (els.inputDokTanggalDate && els.inputDokTanggalDate.value) {
+      syncDateFromPicker(els.inputDokTanggalDate.value);
+    }
     syncOperasiSelectionUI(false);
+    syncPlayPauseButtonUI(false);
+    syncTitleStyleControls();
     preloadLogos();
 
-    // Cek draf otomatis IndexedDB terlebih dahulu (pulihkan jika sebelumnya refresh saat loading/editing)
     const savedDraft = DraftStore ? await DraftStore.load(DRAFT_SCOPE_KEY).catch(() => null) : null;
     if (savedDraft && ((Array.isArray(savedDraft.slots) && savedDraft.slots.some(Boolean)) || savedDraft.activeJob)) {
       await hydrateFromDraft(savedDraft);

@@ -97,11 +97,14 @@ try {
     assertDokOpt(!empty($sourceOver150['upload_id']), 'initSession(source) mengizinkan sumber video mentah > 150 MB (tanpa batas per foto/video)');
     DokumentasiChunkUploadService::cleanupSession($sourceOver150['upload_id']);
 
-    // 3. Uji sanitasi trimStart & trimEnd (maks selisih 180 detik) di project_json
+    // 3. Uji sanitasi trimStart/trimEnd (maks 180 dtk), titleAlign/titleScale, dan default fhd + image/png di project_json
     $pjInput = json_encode([
         'version' => 1,
         'styleId' => 'klasik_kpp',
         'slotCount' => 4,
+        'titleAlign' => 'right',
+        'titleScale' => 1.3,
+        'tanggalIso' => '2026-11-25',
         'slots' => [
             [
                 'type' => 'image',
@@ -130,8 +133,12 @@ try {
     $slot0 = $decodedPj['slots'][0] ?? [];
     assertDokOpt(
         abs(((float)($slot0['trimStart'] ?? -1)) - 12.5) < 0.01
-            && abs(((float)($slot0['trimEnd'] ?? -1)) - 192.5) < 0.01,
-        'sanitizeProjectJson() menyimpan trimStart/trimEnd dan membatasi jendela trim maksimal 180 detik (3 menit)'
+            && abs(((float)($slot0['trimEnd'] ?? -1)) - 192.5) < 0.01
+            && ($decodedPj['titleAlign'] ?? '') === 'right'
+            && abs(((float)($decodedPj['titleScale'] ?? 0)) - 1.3) < 0.01
+            && ($decodedPj['qualityId'] ?? '') === 'fhd'
+            && ($decodedPj['imageFormat'] ?? '') === 'image/png',
+        'sanitizeProjectJson() menjaga trim maks 180 dtk, titleAlign/titleScale, serta default kualitas FHD & format PNG'
     );
 
     // 4. Uji Kalkulasi Bitrate Otomatis (<= 150 MB untuk 180 detik) & Cover Crop
