@@ -3,8 +3,7 @@ const renopsCfg = window.__RENOPS_PAGE_CONFIG__ || {};
 let currentUnsurList = renopsCfg.initialUnsurData || [];
 let currentAlutList = renopsCfg.initialAlutData || [];
 let currentSrus = renopsCfg.initialSrus || [];
-let SAR_GIS_BUNDLE = renopsCfg.gisBundle || { points: [], polygons: [], routes: [], searchPatterns: [] };
-const idOperasi = renopsCfg.idOperasi || 0;
+const idOperasi = Number(renopsCfg.idOperasi || 0);
 const isRenopsEditMode = !!renopsCfg.editMode;
 const RENOPS_DRAFT_KEY = 'qr_sar_renops_draft_' + idOperasi;
 const OPERASI_START_DATE = renopsCfg.operasiStartDate || null;
@@ -12,12 +11,34 @@ const OPERASI_WAKTU_BERANGKAT = renopsCfg.operasiWaktuBerangkat || '';
 const OPERASI_REOPEN_DATE = renopsCfg.operasiReopenDate || null;
 const OPERASI_BASE_HARI_REOPEN = renopsCfg.operasiBaseHariReopen || 0;
 
+function isCurrentOperationGisItem(item) {
+  if (!item) return false;
+  const itemOpId = Number(item.id_operasi || 0);
+  if (idOperasi > 0) return itemOpId === idOperasi;
+  return itemOpId > 0;
+}
+
+function scopeGisBundleToOperation(bundle) {
+  const src = bundle || {};
+  return {
+    ...src,
+    id_operasi: idOperasi || Number(src.id_operasi || 0) || 0,
+    include_base_map: false,
+    points: (src.points || []).filter(isCurrentOperationGisItem),
+    polygons: (src.polygons || []).filter(isCurrentOperationGisItem),
+    routes: (src.routes || []).filter(isCurrentOperationGisItem),
+    searchPatterns: (src.searchPatterns || []).filter(isCurrentOperationGisItem)
+  };
+}
+
+let SAR_GIS_BUNDLE = scopeGisBundleToOperation(renopsCfg.gisBundle || { points: [], polygons: [], routes: [], searchPatterns: [] });
+
 function isRenopsHariPertama(hariStr) {
   return /^(?:H[\.\-\s]*)?1$/i.test(String(hariStr || '').trim());
 }
 
 function getOperationPolygons() {
-  return (SAR_GIS_BUNDLE.polygons || []).filter((p) => p && Number(p.id_operasi) > 0);
+  return (SAR_GIS_BUNDLE.polygons || []).filter(isCurrentOperationGisItem);
 }
 
 // Escape HTML utility (Unified with QrSarUtils)
@@ -322,10 +343,8 @@ function renderSruList() {
     const polaVal = s.pola_pencarian || '';
     const sapuanVal = s.total_sapuan || '';
 
-    const polygonsList = SAR_GIS_BUNDLE.polygons || [];
-    const basePolygons = polygonsList.filter((p) => !p || !(Number(p.id_operasi) > 0));
     const isLinkedGis = !isManualMode && (
-      (s.id_polygon && polygonsList.some(p => String(p.id) === String(s.id_polygon))) ||
+      (s.id_polygon && opPolygons.some(p => String(p.id) === String(s.id_polygon))) ||
       (!s.id_polygon && opPolygons.some(p => s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())))
     );
 
@@ -334,14 +353,13 @@ function renderSruList() {
       const areaDisplay = formatRenopsAreaShort(aNum);
       const isMatched = !isManualMode && (
         (s.id_polygon && String(s.id_polygon) === String(p.id)) ||
-        (!s.id_polygon && Number(p.id_operasi) > 0 && s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase()))
+        (!s.id_polygon && isCurrentOperationGisItem(p) && s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase()))
       );
       return `<option value="${escapeHtml(p.id)}" ${isMatched ? 'selected' : ''}>${escapeHtml(p.name)} (${areaDisplay})</option>`;
     };
 
     const polyOptionsHtml = `<option value="" ${!isLinkedGis ? 'selected' : ''}>-- Tanpa Sektor GIS (Input Manual) --</option>` +
-      opPolygons.map(renderPolyOption).join('') +
-      (basePolygons.length ? `<optgroup label="Base Map / Wilayah Kerja">${basePolygons.map(renderPolyOption).join('')}</optgroup>` : '');
+      opPolygons.map(renderPolyOption).join('');
 
     card.innerHTML = `
       <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-200/80 dark:border-slate-800">
@@ -926,14 +944,14 @@ async function refreshGisBundle(showToastAlert = false) {
   if (btnQuick) btnQuick.disabled = true;
 
   try {
-    const res = await fetch(`${BASE_URL}/api/gis/bundle?id_operasi=${idOperasi}&include_base_map=1&_t=${Date.now()}`);
+    const res = await fetch(`${BASE_URL}/api/gis/bundle?id_operasi=${idOperasi}&include_base_map=0&_t=${Date.now()}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
 
     if (data.success) {
       const newBundle = data.data || {
         id_operasi: idOperasi,
-        include_base_map: true,
+        include_base_map: false,
         points: data.points || [],
         polygons: data.polygons || [],
         routes: data.routes || [],
@@ -945,7 +963,7 @@ async function refreshGisBundle(showToastAlert = false) {
       if (!newBundle.routes) newBundle.routes = data.routes || [];
       if (!newBundle.searchPatterns) newBundle.searchPatterns = data.searchPatterns || data.search_patterns || [];
 
-      SAR_GIS_BUNDLE = newBundle;
+      SAR_GIS_BUNDLE = scopeGisBundleToOperation(newBundle);
 
       // Update badge counts
       const cntPoly = (SAR_GIS_BUNDLE.polygons || []).length;
@@ -1159,13 +1177,13 @@ function renderGisImportModalContent() {
   if (!container) return;
 
   if (activeGisImportTab === 'polygons') {
-    const polys = SAR_GIS_BUNDLE.polygons || [];
+    const polys = (SAR_GIS_BUNDLE.polygons || []).filter(isCurrentOperationGisItem);
     if (polys.length === 0) {
       container.innerHTML = `
         <div class="p-8 text-center text-slate-400 text-xs rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-3">
           <div class="text-3xl">⬡</div>
-          <div class="font-bold text-slate-700 dark:text-slate-200">Belum ada Search Area (Poligon) tersimpan</div>
-          <p class="text-slate-500">Buka <a href="${BASE_URL}/gis.php?id_operasi=${SAR_GIS_BUNDLE.id_operasi}&include_base=1" target="_blank" class="text-blue-500 underline font-semibold">Peta Plotting</a> untuk menggambar poligon batas pencarian operasi atau base map.</p>
+          <div class="font-bold text-slate-700 dark:text-slate-200">Belum ada Search Area (Poligon) untuk operasi ini</div>
+          <p class="text-slate-500">Buka <a href="${BASE_URL}/gis.php?id_operasi=${idOperasi || SAR_GIS_BUNDLE.id_operasi}&include_base=1" target="_blank" class="text-blue-500 underline font-semibold">Peta Plotting</a> untuk menggambar poligon batas pencarian operasi ini.</p>
           <div class="pt-1 flex justify-center">
             <button type="button" onclick="refreshGisBundle(true)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition cursor-pointer">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -1176,7 +1194,6 @@ function renderGisImportModalContent() {
       return;
     }
     container.innerHTML = polys.map(p => {
-      const isBaseMap = !p.id_operasi;
       const areaNum = calculatePolygonAreaNm2(p);
       const area = areaNum > 0 ? formatRenopsAreaShort(areaNum) : '-';
       const pts = p.points || [];
@@ -1188,8 +1205,8 @@ function renderGisImportModalContent() {
             <div class="flex items-center gap-2">
               <span class="w-3.5 h-3.5 rounded-full" style="background-color: ${p.strokeColor || '#2563eb'};"></span>
               <span class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">${escapeHtml(p.name || 'Sektor Pencarian')}</span>
-              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
-                ${isBaseMap ? 'Base Map / Wilayah Kerja' : 'Operasi Ini'}
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                Operasi Ini
               </span>
             </div>
             <div class="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
@@ -1216,13 +1233,13 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
       `;
     }).join('');
   } else if (activeGisImportTab === 'patterns') {
-    const patterns = SAR_GIS_BUNDLE.searchPatterns || [];
+    const patterns = (SAR_GIS_BUNDLE.searchPatterns || []).filter(isCurrentOperationGisItem);
     if (patterns.length === 0) {
       container.innerHTML = `
         <div class="p-8 text-center text-slate-400 text-xs rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-3">
           <div class="text-3xl">⚡</div>
-          <div class="font-bold text-slate-700 dark:text-slate-200">Belum ada Pola Pencarian SAR tersimpan</div>
-          <p class="text-slate-500">Buka <a href="${BASE_URL}/gis.php?id_operasi=${SAR_GIS_BUNDLE.id_operasi}&include_base=1" target="_blank" class="text-blue-500 underline font-semibold">Peta Plotting</a> untuk men-generate Pola Pencarian (Parallel, Expanding Square, E-SAR, dll).</p>
+          <div class="font-bold text-slate-700 dark:text-slate-200">Belum ada Pola Pencarian SAR untuk operasi ini</div>
+          <p class="text-slate-500">Buka <a href="${BASE_URL}/gis.php?id_operasi=${idOperasi || SAR_GIS_BUNDLE.id_operasi}&include_base=1" target="_blank" class="text-blue-500 underline font-semibold">Peta Plotting</a> untuk men-generate Pola Pencarian (Parallel, Expanding Square, E-SAR, dll).</p>
           <div class="pt-1 flex justify-center">
             <button type="button" onclick="refreshGisBundle(true)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition cursor-pointer">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -1233,7 +1250,6 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
       return;
     }
     container.innerHTML = patterns.map(p => {
-      const isBaseMap = !p.id_operasi;
       const typeLabels = {
         'creeping_line': 'Creeping Line Search',
         'parallel_track': 'Parallel Track Search',
@@ -1255,8 +1271,8 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
               <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                 ${escapeHtml(typeLabel)}
               </span>
-              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
-                ${isBaseMap ? 'Base Map' : 'Operasi Ini'}
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                Operasi Ini
               </span>
             </div>
             <div class="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
@@ -1280,13 +1296,13 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
       `;
     }).join('');
   } else if (activeGisImportTab === 'routes') {
-    const routes = SAR_GIS_BUNDLE.routes || [];
+    const routes = (SAR_GIS_BUNDLE.routes || []).filter(isCurrentOperationGisItem);
     if (routes.length === 0) {
       container.innerHTML = `
         <div class="p-8 text-center text-slate-400 text-xs rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-3">
           <div class="text-3xl">↗️</div>
-          <div class="font-bold text-slate-700 dark:text-slate-200">Belum ada Jalur / Rute tersimpan</div>
-          <p class="text-slate-500">Buka <a href="${BASE_URL}/gis.php?id_operasi=${SAR_GIS_BUNDLE.id_operasi}&include_base=1" target="_blank" class="text-blue-500 underline font-semibold">Peta Plotting</a> untuk menambahkan rute laut/darat.</p>
+          <div class="font-bold text-slate-700 dark:text-slate-200">Belum ada Jalur / Rute untuk operasi ini</div>
+          <p class="text-slate-500">Buka <a href="${BASE_URL}/gis.php?id_operasi=${idOperasi || SAR_GIS_BUNDLE.id_operasi}&include_base=1" target="_blank" class="text-blue-500 underline font-semibold">Peta Plotting</a> untuk menambahkan rute laut/darat.</p>
           <div class="pt-1 flex justify-center">
             <button type="button" onclick="refreshGisBundle(true)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition cursor-pointer">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -1297,7 +1313,6 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
       return;
     }
     container.innerHTML = routes.map(r => {
-      const isBaseMap = !r.id_operasi;
       const dist = r.totalDistanceNm ? formatRenopsDistanceShort(r.totalDistanceNm) : '-';
       const speed = r.vesselSpeedKnots ? formatRenopsSpeed(r.vesselSpeedKnots) : (activeRenopsUnit === 'KM' ? '46 km/jam' : '25 Knots');
       const pts = r.points || [];
@@ -1308,8 +1323,8 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
             <div class="flex items-center gap-2">
               <span class="w-3.5 h-3.5 rounded-full" style="background-color: ${r.strokeColor || '#059669'};"></span>
               <span class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">${escapeHtml(r.name || 'Jalur Operasi')}</span>
-              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20'}">
-                ${isBaseMap ? 'Base Map' : 'Operasi Ini'}
+              <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
+                Operasi Ini
               </span>
             </div>
             <div class="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
@@ -1331,13 +1346,13 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
       `;
     }).join('');
   } else if (activeGisImportTab === 'points') {
-    const points = SAR_GIS_BUNDLE.points || [];
+    const points = (SAR_GIS_BUNDLE.points || []).filter(isCurrentOperationGisItem);
     if (points.length === 0) {
       container.innerHTML = `
         <div class="p-8 text-center text-slate-400 text-xs rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-3">
           <div class="text-3xl">📍</div>
-          <div class="font-bold text-slate-700 dark:text-slate-200">Belum ada Titik Taktis tersimpan</div>
-          <p class="text-slate-500">Buka <a href="${BASE_URL}/gis.php?id_operasi=${SAR_GIS_BUNDLE.id_operasi}&include_base=1" target="_blank" class="text-blue-500 underline font-semibold">Peta Plotting</a> untuk menambahkan titik LKP, Posko, Helipad, atau temuan.</p>
+          <div class="font-bold text-slate-700 dark:text-slate-200">Belum ada Titik Taktis untuk operasi ini</div>
+          <p class="text-slate-500">Buka <a href="${BASE_URL}/gis.php?id_operasi=${idOperasi || SAR_GIS_BUNDLE.id_operasi}&include_base=1" target="_blank" class="text-blue-500 underline font-semibold">Peta Plotting</a> untuk menambahkan titik LKP, Posko, Helipad, atau temuan.</p>
           <div class="pt-1 flex justify-center">
             <button type="button" onclick="refreshGisBundle(true)" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 transition cursor-pointer">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -1382,7 +1397,6 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
         </div>`;
     } else {
       cardsHtml = filteredPoints.map(pt => {
-        const isBaseMap = !pt.id_operasi;
         const dms = formatDmsPair(Number(pt.lat), Number(pt.lng));
         const selId = `sel-pt-target-${pt.id}`;
         const catName = pt.category || 'Taktis';
@@ -1394,10 +1408,9 @@ ${coordsPreview || '(Koordinat sudut tidak tersedia)'}
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5 flex-wrap">
                   <span class="font-bold text-xs text-slate-900 dark:text-white truncate">${escapeHtml(pt.label || 'Titik Taktis')}</span>
-                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${isBaseMap ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20'} shrink-0">
+                  <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
                     ${escapeHtml(catName)}
                   </span>
-                  ${isBaseMap ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 shrink-0">Base Map</span>` : ''}
                 </div>
                 <div class="flex items-center gap-2 mt-0.5">
                   <span class="text-[11px] font-mono text-slate-500 dark:text-slate-400 truncate">${dms}</span>
@@ -1490,9 +1503,11 @@ function getPatternDetails(matchedPattern) {
 }
 
 // ── Impor per SRU: satu search area operasi = satu SRU; pola & rute dipasangkan lewat polygonId (RenopsImport) ──
-function gisImportItems(includeBaseMap = false) {
-  const polys = includeBaseMap ? (SAR_GIS_BUNDLE.polygons || []) : getOperationPolygons();
-  return RenopsImport.checklist(polys, SAR_GIS_BUNDLE.searchPatterns || [], SAR_GIS_BUNDLE.routes || []);
+function gisImportItems() {
+  const polys = getOperationPolygons();
+  const patterns = (SAR_GIS_BUNDLE.searchPatterns || []).filter(isCurrentOperationGisItem);
+  const routes = (SAR_GIS_BUNDLE.routes || []).filter(isCurrentOperationGisItem);
+  return RenopsImport.checklist(polys, patterns, routes);
 }
 
 // Nilai bawaan baris SRU baru hasil impor (baris yang sudah ada tidak diberi bawaan: isian manual tetap).
@@ -1560,7 +1575,7 @@ function importAllPolygonsToSrus() {
 }
 
 function importPolygonToSru(polyId, targetIdx) {
-  const item = gisImportItems(true).find((it) => String(it.id) === String(polyId));
+  const item = gisImportItems().find((it) => String(it.id) === String(polyId));
   if (!item) return;
   currentSrus[targetIdx] = Object.assign(currentSrus[targetIdx] || { ...SRU_DEFAULTS }, describeAreaForSru(item));
   renderSruList();
@@ -1571,7 +1586,7 @@ function importPolygonToSru(polyId, targetIdx) {
 }
 
 function importPolygonToNewSru(polyId) {
-  const item = gisImportItems(true).find((it) => String(it.id) === String(polyId));
+  const item = gisImportItems().find((it) => String(it.id) === String(polyId));
   if (!item) return;
   currentSrus.push({ ...SRU_DEFAULTS, ...describeAreaForSru(item) });
   renderSruList();

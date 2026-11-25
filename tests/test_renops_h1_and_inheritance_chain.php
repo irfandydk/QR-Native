@@ -44,8 +44,20 @@ assertCheck(RenopsModel::isHariPertama('H.2') === false, 'isHariPertama(H.2) = f
 assertCheck(RenopsModel::isHariPertama('H7 + 1') === false, 'isHariPertama(H7 + 1) = false (hari perpanjangan tetap memiliki briefing)');
 
 $idOps = 0;
-$basePolyId = 'poly-test-basemap-186-' . time();
-$opPolyId = 'poly-test-op-80-' . time();
+$idOpsOther = 0;
+$ts = time();
+$basePolyId = 'poly-test-basemap-186-' . $ts;
+$opPolyId = 'poly-test-op-80-' . $ts;
+$otherPolyId = 'poly-test-other-' . $ts;
+$basePointId = 'pt-test-basemap-' . $ts;
+$opPointId = 'pt-test-op-' . $ts;
+$otherPointId = 'pt-test-other-' . $ts;
+$baseRouteId = 'rt-test-basemap-' . $ts;
+$opRouteId = 'rt-test-op-' . $ts;
+$otherRouteId = 'rt-test-other-' . $ts;
+$basePatId = 'pat-test-basemap-' . $ts;
+$opPatId = 'pat-test-op-' . $ts;
+$otherPatId = 'pat-test-other-' . $ts;
 
 try {
     $today = date('Y-m-d');
@@ -73,7 +85,19 @@ try {
     ]);
     assertCheck($idOps > 0, "Fixture Operasi dibuat (ID={$idOps})");
 
-    // Tambahkan Base Map polygon 186 titik (seperti di homeserver) + Operation polygon 80 titik (tanpa label)
+    $idOpsOther = OperasiModel::create([
+        'nama_operasi' => 'Operasi SAR Lain Untuk Isolasi GIS',
+        'nama_pelapor' => 'Pelapor Lain',
+        'lokasi_kejadian' => 'Perairan Kolaka',
+        'koordinat' => '04° 03\' 00.0" S - 121° 35\' 00.0" E',
+        'waktu_kejadian' => "{$today} 10:00:00",
+        'waktu_lapor' => "{$today} 10:15:00",
+        'waktu_berangkat' => "{$today} 10:30:00",
+    ]);
+    assertCheck($idOpsOther > 0, "Fixture Operasi Lain dibuat (ID={$idOpsOther})");
+
+    // Tambahkan Base Map (id_operasi=null), Operasi Lain (id_operasi=$idOpsOther), dan Operasi Aktif (id_operasi=$idOps)
+    // untuk seluruh 4 entitas GIS: Poligon, Titik, Jalur/Rute, dan Pola Pencarian
     $pts186 = [];
     for ($i = 0; $i < 186; $i++) {
         $pts186[] = ['lat' => -4.0 + ($i * 0.0001), 'lng' => 122.5 + ($i * 0.0001)];
@@ -82,10 +106,29 @@ try {
     for ($i = 0; $i < 80; $i++) {
         $pts80[] = ['lat' => -3.9 + ($i * 0.0001), 'lng' => 122.6 + ($i * 0.0001)];
     }
+    $ptsTri = [
+        ['lat' => -4.1, 'lng' => 121.6],
+        ['lat' => -4.1, 'lng' => 121.7],
+        ['lat' => -4.2, 'lng' => 121.65],
+    ];
     GisModel::savePolygon(['id' => $basePolyId, 'id_operasi' => null, 'name' => 'Biak BaseMap', 'points' => $pts186]);
     GisModel::savePolygon(['id' => $opPolyId, 'id_operasi' => $idOps, 'name' => 'Sektor Operasi 1', 'points' => $pts80]);
+    GisModel::savePolygon(['id' => $otherPolyId, 'id_operasi' => $idOpsOther, 'name' => 'Sektor Operasi Lain', 'points' => $ptsTri]);
 
-    // 4. Render penuh OperasiController::renopsForm() untuk memastikan TIDAK crash & menyaring Base Map
+    GisModel::savePoint(['id' => $basePointId, 'id_operasi' => null, 'label' => 'Pos SAR BaseMap', 'category' => 'Posko', 'lat' => -4.01, 'lng' => 122.51]);
+    GisModel::savePoint(['id' => $opPointId, 'id_operasi' => $idOps, 'label' => 'Titik LKP Operasi Aktif', 'category' => 'LKP', 'lat' => -3.95, 'lng' => 122.58]);
+    GisModel::savePoint(['id' => $otherPointId, 'id_operasi' => $idOpsOther, 'label' => 'Titik Operasi Lain', 'category' => 'LKP', 'lat' => -4.05, 'lng' => 121.58]);
+
+    $routePts = [['lat' => -4.0, 'lng' => 122.5], ['lat' => -3.95, 'lng' => 122.58]];
+    GisModel::saveRoute(['id' => $baseRouteId, 'id_operasi' => null, 'name' => 'Rute BaseMap', 'points' => $routePts]);
+    GisModel::saveRoute(['id' => $opRouteId, 'id_operasi' => $idOps, 'name' => 'Rute Operasi Aktif', 'points' => $routePts]);
+    GisModel::saveRoute(['id' => $otherRouteId, 'id_operasi' => $idOpsOther, 'name' => 'Rute Operasi Lain', 'points' => $routePts]);
+
+    GisModel::saveSearchPattern(['id' => $basePatId, 'id_operasi' => null, 'name' => 'Pola BaseMap', 'patternType' => 'parallel_track', 'waypoints' => $routePts]);
+    GisModel::saveSearchPattern(['id' => $opPatId, 'id_operasi' => $idOps, 'name' => 'Pola Operasi Aktif', 'patternType' => 'parallel_track', 'waypoints' => $routePts]);
+    GisModel::saveSearchPattern(['id' => $otherPatId, 'id_operasi' => $idOpsOther, 'name' => 'Pola Operasi Lain', 'patternType' => 'parallel_track', 'waypoints' => $routePts]);
+
+    // 4. Render penuh OperasiController::renopsForm() untuk memastikan TIDAK crash & HANYA memuat GIS milik id_operasi ini
     $admin = $db->query("SELECT * FROM Users WHERE role = 'ADMIN' AND is_active = 1 LIMIT 1")->fetch(PDO::FETCH_ASSOC);
     if ($admin) {
         $_SERVER['REQUEST_METHOD'] = 'GET';
@@ -108,6 +151,25 @@ try {
         assertCheck(str_contains($html, 'value="' . $today . 'T14:25"'), 'renops_form.php otomatis mengisi Waktu Mulai Pergerakan dari waktu_berangkat Laporan Awal');
         assertCheck(str_contains($html, 'SRU 1 - Sektor Operasi 1') && !str_contains($html, 'SRU 1 - Biak BaseMap'), 'Auto-SRU hanya memakai poligon milik operasi dan mengecualikan poligon Base Map');
         assertCheck(str_contains($html, 'Titik L3:'), 'Poligon 80 titik menghasilkan label UTF-8 aman (A..Z, A2..Z2, A3..L3)');
+
+        // Isolasi penuh gisBundle pada tombol "Ambil dari Peta": hanya entitas milik id_operasi aktif
+        $cfgMatch = [];
+        preg_match('/window\.__RENOPS_PAGE_CONFIG__\s*=\s*(\{.*?\});/s', $html, $cfgMatch);
+        $cfg = !empty($cfgMatch[1]) ? json_decode($cfgMatch[1], true) : null;
+        $gb = is_array($cfg['gisBundle'] ?? null) ? $cfg['gisBundle'] : [];
+        $polyIds = array_column($gb['polygons'] ?? [], 'id');
+        $pointIds = array_column($gb['points'] ?? [], 'id');
+        $routeIds = array_column($gb['routes'] ?? [], 'id');
+        $patIds = array_column($gb['searchPatterns'] ?? [], 'id');
+
+        assertCheck(in_array($opPolyId, $polyIds, true) && !in_array($basePolyId, $polyIds, true) && !in_array($otherPolyId, $polyIds, true), 'gisBundle Search Area hanya memuat poligon milik id_operasi aktif (tanpa Base Map / operasi lain)');
+        assertCheck(in_array($opPointId, $pointIds, true) && !in_array($basePointId, $pointIds, true) && !in_array($otherPointId, $pointIds, true), 'gisBundle Titik Taktis hanya memuat titik milik id_operasi aktif (tanpa Base Map / operasi lain)');
+        assertCheck(in_array($opRouteId, $routeIds, true) && !in_array($baseRouteId, $routeIds, true) && !in_array($otherRouteId, $routeIds, true), 'gisBundle Jalur/Rute hanya memuat rute milik id_operasi aktif (tanpa Base Map / operasi lain)');
+        assertCheck(in_array($opPatId, $patIds, true) && !in_array($basePatId, $patIds, true) && !in_array($otherPatId, $patIds, true), 'gisBundle Pola Pencarian hanya memuat pola milik id_operasi aktif (tanpa Base Map / operasi lain)');
+
+        $renopsJsSrc = (string)file_get_contents(__DIR__ . '/../assets/js/pages/renops_form.js');
+        assertCheck(str_contains($renopsJsSrc, 'include_base_map=0') && !str_contains($renopsJsSrc, 'include_base_map=1'), 'refreshGisBundle() meminta /api/gis/bundle dengan include_base_map=0');
+        assertCheck(!str_contains($renopsJsSrc, 'Base Map / Wilayah Kerja'), 'Dropdown Sektor Plotting & modal RENOPS tidak lagi menampilkan opsi Base Map');
     } else {
         assertCheck(false, 'Akun admin tidak ditemukan untuk pengujian render renopsForm');
     }
@@ -249,8 +311,21 @@ try {
 } finally {
     GisModel::deletePolygon($basePolyId);
     GisModel::deletePolygon($opPolyId);
+    GisModel::deletePolygon($otherPolyId);
+    GisModel::deletePoint($basePointId);
+    GisModel::deletePoint($opPointId);
+    GisModel::deletePoint($otherPointId);
+    GisModel::deleteRoute($baseRouteId);
+    GisModel::deleteRoute($opRouteId);
+    GisModel::deleteRoute($otherRouteId);
+    GisModel::deleteSearchPattern($basePatId);
+    GisModel::deleteSearchPattern($opPatId);
+    GisModel::deleteSearchPattern($otherPatId);
     if ($idOps > 0) {
         OperasiModel::delete($idOps);
+    }
+    if ($idOpsOther > 0) {
+        OperasiModel::delete($idOpsOther);
     }
 }
 

@@ -742,10 +742,10 @@ class OperasiController extends BaseController {
             }
         }
 
-        // Master data & bundle
+        // Master data & bundle (khusus entitas GIS milik id_operasi ini saja, tanpa Base Map/operasi lain)
         $masterTim = MasterModel::getTim();
         $masterAlut = MasterModel::getAlut();
-        $gisBundle = GisModel::getOperationBundle($idOperasi, true);
+        $gisBundle = GisModel::getOperationBundle($idOperasi, false);
         $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
 
         $waktuBerangkatOps = !empty($operasi['waktu_berangkat'])
