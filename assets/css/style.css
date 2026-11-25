@@ -84,17 +84,36 @@
   --border-focus: #d97706;
 }
 
-/* Real-time Theme Palette Adaptations */
-.sidebar-nav-item.sidebar-active {
-  background-color: var(--primary-light) !important;
-  color: var(--primary) !important;
-  border-color: var(--primary-glow) !important;
+/* Real-time Theme Palette Adaptations & Sidebar Active Accent Indicator (WCAG 1.4.1) */
+.sidebar-nav-item {
+  position: relative;
+  border: 1px solid transparent;
 }
-.sidebar-nav-item.sidebar-active svg {
+.sidebar-nav-item.sidebar-active,
+.sidebar-nav-item[aria-current="page"] {
+  background-color: color-mix(in srgb, var(--primary) 11%, transparent) !important;
+  color: var(--primary) !important;
+  border-color: color-mix(in srgb, var(--primary) 22%, transparent) !important;
+}
+.sidebar-nav-item.sidebar-active::before,
+.sidebar-nav-item[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3.5px;
+  height: 20px;
+  border-radius: 0 999px 999px 0;
+  background-color: var(--primary);
+}
+.sidebar-nav-item.sidebar-active svg,
+.sidebar-nav-item[aria-current="page"] svg {
   color: var(--primary) !important;
 }
 
-.sidebar-footer-user .user-avatar-badge {
+.sidebar-footer-user .user-avatar-badge,
+.header-avatar-box {
   background-color: var(--primary) !important;
 }
 
@@ -187,9 +206,26 @@ html.sidebar-is-collapsed .sidebar {
   width: 5rem; /* 80px w-20 */
 }
 
-/* Sidebar Tooltip Rules: Hidden when expanded, active on hover when collapsed */
+/* Sidebar Tooltip Rules: Hidden when expanded, crisp floating label when collapsed */
 .sidebar .sidebar-tooltip {
   display: none !important;
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.5rem;
+  background-color: #0f172a;
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 60;
+  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: opacity 140ms ease;
 }
 
 .sidebar.collapsed .sidebar-tooltip,
@@ -197,11 +233,37 @@ html.sidebar-is-collapsed .sidebar .sidebar-tooltip {
   display: block !important;
 }
 
+.sidebar.collapsed .sidebar-nav-item:hover .sidebar-tooltip,
+.sidebar.collapsed .sidebar-nav-item:focus-visible .sidebar-tooltip,
+html.sidebar-is-collapsed .sidebar .sidebar-nav-item:hover .sidebar-tooltip,
+html.sidebar-is-collapsed .sidebar .sidebar-nav-item:focus-visible .sidebar-tooltip {
+  opacity: 1;
+}
+
+/* Keep collapsed tooltip unclipped outside sidebar edge */
+.sidebar.collapsed #sidebarNavArea,
+html.sidebar-is-collapsed .sidebar #sidebarNavArea {
+  overflow: visible;
+}
+
+/* Desktop Edge-Docked Collapse Toggle */
+@media (min-width: 1024px) {
+  .sidebar-collapse-btn {
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 45;
+    border-radius: 9999px;
+  }
+}
+
 /* Sidebar Brand Header when Collapsed */
 .sidebar.collapsed .sidebar-brand-header,
 html.sidebar-is-collapsed .sidebar .sidebar-brand-header {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
+  justify-content: center;
 }
 
 .sidebar.collapsed .sidebar-brand-text,
@@ -233,6 +295,13 @@ html.sidebar-is-collapsed .sidebar .sidebar-nav-item {
   padding-right: 0.5rem !important;
 }
 
+.sidebar.collapsed .sidebar-nav-item.sidebar-active::before,
+.sidebar.collapsed .sidebar-nav-item[aria-current="page"]::before,
+html.sidebar-is-collapsed .sidebar .sidebar-nav-item.sidebar-active::before,
+html.sidebar-is-collapsed .sidebar .sidebar-nav-item[aria-current="page"]::before {
+  left: -12px;
+}
+
 /* Live Clock vs Mini Clock */
 .sidebar .sidebar-clock-mini {
   display: none !important;
@@ -254,7 +323,7 @@ html.sidebar-is-collapsed .sidebar .sidebar-ctrl-label {
   display: none !important;
 }
 
-/* User Session block when Collapsed */
+/* User Session block when Collapsed (legacy / GIS fallback) */
 .sidebar.collapsed .sidebar-user-block,
 html.sidebar-is-collapsed .sidebar .sidebar-user-block {
   display: none !important;
@@ -264,6 +333,84 @@ html.sidebar-is-collapsed .sidebar .sidebar-user-block {
 html.sidebar-is-collapsed .sidebar .sidebar-footer-user {
   justify-content: center !important;
   gap: 0.5rem;
+}
+
+/* Top-Right Header Account Popover (CSS Anchor Positioning + Progressive Fallbacks) */
+.header-profile-trigger:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.header-profile-trigger[aria-expanded="true"] {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border-color));
+}
+.header-popover-action {
+  color: var(--text-main);
+}
+.header-popover-action:hover {
+  color: var(--text-main);
+}
+.header-popover-action:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+@supports (position-area: block-end) {
+  .header-profile-trigger {
+    anchor-name: --header-profile-trigger;
+  }
+  .header-profile-popover[popover] {
+    position-anchor: --header-profile-trigger;
+    inset: auto;
+    margin: 0;
+    margin-block-start: 0.5rem;
+    position-area: block-end span-inline-start;
+    position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  }
+}
+
+@supports not (position-area: block-end) {
+  .header-profile-popover[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+  }
+}
+
+.header-profile-popover.header-popover-fallback {
+  display: none;
+  position: fixed;
+  z-index: 60;
+}
+.header-profile-popover.header-popover-fallback.is-open {
+  display: block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .header-profile-popover[popover] {
+    opacity: 0;
+    translate: 0 -0.25rem;
+    transition: opacity 140ms ease, translate 140ms ease, display 140ms ease, overlay 140ms ease;
+    transition-behavior: allow-discrete;
+  }
+  .header-profile-popover[popover]:popover-open {
+    opacity: 1;
+    translate: 0 0;
+  }
+  @starting-style {
+    .header-profile-popover[popover]:popover-open {
+      opacity: 0;
+      translate: 0 -0.25rem;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .sidebar-nav-item[aria-current="page"]::before {
+    background-color: Highlight;
+  }
+  .sidebar-nav-item[aria-current="page"] {
+    outline: 1px solid Highlight;
+  }
 }
 
 .main-content {
@@ -309,19 +456,17 @@ html.sidebar-is-collapsed .main-content {
   }
 }
 
-/* Top Navbar */
+/* Top Navbar (64px / 4rem sejajar presisi dengan sidebar brand header) */
 .navbar {
-  height: 68px;
+  height: 4rem;
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
-  padding: 0 1.5rem;
+  padding: 0;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   position: sticky;
   top: 0;
   z-index: 30;
-  box-shadow: var(--shadow-sm);
 }
 
 .page-body {

@@ -327,8 +327,18 @@ html[data-ui="minimal"].dark .nav-liquid {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 /* Palet warna lain tidak dipakai di tema ini (aksen tetap oranye Basarnas) */
+html[data-ui="minimal"] .sidebar-palette-row,
 html[data-ui="minimal"] #sidebarPaletteBtn,
 html[data-ui="minimal"] #sidebarPalettePopover { display: none !important; }
+html[data-ui="minimal"] .header-profile-popover {
+  background-color: var(--m-surface) !important;
+  border-color: var(--m-border-strong) !important;
+  box-shadow: var(--m-shadow-lg);
+}
+html[data-ui="minimal"] .sidebar-collapse-btn {
+  background-color: var(--m-surface) !important;
+  border-color: var(--m-border-strong) !important;
+}
 
 /* ---------- Modal, toast & SweetAlert ---------- */
 html[data-ui="minimal"] .modal-overlay,

@@ -225,6 +225,7 @@ try {
     $adminIndexView = (string)file_get_contents(ROOT_DIR . '/views/admin/index.php');
     $tabAdminView = (string)file_get_contents(ROOT_DIR . '/views/admin/partials/tab_admin.php');
     $sidebarView = (string)file_get_contents(ROOT_DIR . '/views/layout/sidebar.php');
+    $navbarView = (string)file_get_contents(ROOT_DIR . '/views/layout/navbar.php');
     $loginView = (string)file_get_contents(ROOT_DIR . '/views/auth/login.php');
 
     check(!str_contains($profileView, 'value="change_password"') && !str_contains($profileView, 'name="new_password"'), 'views/auth/profile.php tidak memuat formulir ubah kata sandi');
@@ -232,7 +233,7 @@ try {
     check(str_contains($authCtrl, "action === 'change_password'") && str_contains($authCtrl, 'tidak diizinkan mengubah kata sandi'), 'AuthController::profile() menolak POST change_password dari sisi server');
     check((str_contains($adminIndexView, 'Akun &amp; Pengguna') || str_contains($adminIndexView, 'Akun & Pengguna')) && !str_contains($adminIndexView, 'Akun Pengguna'), 'Tab Admin & User tergabung menjadi 1 tab Akun & Pengguna');
     check(str_contains($tabAdminView, 'create_account') && str_contains($tabAdminView, 'update_account') && str_contains($tabAdminView, 'delete_account'), 'tab_admin.php mendukung tambah, edit, dan hapus akun');
-    check(str_contains($sidebarView, 'resolveAvatarDisplayUrl'), 'Sidebar menampilkan foto profil pengguna');
+    check(str_contains($navbarView, 'resolveAvatarDisplayUrl') && str_contains($navbarView, 'headerProfileBtn') && str_contains($navbarView, 'headerProfilePopover') && !str_contains($sidebarView, 'sidebar-footer-user'), 'Profil & foto pengguna tampil di header sudut kanan atas (bukan lagi kartu profil sidebar)');
     check(str_contains($loginView, 'adminSecretResetCard') && str_contains($loginView, 'admin_secret_reset') && !str_contains($loginView, DEFAULT_RESET_PASSWORD), 'views/auth/login.php memiliki form secret word reset tanpa membocorkan default password');
 
     // 6. Reset Sandi Admin Setelah 3x Salah Password via Secret Word
