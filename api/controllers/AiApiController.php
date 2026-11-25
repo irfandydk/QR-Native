@@ -64,6 +64,44 @@ class AiApiController extends BaseApiController {
             return true;
         }
 
+        // 4. Test AI API Key Connection (Admin Only)
+        if ($path === '/ai/test-key' && $method === 'POST') {
+            self::requireAdmin();
+            self::requireCsrf($input);
+            self::checkAiRateLimit();
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+            }
+
+            $keyId = trim((string)($input['key_id'] ?? ''));
+            $provider = strtolower(trim((string)($input['provider'] ?? '')));
+            $apiKey = trim((string)($input['api_key'] ?? ''));
+            $model = trim((string)($input['model'] ?? ''));
+
+            if ($keyId !== '') {
+                $resolved = AiConfigService::resolveKeyById($keyId);
+                if (!$resolved) {
+                    self::error('Profil API Key tidak ditemukan atau kunci tidak dapat dibaca.', 404, 'AI_KEY_NOT_FOUND');
+                }
+                if ($provider === '') {
+                    $provider = (string)$resolved['provider'];
+                }
+                if ($apiKey === '') {
+                    $apiKey = (string)$resolved['api_key'];
+                }
+                if ($model === '') {
+                    $model = (string)$resolved['model'];
+                }
+            }
+
+            if ($provider === '' || $apiKey === '') {
+                self::error('Provider dan API Key wajib diisi untuk pengujian koneksi.', 400, 'VALIDATION_ERROR');
+            }
+
+            self::json(AiHelper::testConnection($provider, $apiKey, $model));
+            return true;
+        }
+
         return false;
     }
 }

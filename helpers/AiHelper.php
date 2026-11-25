@@ -1,6 +1,6 @@
 <?php
 /**
- * QR-SAR - AI Assistant Helper (Gemini 2.5 Flash with Humanizer & Basarnas Fallback Engine)
+ * QR-SAR - Multi-Provider AI Assistant Helper (Google Gemini & DeepSeek with Humanizer & Auto-Fallback)
  * KPP Kendari - Basarnas
  */
 
@@ -8,14 +8,27 @@ declare(strict_types=1);
 
 class AiHelper {
     /**
-     * Retrieve Gemini API Key from multiple sources:
-     * 1. Environment variable GEMINI_API_KEY
-     * 2. $_ENV['GEMINI_API_KEY']
-     * 3. Database AppSettings (column gemini_api_key)
+     * Optional injectable HTTP client for deterministic CLI/unit tests.
+     * Signature: function(string $url, array $headers, array $payload, int $timeout): array{http_code:int, body:string, error:string}
+     *
+     * @var callable|null
+     */
+    private static $httpClient = null;
+
+    public static function setHttpClient(?callable $client): void {
+        self::$httpClient = $client;
+    }
+
+    /**
+     * Backward-compatible helper returning the active default API key (or legacy/env fallback).
      */
     public static function getApiKey(): string {
-        $key = getenv('GEMINI_API_KEY') ?: ($_ENV['GEMINI_API_KEY'] ?? '');
-        if (!empty($key)) return trim((string)$key);
+        if (class_exists('AiConfigService')) {
+            $plan = AiConfigService::getExecutionPlan();
+            if (!empty($plan[0]['api_key'])) {
+                return (string)$plan[0]['api_key'];
+            }
+        }
 
         try {
             $db = getDB();
@@ -26,18 +39,22 @@ class AiHelper {
             }
         } catch (Throwable) {}
 
-        return '';
+        $key = getenv('GEMINI_API_KEY') ?: ($_ENV['GEMINI_API_KEY'] ?? '');
+        return trim((string)$key);
     }
 
     /**
-     * Clean and humanize AI output to eliminate robotic AI cliches
+     * Clean and humanize AI output to eliminate robotic AI cliches & stray reasoning tags.
      */
     public static function cleanHumanizer(string $text): string {
         $text = trim($text);
 
+        // Strip <think>...</think> blocks if emitted by reasoning models (e.g. deepseek-reasoner)
+        $text = (string)preg_replace('/<think>.*?<\/think>\s*/is', '', $text);
+
         // Remove code blocks if AI wrapped output in markdown blocks
-        $text = preg_replace('/^```(?:json|markdown|text)?\s*/i', '', $text);
-        $text = preg_replace('/\s*```$/', '', $text);
+        $text = (string)preg_replace('/^```(?:json|markdown|text)?\s*/i', '', $text);
+        $text = (string)preg_replace('/\s*```$/', '', $text);
 
         // Remove robotic conversational AI preambles
         $preambles = [
@@ -46,7 +63,7 @@ class AiHelper {
             '/^sebagai\s+(?:petugas|perwira|anggota)\s+sar[^\n:]*[:\n]\s*/i',
         ];
         foreach ($preambles as $pattern) {
-            $text = preg_replace($pattern, '', $text);
+            $text = (string)preg_replace($pattern, '', $text);
         }
 
         // Remove conversational sign-offs (only if formatted as trailing footnote or disclaimer)
@@ -55,16 +72,16 @@ class AiHelper {
             '/\n+(?:\*\*|\*|#+)?\s*(?:catatan|note|disclaimer)\s*:\s*.*$/is'
         ];
         foreach ($signOffs as $pattern) {
-            $text = preg_replace($pattern, '', $text);
+            $text = (string)preg_replace($pattern, '', $text);
         }
 
         // Remove excessive markdown formatting asterisks to keep natural plain operational text
-        $text = preg_replace('/\*\*([^*]+)\*\*/', '$1', $text);
-        $text = preg_replace('/^#+\s+/m', '', $text);
+        $text = (string)preg_replace('/\*\*([^*]+)\*\*/', '$1', $text);
+        $text = (string)preg_replace('/^#+\s+/m', '', $text);
 
         // Safeguard: Automatically fix any ungrammatical 'Pada kemarin' phrase into formal Indonesian date
         $kemarinDate = TemplateHelper::formatTanggalIndo(date('Y-m-d', strtotime('-1 day')));
-        $text = preg_replace('/\bPada\s+kemarin\b/i', "Pada {$kemarinDate}", $text);
+        $text = (string)preg_replace('/\bPada\s+kemarin\b/i', "Pada {$kemarinDate}", $text);
 
         // Trim quotes and whitespace
         $text = trim($text, " \t\n\r\0\x0B\"'");
@@ -74,8 +91,6 @@ class AiHelper {
 
     /**
      * Asisten AI Kronologi: Focus PURELY on raw report restructuring and formalizing.
-     * Intelligently resolves relative time ("kemarin" -> "Minggu, 11 Oktober 2026", "tadi pagi", etc.) into formal dates.
-     * Styles output into dignified, formal, clear, and non-wordy Basarnas operational narrative using Gemini 3.8 Flash.
      */
     public static function refineRawDraft(string $rawDraft): array {
         $rawDraft = trim($rawDraft);
@@ -86,17 +101,18 @@ class AiHelper {
             ];
         }
 
-        $apiKey = self::getApiKey();
-        if (empty($apiKey)) {
+        $plan = self::resolvePlan();
+        if (empty($plan)) {
             return [
                 'success' => true,
                 'text' => $rawDraft,
                 'model' => 'raw-fallback',
-                'notice' => 'API Key tidak disetel, mengembalikan teks mentah.'
+                'provider' => 'fallback',
+                'provider_label' => 'Template Baku',
+                'notice' => 'API Key AI belum disetel di Pengaturan, mengembalikan teks mentah.'
             ];
         }
 
-        // Relative anchor dates in WITA (Asia/Makassar)
         $today = date('Y-m-d');
         $hariIni = TemplateHelper::formatTanggalIndo($today);
         $kemarin = date('Y-m-d', strtotime('-1 day'));
@@ -141,32 +157,41 @@ PEDOMAN UTAMA (WAJIB DIPATUHI SECARA KETAT):
    - Langsung mulai dari kata pertama narasi.
 INSTRUCTION;
 
-        $prompt = <<<PROMPT
-{$systemInstruction}
-
+        $userPrompt = <<<PROMPT
 LAPORAN MENTAH DARI PELAPOR:
 "{$rawDraft}"
 
 Susun ulang laporan mentah di atas menjadi narasi kronologi dinas resmi Basarnas yang formal, lugas, lengkap, dan tuntas sekarang:
 PROMPT;
 
-        $response = self::callGemini($apiKey, $prompt);
+        $response = self::callConfiguredAi($systemInstruction, $userPrompt, $plan);
         if ($response !== null && !empty($response['text'])) {
             $cleaned = self::cleanHumanizer($response['text']);
             if (!empty($cleaned)) {
-                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-2.5-flash'];
+                return [
+                    'success' => true,
+                    'text' => $cleaned,
+                    'model' => $response['model'],
+                    'provider' => $response['provider'],
+                    'provider_label' => $response['provider_label'],
+                    'key_label' => $response['key_label'],
+                    'used_fallback' => $response['used_fallback'],
+                ];
             }
         }
 
         return [
             'success' => true,
             'text' => $rawDraft,
-            'model' => 'raw-fallback'
+            'model' => 'raw-fallback',
+            'provider' => 'fallback',
+            'provider_label' => 'Template Baku',
+            'used_fallback' => true,
         ];
     }
 
     /**
-     * Draft Kronologi Kejadian with Basarnas Humanizer Style
+     * Draft Kronologi Kejadian with Basarnas Humanizer Style (Laporan Awal)
      */
     public static function draftKronologi(string $draftInput, string $namaOps = '', string $lokasi = '', string $waktu = '', array $extra = []): array {
         $formattedDate = !empty($waktu) ? TemplateHelper::formatTanggalIndo($waktu) : 'hari kejadian';
@@ -179,13 +204,14 @@ PROMPT;
 
         $fallback = "Pada {$formattedDate} sekitar pukul {$jamWita} WITA, telah terjadi musibah di {$lokasi}. Berdasarkan informasi pelapor, {$draftInput}. Upaya pencarian awal sempat dilakukan oleh pihak keluarga dan masyarakat setempat namun hingga informasi ini diterima hasil masih nihil, selanjutnya dilaporkan ke Kantor Pencarian dan Pertolongan (KPP) Kendari untuk bantuan SAR.";
 
-        $apiKey = self::getApiKey();
-
-        if (empty($apiKey)) {
+        $plan = self::resolvePlan();
+        if (empty($plan)) {
             return [
                 'success' => true,
                 'text' => $fallback,
                 'model' => 'basarnas-official-template',
+                'provider' => 'fallback',
+                'provider_label' => 'Template Baku',
                 'notice' => 'Disusun otomatis berdasarkan format baku operasional KPP Kendari.'
             ];
         }
@@ -219,8 +245,6 @@ PANDUAN UTAMA KETUNTASAN & RELEVANSI (SANGAT PENTING):
 INSTRUCTION;
 
         $promptParts = [
-            $systemInstruction,
-            "",
             "DATA LAPANGAN:",
             "- Informasi Awal / Catatan Kasar: " . ($draftInput ?: 'Terjadi musibah dan membutuhkan bantuan SAR.')
         ];
@@ -234,25 +258,36 @@ INSTRUCTION;
 
         $promptParts[] = "";
         $promptParts[] = "Tulis narasi kronologi kejadian secara lengkap dan selesai tuntas sekarang:";
-        $prompt = implode("\n", $promptParts);
+        $userPrompt = implode("\n", $promptParts);
 
-        $response = self::callGemini($apiKey, $prompt);
+        $response = self::callConfiguredAi($systemInstruction, $userPrompt, $plan);
         if ($response !== null && !empty($response['text'])) {
             $cleaned = self::cleanHumanizer($response['text']);
             if (!empty($cleaned)) {
-                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-2.5-flash'];
+                return [
+                    'success' => true,
+                    'text' => $cleaned,
+                    'model' => $response['model'],
+                    'provider' => $response['provider'],
+                    'provider_label' => $response['provider_label'],
+                    'key_label' => $response['key_label'],
+                    'used_fallback' => $response['used_fallback'],
+                ];
             }
         }
 
         return [
             'success' => true,
             'text' => $fallback,
-            'model' => 'basarnas-fallback-template'
+            'model' => 'basarnas-fallback-template',
+            'provider' => 'fallback',
+            'provider_label' => 'Template Baku',
+            'used_fallback' => true,
         ];
     }
 
     /**
-     * Refine Raw Field Search Draft for Sitrep / Laporan Perkembangan
+     * Refine Raw Field Search Draft for Sitrep / Laporan Perkembangan (LAPBANG)
      */
     public static function refineSitrepRawDraft(string $rawDraft, string $hariKe = 'H.1', string $namaOps = '', array $extra = []): array {
         $rawDraft = trim($rawDraft);
@@ -263,13 +298,15 @@ INSTRUCTION;
             ];
         }
 
-        $apiKey = self::getApiKey();
-        if (empty($apiKey)) {
+        $plan = self::resolvePlan();
+        if (empty($plan)) {
             return [
                 'success' => true,
                 'text' => $rawDraft,
                 'model' => 'raw-fallback',
-                'notice' => 'API Key tidak disetel, mengembalikan teks mentah.'
+                'provider' => 'fallback',
+                'provider_label' => 'Template Baku',
+                'notice' => 'API Key AI belum disetel di Pengaturan, mengembalikan teks mentah.'
             ];
         }
 
@@ -306,8 +343,6 @@ PANDUAN UTAMA (WAJIB DIPATUHI SECARA KETAT):
 INSTRUCTION;
 
         $promptParts = [
-            $systemInstruction,
-            "",
             "DATA OPERASI:",
             "- Nama Operasi: " . ($namaOps ?: 'Operasi SAR'),
             "- Hari Operasi: " . ($hariKe ?: 'H.1')
@@ -324,82 +359,339 @@ INSTRUCTION;
         $promptParts[] = "";
         $promptParts[] = "Susun ulang catatan mentah di atas menjadi narasi hasil pencarian SITREP resmi Basarnas yang formal, lugas, lengkap, dan tuntas sekarang:";
 
-        $prompt = implode("\n", $promptParts);
+        $userPrompt = implode("\n", $promptParts);
 
-        $response = self::callGemini($apiKey, $prompt);
+        $response = self::callConfiguredAi($systemInstruction, $userPrompt, $plan);
         if ($response !== null && !empty($response['text'])) {
             $cleaned = self::cleanHumanizer($response['text']);
             if (!empty($cleaned)) {
-                return ['success' => true, 'text' => $cleaned, 'model' => $response['model'] ?? 'gemini-2.5-flash'];
+                return [
+                    'success' => true,
+                    'text' => $cleaned,
+                    'model' => $response['model'],
+                    'provider' => $response['provider'],
+                    'provider_label' => $response['provider_label'],
+                    'key_label' => $response['key_label'],
+                    'used_fallback' => $response['used_fallback'],
+                ];
             }
         }
 
         return [
             'success' => true,
             'text' => $rawDraft,
-            'model' => 'raw-fallback'
+            'model' => 'raw-fallback',
+            'provider' => 'fallback',
+            'provider_label' => 'Template Baku',
+            'used_fallback' => true,
         ];
     }
 
     /**
-     * Call Gemini API with generation configuration (Prioritizing Gemini 3.8 Flash with thinkingBudget 0)
+     * Uji koneksi API Key + Model tertentu secara langsung (untuk halaman Pengaturan Admin).
      */
-    private static function callGemini(string $apiKey, string $prompt): ?array {
-        $models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+    public static function testConnection(string $provider, string $apiKey, string $model): array {
+        $provider = strtolower(trim($provider));
+        $apiKey = trim($apiKey);
+        $model = AiConfigService::sanitizeModel($provider, $model);
 
-        foreach ($models as $modelName) {
-            $url = "https://generativelanguage.googleapis.com/v1beta/models/{$modelName}:generateContent?key=" . urlencode($apiKey);
-            
-            $generationConfig = [
-                'temperature' => 0.25,
-                'topP' => 0.85,
-                'maxOutputTokens' => 2048,
+        if (!AiConfigService::isValidProvider($provider)) {
+            return ['success' => false, 'error' => 'Provider AI tidak didukung.'];
+        }
+        if ($apiKey === '') {
+            return ['success' => false, 'error' => 'API Key kosong atau belum disimpan.'];
+        }
+
+        $t0 = microtime(true);
+        $sys = 'Anda adalah asisten uji koneksi sistem QR-SAR. Balas sangat singkat.';
+        $usr = 'Balas hanya dengan kata: OK';
+
+        $res = self::dispatchSingleProvider($provider, $apiKey, $model, $sys, $usr, 12);
+        $latencyMs = (int)round((microtime(true) - $t0) * 1000);
+
+        if (!empty($res['ok']) && !empty($res['text'])) {
+            return [
+                'success' => true,
+                'provider' => $provider,
+                'provider_label' => AiConfigService::getProviderLabel($provider),
+                'model' => $res['model'] ?? $model,
+                'latency_ms' => $latencyMs,
+                'message' => 'Koneksi berhasil (' . AiConfigService::getProviderLabel($provider) . ' / ' . ($res['model'] ?? $model) . ', ' . $latencyMs . ' ms).',
             ];
+        }
 
-            // thinkingConfig is only supported on Gemini 2.0/2.5 series
-            if (str_starts_with($modelName, 'gemini-2.')) {
-                $generationConfig['thinkingConfig'] = [
-                    'thinkingBudget' => 0
+        $errDetail = (string)($res['error'] ?? 'Tidak ada respons dari server AI.');
+        return [
+            'success' => false,
+            'provider' => $provider,
+            'provider_label' => AiConfigService::getProviderLabel($provider),
+            'model' => $model,
+            'latency_ms' => $latencyMs,
+            'error' => $errDetail,
+        ];
+    }
+
+    private static function resolvePlan(): array {
+        if (class_exists('AiConfigService')) {
+            return AiConfigService::getExecutionPlan();
+        }
+        $key = self::getApiKey();
+        if ($key === '') {
+            return [];
+        }
+        return [[
+            'id' => 'legacy_gemini',
+            'label' => 'Google Gemini',
+            'provider' => 'gemini',
+            'provider_label' => 'Google Gemini',
+            'api_key' => $key,
+            'model' => 'gemini-2.5-flash',
+            'is_default' => true,
+        ]];
+    }
+
+    /**
+     * Eksekusi urutan rencana provider (Default terlebih dahulu, lalu fallback otomatis bila diaktifkan).
+     */
+    private static function callConfiguredAi(string $systemInstruction, string $userPrompt, array $plan): ?array {
+        foreach ($plan as $idx => $entry) {
+            $provider = strtolower((string)($entry['provider'] ?? ''));
+            $apiKey = (string)($entry['api_key'] ?? '');
+            $model = (string)($entry['model'] ?? '');
+            if ($apiKey === '' || $provider === '') {
+                continue;
+            }
+
+            $res = self::dispatchSingleProvider($provider, $apiKey, $model, $systemInstruction, $userPrompt, 20);
+            if (!empty($res['ok']) && !empty($res['text'])) {
+                return [
+                    'text' => (string)$res['text'],
+                    'model' => (string)($res['model'] ?? $model),
+                    'provider' => $provider,
+                    'provider_label' => (string)($entry['provider_label'] ?? AiConfigService::getProviderLabel($provider)),
+                    'key_label' => (string)($entry['label'] ?? $provider),
+                    'used_fallback' => ($idx > 0),
                 ];
             }
 
-            $payload = [
-                'contents' => [
-                    ['parts' => [['text' => $prompt]]]
-                ],
-                'generationConfig' => $generationConfig
-            ];
-
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-
-            $res = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlErr = curl_error($ch);
-            unset($ch);
-
-            if ($httpCode === 200 && $res) {
-                $data = json_decode((string)$res, true);
-                $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
-                if (!empty($text)) {
-                    $usedModel = $data['modelVersion'] ?? $modelName;
-                    return [
-                        'text' => trim((string)$text),
-                        'model' => $usedModel
-                    ];
-                }
-            } else {
-                error_log(sprintf("[QR-SAR AI] Model %s failed (HTTP %d): %s | %s", $modelName, $httpCode, $curlErr, is_string($res) ? substr($res, 0, 200) : ''));
-            }
+            error_log(sprintf(
+                '[QR-SAR AI] Provider %s (%s / %s) failed: %s',
+                $provider,
+                (string)($entry['label'] ?? '-'),
+                $model,
+                (string)($res['error'] ?? 'unknown')
+            ));
         }
 
         return null;
+    }
+
+    private static function dispatchSingleProvider(
+        string $provider,
+        string $apiKey,
+        string $model,
+        string $systemInstruction,
+        string $userPrompt,
+        int $timeout
+    ): array {
+        if ($provider === 'deepseek') {
+            return self::callDeepSeekApi($apiKey, $model, $systemInstruction, $userPrompt, $timeout);
+        }
+        if ($provider === 'gemini') {
+            return self::callGeminiApi($apiKey, $model, $systemInstruction, $userPrompt, $timeout);
+        }
+        return ['ok' => false, 'error' => "Provider '{$provider}' tidak dikenali."];
+    }
+
+    /**
+     * Panggil Google Gemini REST API (x-goog-api-key header agar kunci tidak terpapar di URL).
+     */
+    private static function callGeminiApi(
+        string $apiKey,
+        string $modelName,
+        string $systemInstruction,
+        string $userPrompt,
+        int $timeout = 20
+    ): array {
+        $modelName = trim($modelName) !== '' ? trim($modelName) : 'gemini-3.8-flash';
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($modelName) . ':generateContent';
+
+        $generationConfig = [
+            'temperature' => 0.25,
+            'topP' => 0.85,
+            'maxOutputTokens' => 2048,
+        ];
+
+        // Konfigurasi thinking sesuai generasi seri Gemini
+        if (str_starts_with($modelName, 'gemini-2.5') || str_starts_with($modelName, 'gemini-2.0')) {
+            $generationConfig['thinkingConfig'] = ['thinkingBudget' => 0];
+        } elseif (str_starts_with($modelName, 'gemini-3.')) {
+            $generationConfig['thinkingConfig'] = ['thinkingLevel' => 'low'];
+        }
+
+        $payload = [
+            'systemInstruction' => [
+                'parts' => [['text' => $systemInstruction]],
+            ],
+            'contents' => [
+                ['role' => 'user', 'parts' => [['text' => $userPrompt]]],
+            ],
+            'generationConfig' => $generationConfig,
+        ];
+
+        $headers = [
+            'Content-Type: application/json',
+            'x-goog-api-key: ' . $apiKey,
+        ];
+
+        $resp = self::postJson($url, $headers, $payload, $timeout);
+        if ($resp['http_code'] === 200 && $resp['body'] !== '') {
+            $data = json_decode($resp['body'], true);
+            $parts = $data['candidates'][0]['content']['parts'] ?? [];
+            $chunks = [];
+            if (is_array($parts)) {
+                foreach ($parts as $part) {
+                    if (is_array($part) && !empty($part['text']) && empty($part['thought'])) {
+                        $chunks[] = (string)$part['text'];
+                    }
+                }
+            }
+            $text = trim(implode("\n", $chunks));
+            if ($text !== '') {
+                return [
+                    'ok' => true,
+                    'text' => $text,
+                    'model' => (string)($data['modelVersion'] ?? $modelName),
+                ];
+            }
+            return ['ok' => false, 'error' => 'Respons Gemini kosong (tanpa kandidat teks).'];
+        }
+
+        return [
+            'ok' => false,
+            'error' => self::extractApiError('Gemini', $resp),
+        ];
+    }
+
+    /**
+     * Panggil DeepSeek Chat Completions API (kompatibel OpenAI).
+     */
+    private static function callDeepSeekApi(
+        string $apiKey,
+        string $modelName,
+        string $systemInstruction,
+        string $userPrompt,
+        int $timeout = 20
+    ): array {
+        $modelName = trim($modelName) !== '' ? trim($modelName) : 'deepseek-chat';
+        $url = 'https://api.deepseek.com/chat/completions';
+
+        $payload = [
+            'model' => $modelName,
+            'messages' => [
+                ['role' => 'system', 'content' => $systemInstruction],
+                ['role' => 'user', 'content' => $userPrompt],
+            ],
+            'max_tokens' => 2048,
+            'stream' => false,
+        ];
+
+        // Model reasoner (R1) dapat menolak/mengabaikan temperature & top_p
+        if (!str_contains(strtolower($modelName), 'reasoner')) {
+            $payload['temperature'] = 0.25;
+            $payload['top_p'] = 0.85;
+        }
+
+        $headers = [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $apiKey,
+        ];
+
+        $resp = self::postJson($url, $headers, $payload, $timeout);
+        if ($resp['http_code'] === 200 && $resp['body'] !== '') {
+            $data = json_decode($resp['body'], true);
+            $text = trim((string)($data['choices'][0]['message']['content'] ?? ''));
+            if ($text !== '') {
+                return [
+                    'ok' => true,
+                    'text' => $text,
+                    'model' => (string)($data['model'] ?? $modelName),
+                ];
+            }
+            return ['ok' => false, 'error' => 'Respons DeepSeek kosong.'];
+        }
+
+        return [
+            'ok' => false,
+            'error' => self::extractApiError('DeepSeek', $resp),
+        ];
+    }
+
+    /**
+     * HTTP POST JSON transport via cURL (atau mock client saat pengujian otomatis).
+     *
+     * @return array{http_code:int, body:string, error:string}
+     */
+    private static function postJson(string $url, array $headers, array $payload, int $timeout): array {
+        if (self::$httpClient !== null) {
+            $res = (self::$httpClient)($url, $headers, $payload, $timeout);
+            return [
+                'http_code' => (int)($res['http_code'] ?? 0),
+                'body' => (string)($res['body'] ?? ''),
+                'error' => (string)($res['error'] ?? ''),
+            ];
+        }
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 6);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+
+        $res = curl_exec($ch);
+        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlErr = curl_error($ch);
+        unset($ch);
+
+        return [
+            'http_code' => $httpCode,
+            'body' => is_string($res) ? $res : '',
+            'error' => $curlErr,
+        ];
+    }
+
+    private static function extractApiError(string $providerName, array $resp): string {
+        $httpCode = (int)($resp['http_code'] ?? 0);
+        $curlErr = trim((string)($resp['error'] ?? ''));
+        $body = trim((string)($resp['body'] ?? ''));
+
+        if ($httpCode === 0 && $curlErr !== '') {
+            return "Gagal terhubung ke {$providerName}: {$curlErr}";
+        }
+
+        $parsed = $body !== '' ? json_decode($body, true) : null;
+        $apiMsg = '';
+        if (is_array($parsed)) {
+            if (isset($parsed['error']['message']) && is_string($parsed['error']['message'])) {
+                $apiMsg = trim($parsed['error']['message']);
+            } elseif (isset($parsed['message']) && is_string($parsed['message'])) {
+                $apiMsg = trim($parsed['message']);
+            }
+        }
+
+        if ($httpCode === 401 || $httpCode === 403) {
+            return "{$providerName} menolak API Key (HTTP {$httpCode})" . ($apiMsg !== '' ? ': ' . mb_substr($apiMsg, 0, 140, 'UTF-8') : '.');
+        }
+        if ($httpCode === 429) {
+            return "Kuota {$providerName} terlampaui / Rate Limit (HTTP 429).";
+        }
+        if ($httpCode === 404) {
+            return "Model {$providerName} tidak ditemukan (HTTP 404)" . ($apiMsg !== '' ? ': ' . mb_substr($apiMsg, 0, 140, 'UTF-8') : '.');
+        }
+        return "{$providerName} mengembalikan HTTP {$httpCode}" . ($apiMsg !== '' ? ': ' . mb_substr($apiMsg, 0, 160, 'UTF-8') : '.');
     }
 }

@@ -129,13 +129,18 @@ async function quickAiRefineSitrep(btn) {
     btn.innerHTML = `<svg class="animate-spin w-3.5 h-3.5 inline mr-1 text-purple-600 dark:text-purple-300" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> <span>Merapikan...</span>`;
   }
 
-  if (typeof showToast === 'function') showToast('Menyusun naskah laporan resmi dengan AI Gemini...', 'info');
+  if (typeof showToast === 'function') showToast('Menyusun naskah laporan resmi dengan Asisten AI...', 'info');
+  const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || window.CSRF_TOKEN || '';
 
   try {
     const res = await fetch((window.BASE_URL || '') + '/api/index.php?path=/ai/refine-sitrep', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
+      },
       body: JSON.stringify({
+        csrf_token: csrfToken,
         catatan: rawText,
         rawDraft: rawText,
         hari_ke: document.getElementById('sitrep_hari_ke')?.value || 'H.1',
@@ -151,7 +156,8 @@ async function quickAiRefineSitrep(btn) {
       setTimeout(() => {
         isiEl.classList.remove('ring-4', 'ring-purple-500/50');
       }, 2000);
-      if (typeof showToast === 'function') showToast('Laporan berhasil dirapikan sesuai format resmi Basarnas!', 'success');
+      const engineTag = json.provider_label && json.model ? ` (${json.provider_label} / ${json.model}${json.used_fallback ? ' • cadangan' : ''})` : '';
+      if (typeof showToast === 'function') showToast(`Laporan berhasil dirapikan sesuai format resmi Basarnas${engineTag}.`, 'success');
     } else {
       if (typeof showToast === 'function') showToast(json.error || 'Gagal merapikan teks AI', 'error');
     }
@@ -191,12 +197,17 @@ async function generateAiSitrep() {
   }
 
   if (typeof showToast === 'function') showToast('Asisten AI sedang menyusun narasi resmi LAPBANG...', 'info');
+  const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || window.CSRF_TOKEN || '';
 
   try {
     const res = await fetch((window.BASE_URL || '') + '/api/index.php?path=/ai/refine-sitrep', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
+      },
       body: JSON.stringify({
+        csrf_token: csrfToken,
         catatan: draftInput,
         rawDraft: draftInput,
         hari_ke: document.getElementById('sitrep_hari_ke')?.value || 'H.1',
@@ -208,7 +219,8 @@ async function generateAiSitrep() {
     const json = await res.json();
     if (json.success && json.text) {
       document.getElementById('ai-sitrep-result-output').value = json.text;
-      if (typeof showToast === 'function') showToast('Catatan lapangan berhasil disusun menjadi narasi resmi Basarnas!', 'success');
+      const engineTag = json.provider_label && json.model ? ` (${json.provider_label} / ${json.model}${json.used_fallback ? ' • cadangan' : ''})` : '';
+      if (typeof showToast === 'function') showToast(`Catatan lapangan berhasil disusun menjadi narasi resmi Basarnas${engineTag}.`, 'success');
     } else {
       if (typeof showToast === 'function') showToast(json.error || 'Gagal menyusun narasi AI', 'error');
     }

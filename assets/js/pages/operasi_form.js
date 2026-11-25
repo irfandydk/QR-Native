@@ -1844,7 +1844,7 @@ async function quickDraftAiKronologi(btn) {
     btn.innerHTML = `<svg class="animate-spin w-3.5 h-3.5 inline mr-1 text-purple-600 dark:text-purple-300" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> <span>Menyusun AI...</span>`;
   }
 
-  if (typeof showToast === 'function') showToast('Menyusun draf kronologi resmi dengan AI Gemini...', 'info');
+  if (typeof showToast === 'function') showToast('Menyusun draf kronologi resmi dengan Asisten AI...', 'info');
 
   const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || window.CSRF_TOKEN || '';
 
@@ -1870,7 +1870,8 @@ async function quickDraftAiKronologi(btn) {
           kronologiEl.classList.remove('ring-4', 'ring-purple-500/50');
         }, 2000);
       }
-      if (typeof showToast === 'function') showToast('Draf kronologi resmi berhasil disusun oleh AI!', 'success');
+      const engineTag = json.provider_label && json.model ? ` (${json.provider_label} / ${json.model}${json.used_fallback ? ' • cadangan' : ''})` : '';
+      if (typeof showToast === 'function') showToast(`Draf kronologi resmi berhasil disusun${engineTag}.`, 'success');
     } else {
       if (typeof showToast === 'function') showToast(json.error || 'Gagal memproses draf AI', 'error');
     }
@@ -1922,7 +1923,8 @@ async function generateAiKronologi() {
     const json = await res.json();
     if (json.success && json.text) {
       document.getElementById('ai-result-output').value = json.text;
-      if (typeof showToast === 'function') showToast('Laporan mentah berhasil disusun ulang menjadi narasi resmi!', 'success');
+      const engineTag = json.provider_label && json.model ? ` (${json.provider_label} / ${json.model}${json.used_fallback ? ' • cadangan' : ''})` : '';
+      if (typeof showToast === 'function') showToast(`Laporan mentah berhasil disusun ulang menjadi narasi resmi${engineTag}.`, 'success');
     } else {
       if (typeof showToast === 'function') showToast(json.error || 'Gagal menyusun narasi AI', 'error');
     }

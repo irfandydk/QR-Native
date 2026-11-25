@@ -18,7 +18,7 @@ class AdminController extends BaseController {
         $action = $_POST['action'] ?? ($_GET['action'] ?? null);
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $tab = $_GET['tab'] ?? 'admin';
-        if (!in_array($tab, ['admin', 'user', 'satker', 'backup', 'logs'], true)) {
+        if (!in_array($tab, ['admin', 'user', 'satker', 'ai', 'backup', 'logs'], true)) {
             $tab = 'admin';
         }
 
@@ -203,6 +203,66 @@ class AdminController extends BaseController {
                 $this->redirect('/admin.php?tab=satker');
             }
 
+            // E2. Simpan Tambah / Edit Profil API Key AI (Multi-Provider: Gemini & DeepSeek)
+            if ($action === 'save_ai_key') {
+                $res = AiConfigService::saveKey([
+                    'id' => trim((string)($_POST['ai_key_id'] ?? '')),
+                    'label' => trim((string)($_POST['ai_label'] ?? '')),
+                    'provider' => trim((string)($_POST['ai_provider'] ?? '')),
+                    'api_key' => trim((string)($_POST['ai_api_key'] ?? '')),
+                    'model_preset' => trim((string)($_POST['ai_model_preset'] ?? '')),
+                    'model_custom' => trim((string)($_POST['ai_model_custom'] ?? '')),
+                    'enabled' => !empty($_POST['ai_enabled']),
+                    'set_as_default' => !empty($_POST['ai_set_default']),
+                ]);
+                if (!empty($res['success'])) {
+                    $this->setFlash('success', (string)($res['message'] ?? 'Profil API Key AI berhasil disimpan.'));
+                } else {
+                    $this->setFlash('error', (string)($res['error'] ?? 'Gagal menyimpan profil API Key AI.'));
+                }
+                $this->redirect('/admin.php?tab=ai');
+            }
+
+            // E3. Hapus Profil API Key AI
+            if ($action === 'delete_ai_key') {
+                $res = AiConfigService::deleteKey(trim((string)($_POST['ai_key_id'] ?? '')));
+                if (!empty($res['success'])) {
+                    $this->setFlash('success', (string)($res['message'] ?? 'Profil API Key AI berhasil dihapus.'));
+                } else {
+                    $this->setFlash('error', (string)($res['error'] ?? 'Gagal menghapus profil API Key AI.'));
+                }
+                $this->redirect('/admin.php?tab=ai');
+            }
+
+            // E4. Jadikan Profil API Key Tertentu Sebagai Default Cepat
+            if ($action === 'set_default_ai_key') {
+                $curr = AiConfigService::loadRawConfig();
+                $res = AiConfigService::savePreferences(
+                    trim((string)($_POST['ai_key_id'] ?? '')),
+                    (bool)($curr['auto_fallback'] ?? true)
+                );
+                if (!empty($res['success'])) {
+                    $this->setFlash('success', (string)($res['message'] ?? 'API Key default berhasil diubah.'));
+                } else {
+                    $this->setFlash('error', (string)($res['error'] ?? 'Gagal mengubah API Key default.'));
+                }
+                $this->redirect('/admin.php?tab=ai');
+            }
+
+            // E5. Simpan Preferensi Default & Auto-Fallback AI
+            if ($action === 'save_ai_preferences') {
+                $res = AiConfigService::savePreferences(
+                    trim((string)($_POST['default_key_id'] ?? '')),
+                    !empty($_POST['auto_fallback'])
+                );
+                if (!empty($res['success'])) {
+                    $this->setFlash('success', (string)($res['message'] ?? 'Preferensi Asisten AI berhasil disimpan.'));
+                } else {
+                    $this->setFlash('error', (string)($res['error'] ?? 'Gagal menyimpan preferensi Asisten AI.'));
+                }
+                $this->redirect('/admin.php?tab=ai');
+            }
+
             // F. Restore Basis Data dari SQL (.sql murni)
             if ($action === 'restore_sql') {
                 if (!empty($_FILES['backup_file']['name']) && $_FILES['backup_file']['error'] === UPLOAD_ERR_OK) {
@@ -250,6 +310,7 @@ class AdminController extends BaseController {
 
         // 3. Prepare Data for View
         $settings = SettingsModel::getSettings();
+        $aiConfig = class_exists('AiConfigService') ? AiConfigService::getPublicConfig() : ['keys' => [], 'providers' => [], 'auto_fallback' => true, 'default_key_id' => '', 'active_default' => null, 'env_fallbacks' => []];
         $dbStats = $tab === 'backup' ? BackupService::getDbStats() : [];
 
         $usersList = class_exists('UserModel') ? UserModel::getAll() : [];
@@ -273,6 +334,7 @@ class AdminController extends BaseController {
         $viewData = [
             'tab' => $tab,
             'settings' => $settings,
+            'aiConfig' => $aiConfig,
             'dbStats' => $dbStats,
             'usersList' => $usersList,
             'auditLogs' => $auditLogs,

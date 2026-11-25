@@ -53,7 +53,7 @@ class SettingsModel {
         $db = getDB();
         $fields = [
             'satker_kode', 'satker_nama', 'alamat', 'no_telp', 'no_wa', 'email',
-            'call_sign', 'frekuensi_default', 'default_theme', 'ui_theme', 'logo_url', 'logo_url_2', 'logo_url_3', 'gemini_api_key'
+            'call_sign', 'frekuensi_default', 'default_theme', 'ui_theme', 'logo_url', 'logo_url_2', 'logo_url_3', 'gemini_api_key', 'ai_config_json'
         ];
 
         $sets = [];

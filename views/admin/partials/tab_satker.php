@@ -11,7 +11,8 @@ if (!defined('APP_NAME')) {
 $logoUrl = $logoUrl ?? getAppLogoUrl();
 $uiThemeSel = (($settings['ui_theme'] ?? 'klasik') === 'minimal') ? 'minimal' : 'klasik';
 $defThemeSel = ($settings['default_theme'] ?? 'dark') === 'light' ? 'light' : 'dark';
-$hasGeminiKey = !empty($settings['gemini_api_key']);
+$aiActiveDefault = $aiConfig['active_default'] ?? null;
+$aiKeyCount = is_array($aiConfig['keys'] ?? null) ? count($aiConfig['keys']) : 0;
 ?>
 <form action="<?= BASE_URL ?>/admin.php?action=save_satker" method="POST" enctype="multipart/form-data" class="space-y-5">
   <?= csrfInput() ?>
@@ -123,23 +124,22 @@ $hasGeminiKey = !empty($settings['gemini_api_key']);
         <input class="field-input w-full" type="email" name="email" value="<?= e($settings['email'] ?? 'sar_kendari@basarnas.go.id') ?>" placeholder="sar_kendari@basarnas.go.id" />
       </div>
 
-      <!-- Google Gemini API Key -->
-      <div>
-        <div class="flex items-center justify-between mb-1.5">
-          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Google Gemini API Key
-          </label>
-          <span class="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-            GEMINI 2.5 FLASH
-          </span>
+      <!-- Ringkasan Konfigurasi Asisten AI (Multi-API Key di Tab Asisten AI) -->
+      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 p-3 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-xs font-bold text-slate-800 dark:text-slate-100">Asisten AI (Laporan Awal &amp; LAPBANG)</div>
+          <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+            <?php if (is_array($aiActiveDefault)): ?>
+              Default: <span class="font-semibold text-slate-700 dark:text-slate-200"><?= e((string)$aiActiveDefault['provider_label']) ?></span>
+              (<span class="font-mono"><?= e((string)$aiActiveDefault['model']) ?></span>) &bull; <?= $aiKeyCount ?> kunci
+            <?php else: ?>
+              Belum ada API Key diatur (Gemini / DeepSeek)
+            <?php endif; ?>
+          </div>
         </div>
-        <input type="password" name="gemini_api_key" value="" autocomplete="new-password" placeholder="<?= $hasGeminiKey ? 'Kunci tersimpan, kosongkan jika tidak diubah' : 'AIzaSy... (Opsional)' ?>" class="control control-sm w-full font-mono" />
-        <?php if ($hasGeminiKey): ?>
-          <label class="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer">
-            <input type="checkbox" name="clear_gemini_api_key" value="1" class="rounded border-slate-300 dark:border-slate-700">
-            <span>Hapus API Key yang tersimpan</span>
-          </label>
-        <?php endif; ?>
+        <a href="<?= BASE_URL ?>/admin.php?tab=ai" class="adm-ghost-btn inline-flex items-center h-8 px-3 rounded-lg text-xs font-semibold transition shrink-0 no-underline">
+          Kelola AI
+        </a>
       </div>
     </div>
   </section>

@@ -11,7 +11,7 @@ require_once __DIR__ . '/config/app.php';
 
 $tab = $_GET['tab'] ?? '';
 
-if (in_array($tab, ['satker', 'keamanan', 'backup', 'admin', 'user', 'logs'], true)) {
+if (in_array($tab, ['satker', 'ai', 'keamanan', 'backup', 'admin', 'user', 'logs'], true)) {
     $targetTab = ($tab === 'keamanan') ? 'admin' : $tab;
     header("Location: " . BASE_URL . "/admin.php?tab=" . urlencode($targetTab), true, 301);
     exit;

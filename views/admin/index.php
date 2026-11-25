@@ -14,6 +14,7 @@ if (!defined('APP_NAME')) {
 
 $tab = $tab ?? 'admin';
 $settings = $settings ?? [];
+$aiConfig = $aiConfig ?? ['keys' => [], 'providers' => [], 'auto_fallback' => true, 'default_key_id' => '', 'active_default' => null, 'env_fallbacks' => []];
 $dbStats = $dbStats ?? [];
 $usersList = $usersList ?? [];
 $auditLogs = $auditLogs ?? [];
@@ -63,6 +64,12 @@ $logoUrl = getAppLogoUrl();
     <a href="<?= BASE_URL ?>/admin.php?tab=satker" class="adm-tab-link <?= $tab === 'satker' ? 'active' : '' ?>">
       <span>Satker &amp; Tampilan</span>
     </a>
+    <a href="<?= BASE_URL ?>/admin.php?tab=ai" class="adm-tab-link <?= $tab === 'ai' ? 'active' : '' ?>">
+      <span>Asisten AI</span>
+      <?php if (!empty($aiConfig['keys'])): ?>
+        <span class="adm-tab-count"><?= count($aiConfig['keys']) ?></span>
+      <?php endif; ?>
+    </a>
     <a href="<?= BASE_URL ?>/admin.php?tab=backup" class="adm-tab-link <?= $tab === 'backup' ? 'active' : '' ?>">
       <span>Backup &amp; Restore</span>
     </a>
@@ -80,6 +87,7 @@ $logoUrl = getAppLogoUrl();
         'admin'  => 'admin/partials/tab_admin',
         'user'   => 'admin/partials/tab_user',
         'satker' => 'admin/partials/tab_satker',
+        'ai'     => 'admin/partials/tab_ai',
         'backup' => 'admin/partials/tab_backup',
         'logs'   => 'admin/partials/tab_logs',
     ];

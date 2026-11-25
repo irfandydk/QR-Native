@@ -145,6 +145,13 @@ try {
         echo "[OK] AuditLog table validated.\n";
     }
 
+    // 1c-6. Ensure AppSettings.ai_config_json column exists
+    if (class_exists('AiConfigService')) {
+        echo "[RUN] Checking AppSettings.ai_config_json column...\n";
+        AiConfigService::ensureSchemaUpdated(true);
+        echo "[OK] AI multi-provider config column validated.\n";
+    }
+
     // 1d. Validate and Apply Composite Indexes for High Performance
     echo "[RUN] Checking Composite Indexes (Korban, Operasi, Renops, LaporanHarian)...\n";
     $compositeIndexes = [
