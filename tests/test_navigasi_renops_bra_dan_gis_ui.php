@@ -174,14 +174,15 @@ assertCheck(
     str_contains($routeGisCssSnippet, 'height: 100vh !important;')
 );
 
-// 3c. views/gis.php renders unified header with logo, GIS RADAR, mobile menu btn, theme toggle, Misi Ops
+// 3c. views/gis.php renders unified 64px header with Title Case heading, mobile menu btn, theme toggle, profile menu, Misi Ops
 $headerPos = strpos($gisViewSrc, 'id="gisUnifiedHeader"');
 $headerEnd = $headerPos !== false ? strpos($gisViewSrc, '</header>', $headerPos) : false;
 $headerSnippet = ($headerPos !== false && $headerEnd !== false) ? substr($gisViewSrc, $headerPos, $headerEnd - $headerPos + 9) : '';
 assertCheck(
-    'views/gis.php menyediakan header tunggal #gisUnifiedHeader berisi logo, GIS RADAR, #mobile-menu-btn, dan #theme-toggle-btn',
+    'views/gis.php menyediakan header tunggal #gisUnifiedHeader berisi judul Ploting Peta SAR, #mobile-menu-btn, #theme-toggle-btn, dan profil kanan atas',
     $headerPos !== false
-        && str_contains($headerSnippet, 'GIS RADAR OPERASI SAR KENDARI')
+        && str_contains($headerSnippet, 'Ploting Peta SAR')
+        && str_contains($headerSnippet, 'header_profile_menu.php')
         && str_contains($headerSnippet, 'id="mobile-menu-btn"')
         && str_contains($headerSnippet, 'id="theme-toggle-btn"')
         && str_contains($headerSnippet, 'id="theme-icon"')

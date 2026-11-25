@@ -119,25 +119,41 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   }
   .bra-split-grid {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 1.5rem;
     align-items: start;
   }
   @media (min-width: 1200px) {
     .bra-split-active .bra-split-grid {
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 1.75rem;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+      gap: 1.5rem;
     }
     .bra-split-active .bra-live-sticky-preview {
       display: block !important;
       position: sticky;
-      top: 5.5rem;
-      max-height: calc(100vh - 7rem);
+      top: 5rem;
+      max-height: calc(100vh - 6.5rem);
       overflow-y: auto;
+      overflow-x: hidden;
       padding-right: 0.25rem;
     }
     #braMainAppWrap:not(.bra-split-active) #braLiveSplitColumn {
       display: none !important;
+    }
+    /* Skala proporsional lembar A4 agar 5 kolom kop & isi DARI/AKSI/INFO bebas tumpukan di 1366px */
+    .bra-split-active #braLivePaperPreview {
+      width: 620px;
+      zoom: 0.62;
+    }
+  }
+  @media (min-width: 1440px) {
+    .bra-split-active #braLivePaperPreview {
+      zoom: 0.74;
+    }
+  }
+  @media (min-width: 1680px) {
+    .bra-split-active #braLivePaperPreview {
+      zoom: 0.88;
     }
   }
   .bra-live-sticky-preview::-webkit-scrollbar {
@@ -161,19 +177,17 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   }
   .bra-stepper {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 0.4rem;
-    overflow-x: auto;
-    scrollbar-width: none;
+    gap: 0.25rem;
   }
-  .bra-stepper::-webkit-scrollbar { display: none; }
   .bra-step-btn {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.9rem;
+    gap: 0.45rem;
+    padding: 0.42rem 0.72rem;
     border-radius: 0.75rem;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: var(--text-muted);
     background: transparent;
@@ -194,8 +208,8 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   .bra-step-btn.active {
     background: var(--primary-light);
     color: var(--primary);
-    border-color: rgba(249, 115, 22, 0.3);
-    box-shadow: 0 2px 8px -2px rgba(249, 115, 22, 0.2);
+    border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+    box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--primary) 20%, transparent);
   }
   .bra-step-num {
     width: 1.4rem;
@@ -323,27 +337,29 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   /* ── 3 Kategori Tabs (Matching FormBraSar.tsx Reference) ── */
   .kat-tabs {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.75rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
   }
   @media (max-width: 768px) { .kat-tabs { grid-template-columns: 1fr; } }
-  .kat-tab-label { position: relative; cursor: pointer; }
+  .kat-tab-label { position: relative; cursor: pointer; min-width: 0; }
   .kat-tab-label input[type="radio"] { position: absolute; opacity: 0; width: 0; height: 0; }
   .kat-tab-box {
-    padding: 0.85rem 1rem;
+    padding: 0.75rem;
     border: 1px solid var(--border-color);
-    border-radius: 1rem;
+    border-radius: 0.875rem;
     background: var(--bg-card);
     transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    min-height: 4.25rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.55rem;
+    height: 100%;
+    min-width: 0;
   }
   .kat-tab-box:hover {
     border-color: var(--primary);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px -2px rgba(249, 115, 22, 0.12);
+    box-shadow: 0 4px 12px -2px color-mix(in srgb, var(--primary) 16%, transparent);
   }
   .kat-tab-label input:checked + .kat-tab-box {
     border-color: var(--primary);
@@ -351,9 +367,9 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
     box-shadow: 0 0 0 3px var(--primary-light);
   }
   .kat-icon-wrap {
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 0.75rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.55rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -371,20 +387,26 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
   }
   .kat-tab-header {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.4rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+    width: 100%;
+    min-width: 0;
   }
-  .kat-tab-title { font-size: 0.85rem; font-weight: 700; color: var(--text-main); }
+  .kat-tab-title { font-size: 0.78rem; font-weight: 700; color: var(--text-main); line-height: 1.25; }
   .kat-tab-pill {
-    font-size: 0.62rem;
+    font-size: 0.58rem;
     font-weight: 700;
     text-transform: uppercase;
-    padding: 0.15rem 0.45rem;
-    border-radius: 0.4rem;
-    background: rgba(249, 115, 22, 0.15);
+    padding: 0.12rem 0.4rem;
+    border-radius: 0.375rem;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
     color: var(--primary);
-    border: 1px solid rgba(249, 115, 22, 0.25);
+    border: 1px solid color-mix(in srgb, var(--primary) 26%, transparent);
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .kat-tab-desc { font-size: 0.67rem; color: var(--text-muted); line-height: 1.45; }
 
@@ -657,6 +679,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
       display: none !important;
     }
     .bra-official-paper {
+      zoom: 1 !important;
       border: none !important;
       box-shadow: none !important;
       outline: none !important;
@@ -733,17 +756,17 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
       <span class="bra-step-sep">&rsaquo;</span>
       <a href="#sec-nomor" class="bra-step-btn btn-tactile" data-target="sec-nomor">
         <span class="bra-step-num">2</span>
-        <span>Penomoran &amp; Administrasi</span>
+        <span>Penomoran</span>
       </a>
       <span class="bra-step-sep">&rsaquo;</span>
       <a href="#sec-waktu-alamat" class="bra-step-btn btn-tactile" data-target="sec-waktu-alamat">
         <span class="bra-step-num">3</span>
-        <span>Waktu Militer &amp; Alamat</span>
+        <span>Waktu &amp; Alamat</span>
       </a>
       <span class="bra-step-sep">&rsaquo;</span>
       <a href="#sec-batang-tubuh" class="bra-step-btn btn-tactile" data-target="sec-batang-tubuh">
         <span class="bra-step-num">4</span>
-        <span>Batang Tubuh (AAA, BBB, CCC)</span>
+        <span>Batang Tubuh</span>
       </a>
       <span class="bra-step-sep">&rsaquo;</span>
       <a href="#sec-pengirim" class="bra-step-btn btn-tactile" data-target="sec-pengirim">
@@ -869,7 +892,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
             <div class="field">
               <label class="field-label"><span>Tautkan ke Operasi SAR Aktif (Opsional)</span> <?php if (!empty($operasiList)): ?> <span class="text-[11px] font-normal text-muted"><?= count($operasiList) ?> Operasi Terdaftar</span> <?php endif; ?></label>
               <select name="id_operasi" id="operasiSelect" class="field-input bra-control">
-              <option value="" data-nama="">— Buat Mandiri / Tanpa Kaitan Operasi SAR —</option>
+              <option value="" data-nama="">Buat Mandiri / Tanpa Kaitan Operasi SAR</option>
               <?php foreach ($operasiList as $op): ?>
                 <option value="<?= $op['id_operasi'] ?>" data-nama="<?= htmlspecialchars($op['nama_operasi']) ?>" <?= ($currentOpId === (int)$op['id_operasi']) ? 'selected' : '' ?>>
                   #OPS-<?= $op['id_operasi'] ?> &bull; <?= htmlspecialchars($op['nama_operasi']) ?> (Status: <?= htmlspecialchars($op['status'] ?? 'OPEN') ?>)
@@ -976,7 +999,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               <div class="bra-field">
                 <div class="field">
                   <label class="field-label">Panggilan</label>
-                  <input class="field-input bra-control mono" type="text" name="panggilan" id="panggilanInput" value="<?= htmlspecialchars($bra['panggilan'] ?? '') ?>"  placeholder="—">
+                  <input class="field-input bra-control mono" type="text" name="panggilan" id="panggilanInput" value="<?= htmlspecialchars($bra['panggilan'] ?? '') ?>"  placeholder="-">
                 </div>
               </div>
               <div class="bra-field">
@@ -988,13 +1011,13 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               <div class="bra-field">
                 <div class="field">
                   <label class="field-label">Nr. Stn</label>
-                  <input class="field-input bra-control mono" type="text" name="nr_stn" id="nrStnInput" value="<?= htmlspecialchars($bra['nr_stn'] ?? '') ?>"  placeholder="—">
+                  <input class="field-input bra-control mono" type="text" name="nr_stn" id="nrStnInput" value="<?= htmlspecialchars($bra['nr_stn'] ?? '') ?>"  placeholder="-">
                 </div>
               </div>
               <div class="bra-field">
                 <div class="field">
                   <label class="field-label">Instruksi Penerusan</label>
-                  <input class="field-input bra-control mono" type="text" name="instruksi_penerusan" id="instruksiPenerusanInput" value="<?= htmlspecialchars($bra['instruksi_penerusan'] ?? '') ?>"  placeholder="—">
+                  <input class="field-input bra-control mono" type="text" name="instruksi_penerusan" id="instruksiPenerusanInput" value="<?= htmlspecialchars($bra['instruksi_penerusan'] ?? '') ?>"  placeholder="-">
                 </div>
               </div>
             </div>
@@ -1194,7 +1217,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               <div class="field">
                 <label class="field-label"><span>Pilih Cepat dari Master Pejabat / SMC</span> <span class="text-[11px] text-muted">Nama, Pangkat &amp; Jabatan Otomatis Terisi</span></label>
                 <select id="pejabatSelectControl" class="field-input bra-control">
-                <option value="">— Pilih Pejabat Penandatangan —</option>
+                <option value="">Pilih Pejabat Penandatangan</option>
                 <?php foreach ($pejabatList as $p): ?>
                   <option value="<?= htmlspecialchars($p['id'] ?? '') ?>"
                           data-nama="<?= htmlspecialchars($p['nama'] ?? '') ?>"
@@ -1249,13 +1272,13 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
               <div class="bra-field">
                 <div class="field">
                   <label class="field-label">T.W.T (Waktu Terima)</label>
-                  <input class="field-input bra-control mono text-center" type="text" name="twt" id="twtInput" value="<?= htmlspecialchars($bra['twt'] ?? '') ?>"  placeholder="—">
+                  <input class="field-input bra-control mono text-center" type="text" name="twt" id="twtInput" value="<?= htmlspecialchars($bra['twt'] ?? '') ?>"  placeholder="-">
                 </div>
               </div>
               <div class="bra-field">
                 <div class="field">
                   <label class="field-label">T.W.K (Waktu Kirim)</label>
-                  <input class="field-input bra-control mono text-center" type="text" name="twk" id="twkInput" value="<?= htmlspecialchars($bra['twk'] ?? '') ?>"  placeholder="—">
+                  <input class="field-input bra-control mono text-center" type="text" name="twk" id="twkInput" value="<?= htmlspecialchars($bra['twk'] ?? '') ?>"  placeholder="-">
                 </div>
               </div>
               <div class="bra-field">
@@ -1314,7 +1337,7 @@ $twbPlaceholder = BraHelper::formatMilitaryTW(date('Y-m-d H:i:s', strtotime('-15
       </div>
 
       <!-- Screen-only card frame: provides drop-shadow on UI without leaking outer borders into PDF -->
-      <div class="bg-white rounded-xl shadow-xl p-4 sm:p-6 border border-slate-200">
+      <div class="bg-white rounded-xl shadow-xl p-3 sm:p-4 border border-slate-200 overflow-x-auto">
         <!-- Live Replicating Official Sheet (Identik 100% dengan bra_view.php) -->
         <div class="bra-official-paper w-full bg-white text-black p-0 border-0 shadow-none font-sans" id="braLivePaperPreview">
         

@@ -104,7 +104,7 @@ $alutSecNum = $hasKorban ? '05' : '04';
     ?>
     <div class="px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 flex items-center gap-3 text-xs">
       <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
-      <span>Operasi dibuka kembali <strong><?= TemplateHelper::formatTanggalIndo($operasi['waktu_reopen']) ?> (<?= TemplateHelper::formatJamWITA($operasi['waktu_reopen']) ?> WITA)</strong> — format hari lanjutan <strong>H<?= $baseHariReopen ?> + 1, dst.</strong></span>
+      <span>Operasi dibuka kembali <strong><?= TemplateHelper::formatTanggalIndo($operasi['waktu_reopen']) ?> (<?= TemplateHelper::formatJamWITA($operasi['waktu_reopen']) ?> WITA)</strong>, format hari lanjutan <strong>H<?= $baseHariReopen ?> + 1, dst.</strong></span>
     </div>
     <?php endif; ?>
 
@@ -214,11 +214,11 @@ $alutSecNum = $hasKorban ? '05' : '04';
         </div>
 
         <div class="flex items-center gap-2">
-          <button type="button" id="btn-quick-refine-sitrep" onclick="quickAiRefineSitrep(this)" class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-500/10 hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white border border-purple-500/20 hover:border-purple-600 transition cursor-pointer">
+          <button type="button" id="btn-quick-refine-sitrep" onclick="quickAiRefineSitrep(this)" class="btn-tactile ops-ai-soft-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
             <span class="btn-text">Rapikan AI</span>
           </button>
-          <button type="button" id="btn-open-ai-sitrep-modal" onclick="openAiSitrepModal()" class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white transition cursor-pointer">
+          <button type="button" id="btn-open-ai-sitrep-modal" onclick="openAiSitrepModal()" class="btn-tactile ops-ai-accent-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
             <span>Asisten AI</span>
           </button>
@@ -450,7 +450,7 @@ $alutSecNum = $hasKorban ? '05' : '04';
   <div class="ops-modal-card max-w-5xl">
     <div class="ops-modal-head">
       <div class="flex items-center gap-2.5">
-        <div class="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center">
+        <div class="w-7 h-7 rounded-lg ops-ai-soft-badge flex items-center justify-center">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
         </div>
         <h3 class="text-sm font-bold text-slate-900 dark:text-white">Asisten AI LAPBANG</h3>
@@ -467,7 +467,7 @@ $alutSecNum = $hasKorban ? '05' : '04';
           <textarea id="ai-sitrep-draft-input" rows="14" style="min-height: 20rem;" placeholder="Tuliskan catatan hasil pencarian hari ini..." class="field-input w-full"></textarea>
         </div>
         <div class="flex justify-end">
-          <button type="button" id="btn-generate-ai-sitrep" onclick="generateAiSitrep()" class="btn-tactile inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs transition cursor-pointer">
+          <button type="button" id="btn-generate-ai-sitrep" onclick="generateAiSitrep()" class="btn-tactile ops-ai-accent-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-xs transition cursor-pointer">
             Susun Narasi Resmi
           </button>
         </div>
@@ -483,7 +483,7 @@ $alutSecNum = $hasKorban ? '05' : '04';
       <button type="button" onclick="closeModal('modal-ai-sitrep')" class="btn-tactile px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
         Batal
       </button>
-      <button type="button" onclick="applyAiSitrep()" class="btn-tactile inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs transition cursor-pointer">
+      <button type="button" onclick="applyAiSitrep()" class="btn-tactile ops-ai-accent-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-xs transition cursor-pointer">
         Terapkan ke Form
       </button>
     </div>

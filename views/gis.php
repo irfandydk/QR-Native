@@ -126,15 +126,20 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
     70%, 100% { transform: scale(2.4); opacity: 0; }
   }
 
-  /* Match exact top navbar height (68px) across all QR-SAR pages */
+  /* Match exact top navbar height (64px / 4rem) across all QR-SAR pages */
   #gisUnifiedHeader {
-    min-block-size: 68px;
-    height: 68px;
+    min-block-size: 64px;
+    height: 64px;
     padding-inline: 0.875rem;
   }
   @media (min-width: 640px) {
     #gisUnifiedHeader {
       padding-inline: 1.5rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    #gisUnifiedHeader {
+      padding-inline-start: 1.75rem;
     }
   }
   #gisUnifiedHeader .gis-hdr-icon-btn {
@@ -342,26 +347,26 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
     box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
   }
   .gis-fab-btn[aria-expanded="true"] {
-    background: #ea580c;
-    border-color: #f97316;
+    background: var(--primary);
+    border-color: var(--primary);
     color: #ffffff;
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.25), 0 8px 22px rgba(234, 88, 12, 0.35);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent), 0 8px 22px color-mix(in srgb, var(--primary) 35%, transparent);
   }
   .gis-fab-btn:focus-visible {
-    outline: 2px solid #f97316;
+    outline: 2px solid var(--primary);
     outline-offset: 2px;
   }
   @media (hover: hover) {
     .gis-fab-btn:not([aria-expanded="true"]):hover {
       background: #ffffff;
-      border-color: #f97316;
-      color: #ea580c;
+      border-color: var(--primary);
+      color: var(--primary);
     }
     .dark .gis-fab-btn:not([aria-expanded="true"]):hover,
     [data-theme="dark"] .gis-fab-btn:not([aria-expanded="true"]):hover {
       background: rgba(30, 41, 59, 0.96);
-      border-color: #fb923c;
-      color: #fb923c;
+      border-color: var(--primary);
+      color: var(--primary);
     }
   }
   @media (pointer: coarse) {
@@ -429,13 +434,12 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       <div class="hidden sm:block w-px h-7 bg-slate-200 dark:bg-slate-800 shrink-0" aria-hidden="true"></div>
 
       <div class="flex items-center gap-2.5 min-w-0">
-        <img src="<?= e(getAppLogoUrl()) ?>" alt="Logo Basarnas" class="w-7 h-7 sm:w-8 sm:h-8 object-contain shrink-0" onerror="this.src='<?= BASE_URL ?>/assets/images/logo_basarnas.svg'">
         <div class="min-w-0">
-          <h1 class="text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-slate-100 leading-tight truncate">
-            GIS RADAR OPERASI SAR KENDARI
+          <h1 class="text-sm sm:text-[15px] font-bold tracking-tight text-slate-900 dark:text-slate-100 leading-snug truncate">
+            Ploting Peta SAR
           </h1>
           <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-tight truncate hidden xl:block leading-tight mt-0.5">
-            KPP KELAS A KENDARI &bull; PLOTTING TAKTIS MARITIM
+            KPP Kelas A Kendari · Plotting Taktis Maritim
           </p>
         </div>
       </div>
@@ -519,7 +523,7 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
       <button
         type="button"
         id="theme-toggle-btn"
-        class="gis-hdr-icon-btn shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer shadow-xs"
+        class="gis-hdr-icon-btn shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/80 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
         title="Ganti Mode Gelap / Terang"
         aria-label="Ganti Mode Gelap / Terang"
       >
@@ -528,6 +532,11 @@ if ($filterMode === 'basemap' || $filterMode === 'dasar') {
           <svg class="w-4 h-4 block dark:hidden text-slate-700" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </span>
       </button>
+
+      <?php
+        $headerProfileCompact = true;
+        require __DIR__ . '/layout/partials/header_profile_menu.php';
+      ?>
     </div>
   </header>
 

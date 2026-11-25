@@ -493,7 +493,7 @@ $cancelUrl = $editMode ? (BASE_URL . '/operasi_detail.php?id=' . (int)($operasi[
                           data-point-type="<?= e($unit['pointType'] ?? 'custom_upload') ?>"
                           data-category="<?= e($cat) ?>"
                           <?= ($asalCocok ? $namaUnitAsal($unit) === $asalTersimpan : !empty($unit['is_default'])) ? 'selected' : '' ?>>
-                    [<?= e($cat) ?>] <?= e($name) ?> — <?= e($unit['koordinat_dms'] ?? '') ?>
+                    [<?= e($cat) ?>] <?= e($name) ?> · <?= e($unit['koordinat_dms'] ?? '') ?>
                   </option>
                 <?php endforeach; ?>
               </select>
@@ -683,11 +683,11 @@ $cancelUrl = $editMode ? (BASE_URL . '/operasi_detail.php?id=' . (int)($operasi[
           <h2 class="ops-section-title">Kronologi Kejadian</h2>
         </div>
         <div class="flex items-center gap-2">
-          <button type="button" id="btn-quick-draft-ai" onclick="quickDraftAiKronologi(this)" class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-500/10 hover:bg-purple-600 text-purple-700 dark:text-purple-300 hover:text-white border border-purple-500/20 hover:border-purple-600 transition cursor-pointer">
+          <button type="button" id="btn-quick-draft-ai" onclick="quickDraftAiKronologi(this)" class="btn-tactile ops-ai-soft-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
             <span class="btn-text">Draf Cepat AI</span>
           </button>
-          <button type="button" id="btn-open-ai-modal" onclick="openAiKronologiModal()" class="btn-tactile inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white transition cursor-pointer">
+          <button type="button" id="btn-open-ai-modal" onclick="openAiKronologiModal()" class="btn-tactile ops-ai-accent-btn inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
             <span>Asisten AI</span>
           </button>
@@ -989,7 +989,7 @@ $cancelUrl = $editMode ? (BASE_URL . '/operasi_detail.php?id=' . (int)($operasi[
   <div class="ops-modal-card max-w-5xl">
     <div class="ops-modal-head">
       <div class="flex items-center gap-2.5">
-        <div class="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center">
+        <div class="w-7 h-7 rounded-lg ops-ai-soft-badge flex items-center justify-center">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
         </div>
         <h3 class="text-sm font-bold text-slate-900 dark:text-white">Asisten AI Kronologi</h3>
@@ -1006,7 +1006,7 @@ $cancelUrl = $editMode ? (BASE_URL . '/operasi_detail.php?id=' . (int)($operasi[
           <textarea id="ai-draft-input" rows="14" style="min-height: 20rem;" placeholder="Tuliskan catatan mentah kejadian di sini..." class="field-input w-full"></textarea>
         </div>
         <div class="flex justify-end">
-          <button type="button" id="btn-generate-ai" onclick="generateAiKronologi()" class="btn-tactile inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs transition cursor-pointer">
+          <button type="button" id="btn-generate-ai" onclick="generateAiKronologi()" class="btn-tactile ops-ai-accent-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-xs transition cursor-pointer">
             Susun Narasi Resmi
           </button>
         </div>
@@ -1022,7 +1022,7 @@ $cancelUrl = $editMode ? (BASE_URL . '/operasi_detail.php?id=' . (int)($operasi[
       <button type="button" onclick="closeModal('modal-ai-kronologi')" class="btn-tactile px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
         Batal
       </button>
-      <button type="button" onclick="applyAiKronologi()" class="btn-tactile inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs transition cursor-pointer">
+      <button type="button" onclick="applyAiKronologi()" class="btn-tactile ops-ai-accent-btn inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-xs transition cursor-pointer">
         Terapkan ke Form
       </button>
     </div>

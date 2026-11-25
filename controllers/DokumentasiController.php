@@ -285,7 +285,7 @@ class DokumentasiController extends BaseController {
         ], [
             'title' => $editDok ? 'Edit Dokumentasi Kolase' : 'Buat Dokumentasi Kolase',
             'route' => 'dokumentasi',
-            'navbarTitle' => $editDok ? 'EDIT DOKUMENTASI KOLASE' : 'STUDIO DOKUMENTASI KOLASE',
+            'navbarTitle' => $editDok ? 'Edit Dokumentasi Kolase' : 'Studio Dokumentasi Kolase',
         ]);
     }
 }

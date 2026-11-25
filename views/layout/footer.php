@@ -12,7 +12,7 @@ $requiresQr  = !empty($useQr) || in_array($currentRoute ?? '', ['bra', 'bra_view
 </main> <!-- end page-body -->
 
 <footer class="py-4 text-center text-xs text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors">
-    <div><strong style="color: #F97316;">QR SAR System</strong> — Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari • BASARNAS</div>
+    <div><strong style="color: var(--primary);">QR SAR System</strong> · Kantor Pencarian dan Pertolongan (KPP) Kelas A Kendari · BASARNAS</div>
 </footer>
 
 </div> <!-- end main-content -->

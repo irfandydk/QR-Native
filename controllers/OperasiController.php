@@ -316,7 +316,7 @@ class OperasiController extends BaseController {
         ], [
             'title' => $editDok ? 'Edit Dokumentasi Operasi SAR' : 'Studio Dokumentasi Operasi SAR',
             'route' => 'operasi_detail',
-            'navbarTitle' => $editDok ? 'EDIT DOKUMENTASI OPERASI SAR' : 'STUDIO DOKUMENTASI OPERASI SAR',
+            'navbarTitle' => $editDok ? 'Edit Dokumentasi Operasi SAR' : 'Studio Dokumentasi Operasi SAR',
         ]);
     }
 
@@ -343,7 +343,7 @@ class OperasiController extends BaseController {
         ], [
             'title' => 'Editor Dokumen RENOPS',
             'route' => 'operasi_detail',
-            'navbarTitle' => 'EDITOR DOKUMEN RENOPS',
+            'navbarTitle' => 'Editor Dokumen RENOPS',
         ]);
     }
 
@@ -653,7 +653,7 @@ class OperasiController extends BaseController {
             'route' => 'operasi_detail',
             'useGis' => true,
             'navbarTitle' => 'Detail Operasi SAR',
-            'navbarSubtitle' => 'KANTOR PENCARIAN DAN PERTOLONGAN (KPP) KELAS A KENDARI - BASARNAS'
+            'navbarSubtitle' => 'Kantor Pencarian dan Pertolongan Kelas A Kendari · Basarnas'
         ]);
     }
 

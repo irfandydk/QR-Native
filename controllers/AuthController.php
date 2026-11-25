@@ -164,8 +164,8 @@ class AuthController extends BaseController {
         $this->render('auth/profile', [
             'currentUser' => $currentUser,
             'pageTitle' => 'Profil Pengguna',
-            'navbarTitle' => 'PROFIL PENGGUNA OPERASIONAL SAR',
-            'navbarSubtitle' => 'INFORMASI IDENTITAS & FOTO PROFIL PETUGAS SIAGA',
+            'navbarTitle' => 'Profil Pengguna',
+            'navbarSubtitle' => 'Informasi identitas kedinasan dan pengaturan foto profil akun',
             'currentRoute' => 'profile'
         ], [
             'layout' => 'default',

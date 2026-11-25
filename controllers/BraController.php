@@ -329,7 +329,7 @@ class BraController extends BaseController {
             'verificationMessage' => $access['message'],
             'pageTitle' => 'Naskah Berita Radio SAR',
             'currentRoute' => 'bra',
-            'navbarTitle' => 'LEMBAR DOKUMEN BERITA RADIO SAR (BRA)',
+            'navbarTitle' => 'Lembar Dokumen Berita Radio SAR (BRA)',
             'isGuest' => false,
             'docId' => $access['docId'],
             'backUrl' => $returnCtx['backUrl'],
@@ -339,7 +339,7 @@ class BraController extends BaseController {
             'layout' => 'default',
             'route' => 'bra',
             'title' => 'Naskah Berita Radio SAR',
-            'navbarTitle' => 'LEMBAR DOKUMEN BERITA RADIO SAR (BRA)',
+            'navbarTitle' => 'Lembar Dokumen Berita Radio SAR (BRA)',
         ]);
     }
 

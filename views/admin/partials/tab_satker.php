@@ -1,6 +1,7 @@
 <?php
 /**
  * QR-SAR - Admin Tab Partial: Pengaturan Satker, Identitas & Tampilan Aplikasi
+ * Menggunakan pola stacked-label (.control) yang seragam dengan tab Akun & Asisten AI.
  */
 declare(strict_types=1);
 
@@ -25,110 +26,110 @@ $aiKeyCount = is_array($aiConfig['keys'] ?? null) ? count($aiConfig['keys']) : 0
     </div>
 
     <!-- 3-Column Institutional Logo Upload (Utama, SAR Nasional, ANOA Rescue) -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 pb-5 border-b border-slate-100 dark:border-slate-800">
       <!-- Logo 1: Logo Utama Satker -->
-      <div class="flex items-start gap-3.5">
-        <div class="w-16 h-16 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-2 shrink-0">
-          <img src="<?= e($logoUrl) ?>" alt="Logo Basarnas" class="max-w-full max-h-full object-contain" id="satkerLogoPreview" />
+      <div class="space-y-2.5">
+        <div class="flex items-center gap-3">
+          <div class="w-14 h-14 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-2 shrink-0">
+            <img src="<?= e($logoUrl) ?>" alt="Logo Basarnas" class="max-w-full max-h-full object-contain" id="satkerLogoPreview" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-bold text-slate-900 dark:text-white truncate">Logo Utama Kantor SAR</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">PNG, SVG, JPG, atau WebP.</p>
+          </div>
         </div>
-        <div class="flex-1 min-w-0 space-y-2">
-          <div>
-            <p class="text-xs font-bold text-slate-900 dark:text-white">Logo Utama Kantor SAR</p>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">PNG, SVG, JPG, atau WebP transparan.</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <label class="adm-ghost-btn inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0">
-              <span>Pilih Berkas</span>
-              <input type="file" name="logo_file" accept="image/*" class="hidden" onchange="previewLogoFile(this)" />
-            </label>
-            <input type="text" name="logo_url" value="<?= e($settings['logo_url'] ?? '') ?>" placeholder="Atau tempel URL logo..." aria-label="URL logo utama" class="control control-sm flex-1 min-w-[120px]" />
-          </div>
+        <div class="flex items-center gap-2">
+          <label class="adm-ghost-btn inline-flex items-center justify-center h-8 px-2.5 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0">
+            <span>Unggah</span>
+            <input type="file" name="logo_file" accept="image/*" class="hidden" onchange="previewLogoFile(this)" />
+          </label>
+          <input type="text" name="logo_url" value="<?= e($settings['logo_url'] ?? '') ?>" placeholder="URL logo utama (opsional)" aria-label="URL logo utama" class="control control-sm flex-1 min-w-0" />
         </div>
       </div>
 
       <!-- Logo 2: Logo Kedua Kop Dokumen (Kanan) -->
-      <div class="flex items-start gap-3.5 lg:pl-4 lg:border-l lg:border-slate-100 dark:lg:border-slate-800">
-        <div class="w-16 h-16 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-2 shrink-0">
-          <img src="<?= e(getAppLogo2DataUri()) ?>" alt="Logo kedua kop dokumen" class="max-w-full max-h-full object-contain" id="satkerLogo2Preview" />
+      <div class="space-y-2.5 lg:pl-5 lg:border-l lg:border-slate-100 dark:lg:border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-14 h-14 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-2 shrink-0">
+            <img src="<?= e(getAppLogo2DataUri()) ?>" alt="Logo kedua kop dokumen" class="max-w-full max-h-full object-contain" id="satkerLogo2Preview" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-bold text-slate-900 dark:text-white truncate">Logo Kedua (SAR Nasional)</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Kosongkan untuk logo bawaan.</p>
+          </div>
         </div>
-        <div class="flex-1 min-w-0 space-y-2">
-          <div>
-            <p class="text-xs font-bold text-slate-900 dark:text-white">Logo Kedua (SAR Nasional)</p>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Kosongkan untuk memakai logo bawaan.</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <label class="adm-ghost-btn inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0">
-              <span>Pilih Berkas</span>
-              <input type="file" name="logo_file_2" accept="image/*" class="hidden" onchange="previewLogoFile(this, 'satkerLogo2Preview')" />
-            </label>
-            <input type="text" name="logo_url_2" value="<?= e($settings['logo_url_2'] ?? '') ?>" placeholder="Atau tempel URL logo kedua..." aria-label="URL logo kedua" class="control control-sm flex-1 min-w-[120px]" />
-          </div>
+        <div class="flex items-center gap-2">
+          <label class="adm-ghost-btn inline-flex items-center justify-center h-8 px-2.5 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0">
+            <span>Unggah</span>
+            <input type="file" name="logo_file_2" accept="image/*" class="hidden" onchange="previewLogoFile(this, 'satkerLogo2Preview')" />
+          </label>
+          <input type="text" name="logo_url_2" value="<?= e($settings['logo_url_2'] ?? '') ?>" placeholder="URL logo kedua (opsional)" aria-label="URL logo kedua" class="control control-sm flex-1 min-w-0" />
         </div>
       </div>
 
       <!-- Logo 3: Logo Ketiga (ANOA Rescue / Dokumentasi Operasi SAR) -->
-      <div class="flex items-start gap-3.5 lg:pl-4 lg:border-l lg:border-slate-100 dark:lg:border-slate-800">
-        <div class="w-16 h-16 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-2 shrink-0">
-          <img src="<?= e(getAppLogo3DataUri()) ?>" alt="Logo ANOA Rescue" class="max-w-full max-h-full object-contain" id="satkerLogo3Preview" />
+      <div class="space-y-2.5 lg:pl-5 lg:border-l lg:border-slate-100 dark:lg:border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-14 h-14 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-center p-2 shrink-0">
+            <img src="<?= e(getAppLogo3DataUri()) ?>" alt="Logo ANOA Rescue" class="max-w-full max-h-full object-contain" id="satkerLogo3Preview" />
+          </div>
+          <div class="min-w-0">
+            <p class="text-xs font-bold text-slate-900 dark:text-white truncate">Logo Ketiga (ANOA Rescue)</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Logo kop dokumentasi kolase.</p>
+          </div>
         </div>
-        <div class="flex-1 min-w-0 space-y-2">
-          <div>
-            <p class="text-xs font-bold text-slate-900 dark:text-white">Logo Ketiga (ANOA Rescue)</p>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Referensi logo dokumentasi kolase SAR.</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <label class="adm-ghost-btn inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0">
-              <span>Pilih Berkas</span>
-              <input type="file" name="logo_file_3" accept="image/*" class="hidden" onchange="previewLogoFile(this, 'satkerLogo3Preview')" />
-            </label>
-            <input type="text" name="logo_url_3" value="<?= e($settings['logo_url_3'] ?? '') ?>" placeholder="Atau tempel URL logo ketiga..." aria-label="URL logo ketiga" class="control control-sm flex-1 min-w-[120px]" />
-          </div>
+        <div class="flex items-center gap-2">
+          <label class="adm-ghost-btn inline-flex items-center justify-center h-8 px-2.5 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0">
+            <span>Unggah</span>
+            <input type="file" name="logo_file_3" accept="image/*" class="hidden" onchange="previewLogoFile(this, 'satkerLogo3Preview')" />
+          </label>
+          <input type="text" name="logo_url_3" value="<?= e($settings['logo_url_3'] ?? '') ?>" placeholder="URL logo ketiga (opsional)" aria-label="URL logo ketiga" class="control control-sm flex-1 min-w-0" />
         </div>
       </div>
     </div>
 
-    <!-- Satker Identity Fields -->
+    <!-- Satker Identity Fields (Stacked Labels, seragam dengan Akun & Asisten AI) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div class="field">
-        <label class="field-label">Kode Satuan Kerja (Satker) <span class="text-rose-500">*</span></label>
-        <input class="field-input w-full font-mono font-bold" type="text" name="satker_kode" value="<?= e($settings['satker_kode'] ?? 'SAR-304') ?>" required placeholder="SAR-304" />
+      <div class="space-y-1.5">
+        <label for="satkerKode" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Kode Satuan Kerja (Satker) <span class="text-rose-500">*</span></label>
+        <input id="satkerKode" class="control control-sm w-full font-mono font-bold" type="text" name="satker_kode" value="<?= e($settings['satker_kode'] ?? 'SAR-304') ?>" required placeholder="SAR-304" />
       </div>
 
-      <div class="field">
-        <label class="field-label">Call Sign Radio Kantor</label>
-        <input class="field-input w-full font-mono font-bold" type="text" name="call_sign" value="<?= e($settings['call_sign'] ?? 'KANSAR KENDARI') ?>" placeholder="KANSAR KENDARI" />
+      <div class="space-y-1.5">
+        <label for="satkerCallSign" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Call Sign Radio Kantor</label>
+        <input id="satkerCallSign" class="control control-sm w-full font-mono font-bold" type="text" name="call_sign" value="<?= e($settings['call_sign'] ?? 'KANSAR KENDARI') ?>" placeholder="KANSAR KENDARI" />
       </div>
 
-      <div class="sm:col-span-2 field">
-        <label class="field-label">Nama Satuan Kerja Lengkap <span class="text-rose-500">*</span></label>
-        <input class="field-input w-full font-bold" type="text" name="satker_nama" value="<?= e($settings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI') ?>" required placeholder="KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI" />
+      <div class="sm:col-span-2 space-y-1.5">
+        <label for="satkerNama" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Nama Satuan Kerja Lengkap <span class="text-rose-500">*</span></label>
+        <input id="satkerNama" class="control control-sm w-full font-semibold" type="text" name="satker_nama" value="<?= e($settings['satker_nama'] ?? 'KANTOR PENCARIAN DAN PERTOLONGAN KELAS A KENDARI') ?>" required placeholder="Kantor Pencarian dan Pertolongan Kelas A Kendari" />
       </div>
 
-      <div class="sm:col-span-2 field">
-        <label class="field-label">Alamat Kantor &amp; Wilayah Kerja</label>
-        <textarea name="alamat" rows="2" placeholder="Alamat lengkap kantor..." class="field-input w-full"><?= e($settings['alamat'] ?? 'Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan, Sulawesi Tenggara') ?></textarea>
+      <div class="sm:col-span-2 space-y-1.5">
+        <label for="satkerAlamat" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Alamat Kantor &amp; Wilayah Kerja</label>
+        <textarea id="satkerAlamat" name="alamat" rows="2" placeholder="Alamat lengkap kantor..." class="control control-sm w-full"><?= e($settings['alamat'] ?? 'Jl. Poros Bandara Haluoleo No. 1, Desa Ambaipua, Kec. Ranomeeto, Kab. Konawe Selatan, Sulawesi Tenggara') ?></textarea>
       </div>
 
-      <div class="field">
-        <label class="field-label" for="satkerNoTelp">Telepon Kantor / Emergency Call Center</label>
-        <input id="satkerNoTelp" class="field-input w-full" type="text" name="no_telp" value="<?= e($settings['no_telp'] ?? '0401 3196 557') ?>" placeholder="0401 3196 557" />
+      <div class="space-y-1.5">
+        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300" for="satkerNoTelp">Telepon Kantor / Emergency Call Center</label>
+        <input id="satkerNoTelp" class="control control-sm w-full" type="text" name="no_telp" value="<?= e($settings['no_telp'] ?? '0401 3196 557') ?>" placeholder="0401 3196 557" />
       </div>
 
-      <div class="field">
-        <label class="field-label" for="satkerNoWa">Nomor WhatsApp Kantor / Siaga (WA)</label>
-        <input id="satkerNoWa" class="field-input w-full font-mono" type="text" name="no_wa" value="<?= e($settings['no_wa'] ?? '') ?>" placeholder="08114034115" />
+      <div class="space-y-1.5">
+        <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300" for="satkerNoWa">Nomor WhatsApp Kantor / Siaga (WA)</label>
+        <input id="satkerNoWa" class="control control-sm w-full font-mono" type="text" name="no_wa" value="<?= e($settings['no_wa'] ?? '') ?>" placeholder="08114034115" />
       </div>
 
-      <div class="field">
-        <label class="field-label">Email Resmi Kantor SAR</label>
-        <input class="field-input w-full" type="email" name="email" value="<?= e($settings['email'] ?? 'sar_kendari@basarnas.go.id') ?>" placeholder="sar_kendari@basarnas.go.id" />
+      <div class="space-y-1.5">
+        <label for="satkerEmail" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Email Resmi Kantor SAR</label>
+        <input id="satkerEmail" class="control control-sm w-full" type="email" name="email" value="<?= e($settings['email'] ?? 'sar_kendari@basarnas.go.id') ?>" placeholder="sar_kendari@basarnas.go.id" />
       </div>
 
       <!-- Ringkasan Konfigurasi Asisten AI (Multi-API Key di Tab Asisten AI) -->
-      <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 p-3 flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <div class="text-xs font-bold text-slate-800 dark:text-slate-100">Asisten AI (Laporan Awal &amp; LAPBANG)</div>
-          <div class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+      <div class="space-y-1.5">
+        <span class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Integrasi Asisten AI</span>
+        <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 px-3 py-2 flex items-center justify-between gap-3 min-h-[38px]">
+          <div class="min-w-0 text-[11px] text-slate-500 dark:text-slate-400 truncate">
             <?php if (is_array($aiActiveDefault)): ?>
               Default: <span class="font-semibold text-slate-700 dark:text-slate-200"><?= e((string)$aiActiveDefault['provider_label']) ?></span>
               (<span class="font-mono"><?= e((string)$aiActiveDefault['model']) ?></span>) &bull; <?= $aiKeyCount ?> kunci
@@ -136,10 +137,10 @@ $aiKeyCount = is_array($aiConfig['keys'] ?? null) ? count($aiConfig['keys']) : 0
               Belum ada API Key diatur (Gemini / DeepSeek)
             <?php endif; ?>
           </div>
+          <a href="<?= BASE_URL ?>/admin.php?tab=ai" class="adm-ghost-btn inline-flex items-center h-7 px-2.5 rounded-lg text-[11px] font-semibold transition shrink-0 no-underline">
+            Kelola AI
+          </a>
         </div>
-        <a href="<?= BASE_URL ?>/admin.php?tab=ai" class="adm-ghost-btn inline-flex items-center h-8 px-3 rounded-lg text-xs font-semibold transition shrink-0 no-underline">
-          Kelola AI
-        </a>
       </div>
     </div>
   </section>

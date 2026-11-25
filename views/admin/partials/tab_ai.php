@@ -283,7 +283,7 @@ $envFallbacks = is_array($aiConfig['env_fallbacks'] ?? null) ? $aiConfig['env_fa
     listItems.forEach(function(item) {
       const opt = document.createElement('option');
       opt.value = item.id;
-      opt.textContent = item.label && item.label !== item.id ? (item.id + ' — ' + item.label) : item.id;
+      opt.textContent = item.label && item.label !== item.id ? (item.id + ' - ' + item.label) : item.id;
       if (selectedModel && selectedModel === item.id) {
         opt.selected = true;
         matched = true;

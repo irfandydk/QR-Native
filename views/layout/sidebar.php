@@ -268,28 +268,6 @@ $isGisRoute = ($currentRoute === 'gis');
         <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
       </a>
     </div>
-
-    <?php if ($isGisRoute): ?>
-      <!-- Akses Cepat Akun khusus layar penuh GIS (karena top header dinonaktifkan pada rute GIS) -->
-      <?php
-        $gisAccountHref = $isAdminRole ? (BASE_URL . '/admin.php?tab=admin') : (BASE_URL . '/profile.php');
-        $gisAccountName = (string)($currentUser['nama'] ?? $currentUser['username'] ?? 'Pengguna');
-      ?>
-      <div class="pt-1 border-t border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between gap-2">
-        <a href="<?= e($gisAccountHref) ?>" class="sidebar-nav-item flex-1 flex items-center gap-2.5 px-2 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 min-w-0" title="<?= e($gisAccountName) ?>">
-          <span class="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold text-white shrink-0" style="background-color: var(--primary);">
-            <?= e(strtoupper(mb_substr($gisAccountName !== '' ? $gisAccountName : 'U', 0, 1, 'UTF-8'))) ?>
-          </span>
-          <span class="sidebar-item-label truncate"><?= e($gisAccountName) ?></span>
-        </a>
-        <form action="<?= BASE_URL ?>/logout.php" method="POST" class="inline m-0 p-0 shrink-0 sidebar-item-label">
-          <input type="hidden" name="csrf_token" value="<?= e(csrfToken()) ?>">
-          <button type="submit" data-confirm="Apakah Anda yakin ingin keluar dari sistem QR-SAR?" data-confirm-title="Konfirmasi Keluar Sesi" data-confirm-btn="Ya, Keluar" data-confirm-danger="true" class="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer border-0 bg-transparent" title="Keluar dari sistem" aria-label="Keluar dari sistem">
-            <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-          </button>
-        </form>
-      </div>
-    <?php endif; ?>
   </div>
 </aside>
 

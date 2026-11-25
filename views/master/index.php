@@ -23,22 +23,6 @@ $masterTim = $masterTim ?? (class_exists('MasterModel') ? MasterModel::getTim() 
 $pejabatList = $pejabatList ?? (class_exists('MasterModel') ? MasterModel::getPejabat() : []);
 ?>
 
-<style>
-  .mst-accent-btn { background-color: var(--primary); color: #fff !important; border: 1px solid transparent; }
-  .mst-accent-btn:hover { background-color: var(--primary-hover); color: #fff !important; }
-  .mst-accent-text { color: var(--m-accent-text, var(--primary)); }
-  .mst-ghost-btn { background-color: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); }
-  .mst-ghost-btn:hover { background-color: var(--bg-card-subtle); }
-  .mst-tabs { border-bottom: 1px solid var(--border-color); gap: 0.2rem; }
-  .mst-tab-link { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.55rem 0.8rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); border-bottom: 2px solid transparent; border-radius: 0.5rem 0.5rem 0 0; white-space: nowrap; text-decoration: none; transition: color 160ms ease, background-color 160ms ease; }
-  .mst-tab-link:hover { color: var(--text-main); background: color-mix(in srgb, var(--bg-card-subtle) 65%, transparent); }
-  .mst-tab-link.active { color: var(--m-accent-text, var(--primary)); border-bottom-color: var(--primary); font-weight: 700; }
-  .mst-tab-count { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 0.08rem 0.4rem; border-radius: 9999px; background: var(--bg-card-subtle); color: var(--text-muted); }
-  .mst-tab-link.active .mst-tab-count { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--m-accent-text, var(--primary)); }
-  .mst-accent-btn:focus-visible, .mst-ghost-btn:focus-visible, .mst-tab-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  @media (prefers-reduced-motion: reduce) { .mst-accent-btn, .mst-ghost-btn, .mst-tab-link { transition: none !important; } }
-</style>
-
 <div class="max-w-7xl mx-auto space-y-5">
   <h1 class="sr-only">Master Data Operasional SAR</h1>
 
