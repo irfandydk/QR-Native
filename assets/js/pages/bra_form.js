@@ -63,21 +63,40 @@ function initBraForm() {
         return char.repeat(3);
       };
 
-  function getSectionHint(idx, kat) {
-    if (idx === 0) return kat === 'MAPEL' ? '(Dasar Info, TW Terima, Kejadian/POB, Ciri Kapal, LKP & Kondisi)' : (kat === 'PERGERAKAN_KAPAL' ? '(Dasar & Rencana Pelayaran / BKO)' : '(Kronologi / Informasi Awal)');
-    if (idx === 1) return kat === 'MAPEL' ? '(Permintaan Bantuan Pemantauan & Pemapelan Kapal Melintas)' : (kat === 'PERGERAKAN_KAPAL' ? '(Data Kapal, Ren Layar, POB & Palsar)' : '(Unsur SAR Terlibat, Alut, Palsar & Cuaca)');
-    if (idx === 2) return kat === 'MAPEL' ? '(Penutup & Ucapan Terima Kasih Kakansar)' : (kat === 'PERGERAKAN_KAPAL' ? '(Laporan Perkembangan Menyusul / Penutup)' : '(Penutup / Rencana Tindak Lanjut)');
-    return '(Bagian Tambahan)';
+  // Quick Derajat setter + segmented active state sync
+  const derajatBtns = document.querySelectorAll('[data-derajat]');
+  function syncDerajatButtons() {
+    const cur = (document.getElementById('derajatInput')?.value || '').trim().toUpperCase();
+    derajatBtns.forEach(btn => {
+      const active = (btn.getAttribute('data-derajat') || '').toUpperCase() === cur;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
   }
-
-  // Quick Derajat setter
   window.setDerajat = function(val) {
-    document.getElementById('derajatInput').value = val;
+    const input = document.getElementById('derajatInput');
+    if (input) input.value = val;
+    syncDerajatButtons();
     syncLivePreview();
   };
+  derajatBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+      const val = this.getAttribute('data-derajat');
+      if (val) window.setDerajat(val);
+    });
+  });
 
   // Stepper Smooth Scroll & Active Indicator
   const stepperBar = document.getElementById('braStepperBar');
+  function setActiveStep(targetId) {
+    if (!stepperBar) return;
+    stepperBar.querySelectorAll('.bra-step-btn').forEach(b => {
+      const isMatch = b.getAttribute('data-target') === targetId;
+      b.classList.toggle('active', isMatch);
+      if (isMatch) b.setAttribute('aria-current', 'step');
+      else b.removeAttribute('aria-current');
+    });
+  }
   if (stepperBar) {
     stepperBar.querySelectorAll('.bra-step-btn').forEach(btn => {
       btn.addEventListener('click', function(e) {
@@ -86,8 +105,7 @@ function initBraForm() {
         const targetEl = document.getElementById(targetId);
         if (targetEl) {
           targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          stepperBar.querySelectorAll('.bra-step-btn').forEach(b => b.classList.remove('active'));
-          this.classList.add('active');
+          setActiveStep(targetId);
         }
       });
     });
@@ -96,11 +114,7 @@ function initBraForm() {
       const observer = new IntersectionObserver(entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
-            const id = entry.target.id;
-            stepperBar.querySelectorAll('.bra-step-btn').forEach(b => {
-              if (b.getAttribute('data-target') === id) b.classList.add('active');
-              else b.classList.remove('active');
-            });
+            setActiveStep(entry.target.id);
           }
         });
       }, { threshold: 0.35 });
@@ -110,19 +124,21 @@ function initBraForm() {
 
   // Re-index all sections
   function reindexSections() {
-    const currentKat = getSelectedKategori();
     const rows = sectionsContainer.querySelectorAll('.section-block');
     rows.forEach((row, idx) => {
       const code = getSectionLetter(idx);
       const badge = row.querySelector('.sec-code-badge');
       const hidden = row.querySelector('.sec-code-input');
       const ta = row.querySelector('.sec-content-textarea');
-      const hint = row.querySelector('.sec-hint-label');
 
       if (badge) badge.textContent = code;
       if (hidden) { hidden.value = code; hidden.name = `sections[${idx}][kode]`; }
-      if (ta) { ta.name = `sections[${idx}][isi]`; ta.placeholder = `Isi bagian ${code} ${getSectionHint(idx, currentKat)}`; }
-      if (hint) hint.textContent = getSectionHint(idx, currentKat);
+      if (ta) {
+        ta.id = `secContent${idx}`;
+        ta.name = `sections[${idx}][isi]`;
+        ta.placeholder = `Isi bagian ${code}...`;
+        ta.setAttribute('aria-label', `Isi bagian ${code}`);
+      }
 
       // Handle remove button (only >= 3)
       let delBtn = row.querySelector('.btn-delete-section');
@@ -157,14 +173,13 @@ function initBraForm() {
           <div class="flex items-center gap-2">
             <span class="sec-code-badge">${nextCode}</span>
             <input type="hidden" name="sections[${nextIdx}][kode]" value="${nextCode}" class="sec-code-input">
-            <span class="sec-hint-title sec-hint-label">(Bagian Tambahan)</span>
           </div>
           <button type="button" class="sec-del-btn btn-delete-section" title="Hapus bagian ini">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             <span>Hapus</span>
           </button>
         </div>
-        <textarea name="sections[${nextIdx}][isi]" rows="4" class="bra-control sec-content-textarea upper" placeholder="Isi naskah telegram untuk bagian ${nextCode}..." required></textarea>
+        <textarea id="secContent${nextIdx}" aria-label="Isi bagian ${nextCode}" name="sections[${nextIdx}][isi]" rows="4" class="control bra-control sec-content-textarea upper w-full text-sm leading-relaxed" placeholder="Isi bagian ${nextCode}..." required></textarea>
       `;
       sectionsContainer.appendChild(div);
       div.querySelector('textarea').focus();
@@ -237,6 +252,7 @@ function initBraForm() {
     if (pvNrStn) pvNrStn.textContent = document.getElementById('nrStnInput').value.trim() || '—';
     if (pvInstruksiPenerusan) pvInstruksiPenerusan.textContent = document.getElementById('instruksiPenerusanInput').value.trim() || '—';
     if (pvDerajat) pvDerajat.textContent = document.getElementById('derajatInput').value.trim() || 'SGR';
+    syncDerajatButtons();
 
     if (pvDari) pvDari.textContent = document.getElementById('dariInput').value.trim() || 'KEPALA KANTOR PENCARIAN DAN PERTOLONGAN KENDARI';
     if (pvAksi) pvAksi.textContent = document.getElementById('aksiInput').value.trim() || '—';
@@ -369,6 +385,7 @@ function initBraForm() {
     if (!val || val === initialNoBraPlaceholder) {
       noBraWarning.classList.add('hidden');
       noBraWarning.textContent = '';
+      noBraInput?.removeAttribute('aria-invalid');
       return;
     }
     const cleanVal = val.trim();
@@ -376,15 +393,18 @@ function initBraForm() {
       .then(r => r.json())
       .then(res => {
         if (res.success && res.exists && res.data) {
-          noBraWarning.textContent = `⚠️ PERINGATAN: Nomor "${res.data.no_bra}" sudah digunakan pada dokumen #${res.data.id_bra} (${res.data.perihal}). Harap pastikan nomor urut tidak bertabrakan!`;
+          noBraWarning.textContent = `Peringatan: Nomor "${res.data.no_bra}" sudah digunakan pada dokumen #${res.data.id_bra} (${res.data.perihal}).`;
           noBraWarning.classList.remove('hidden');
+          noBraInput?.setAttribute('aria-invalid', 'true');
         } else {
           noBraWarning.classList.add('hidden');
           noBraWarning.textContent = '';
+          noBraInput?.removeAttribute('aria-invalid');
         }
       })
       .catch(() => {
         noBraWarning.classList.add('hidden');
+        noBraInput?.removeAttribute('aria-invalid');
       });
   }
 
@@ -487,23 +507,19 @@ function initBraForm() {
   function updateCategoryUI(kat, initial) {
     const menbraTitle = document.getElementById('labelMenbraTitle');
     const menbraInput = document.getElementById('menbraInput');
-    const hintMenbra = document.getElementById('hintMenbraText');
     const show = (el, on) => { if (el) { el.classList.toggle('hidden', !on); el.style.display = on ? 'block' : 'none'; } };
     show(mapelPresets, kat === 'MAPEL');
 
     if (menbraInput && (menbraInput.value.trim().toUpperCase() === 'SEGERA' || menbraInput.value.trim() === '-')) menbraInput.value = '';
     if (kat === 'PERGERAKAN_KAPAL') {
-      if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan Naskah Lalu)';
-      if (menbraInput) menbraInput.placeholder = 'Nomor naskah pergerakan kapal sebelumnya (opsional)';
-      if (hintMenbra) hintMenbra.textContent = 'Nomor naskah telegram pergerakan kapal sebelumnya bila merupakan pergerakan lanjutan.';
-    } else if (kat === 'MAPEL') {
-      if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan BRA/MAPEL Lalu)';
-      if (menbraInput) menbraInput.placeholder = 'Nomor MAPEL/BRA rujukan sebelumnya (opsional)';
-      if (hintMenbra) hintMenbra.textContent = 'Nomor naskah telegram/MAPEL sebelumnya yang menjadi dasar rujukan bila ada lanjutan.';
-    } else {
-      if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan BRA Lalu)';
+      if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan)';
       if (menbraInput) menbraInput.placeholder = (Math.max(1, (braFormCfg.nomorUrutPlaceholder || 1) - 1)) + '/' + (braFormCfg.satkerKode || 'SAR-304') + '/' + (braFormCfg.bulanTahunPlaceholder || '');
-      if (hintMenbra) hintMenbra.textContent = 'Nomor naskah BRA sebelumnya yang menjadi dasar rujukan (bila ada).';
+    } else if (kat === 'MAPEL') {
+      if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan)';
+      if (menbraInput) menbraInput.placeholder = (Math.max(1, (braFormCfg.nomorUrutPlaceholder || 1) - 1)) + '/' + (braFormCfg.satkerKode || 'SAR-304') + '/' + (braFormCfg.bulanTahunPlaceholder || '');
+    } else {
+      if (menbraTitle) menbraTitle.textContent = 'MENBRA (Rujukan)';
+      if (menbraInput) menbraInput.placeholder = (Math.max(1, (braFormCfg.nomorUrutPlaceholder || 1) - 1)) + '/' + (braFormCfg.satkerKode || 'SAR-304') + '/' + (braFormCfg.bulanTahunPlaceholder || '');
     }
 
     const r = RECIPIENTS[kat] || RECIPIENTS.OPERASI_SAR;
@@ -604,7 +620,7 @@ function initBraForm() {
     if (!dl) return;
     const list = ((op && op.bra_sar) || []).filter(b => b.no_bra && String(b.id_bra) !== String(currentBraId));
     dl.replaceChildren(...list.map(b => new Option(String(b.perihal || '').slice(0, 90), b.no_bra)));
-    if (input && list.length) input.placeholder = `Terakhir: ${list[0].no_bra} (klik untuk memilih)`;
+    if (input && list.length) input.placeholder = `Terakhir: ${list[0].no_bra}`;
   }
 
   // Operasi Select handler
@@ -687,14 +703,12 @@ function initBraForm() {
       const kode = document.createElement('input');
       kode.type = 'hidden';
       kode.className = 'sec-code-input';
-      const hint = document.createElement('span');
-      hint.className = 'sec-hint-title sec-hint-label';
-      left.append(badge, kode, hint);
+      left.append(badge, kode);
       header.append(left);
 
       const ta = document.createElement('textarea');
       ta.rows = 4;
-      ta.className = 'bra-control sec-content-textarea upper';
+      ta.className = 'control bra-control sec-content-textarea upper w-full text-sm leading-relaxed';
       ta.required = true;
       ta.value = s.isi || '';
 
