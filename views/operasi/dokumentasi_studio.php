@@ -99,8 +99,16 @@ if ($isEditMode && !empty($editProject['tanggalIso']) && preg_match('/^\d{4}-\d{
 
 $editDocPayload = null;
 if ($isEditMode) {
+    $editVersionHash = sha1(
+        (string)($editDok['file_path'] ?? '') . '|' .
+        (string)($editDok['project_json'] ?? '') . '|' .
+        (string)($editDok['judul'] ?? '') . '|' .
+        (string)($editDok['tanggal_label'] ?? '') . '|' .
+        (string)($editDok['id_operasi'] ?? '')
+    );
     $editDocPayload = [
         'id' => $editDocId,
+        'version' => $editVersionHash,
         'judul' => (string)($editDok['judul'] ?? ''),
         'hari_ke' => (string)($editDok['hari_ke'] ?? $hariLabel),
         'tanggal_label' => (string)($editDok['tanggal_label'] ?? $tanggalDefault),
@@ -307,7 +315,7 @@ if ($isEditMode) {
   <!-- Studio Header Bar (Ringkas & Anti-Overflow pada Mobile) -->
   <section class="dok-studio-card rounded-2xl px-3.5 sm:px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
     <div class="flex items-center gap-2.5 min-w-0">
-      <a href="<?= e($backDetailUrl) ?>" class="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition shrink-0" title="<?= e($backDetailLabel) ?>" aria-label="<?= e($backDetailLabel) ?>">
+      <a id="btnStudioBack" href="<?= e($backDetailUrl) ?>" class="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition shrink-0" title="<?= e($backDetailLabel) ?>" aria-label="<?= e($backDetailLabel) ?>">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
       </a>
       <div class="min-w-0">
@@ -318,7 +326,12 @@ if ($isEditMode) {
           <span id="studioHeaderScopeLabel" class="font-semibold text-orange-700 dark:text-orange-400"><?= $idOps > 0 ? 'Operasi #' . $idOps : 'Dokumentasi Umum' ?></span>
           <span>&bull;</span>
           <span id="studioHeaderHariLabel"><?= e($hariLabel) ?></span>
-          <span id="draftRestoredBadge" class="hidden px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold">DRAF PULIH</span>
+          <span id="draftRestoredWrap" class="hidden inline-flex items-center gap-1">
+            <span id="draftRestoredBadge" class="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold">DRAF PULIH</span>
+            <button type="button" id="btnDiscardDraft" class="px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 font-sans text-[10px] font-bold transition cursor-pointer" title="<?= $isEditMode ? 'Buang draf lokal dan muat ulang arsip asli dari database' : 'Bersihkan draf lokal' ?>">
+              <?= $isEditMode ? 'Muat Asli' : 'Bersihkan' ?>
+            </button>
+          </span>
         </div>
         <h1 id="studioHeaderTitle" class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
           <?= e($idOps > 0 ? (string)($operasi['nama_operasi'] ?? '') : 'Studio Dokumentasi KPP Kendari') ?>
@@ -328,6 +341,9 @@ if ($isEditMode) {
 
     <div class="flex flex-wrap items-center gap-1.5 w-full sm:w-auto sm:justify-end">
       <?php if ($isEditMode): ?>
+        <button type="button" id="btnCancelEdit" class="inline-flex items-center justify-center h-8 px-2.5 rounded-lg border border-rose-300 dark:border-rose-800 bg-rose-50/80 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 text-xs font-semibold transition cursor-pointer">
+          Batal
+        </button>
         <a href="<?= e($newStudioUrl) ?>" class="inline-flex items-center justify-center h-8 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition no-underline">
           Baru
         </a>
@@ -545,6 +561,15 @@ if ($isEditMode) {
           <button type="button" id="btnBulkSelectAll" class="h-7 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 text-[11px] font-semibold hover:bg-slate-100 cursor-pointer">Pilih Semua</button>
           <button type="button" id="btnBulkDeleteSelected" class="h-7 px-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold cursor-pointer">Hapus Terpilih</button>
           <button type="button" id="btnBulkCancel" class="h-7 px-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 text-[11px] font-semibold hover:bg-slate-100 cursor-pointer">Batal</button>
+        </div>
+      </div>
+
+      <!-- Contextual 1-Step Undo Slot Deletion Bar -->
+      <div id="undoSlotBar" class="hidden px-3.5 py-2 border-b border-amber-200 dark:border-amber-900/60 bg-amber-50/90 dark:bg-amber-950/40 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <span id="undoSlotLabel" class="font-semibold text-amber-900 dark:text-amber-200">Media slot dihapus.</span>
+        <div class="flex items-center gap-1.5">
+          <button type="button" id="btnUndoDeleteSlot" class="h-7 px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold transition cursor-pointer">Urungkan</button>
+          <button type="button" id="btnDismissUndoSlot" class="h-7 w-7 inline-flex items-center justify-center rounded-lg border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 cursor-pointer" title="Tutup" aria-label="Tutup">&times;</button>
         </div>
       </div>
 

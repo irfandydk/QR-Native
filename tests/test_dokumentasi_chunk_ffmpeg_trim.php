@@ -252,15 +252,21 @@ try {
         echo "  [SKIP] FFmpeg tidak terpasang di lingkungan ini — uji render end-to-end dilewati.\n";
     }
 
-    // 6. Kontrak Frontend & API: bebas batas 20 MB hardcoded, mendukung 150 MB & 180 detik, 1 loading terpadu
+    // 6. Kontrak Frontend & API: bebas batas 20 MB hardcoded, mendukung 150 MB & 180 detik, 1 loading terpadu, batal edit & undo slot
     $jsSrc = (string)file_get_contents(ROOT_DIR . '/assets/js/pages/operasi_dokumentasi.js');
     assertDokOpt(
         !str_contains($jsSrc, '20 * 1024 * 1024')
             && str_contains($jsSrc, 'QrSarDokDraftStore')
             && str_contains($jsSrc, 'QrSarDokChunkUploader')
             && str_contains($jsSrc, 'setUnifiedProgress')
-            && str_contains($jsSrc, 'openVideoTrimModal'),
-        'operasi_dokumentasi.js bebas batas 20 MB lama dan mengintegrasikan IndexedDB draft, chunk uploader, unified progress, & video trim'
+            && str_contains($jsSrc, 'openVideoTrimModal')
+            && str_contains($jsSrc, 'discardDraftAndReloadOriginal')
+            && str_contains($jsSrc, 'undoLastSlotDeletion')
+            && str_contains($jsSrc, 'handleCancelEdit')
+            && str_contains($jsSrc, 'handleBackNavigation')
+            && str_contains($jsSrc, 'getNavigationType')
+            && str_contains($jsSrc, 'editVersion'),
+        'operasi_dokumentasi.js bebas batas 20 MB lama dan mengintegrasikan IndexedDB draft aman-edit (batal/reset/undo/versi), chunk uploader, unified progress, & video trim'
     );
 } finally {
     foreach ($createdDocIds as $cid) {

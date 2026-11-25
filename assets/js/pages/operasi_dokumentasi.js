@@ -68,19 +68,29 @@
     progressHighWater: 0,
     draftHydrating: false,
     draftSaveTimer: null,
+    isDirty: false,
+    lastDeletedSnapshot: null,
     trimSlotIndex: null,
     trimPreviewLoopId: null,
   };
 
   // --- DOM References ---
   const els = {
+    btnStudioBack: document.getElementById('btnStudioBack'),
+    btnCancelEdit: document.getElementById('btnCancelEdit'),
     tabBtns: Array.from(document.querySelectorAll('[data-studio-tab]')),
     tabPanels: Array.from(document.querySelectorAll('[data-studio-panel]')),
     selectDokOperasi: document.getElementById('selectDokOperasi'),
     studioHeaderScopeLabel: document.getElementById('studioHeaderScopeLabel'),
     studioHeaderHariLabel: document.getElementById('studioHeaderHariLabel'),
     studioHeaderTitle: document.getElementById('studioHeaderTitle'),
+    draftRestoredWrap: document.getElementById('draftRestoredWrap'),
     draftRestoredBadge: document.getElementById('draftRestoredBadge'),
+    btnDiscardDraft: document.getElementById('btnDiscardDraft'),
+    undoSlotBar: document.getElementById('undoSlotBar'),
+    undoSlotLabel: document.getElementById('undoSlotLabel'),
+    btnUndoDeleteSlot: document.getElementById('btnUndoDeleteSlot'),
+    btnDismissUndoSlot: document.getElementById('btnDismissUndoSlot'),
     styleBtns: Array.from(document.querySelectorAll('[data-style-id]')),
     orientTabs: Array.from(document.querySelectorAll('.dok-orient-tab')),
     canvasPresetGrid: document.getElementById('canvasPresetGrid'),
@@ -385,6 +395,7 @@
     });
 
     return {
+      editVersion: (cfg.editDoc && cfg.editDoc.version) ? String(cfg.editDoc.version) : null,
       idOperasi: state.idOperasi,
       namaOperasi: state.namaOperasi,
       styleId: state.styleId,
@@ -411,15 +422,18 @@
   }
 
   function scheduleDraftSave(immediate) {
-    if (!DraftStore || state.draftHydrating) return;
+    if (state.draftHydrating) return;
+    state.isDirty = true;
+    if (!DraftStore) return;
     if (state.draftSaveTimer) {
       clearTimeout(state.draftSaveTimer);
       state.draftSaveTimer = null;
     }
     const persist = () => {
+      const isEdit = !!(cfg.editDoc && cfg.editDoc.id);
       const hasMedia = filledSlotCount() > 0;
       const hasCustomTitle = els.inputDokJudul && els.inputDokJudul.value.trim() !== '' && els.inputDokJudul.value.trim() !== cfg.judulDefault;
-      if (!hasMedia && !hasCustomTitle && !state.activeServerJobId) {
+      if (!isEdit && !hasMedia && !hasCustomTitle && !state.activeServerJobId) {
         return;
       }
       DraftStore.save(DRAFT_SCOPE_KEY, buildDraftPayload()).catch(() => {});
@@ -432,6 +446,11 @@
   }
 
   async function clearDraftStorage() {
+    if (state.draftSaveTimer) {
+      clearTimeout(state.draftSaveTimer);
+      state.draftSaveTimer = null;
+    }
+    if (els.draftRestoredWrap) els.draftRestoredWrap.classList.add('hidden');
     if (els.draftRestoredBadge) els.draftRestoredBadge.classList.add('hidden');
     if (DraftStore) {
       await DraftStore.clear(DRAFT_SCOPE_KEY).catch(() => {});
@@ -1239,12 +1258,82 @@
     }
   }
 
+  function captureUndoSnapshot(indices) {
+    const items = [];
+    (indices || []).forEach((idx) => {
+      const s = state.slots[idx];
+      if (!s) return;
+      items.push({
+        index: idx,
+        type: s.type === 'video' ? 'video' : 'image',
+        name: s.name || `Slot ${idx + 1}`,
+        file: s.file || null,
+        serverPath: s.serverPath || null,
+        remoteUrl: (!s.isObjectUrl && s.url) ? s.url : null,
+        zoom: Number(s.zoom) || 1,
+        offsetX: Number(s.offsetX) || 0,
+        offsetY: Number(s.offsetY) || 0,
+        muted: s.muted !== false,
+        videoTime: Number(s.videoTime) || 0,
+        duration: Number(s.duration) || 0,
+        trimStart: Number(s.trimStart) || 0,
+        trimEnd: (s.trimEnd !== null && s.trimEnd !== undefined) ? Number(s.trimEnd) : null,
+      });
+    });
+    return items;
+  }
+
+  function showUndoBar(items, labelText) {
+    if (!Array.isArray(items) || !items.length) return;
+    state.lastDeletedSnapshot = items;
+    if (els.undoSlotLabel) els.undoSlotLabel.textContent = labelText || 'Media slot dihapus.';
+    if (els.undoSlotBar) els.undoSlotBar.classList.remove('hidden');
+  }
+
+  function hideUndoBar() {
+    state.lastDeletedSnapshot = null;
+    if (els.undoSlotBar) els.undoSlotBar.classList.add('hidden');
+  }
+
+  async function undoLastSlotDeletion() {
+    const snap = state.lastDeletedSnapshot;
+    if (!Array.isArray(snap) || !snap.length) return;
+    hideUndoBar();
+
+    const maxIdx = snap.reduce((m, it) => Math.max(m, it.index), 0);
+    if (maxIdx >= state.slotCount) {
+      ensureSlotsLength(Math.min(Layouts.MAX_SLOTS, maxIdx + 1));
+    }
+
+    const tasks = [];
+    snap.forEach((it) => {
+      if (it.index < 0 || it.index >= state.slots.length) return;
+      if (it.file && typeof it.file === 'object') {
+        tasks.push(loadFileIntoSlot(it.file, it.index, it));
+      } else if (it.remoteUrl || it.serverPath) {
+        const url = it.remoteUrl || ((window.BASE_URL || '') + '/' + String(it.serverPath).replace(/^\/+/, ''));
+        tasks.push(loadRemoteSlotIntoSlot(Object.assign({}, it, { url, path: it.serverPath }), it.index));
+      }
+    });
+    if (tasks.length > 0) {
+      await Promise.all(tasks);
+    }
+    state.selectedSlotIndex = snap[0].index;
+    refreshAllUI();
+    scheduleDraftSave(true);
+    notify(snap.length === 1 ? `Slot #${snap[0].index + 1} berhasil dikembalikan.` : `${snap.length} slot media berhasil dikembalikan.`, 'success');
+  }
+
   function clearSlot(idx) {
-    releaseSlotResources(state.slots[idx]);
+    const existing = state.slots[idx];
+    if (!existing) return;
+    const snap = captureUndoSnapshot([idx]);
+    releaseSlotResources(existing);
     state.slots[idx] = null;
     state.bulkSelected.delete(idx);
     refreshAllUI();
-    if (filledSlotCount() === 0) {
+    showUndoBar(snap, `Slot #${idx + 1} dihapus.`);
+    if (filledSlotCount() === 0 && !(cfg.editDoc && cfg.editDoc.id)) {
       clearDraftStorage();
     } else {
       scheduleDraftSave(true);
@@ -1253,31 +1342,52 @@
 
   function clearSelectedBulkSlots() {
     if (state.bulkSelected.size === 0) return;
-    const count = state.bulkSelected.size;
-    Array.from(state.bulkSelected).forEach((idx) => {
+    const indices = Array.from(state.bulkSelected).sort((a, b) => a - b);
+    const snap = captureUndoSnapshot(indices);
+    const count = snap.length;
+    indices.forEach((idx) => {
       releaseSlotResources(state.slots[idx]);
       state.slots[idx] = null;
     });
     state.bulkSelected.clear();
     if (filledSlotCount() === 0) {
       state.bulkMode = false;
-      clearDraftStorage();
+      if (!(cfg.editDoc && cfg.editDoc.id)) {
+        clearDraftStorage();
+      } else {
+        scheduleDraftSave(true);
+      }
     } else {
       scheduleDraftSave(true);
     }
     refreshAllUI();
-    notify(`${count} slot media dihapus.`, 'success');
+    if (count > 0) {
+      showUndoBar(snap, `${count} slot media dihapus.`);
+      notify(`${count} slot media dihapus.`, 'success');
+    }
   }
 
   function clearAllSlots() {
     stopPlayback();
+    const indices = [];
+    for (let i = 0; i < state.slots.length; i++) {
+      if (state.slots[i]) indices.push(i);
+    }
+    const snap = captureUndoSnapshot(indices);
     for (let i = 0; i < state.slots.length; i++) {
       releaseSlotResources(state.slots[i]);
       state.slots[i] = null;
     }
     state.bulkSelected.clear();
     state.bulkMode = false;
-    clearDraftStorage();
+    if (snap.length > 0) {
+      showUndoBar(snap, `Semua media (${snap.length} slot) dihapus.`);
+    }
+    if (cfg.editDoc && cfg.editDoc.id) {
+      scheduleDraftSave(true);
+    } else {
+      clearDraftStorage();
+    }
     refreshAllUI();
   }
 
@@ -2787,6 +2897,8 @@
 
   async function finalizeSavedSuccess(outW, outH, isEdit) {
     const general = isGeneralMode();
+    hideUndoBar();
+    state.isDirty = false;
     await clearDraftStorage();
     setUnifiedProgress(false, '', 0, true);
 
@@ -3318,12 +3430,113 @@
   if (els.btnTopDownloadVid) els.btnTopDownloadVid.addEventListener('click', handleDownloadVideo);
   if (els.btnSaveArchive) els.btnSaveArchive.addEventListener('click', handleSaveToArchive);
   if (els.btnCancelExport) els.btnCancelExport.addEventListener('click', handleCancelExport);
+  if (els.btnUndoDeleteSlot) els.btnUndoDeleteSlot.addEventListener('click', undoLastSlotDeletion);
+  if (els.btnDismissUndoSlot) els.btnDismissUndoSlot.addEventListener('click', hideUndoBar);
+  if (els.btnDiscardDraft) els.btnDiscardDraft.addEventListener('click', discardDraftAndReloadOriginal);
+  if (els.btnCancelEdit) els.btnCancelEdit.addEventListener('click', handleCancelEdit);
+  if (els.btnStudioBack) els.btnStudioBack.addEventListener('click', handleBackNavigation);
+
+  function releaseAllCurrentSlots() {
+    stopPlayback();
+    for (let i = 0; i < state.slots.length; i++) {
+      releaseSlotResources(state.slots[i]);
+      state.slots[i] = null;
+    }
+    state.bulkSelected.clear();
+    state.bulkMode = false;
+  }
+
+  async function discardDraftAndReloadOriginal() {
+    if (state.isExporting) return;
+    hideUndoBar();
+    await clearDraftStorage();
+    if (cfg.editDoc && cfg.editDoc.id) {
+      await hydrateEditDoc(cfg.editDoc);
+      state.isDirty = false;
+      notify('Arsip asli dari database berhasil dimuat ulang.', 'success');
+    } else {
+      releaseAllCurrentSlots();
+      state.isDirty = false;
+      refreshAllUI();
+      notify('Draf lokal berhasil dibersihkan.', 'info');
+    }
+  }
+
+  async function handleCancelEdit() {
+    if (state.isExporting) {
+      await handleCancelExport();
+    }
+    if (state.isDirty && typeof Swal !== 'undefined') {
+      const res = await Swal.fire({
+        title: 'Batalkan Edit Dokumentasi?',
+        text: 'Perubahan yang belum disimpan akan dibuang dan arsip asli tetap utuh.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Buang Perubahan & Kembali',
+        cancelButtonText: 'Lanjut Edit',
+        confirmButtonColor: '#e11d48',
+      });
+      if (!res.isConfirmed) return;
+    } else if (state.isDirty) {
+      if (!window.confirm('Batalkan edit dan buang perubahan yang belum disimpan?')) return;
+    }
+    hideUndoBar();
+    await clearDraftStorage();
+    state.isDirty = false;
+    window.location.href = cfg.backDetailUrl || ((window.BASE_URL || '') + '/dokumentasi.php');
+  }
+
+  async function handleBackNavigation(e) {
+    const isEdit = !!(cfg.editDoc && cfg.editDoc.id);
+    if (!isEdit) return;
+    e.preventDefault();
+    const targetHref = (els.btnStudioBack && els.btnStudioBack.getAttribute('href')) || cfg.backDetailUrl || ((window.BASE_URL || '') + '/dokumentasi.php');
+
+    if (!state.isDirty) {
+      await clearDraftStorage();
+      window.location.href = targetHref;
+      return;
+    }
+
+    if (typeof Swal !== 'undefined') {
+      const res = await Swal.fire({
+        title: 'Perubahan Belum Disimpan',
+        text: 'Anda memiliki perubahan edit yang belum disimpan ke arsip. Pilih tindakan sebelum kembali.',
+        icon: 'question',
+        showDenyButton: true,
+        showCancelButton: true,
+        confirmButtonText: 'Buang Perubahan & Kembali',
+        denyButtonText: 'Simpan Draf & Kembali',
+        cancelButtonText: 'Tetap di Studio',
+        confirmButtonColor: '#e11d48',
+        denyButtonColor: '#0284c7',
+      });
+      if (res.isConfirmed) {
+        hideUndoBar();
+        await clearDraftStorage();
+        state.isDirty = false;
+        window.location.href = targetHref;
+      } else if (res.isDenied) {
+        scheduleDraftSave(true);
+        window.location.href = targetHref;
+      }
+      return;
+    }
+
+    if (window.confirm('Buang perubahan edit yang belum disimpan sebelum kembali ke arsip?')) {
+      hideUndoBar();
+      await clearDraftStorage();
+      state.isDirty = false;
+      window.location.href = targetHref;
+    }
+  }
 
   // --- Hydrate Saved Archive (Edit Mode) or Auto-Saved IndexedDB Draft ---
   async function hydrateFromDraft(draft) {
     if (!draft) return false;
     state.draftHydrating = true;
     try {
+      releaseAllCurrentSlots();
       if (cfg.allowOperasiSelect && els.selectDokOperasi && typeof draft.idOperasi === 'number') {
         state.idOperasi = draft.idOperasi;
         state.namaOperasi = draft.namaOperasi || '';
@@ -3410,14 +3623,16 @@
       if (firstFilled >= 0) state.selectedSlotIndex = firstFilled;
       refreshAllUI();
 
+      if (els.draftRestoredWrap) els.draftRestoredWrap.classList.remove('hidden');
+      if (els.draftRestoredBadge) els.draftRestoredBadge.classList.remove('hidden');
       if (loadedCount > 0) {
-        if (els.draftRestoredBadge) els.draftRestoredBadge.classList.remove('hidden');
         notify(`Draf otomatis dipulihkan (${loadedCount} media siap disimpan).`, 'info');
       }
 
       if (draft.activeJob && draft.activeJob.jobId && CAPS.server_render) {
         resumeServerJobAfterRefresh(draft.activeJob.jobId);
       }
+      state.isDirty = true;
       return true;
     } finally {
       state.draftHydrating = false;
@@ -3468,6 +3683,30 @@
   async function hydrateEditDoc(editDoc) {
     state.draftHydrating = true;
     try {
+      releaseAllCurrentSlots();
+
+      // Sinkronkan ulang metadata form ke data asli arsip dari database
+      state.idOperasi = Number(cfg.idOperasi) > 0 ? Number(cfg.idOperasi) : 0;
+      state.namaOperasi = String(cfg.namaOperasi || '');
+      if (els.selectDokOperasi) {
+        els.selectDokOperasi.value = String(state.idOperasi);
+      }
+      if (els.inputDokHari) {
+        els.inputDokHari.value = String((editDoc && editDoc.hari_ke) || cfg.hariLabel || '');
+      }
+      if (els.inputDokJudul) {
+        els.inputDokJudul.value = String((editDoc && editDoc.judul) || cfg.judulDefault || '');
+      }
+      if (els.inputDokTanggalDate && cfg.tanggalIsoDefault) {
+        els.inputDokTanggalDate.value = String(cfg.tanggalIsoDefault);
+        syncDateFromPicker(cfg.tanggalIsoDefault);
+      } else if (els.inputDokTanggal) {
+        const tLbl = String((editDoc && editDoc.tanggal_label) || cfg.tanggalDefault || '');
+        els.inputDokTanggal.value = tLbl;
+        if (els.displayDokTanggalIndo) els.displayDokTanggalIndo.textContent = tLbl;
+      }
+      syncOperasiSelectionUI(false);
+
       const proj = (editDoc && editDoc.project && typeof editDoc.project === 'object') ? editDoc.project : null;
       let targetStyle = proj && proj.styleId ? proj.styleId : 'klasik_kpp';
       let targetLayout = proj && proj.layoutId ? proj.layoutId : '';
@@ -3493,6 +3732,8 @@
       }
       if (proj && Number.isFinite(Number(proj.titleScale))) {
         state.titleScale = Math.max(0.7, Math.min(1.6, Number(proj.titleScale)));
+      } else {
+        state.titleScale = 1.0;
       }
 
       state.orientation = ['vertical', 'horizontal', 'square'].includes(targetOrient) ? targetOrient : 'vertical';
@@ -3525,15 +3766,15 @@
         ? targetLayout
         : Layouts.getDefaultLayoutId(targetCount, state.orientation);
 
-      if (proj && proj.qualityId && els.selectExportQuality) {
-        state.qualityId = proj.qualityId;
-        els.selectExportQuality.value = proj.qualityId;
+      if (els.selectExportQuality) {
+        state.qualityId = (proj && proj.qualityId) ? proj.qualityId : 'fhd';
+        els.selectExportQuality.value = state.qualityId;
       }
-      if (proj && proj.imageFormat && els.selectImageFormat) {
-        els.selectImageFormat.value = proj.imageFormat;
+      if (els.selectImageFormat) {
+        els.selectImageFormat.value = (proj && proj.imageFormat) ? proj.imageFormat : 'image/png';
       }
-      if (proj && proj.videoDuration && els.selectVideoDuration) {
-        els.selectVideoDuration.value = proj.videoDuration;
+      if (els.selectVideoDuration) {
+        els.selectVideoDuration.value = (proj && proj.videoDuration) ? proj.videoDuration : 'auto';
       }
 
       syncCanvasDimensions();
@@ -3555,15 +3796,34 @@
           refreshAllUI();
         }
       }
+      state.isDirty = false;
     } finally {
       state.draftHydrating = false;
     }
+  }
+
+  function getNavigationType() {
+    try {
+      const navs = window.performance && typeof window.performance.getEntriesByType === 'function'
+        ? window.performance.getEntriesByType('navigation')
+        : null;
+      if (navs && navs[0] && navs[0].type) {
+        return String(navs[0].type);
+      }
+      if (window.performance && window.performance.navigation && window.performance.navigation.type === 1) {
+        return 'reload';
+      }
+    } catch (e) {}
+    return 'navigate';
   }
 
   // Expose studio helper for automated verification
   window.__QR_SAR_DOK_STUDIO__ = {
     getState: () => ({
       editDocId: cfg.editDoc ? cfg.editDoc.id : null,
+      editVersion: cfg.editDoc ? (cfg.editDoc.version || null) : null,
+      isDirty: state.isDirty,
+      hasUndo: Array.isArray(state.lastDeletedSnapshot) && state.lastDeletedSnapshot.length > 0,
       idOperasi: state.idOperasi,
       isGeneral: isGeneralMode(),
       styleId: state.styleId,
@@ -3585,6 +3845,9 @@
     loadFileIntoSlot,
     openVideoTrimModal,
     swapSlots,
+    clearSlot,
+    undoLastSlotDeletion,
+    discardDraftAndReloadOriginal,
     refreshAllUI,
     drawCollage,
   };
@@ -3600,17 +3863,58 @@
     syncTitleStyleControls();
     preloadLogos();
 
-    const savedDraft = DraftStore ? await DraftStore.load(DRAFT_SCOPE_KEY).catch(() => null) : null;
-    if (savedDraft && ((Array.isArray(savedDraft.slots) && savedDraft.slots.some(Boolean)) || savedDraft.activeJob)) {
+    const isEdit = !!(cfg.editDoc && cfg.editDoc.id);
+    let savedDraft = DraftStore ? await DraftStore.load(DRAFT_SCOPE_KEY).catch(() => null) : null;
+    let hasUsableDraft = !!(savedDraft && (Array.isArray(savedDraft.slots) || savedDraft.activeJob) && (isEdit || (Array.isArray(savedDraft.slots) && savedDraft.slots.some(Boolean)) || savedDraft.activeJob));
+
+    // Buang draf edit usang jika versi arsip di server telah diperbarui dari tempat lain
+    if (isEdit && hasUsableDraft && cfg.editDoc.version && savedDraft.editVersion && savedDraft.editVersion !== cfg.editDoc.version) {
+      await clearDraftStorage();
+      savedDraft = null;
+      hasUsableDraft = false;
+    }
+
+    if (!isEdit) {
+      if (hasUsableDraft) {
+        await hydrateFromDraft(savedDraft);
+        return;
+      }
+      setOrientation('vertical');
+      refreshAllUI();
+      return;
+    }
+
+    // Mode Edit:
+    // 1. Jika halaman di-refresh (reload) atau masih ada render FFmpeg berjalan -> pulihkan draf otomatis (tahan stuck!)
+    const navType = getNavigationType();
+    if (hasUsableDraft && (navType === 'reload' || !!savedDraft.activeJob)) {
       await hydrateFromDraft(savedDraft);
       return;
     }
 
-    if (cfg.editDoc && cfg.editDoc.id) {
-      await hydrateEditDoc(cfg.editDoc);
-    } else {
-      setOrientation('vertical');
-      refreshAllUI();
+    // 2. Jika dibuka segar dari Arsip (navigasi biasa), muat arsip asli dari database terlebih dahulu
+    await hydrateEditDoc(cfg.editDoc);
+
+    // 3. Jika masih ada draf edit lama (mis. keluar lewat Back browser / tutup tab), beri pilihan eksplisit tanpa diam-diam menimpa arsip asli
+    if (hasUsableDraft) {
+      if (typeof Swal !== 'undefined') {
+        const choice = await Swal.fire({
+          title: 'Ditemukan Draf Edit Sebelumnya',
+          text: 'Arsip asli dari database telah dimuat utuh. Apakah Anda ingin tetap memakai arsip asli atau memulihkan draf edit terakhir?',
+          icon: 'info',
+          showCancelButton: true,
+          confirmButtonText: 'Gunakan Arsip Asli',
+          cancelButtonText: 'Pulihkan Draf Terakhir',
+          confirmButtonColor: '#ea580c',
+        });
+        if (choice.dismiss === Swal.DismissReason.cancel) {
+          await hydrateFromDraft(savedDraft);
+        } else {
+          await clearDraftStorage();
+        }
+      } else {
+        await clearDraftStorage();
+      }
     }
   }
 

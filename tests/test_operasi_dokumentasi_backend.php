@@ -227,6 +227,12 @@ try {
             && str_contains($studioView, 'id="selectExportQuality"')
             && str_contains($studioView, 'id="previewBulkBar"')
             && str_contains($studioView, 'value="180"')
+            && str_contains($studioView, 'id="btnStudioBack"')
+            && str_contains($studioView, 'id="btnCancelEdit"')
+            && str_contains($studioView, 'id="btnDiscardDraft"')
+            && str_contains($studioView, 'id="undoSlotBar"')
+            && str_contains($studioView, 'id="btnUndoDeleteSlot"')
+            && str_contains($studioView, 'editVersionHash')
             && str_contains($studioView, 'studio_draft_store.js')
             && str_contains($studioView, 'chunk_uploader.js')
             && $posUtama !== false && $posDesain !== false && $posGrid !== false
