@@ -114,7 +114,8 @@ $cancelUrl = BASE_URL . '/operasi_detail.php?id=' . $idOperasi . '&tab=renops';
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <?php $isH1Form = !empty($isHariPertama); ?>
+      <div id="renops-schedule-grid" class="grid grid-cols-1 sm:grid-cols-2 <?= $isH1Form ? 'lg:grid-cols-3' : 'lg:grid-cols-4' ?> gap-4">
         <div class="field">
           <label for="renops_hari_ke" class="field-label">Hari Operasi Ke <span class="text-red-500">*</span></label>
           <input class="field-input w-full font-bold font-mono tabular-nums" type="text" name="hari_ke" id="renops_hari_ke" required
@@ -128,9 +129,9 @@ $cancelUrl = BASE_URL . '/operasi_detail.php?id=' . $idOperasi . '&tab=renops';
             value="<?= e($tanggalLaporan) ?>" />
         </div>
 
-        <div class="field">
+        <div class="field" id="field-renops-waktu-briefing"<?= $isH1Form ? ' hidden' : '' ?>>
           <label for="renops_waktu_briefing" class="field-label">Waktu Briefing (WITA) <span class="text-red-500">*</span></label>
-          <input placeholder=" " class="field-input w-full font-mono tabular-nums" type="datetime-local" name="waktu_briefing" id="renops_waktu_briefing" required
+          <input placeholder=" " class="field-input w-full font-mono tabular-nums" type="datetime-local" name="waktu_briefing" id="renops_waktu_briefing"<?= $isH1Form ? ' disabled' : ' required' ?>
             value="<?= e($waktuBriefing) ?>" />
         </div>
 
@@ -456,8 +457,10 @@ window.__RENOPS_PAGE_CONFIG__ = <?= jsonSafe([
     'namaOperasi' => $operasi['nama_operasi'] ?? '',
     'koordinat' => $operasi['koordinat'] ?: '-',
     'operasiStartDate' => date('Y-m-d', strtotime(TemplateHelper::getWaktuMulaiAwal($operasi))),
+    'operasiWaktuBerangkat' => $waktuBerangkatOps ?? '',
     'operasiReopenDate' => !empty($operasi['waktu_reopen']) ? date('Y-m-d', strtotime((string)$operasi['waktu_reopen'])) : null,
     'operasiBaseHariReopen' => (int)TemplateHelper::getBaseHariSebelumReopen($operasi),
+    'isHariPertama' => !empty($isHariPertama),
     'satuanJarak' => $satuanJarak,
 ]) ?>;
 </script>

@@ -306,8 +306,14 @@ BODY;
 
         $header = self::getHeaderWA("RENCANA OPS SAR {$hariKe}", "Rencana Ops {$namaOps}", $waktuLap);
 
-        $twBriefing = SarCalculationService::formatTW($renops['waktu_briefing'] ?? null);
-        $twMulai = SarCalculationService::formatTW($renops['waktu_mulai_ops'] ?? null);
+        $isHariPertama = class_exists('RenopsModel')
+            ? RenopsModel::isHariPertama($hariKe)
+            : (bool)preg_match('/^(?:H[\.\-\s]*)?1$/', $hariKe);
+        $hasBriefing = !$isHariPertama
+            && !empty($renops['waktu_briefing'])
+            && SarCalculationService::parseToTimestamp((string)$renops['waktu_briefing']) !== null;
+        $twBriefing = $hasBriefing ? SarCalculationService::formatTW($renops['waktu_briefing']) : '';
+        $twMulai = SarCalculationService::formatTW($renops['waktu_mulai_ops'] ?? ($isHariPertama ? ($ops['waktu_berangkat'] ?? null) : null));
 
         // SRUs
         if (empty($srus)) {
@@ -367,11 +373,19 @@ BODY;
         $weatherLines = self::formatWeatherLines($renops, $ops);
         $sruCount = count($srus);
 
+        $scheduleLines = [];
+        if ($hasBriefing) {
+            $scheduleLines[] = "• PD {$twBriefing} Tim SAR Gabungan Melaksanakan Brifing Operasi.";
+            $scheduleLines[] = "• Pada {$twMulai} Tim SAR Gabungan Melanjutkan Operasi Pencarian {$hariKe} Sesuai Rencana Operasi {$hariKe} dengan Tim SAR gabungan menuju ke entri point masing-masing.";
+        } else {
+            $scheduleLines[] = "• Pada {$twMulai} Tim SAR Gabungan Melaksanakan Operasi Pencarian {$hariKe} Sesuai Rencana Operasi {$hariKe} dengan Tim SAR gabungan menuju ke entri point masing-masing.";
+        }
+        $scheduleBlock = implode("\n", $scheduleLines);
+
         $body = <<<BODY
 Rencana Ops {$hariKe} :
 
-• PD {$twBriefing} Tim SAR Gabungan Melaksanakan Brifing Operasi.
-• Pada {$twMulai} Tim SAR Gabungan Melanjutkan Operasi Pencarian {$hariKe} Sesuai Rencana Operasi {$hariKe} dengan Tim SAR gabungan menuju ke entri point masing-masing.
+{$scheduleBlock}
 Dengan Tim dibagi {$sruCount} SRU dengan area pencarian sbb :
 
 {$sruText}

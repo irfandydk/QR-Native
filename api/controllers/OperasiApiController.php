@@ -32,6 +32,12 @@ class OperasiApiController extends BaseApiController {
                 $existing = !empty($data['id_renops']) ? RenopsModel::getById((int)$data['id_renops']) : null;
                 $data['srus'] = RenopsModel::normalizeInputSrus(is_array($data['srus'] ?? null) ? $data['srus'] : []);
                 $data['hari_ke'] = TemplateHelper::hitungHariKe($ops, $data['tanggal_laporan'] ?? date('Y-m-d'));
+                if (RenopsModel::isHariPertama($data['hari_ke'])) {
+                    $data['waktu_briefing'] = null;
+                    if (empty($data['waktu_mulai_ops']) && !empty($ops['waktu_berangkat'])) {
+                        $data['waktu_mulai_ops'] = $ops['waktu_berangkat'];
+                    }
+                }
                 $text = RenopsModel::buildPreviewWa($ops, $data, $existing);
             } elseif ($doc === 'sitrep') {
                 $existing = !empty($data['id_laporan']) ? LaporanModel::getById((int)$data['id_laporan']) : null;

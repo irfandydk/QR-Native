@@ -72,8 +72,14 @@ try {
     assertCondition($s2['sumber'] === 'LAPBANG' && (int)$s2['lapbang']['id_laporan'] === $idLapH1, 'H2: sumber LAPBANG H1');
     assertCondition(count($s2['unsur']) === 4, 'H2: RENOPS H2 (4 unsur) menang atas LAPBANG H1 (3 unsur)');
     $s3 = HierarchyHelper::resolveRenopsSources($ops, $load($r3));
-    assertCondition($s3['sumber'] === 'LAPBANG' && (int)$s3['lapbang']['id_laporan'] === $idLapH1, 'H3 tanpa LAPBANG H2: pakai LAPBANG terdekat sebelumnya');
-    assertCondition(count($s3['unsur']) === 3, 'H3 (RENOPS tanpa unsur) mewarisi 3 unsur LAPBANG terdekat');
+    assertCondition($s3['sumber'] === 'RENOPS', 'H3 tanpa LAPBANG H2: pakai RENOPS H2 karena lebih baru dari LAPBANG H1');
+    assertCondition(count($s3['unsur']) === 4, 'H3 (RENOPS tanpa unsur) mewarisi 4 unsur RENOPS H2 terbaru');
+    // Setelah LAPBANG H2 (5 unsur) dibuat, H3 mewarisi LAPBANG H2 (LAPBANG menang pada hari sama)
+    $idLapH2 = $mkLap($idOps, '2026-10-22 20:00:00', $u(5));
+    $db->prepare("DELETE FROM DetailUnsur WHERE id_operasi=? AND nama_unsur NOT IN ('Unsur 1','Unsur 2')")->execute([$idOps]);
+    $opsAfterLapH2 = OperasiModel::getById($idOps);
+    $s3WithLap2 = HierarchyHelper::resolveRenopsSources($opsAfterLapH2, $load($r3));
+    assertCondition($s3WithLap2['sumber'] === 'LAPBANG' && (int)$s3WithLap2['lapbang']['id_laporan'] === $idLapH2 && count($s3WithLap2['unsur']) === 5, 'H3 dengan LAPBANG H2: LAPBANG H2 (5 unsur) menang atas RENOPS H2');
 
     // Reopen: H7 + 1
     $idOps2 = $mkOps('Uji Hierarki Reopen');

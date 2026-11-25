@@ -34,7 +34,7 @@ class DocumentNumberService {
      * Contoh: RENOPS-220926-H1/OPS-SAR/SAR-304/0926
      */
     public static function generateNomorRenops(array $ops, array $renops, ?string $satkerKode = null): string {
-        $waktu = $renops['waktu_briefing'] ?? ($renops['tanggal_laporan'] ?? ($ops['waktu_berangkat'] ?? null));
+        $waktu = $renops['waktu_briefing'] ?? ($renops['waktu_mulai_ops'] ?? ($renops['tanggal_laporan'] ?? ($ops['waktu_berangkat'] ?? null)));
         $ts = SarCalculationService::parseToTimestamp($waktu) ?? time();
 
         $tgl = date('dmy', $ts);

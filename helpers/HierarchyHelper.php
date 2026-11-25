@@ -4,7 +4,7 @@
  * Kantor Pencarian dan Pertolongan (KPP) Kendari - Basarnas
  *
  * Implements the operational reporting hierarchy:
- * Laporan Awal (H.1) -> Lapbang H.1 -> Renops H.2 -> Lapbang H.2 -> ... -> H.7
+ * Laporan Awal -> Renops H.1 -> Lapbang H.1 -> Renops H.2 -> Lapbang H.2 -> ... -> H.7
  */
 
 declare(strict_types=1);
@@ -52,7 +52,7 @@ class HierarchyHelper {
         $byDate = [];
 
         foreach ($renopsList as $r) {
-            $rDateRaw = $r['tanggal_laporan'] ?? ($r['tanggal'] ?? ($r['waktu_briefing'] ?? ($r['created_at'] ?? '')));
+            $rDateRaw = $r['tanggal_laporan'] ?? ($r['tanggal'] ?? ($r['waktu_briefing'] ?? ($r['waktu_mulai_ops'] ?? ($r['created_at'] ?? ''))));
             $rTs = !empty($rDateRaw) ? TemplateHelper::parseToTimestamp((string)$rDateRaw) : null;
             $rDate = date('Y-m-d', $rTs ?: time());
             $dynHariKe = TemplateHelper::hitungHariKe($ops, $rDate, $r['hari_ke'] ?? null);
@@ -60,6 +60,7 @@ class HierarchyHelper {
 
             $unsur = !empty($r['detail_unsur']) && is_array($r['detail_unsur']) ? $r['detail_unsur'] : ($ops['detail_unsur'] ?? []);
             $alut = !empty($r['detail_alut']) && is_array($r['detail_alut']) ? $r['detail_alut'] : ($ops['detail_alut'] ?? []);
+            $rWaktu = ($r['waktu_briefing'] ?? '') ?: (($r['waktu_mulai_ops'] ?? '') ?: (($r['tanggal_laporan'] ?? ($r['tanggal'] ?? '')) ?: ($r['created_at'] ?? '')));
 
             $byDate[$rDate]['renops'][] = [
                 'id' => 'renops-' . ($r['id_renops'] ?? 0),
@@ -68,8 +69,8 @@ class HierarchyHelper {
                 'label' => 'Renops ' . $dynHariKe,
                 'hari_ke' => $dynHariKe,
                 'day_number' => $dayNum,
-                'waktu' => ($r['waktu_briefing'] ?? '') ?: (($r['tanggal_laporan'] ?? ($r['tanggal'] ?? '')) ?: ($r['created_at'] ?? '')),
-                'sort_key' => (string)($r['waktu_briefing'] ?? ($r['tanggal_laporan'] ?? ($r['tanggal'] ?? ($r['created_at'] ?? '')))),
+                'waktu' => $rWaktu,
+                'sort_key' => (string)$rWaktu,
                 'unsur' => $unsur,
                 'alut' => $alut,
                 'cuaca' => $r['cuaca'] ?? '',
@@ -130,8 +131,8 @@ class HierarchyHelper {
     }
 
     /**
-     * Computes default form parameters for a NEW Renops based on latest document in hierarchy
-     * Hierarchy: Laporan Awal -> Lapbang H.1 -> Renops H.2 -> Lapbang H.2 -> Renops H.3 ...
+     * Computes default form parameters for a NEW Renops based on latest document in hierarchy.
+     * Hierarchy: Laporan Awal -> Renops H.1 -> Lapbang H.1 -> Renops H.2 -> Lapbang H.2 -> Renops H.3 ...
      */
     public static function getNextRenopsDefaults(array $ops): array {
         $renopsList = $ops['renops'] ?? [];
@@ -158,7 +159,7 @@ class HierarchyHelper {
         foreach ($renopsList as $r) {
             $rTs = !empty($r['tanggal_laporan'])
                 ? TemplateHelper::parseToTimestamp((string)$r['tanggal_laporan'])
-                : TemplateHelper::parseToTimestamp((string)($r['waktu_briefing'] ?? ($r['created_at'] ?? '')));
+                : TemplateHelper::parseToTimestamp((string)($r['waktu_briefing'] ?? ($r['waktu_mulai_ops'] ?? ($r['created_at'] ?? ''))));
             $rDate = date('Y-m-d', $rTs ?: time());
             if ($rDate >= $latestAnyRenopsYmd) {
                 $latestAnyRenopsYmd = $rDate;
@@ -220,22 +221,27 @@ class HierarchyHelper {
         $refLapbang = $latestLapbang ?? $latestAnyLapbang;
         $refRenops = $latestRenops ?? $latestAnyRenops;
 
-        if ($maxLapbangDay >= 1 && $latestLapbang) {
-            $lapDate = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($maxLapbangDay - 1) . " days", $t1)) : $todayYmd;
-            $predecessorLabel = "Lapbang " . TemplateHelper::hitungHariKe($ops, $lapDate);
-            $applySource($latestLapbang);
-        } elseif ($maxRenopsDay >= 1 && $latestRenops) {
-            $renDate = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($maxRenopsDay - 1) . " days", $t1)) : $todayYmd;
-            $predecessorLabel = "Renops " . TemplateHelper::hitungHariKe($ops, $renDate);
-            $applySource($latestRenops);
-        } elseif ($refLapbang) {
-            $refHari = TemplateHelper::hitungHariKe($ops, $latestAnyLapbangYmd, $refLapbang['hari_ke'] ?? null);
-            $predecessorLabel = "Lapbang {$refHari}";
-            $applySource($refLapbang);
-        } elseif ($refRenops) {
-            $refHari = TemplateHelper::hitungHariKe($ops, $latestAnyRenopsYmd, $refRenops['hari_ke'] ?? null);
-            $predecessorLabel = "Renops {$refHari}";
-            $applySource($refRenops);
+        // Kronologis ketat: pada hari sama LAPBANG selalu sesudah RENOPS; hari yang lebih baru selalu menang.
+        if ($maxLapbangDay >= 1 || $maxRenopsDay >= 1) {
+            if ($maxLapbangDay >= $maxRenopsDay && $latestLapbang) {
+                $lapDate = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($maxLapbangDay - 1) . " days", $t1)) : $todayYmd;
+                $predecessorLabel = "Lapbang " . TemplateHelper::hitungHariKe($ops, $lapDate);
+                $applySource($latestLapbang);
+            } elseif ($latestRenops) {
+                $renDate = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($maxRenopsDay - 1) . " days", $t1)) : $todayYmd;
+                $predecessorLabel = "Renops " . TemplateHelper::hitungHariKe($ops, $renDate);
+                $applySource($latestRenops);
+            }
+        } elseif ($refLapbang || $refRenops) {
+            if ($refLapbang && (!$refRenops || $latestAnyLapbangYmd >= $latestAnyRenopsYmd)) {
+                $refHari = TemplateHelper::hitungHariKe($ops, $latestAnyLapbangYmd, $refLapbang['hari_ke'] ?? null);
+                $predecessorLabel = "Lapbang {$refHari}";
+                $applySource($refLapbang);
+            } elseif ($refRenops) {
+                $refHari = TemplateHelper::hitungHariKe($ops, $latestAnyRenopsYmd, $refRenops['hari_ke'] ?? null);
+                $predecessorLabel = "Renops {$refHari}";
+                $applySource($refRenops);
+            }
         }
 
         // Hitung hari operasional kalender aktif hari ini (relatif terhadap waktu mulai aktual)
@@ -260,6 +266,13 @@ class HierarchyHelper {
 
         $isMaxDay = ($targetDayNumber >= 7);
         $hariKe = TemplateHelper::hitungHariKe($ops, $targetDateStr);
+        $isHariPertama = class_exists('RenopsModel')
+            ? RenopsModel::isHariPertama($hariKe)
+            : (bool)preg_match('/^(?:H[\.\-\s]*)?1$/i', $hariKe);
+        $defaultWaktuBriefing = $isHariPertama ? null : ($targetDateStr . 'T07:00');
+        $defaultWaktuMulaiOps = ($isHariPertama && !empty($ops['waktu_berangkat']))
+            ? date('Y-m-d\TH:i', strtotime((string)$ops['waktu_berangkat']))
+            : ($targetDateStr . 'T07:30');
 
         $lkp = !empty($ops['koordinat']) ? $ops['koordinat'] : '03° 58\' 30" S - 122° 35\' 12" E';
         $jarakStr = !empty($ops['jarak']) ? $ops['jarak'] : '10 Nm';
@@ -284,6 +297,9 @@ class HierarchyHelper {
             'target_day' => $hariKe,
             'target_day_number' => $targetDayNumber,
             'target_date_str' => $targetDateStr,
+            'is_hari_pertama' => $isHariPertama,
+            'default_waktu_briefing' => $defaultWaktuBriefing,
+            'default_waktu_mulai_ops' => $defaultWaktuMulaiOps,
             'inherited_unsur' => $inheritedUnsur,
             'inherited_alut' => $inheritedAlut,
             'inherited_cuaca' => $inheritedCuaca,
@@ -296,8 +312,8 @@ class HierarchyHelper {
     }
 
     /**
-     * Computes default form parameters for a NEW Lapbang based on latest document in hierarchy
-     * Hierarchy: Laporan Awal -> Lapbang H.1 -> Renops H.2 -> Lapbang H.2 -> Renops H.3 ...
+     * Computes default form parameters for a NEW Lapbang based on latest document in hierarchy.
+     * Hierarchy: Laporan Awal -> Renops H.1 -> Lapbang H.1 -> Renops H.2 -> Lapbang H.2 -> Renops H.3 ...
      */
     public static function getNextLapbangDefaults(array $ops): array {
         $renopsList = $ops['renops'] ?? [];
@@ -320,11 +336,17 @@ class HierarchyHelper {
 
         $maxRenopsDay = 0;
         $latestRenops = null;
+        $latestAnyRenops = null;
+        $latestAnyRenopsYmd = '';
         foreach ($renopsList as $r) {
             $rTs = !empty($r['tanggal_laporan'])
                 ? TemplateHelper::parseToTimestamp((string)$r['tanggal_laporan'])
-                : TemplateHelper::parseToTimestamp((string)($r['waktu_briefing'] ?? ($r['created_at'] ?? '')));
+                : TemplateHelper::parseToTimestamp((string)($r['waktu_briefing'] ?? ($r['waktu_mulai_ops'] ?? ($r['created_at'] ?? ''))));
             $rDate = date('Y-m-d', $rTs ?: time());
+            if ($rDate >= $latestAnyRenopsYmd) {
+                $latestAnyRenopsYmd = $rDate;
+                $latestAnyRenops = $r;
+            }
             if ($rDate >= $baseYmd) {
                 $day = self::extractDayNumber(TemplateHelper::hitungHariKe($baseDateStr, $rDate));
                 if ($day >= $maxRenopsDay) {
@@ -336,11 +358,17 @@ class HierarchyHelper {
 
         $maxLapbangDay = 0;
         $latestLapbang = null;
+        $latestAnyLapbang = null;
+        $latestAnyLapbangYmd = '';
         foreach ($lapbangList as $l) {
             $lTs = !empty($l['waktu_laporan'])
                 ? TemplateHelper::parseToTimestamp((string)$l['waktu_laporan'])
                 : (!empty($l['tanggal_laporan']) ? TemplateHelper::parseToTimestamp((string)$l['tanggal_laporan']) : null);
             $lDate = date('Y-m-d', $lTs ?: time());
+            if ($lDate >= $latestAnyLapbangYmd) {
+                $latestAnyLapbangYmd = $lDate;
+                $latestAnyLapbang = $l;
+            }
             if ($lDate >= $baseYmd) {
                 $day = self::extractDayNumber(TemplateHelper::hitungHariKe($baseDateStr, $lDate));
                 if ($day >= $maxLapbangDay) {
@@ -361,72 +389,64 @@ class HierarchyHelper {
         $targetDateStr = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($targetDayNumber - 1) . " days", $t1)) : $todayYmd;
         $hariKe = TemplateHelper::hitungHariKe($ops, $targetDateStr);
 
-        $predecessorLabel = 'Laporan Awal';
+        $predecessorLabel = 'Laporan Awal (File Aktif)';
         $inheritedUnsur = $ops['detail_unsur'] ?? [];
         $inheritedAlut = $ops['detail_alut'] ?? [];
         $inheritedCuaca = !empty($ops['cuaca']) ? (string)$ops['cuaca'] : 'Cerah Berawan';
         $inheritedGelombang = (string)($ops['gelombang'] ?? '');
         $inheritedAngin = (string)($ops['angin'] ?? '');
 
-        if ($latestLapbang) {
-            if (!empty($latestLapbang['gelombang'])) {
-                $inheritedGelombang = (string)$latestLapbang['gelombang'];
+        $applySource = static function (array $src) use (&$inheritedUnsur, &$inheritedAlut, &$inheritedCuaca, &$inheritedGelombang, &$inheritedAngin): void {
+            if (!empty($src['detail_unsur']) && is_array($src['detail_unsur'])) {
+                $inheritedUnsur = $src['detail_unsur'];
             }
-            if (!empty($latestLapbang['angin'])) {
-                $inheritedAngin = (string)$latestLapbang['angin'];
+            if (!empty($src['detail_alut']) && is_array($src['detail_alut'])) {
+                $inheritedAlut = $src['detail_alut'];
             }
-        }
+            foreach (['cuaca' => &$inheritedCuaca, 'gelombang' => &$inheritedGelombang, 'angin' => &$inheritedAngin] as $k => &$target) {
+                if (!empty($src[$k])) {
+                    $target = (string)$src[$k];
+                }
+            }
+        };
 
+        // Cari RENOPS paling baru pada hari target (tanpa break dini agar revisi/RENOPS terakhir menang)
         $matchingRenops = null;
         foreach ($renopsList as $r) {
             $rTs = !empty($r['tanggal_laporan'])
                 ? TemplateHelper::parseToTimestamp((string)$r['tanggal_laporan'])
-                : TemplateHelper::parseToTimestamp((string)($r['waktu_briefing'] ?? ($r['created_at'] ?? '')));
+                : TemplateHelper::parseToTimestamp((string)($r['waktu_briefing'] ?? ($r['waktu_mulai_ops'] ?? ($r['created_at'] ?? ''))));
             $rDate = date('Y-m-d', $rTs ?: time());
             if ($rDate >= $baseYmd) {
                 $day = self::extractDayNumber(TemplateHelper::hitungHariKe($baseDateStr, $rDate));
                 if ($day === $targetDayNumber) {
                     $matchingRenops = $r;
-                    break;
                 }
             }
         }
 
+        // Urutan pewaris ketat: RENOPS hari sama -> dokumen terbaru pada siklus aktif (RENOPS lebih baru vs LAPBANG) -> siklus sebelumnya (reopen) -> Laporan Awal
         if ($matchingRenops) {
-            // Inherits directly from Renops of today / same target day
             $predecessorLabel = "Renops {$hariKe}";
-            if (!empty($matchingRenops['detail_unsur']) && is_array($matchingRenops['detail_unsur'])) {
-                $inheritedUnsur = $matchingRenops['detail_unsur'];
-            }
-            if (!empty($matchingRenops['detail_alut']) && is_array($matchingRenops['detail_alut'])) {
-                $inheritedAlut = $matchingRenops['detail_alut'];
-            }
-            if (!empty($matchingRenops['cuaca'])) {
-                $inheritedCuaca = (string)$matchingRenops['cuaca'];
-            }
-            if (!empty($matchingRenops['gelombang'])) {
-                $inheritedGelombang = (string)$matchingRenops['gelombang'];
-            }
-            if (!empty($matchingRenops['angin'])) {
-                $inheritedAngin = (string)$matchingRenops['angin'];
-            }
+            $applySource($matchingRenops);
+        } elseif ($maxRenopsDay > $maxLapbangDay && $latestRenops) {
+            $renDate = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($maxRenopsDay - 1) . " days", $t1)) : $todayYmd;
+            $predecessorLabel = "Renops " . TemplateHelper::hitungHariKe($ops, $renDate);
+            $applySource($latestRenops);
         } elseif ($latestLapbang) {
             $lapDate = $t1 !== false ? date('Y-m-d', strtotime("+ " . ($maxLapbangDay - 1) . " days", $t1)) : $todayYmd;
             $predecessorLabel = "Lapbang " . TemplateHelper::hitungHariKe($ops, $lapDate);
-            if (!empty($latestLapbang['detail_unsur']) && is_array($latestLapbang['detail_unsur'])) {
-                $inheritedUnsur = $latestLapbang['detail_unsur'];
+            $applySource($latestLapbang);
+        } elseif ($latestAnyLapbang || $latestAnyRenops) {
+            if ($latestAnyLapbang && (!$latestAnyRenops || $latestAnyLapbangYmd >= $latestAnyRenopsYmd)) {
+                $refHari = TemplateHelper::hitungHariKe($ops, $latestAnyLapbangYmd, $latestAnyLapbang['hari_ke'] ?? null);
+                $predecessorLabel = "Lapbang {$refHari}";
+                $applySource($latestAnyLapbang);
+            } elseif ($latestAnyRenops) {
+                $refHari = TemplateHelper::hitungHariKe($ops, $latestAnyRenopsYmd, $latestAnyRenops['hari_ke'] ?? null);
+                $predecessorLabel = "Renops {$refHari}";
+                $applySource($latestAnyRenops);
             }
-            if (!empty($latestLapbang['detail_alut']) && is_array($latestLapbang['detail_alut'])) {
-                $inheritedAlut = $latestLapbang['detail_alut'];
-            }
-            if (!empty($latestLapbang['cuaca'])) {
-                $inheritedCuaca = (string)$latestLapbang['cuaca'];
-            }
-        } else {
-            // First report on Day 1: inherits directly from Laporan Awal
-            $predecessorLabel = 'Laporan Awal (File Aktif)';
-            $inheritedUnsur = $ops['detail_unsur'] ?? [];
-            $inheritedAlut = $ops['detail_alut'] ?? [];
         }
 
         $isMaxDay = ($targetDayNumber >= 7);
@@ -440,6 +460,7 @@ class HierarchyHelper {
             'hari_ke' => $hariKe,
             'target_day' => $hariKe,
             'target_day_number' => $targetDayNumber,
+            'target_date_str' => $targetDateStr,
             'inherited_unsur' => $inheritedUnsur,
             'inherited_alut' => $inheritedAlut,
             'inherited_cuaca' => $inheritedCuaca,
@@ -461,10 +482,10 @@ class HierarchyHelper {
     }
 
     /**
-     * Sumber data dasar RENOPS hari N: Laporan Awal (H1) atau pendahulu terdekat
-     * (LAPBANG N-1, LAPBANG < N terbesar, RENOPS < N terbesar, Laporan Awal).
+     * Sumber data dasar RENOPS hari N: Laporan Awal (H1) atau pendahulu kronologis terdekat < N
+     * (pada hari sama LAPBANG mengalahkan RENOPS; hari lebih besar selalu menang; fallback Laporan Awal).
      * Nilai non-kosong milik RENOPS itu sendiri menimpa pendahulu.
-     * @return array{hari_num:int,hari_label:string,sumber:string,lapbang:?array,unsur:array,alut:array,cuaca:string}
+     * @return array{hari_num:int,hari_label:string,sumber:string,lapbang:?array,unsur:array,alut:array,cuaca:string,gelombang:string,angin:string}
      */
     public static function resolveRenopsSources(array $ops, array $renops): array {
         $hari = TemplateHelper::hitungHariKe($ops, $renops['tanggal_laporan'] ?? null, $renops['hari_ke'] ?? null);
@@ -483,6 +504,19 @@ class HierarchyHelper {
             }
         }
 
+        $prevRenops = null;
+        $renDay = 0;
+        if ($n >= 2) {
+            foreach ($ops['renops'] ?? [] as $r) {
+                if ((int)($r['id_renops'] ?? 0) === (int)($renops['id_renops'] ?? -1)) continue;
+                $d = self::absoluteDayNumber(TemplateHelper::hitungHariKe($ops, $r['tanggal_laporan'] ?? null, $r['hari_ke'] ?? null));
+                if ($d < $n && $d >= 1 && $d >= $renDay) {
+                    $renDay = $d;
+                    $prevRenops = $r;
+                }
+            }
+        }
+
         $sumber = 'LAPORAN_AWAL';
         $pred = [
             'unsur' => $arr($ops['detail_unsur'] ?? []),
@@ -492,20 +526,14 @@ class HierarchyHelper {
             'angin' => (string)($ops['angin'] ?? ''),
         ];
         $src = null;
-        if ($n >= 2 && $lapbang) {
-            $sumber = 'LAPBANG';
-            $src = $lapbang;
-        } elseif ($n >= 2) {
-            $best = 0;
-            foreach ($ops['renops'] ?? [] as $r) {
-                if ((int)($r['id_renops'] ?? 0) === (int)($renops['id_renops'] ?? -1)) continue;
-                $d = self::absoluteDayNumber(TemplateHelper::hitungHariKe($ops, $r['tanggal_laporan'] ?? null, $r['hari_ke'] ?? null));
-                if ($d < $n && $d >= $best) {
-                    $best = $d;
-                    $src = $r;
-                }
+        if ($n >= 2) {
+            if ($lapbang && (!$prevRenops || $lapDay >= $renDay)) {
+                $sumber = 'LAPBANG';
+                $src = $lapbang;
+            } elseif ($prevRenops) {
+                $sumber = 'RENOPS';
+                $src = $prevRenops;
             }
-            if ($src) $sumber = 'RENOPS';
         }
         if ($src) {
             foreach (['unsur' => 'detail_unsur', 'alut' => 'detail_alut'] as $k => $col) {

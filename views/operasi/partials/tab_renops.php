@@ -62,13 +62,23 @@ $renopsDocStatus = RenopsDokumenModel::statusByOperasi((int)$id);
         $totalSnapAlut = array_sum(array_map(fn($a) => (int)($a['jumlah_alut'] ?? 1), $snapAlut));
         $sruCount = count($ren['srus'] ?? []);
 
-        $renTgl = !empty($ren['tanggal_laporan']) ? $ren['tanggal_laporan'] : (!empty($ren['waktu_briefing']) ? date('Y-m-d', strtotime($ren['waktu_briefing'])) : date('Y-m-d'));
+        $renTgl = !empty($ren['tanggal_laporan'])
+            ? $ren['tanggal_laporan']
+            : (!empty($ren['waktu_briefing'])
+                ? date('Y-m-d', strtotime($ren['waktu_briefing']))
+                : (!empty($ren['waktu_mulai_ops']) ? date('Y-m-d', strtotime($ren['waktu_mulai_ops'])) : date('Y-m-d')));
         $dynamicHariKe = TemplateHelper::hitungHariKe($operasi, $renTgl, $ren['hari_ke'] ?? null);
+        $renHasBriefing = !RenopsModel::isHariPertama($dynamicHariKe)
+            && !empty($ren['waktu_briefing'])
+            && TemplateHelper::parseToTimestamp((string)$ren['waktu_briefing']) !== null;
         $renForWa = $ren;
         $renForWa['hari_ke'] = $dynamicHariKe;
+        if (!$renHasBriefing) {
+            $renForWa['waktu_briefing'] = null;
+        }
 
         $renWa = $ren['full_text_wa'] ?? '';
-        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false || strpos($renWa, 'Data Korban:') !== false || strpos($renWa, '• Gelombang :') === false) {
+        if (empty($renWa) || strpos($renWa, 'FILE AKTIF') === false || strpos($renWa, 'Data Korban:') !== false || strpos($renWa, '• Gelombang :') === false || (!$renHasBriefing && stripos($renWa, 'Brifing Operasi') !== false)) {
             $renWa = TemplateHelper::generateRenopsWA($operasi, $renForWa, $ren['srus'] ?? [], $operasi['korban'] ?? [], $snapUnsur, $snapAlut);
         } elseif (!empty($ren['hari_ke']) && $ren['hari_ke'] !== $dynamicHariKe) {
             $renWa = preg_replace('/\bRENCANA (?:OPERASI|OPS) SAR\s+H(?:\.?\d+(?:\s*\+\s*\d+)?)/i', 'RENCANA OPS SAR ' . $dynamicHariKe, $renWa, 1) ?? $renWa;
@@ -152,11 +162,13 @@ $renopsDocStatus = RenopsDokumenModel::statusByOperasi((int)$id);
 
           <!-- Collapsible Roll-Out Detail Body -->
           <div id="renops-detail-<?= $renId ?>" class="hidden border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/25 p-4 sm:p-5 space-y-4">
-            <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-3.5 border-b border-slate-200/75 dark:border-slate-800 text-xs">
-              <div>
-                <dt class="text-[11px] text-slate-500 dark:text-slate-400">Waktu Briefing</dt>
-                <dd class="opsd-num mt-0.5 font-mono font-semibold text-slate-900 dark:text-white"><?= TemplateHelper::formatTW($ren['waktu_briefing']) ?></dd>
-              </div>
+            <dl class="grid grid-cols-1 <?= $renHasBriefing ? 'sm:grid-cols-3' : 'sm:grid-cols-2' ?> gap-4 pb-3.5 border-b border-slate-200/75 dark:border-slate-800 text-xs">
+              <?php if ($renHasBriefing): ?>
+                <div>
+                  <dt class="text-[11px] text-slate-500 dark:text-slate-400">Waktu Briefing</dt>
+                  <dd class="opsd-num mt-0.5 font-mono font-semibold text-slate-900 dark:text-white"><?= TemplateHelper::formatTW($ren['waktu_briefing']) ?></dd>
+                </div>
+              <?php endif; ?>
               <div>
                 <dt class="text-[11px] text-slate-500 dark:text-slate-400">Mulai Operasi</dt>
                 <dd class="opsd-num mt-0.5 font-mono font-semibold opsd-accent-text"><?= TemplateHelper::formatTW($ren['waktu_mulai_ops']) ?></dd>

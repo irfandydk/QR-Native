@@ -719,6 +719,12 @@ class OperasiController extends BaseController {
 
             $tglInput = $_POST['tanggal_laporan'] ?? date('Y-m-d');
             $_POST['hari_ke'] = TemplateHelper::hitungHariKe($operasi, $tglInput);
+            if (RenopsModel::isHariPertama($_POST['hari_ke'])) {
+                $_POST['waktu_briefing'] = null;
+                if (empty($_POST['waktu_mulai_ops']) && !empty($operasi['waktu_berangkat'])) {
+                    $_POST['waktu_mulai_ops'] = $operasi['waktu_berangkat'];
+                }
+            }
 
             try {
                 if ($editMode) {
@@ -742,11 +748,20 @@ class OperasiController extends BaseController {
         $gisBundle = GisModel::getOperationBundle($idOperasi, true);
         $baseDateOps = TemplateHelper::getWaktuMulaiAktual($operasi);
 
+        $waktuBerangkatOps = !empty($operasi['waktu_berangkat'])
+            ? date('Y-m-d\TH:i', strtotime((string)$operasi['waktu_berangkat']))
+            : '';
+
         if ($editMode) {
             $tanggalLaporan = $renops['tanggal_laporan'] ?? date('Y-m-d');
             $hariKe = TemplateHelper::hitungHariKe($operasi, $tanggalLaporan);
-            $waktuBriefing = !empty($renops['waktu_briefing']) ? date('Y-m-d\TH:i', strtotime($renops['waktu_briefing'])) : date('Y-m-d\T07:00');
-            $waktuMulaiOps = !empty($renops['waktu_mulai_ops']) ? date('Y-m-d\TH:i', strtotime($renops['waktu_mulai_ops'])) : date('Y-m-d\T07:30');
+            $isHariPertama = RenopsModel::isHariPertama($hariKe);
+            $waktuBriefing = $isHariPertama
+                ? ''
+                : (!empty($renops['waktu_briefing']) ? date('Y-m-d\TH:i', strtotime((string)$renops['waktu_briefing'])) : ($tanggalLaporan . 'T07:00'));
+            $waktuMulaiOps = !empty($renops['waktu_mulai_ops'])
+                ? date('Y-m-d\TH:i', strtotime((string)$renops['waktu_mulai_ops']))
+                : ($isHariPertama && $waktuBerangkatOps !== '' ? $waktuBerangkatOps : ($tanggalLaporan . 'T07:30'));
             $cuaca = $renops['cuaca'] ?? ($operasi['cuaca'] ?: 'Cerah Berawan');
             $gelombang = $renops['gelombang'] ?? ($operasi['gelombang'] ?? '');
             $angin = $renops['angin'] ?? ($operasi['angin'] ?? '');
@@ -757,24 +772,36 @@ class OperasiController extends BaseController {
             $nextRenops = HierarchyHelper::getNextRenopsDefaults($operasi);
             $tanggalLaporan = $nextRenops['target_date_str'] ?? date('Y-m-d');
             $hariKe = $nextRenops['hari_ke'] ?? TemplateHelper::hitungHariKe($operasi, $tanggalLaporan);
-            $waktuBriefing = $tanggalLaporan . 'T07:00';
-            $waktuMulaiOps = $tanggalLaporan . 'T07:30';
+            $isHariPertama = RenopsModel::isHariPertama($hariKe);
+            $waktuBriefing = $isHariPertama ? '' : ($tanggalLaporan . 'T07:00');
+            $waktuMulaiOps = ($isHariPertama && $waktuBerangkatOps !== '')
+                ? $waktuBerangkatOps
+                : ($tanggalLaporan . 'T07:30');
             $cuaca = ($nextRenops['inherited_cuaca'] ?? '') !== '' ? $nextRenops['inherited_cuaca'] : ($operasi['cuaca'] ?: 'Cerah Berawan');
             $gelombang = ($nextRenops['inherited_gelombang'] ?? '') !== '' ? $nextRenops['inherited_gelombang'] : ($operasi['gelombang'] ?? '');
             $angin = ($nextRenops['inherited_angin'] ?? '') !== '' ? $nextRenops['inherited_angin'] : ($operasi['angin'] ?? '');
             $initialUnsurData = !empty($nextRenops['inherited_unsur']) ? $nextRenops['inherited_unsur'] : (!empty($operasi['detail_unsur']) ? $operasi['detail_unsur'] : []);
             $initialAlutData = !empty($nextRenops['inherited_alut']) ? $nextRenops['inherited_alut'] : (!empty($operasi['detail_alut']) ? $operasi['detail_alut'] : []);
 
-            // Auto-detect initial SRUs from GIS plotting if available
-            $plottingPolys = !empty($gisBundle['polygons']) ? $gisBundle['polygons'] : [];
+            // Auto-detect initial SRUs ONLY from polygons owned by THIS operation (never Base Map KPP boundary polygons)
+            $plottingPolys = array_values(array_filter(
+                !empty($gisBundle['polygons']) ? $gisBundle['polygons'] : [],
+                static fn($poly): bool => is_array($poly) && (int)($poly['id_operasi'] ?? 0) === $idOperasi
+            ));
             $plottingPatterns = !empty($gisBundle['searchPatterns']) ? $gisBundle['searchPatterns'] : [];
+
+            $alphaLabel = static function (int $zeroBased): string {
+                $n = max(0, $zeroBased);
+                $letter = chr(65 + ($n % 26));
+                return $n >= 26 ? $letter . (intdiv($n, 26) + 1) : $letter;
+            };
 
             if (!empty($plottingPolys)) {
                 $initialSrus = [];
                 $idx = 0;
                 foreach ($plottingPolys as $poly) {
                     $idx++;
-                    $name = !empty($poly['name']) ? $poly['name'] : ("Sektor " . chr(64 + $idx));
+                    $name = !empty($poly['name']) ? $poly['name'] : ("Sektor " . $alphaLabel($idx - 1));
                     $shapeType = $poly['shapeType'] ?? 'polygon';
                     $areaNm2 = 0.0;
                     $coordsText = '';
@@ -794,7 +821,7 @@ class OperasiController extends BaseController {
                         $coordLines = [];
                         if (!empty($poly['points']) && is_array($poly['points'])) {
                             foreach ($poly['points'] as $pIdx => $pt) {
-                                $lbl = !empty($pt['label']) ? $pt['label'] : ("Titik " . chr(65 + $pIdx));
+                                $lbl = !empty($pt['label']) ? $pt['label'] : ("Titik " . $alphaLabel((int)$pIdx));
                                 $dms = TemplateHelper::formatDmsPair($pt['lat'] ?? 0, $pt['lng'] ?? 0);
                                 $coordLines[] = "{$lbl}: {$dms}";
                             }
@@ -805,7 +832,7 @@ class OperasiController extends BaseController {
                         $coordLines = [];
                         if (!empty($poly['points']) && is_array($poly['points'])) {
                             foreach ($poly['points'] as $pIdx => $pt) {
-                                $lbl = !empty($pt['label']) ? $pt['label'] : ("Titik " . chr(65 + $pIdx));
+                                $lbl = !empty($pt['label']) ? $pt['label'] : ("Titik " . $alphaLabel((int)$pIdx));
                                 $dms = TemplateHelper::formatDmsPair($pt['lat'] ?? 0, $pt['lng'] ?? 0);
                                 $coordLines[] = "{$lbl}: {$dms}";
                             }
@@ -886,6 +913,8 @@ class OperasiController extends BaseController {
             'baseDateOps' => $baseDateOps,
             'tanggalLaporan' => $tanggalLaporan,
             'hariKe' => $hariKe,
+            'isHariPertama' => $isHariPertama,
+            'waktuBerangkatOps' => $waktuBerangkatOps,
             'waktuBriefing' => $waktuBriefing,
             'waktuMulaiOps' => $waktuMulaiOps,
             'cuaca' => $cuaca,

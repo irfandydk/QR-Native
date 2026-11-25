@@ -40,11 +40,26 @@ class RenopsModel {
                     $db->exec($alterSql);
                 }
             }
+            $briefingCol = $db->query("SHOW COLUMNS FROM Renops LIKE 'waktu_briefing'")->fetch(PDO::FETCH_ASSOC);
+            if ($briefingCol && strtoupper((string)($briefingCol['Null'] ?? 'NO')) !== 'YES') {
+                $db->exec("ALTER TABLE Renops MODIFY COLUMN waktu_briefing DATETIME NULL DEFAULT NULL");
+            }
             self::$weatherColsAvailable = true;
             self::$satuanJarakColAvailable = true;
         } catch (Throwable $e) {
             error_log("[RenopsModel Schema Check] " . $e->getMessage());
         }
+    }
+
+    /**
+     * Memeriksa apakah hari_ke merujuk pada Hari ke-1 asli (H.1 / H1 / 1), bukan hari perpanjangan seperti "H7 + 1".
+     */
+    public static function isHariPertama(?string $hariKe): bool {
+        $clean = strtoupper(trim((string)($hariKe ?? '')));
+        if ($clean === '') {
+            return false;
+        }
+        return (bool)preg_match('/^(?:H[\.\-\s]*)?1$/', $clean);
     }
 
     private static function hasSatuanJarakColumn(PDO $db): bool {
@@ -190,7 +205,17 @@ class RenopsModel {
     public static function buildPreviewWa(array $ops, array $data, ?array $existing = null): string {
         [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $existing);
         [$cuaca, $gelombang, $angin] = OperasiModel::resolveWeatherFields($ops, $data, $existing);
+        $rawHari = trim((string)($data['hari_ke'] ?? ($existing['hari_ke'] ?? 'H.1')));
+        $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
+        $isH1 = self::isHariPertama($hariKe);
+        $waktuBriefing = $isH1 ? null : ($data['waktu_briefing'] ?? ($existing['waktu_briefing'] ?? null));
+        $waktuMulaiOps = !empty($data['waktu_mulai_ops'])
+            ? $data['waktu_mulai_ops']
+            : ($existing['waktu_mulai_ops'] ?? ($isH1 && !empty($ops['waktu_berangkat']) ? $ops['waktu_berangkat'] : null));
         $dataForWa = array_merge($data, [
+            'hari_ke' => $hariKe,
+            'waktu_briefing' => $waktuBriefing,
+            'waktu_mulai_ops' => $waktuMulaiOps,
             'cuaca' => $cuaca,
             'gelombang' => $gelombang,
             'angin' => $angin,
@@ -213,7 +238,34 @@ class RenopsModel {
             $srus = $data['srus'] ?? [];
             [$unsur, $alut] = self::resolveUnsurAlut($ops, $data);
             [$cuaca, $gelombang, $angin] = OperasiModel::resolveWeatherFields($ops, $data);
+
+            $now = date('Y-m-d H:i:s');
+            // ISSUE-RENOPS-04: Normalisasi format tanggal dan waktu
+            $tglLaporan = !empty($data['tanggal_laporan']) ? substr($data['tanggal_laporan'], 0, 10) : date('Y-m-d');
+            $rawHari = trim((string)($data['hari_ke'] ?? 'H.1'));
+            $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
+            $isH1 = self::isHariPertama($hariKe);
+
+            if ($isH1) {
+                // Khusus RENOPS H.1: tanpa waktu briefing; waktu mulai default dari waktu berangkat Laporan Awal
+                $waktuBriefing = null;
+                $rawMulai = !empty($data['waktu_mulai_ops'])
+                    ? (string)$data['waktu_mulai_ops']
+                    : (!empty($ops['waktu_berangkat']) ? (string)$ops['waktu_berangkat'] : $now);
+                $waktuMulaiOps = OperasiModel::normalizeDateTime($rawMulai);
+            } else {
+                $rawBriefing = array_key_exists('waktu_briefing', $data) ? $data['waktu_briefing'] : $now;
+                $waktuBriefing = ($rawBriefing === null || trim((string)$rawBriefing) === '')
+                    ? null
+                    : OperasiModel::normalizeDateTime((string)$rawBriefing, true);
+                $waktuMulaiOps = OperasiModel::normalizeDateTime($data['waktu_mulai_ops'] ?? $now);
+            }
+
             $dataForWa = array_merge($data, [
+                'hari_ke' => $hariKe,
+                'tanggal_laporan' => $tglLaporan,
+                'waktu_briefing' => $waktuBriefing,
+                'waktu_mulai_ops' => $waktuMulaiOps,
                 'cuaca' => $cuaca,
                 'gelombang' => $gelombang,
                 'angin' => $angin,
@@ -245,15 +297,6 @@ class RenopsModel {
 
             $placeholders = array_map(static fn(string $col): string => ':' . $col, $cols);
             $stmt = $db->prepare('INSERT INTO Renops (' . implode(', ', $cols) . ') VALUES (' . implode(', ', $placeholders) . ')');
-
-            $now = date('Y-m-d H:i:s');
-            // ISSUE-RENOPS-04: Normalisasi format tanggal dan waktu
-            $tglLaporan = !empty($data['tanggal_laporan']) ? substr($data['tanggal_laporan'], 0, 10) : date('Y-m-d');
-            $waktuBriefing = OperasiModel::normalizeDateTime($data['waktu_briefing'] ?? $now);
-            $waktuMulaiOps = OperasiModel::normalizeDateTime($data['waktu_mulai_ops'] ?? $now);
-
-            $rawHari = trim((string)($data['hari_ke'] ?? 'H.1'));
-            $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
 
             $params = [
                 ':id_operasi' => (int)$data['id_operasi'],
@@ -328,7 +371,28 @@ class RenopsModel {
             $srus = $data['srus'] ?? $renops['srus'];
             [$unsur, $alut] = self::resolveUnsurAlut($ops, $data, $renops);
             [$cuaca, $gelombang, $angin] = OperasiModel::resolveWeatherFields($ops, $data, $renops);
+
+            // ISSUE-RENOPS-04: Normalisasi format tanggal dan waktu
+            $tglLaporan = !empty($data['tanggal_laporan']) ? substr($data['tanggal_laporan'], 0, 10) : ($renops['tanggal_laporan'] ?? date('Y-m-d'));
+            $rawHari = trim((string)($data['hari_ke'] ?? $renops['hari_ke']));
+            $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
+            $isH1 = self::isHariPertama($hariKe);
+
+            if ($isH1) {
+                $waktuBriefing = null;
+            } else {
+                $rawBriefing = array_key_exists('waktu_briefing', $data) ? $data['waktu_briefing'] : ($renops['waktu_briefing'] ?? null);
+                $waktuBriefing = ($rawBriefing === null || trim((string)$rawBriefing) === '')
+                    ? null
+                    : OperasiModel::normalizeDateTime((string)$rawBriefing, true);
+            }
+            $waktuMulaiOps = OperasiModel::normalizeDateTime($data['waktu_mulai_ops'] ?? ($renops['waktu_mulai_ops'] ?? ($ops['waktu_berangkat'] ?? null)));
+
             $dataForWa = array_merge($data, [
+                'hari_ke' => $hariKe,
+                'tanggal_laporan' => $tglLaporan,
+                'waktu_briefing' => $waktuBriefing,
+                'waktu_mulai_ops' => $waktuMulaiOps,
                 'cuaca' => $cuaca,
                 'gelombang' => $gelombang,
                 'angin' => $angin,
@@ -339,11 +403,6 @@ class RenopsModel {
             $alutText = OperasiModel::formatAlutText($alut, $data['alut_text'] ?? ($renops['alut_text'] ?: ($ops['alut_palsar'] ?? '')));
 
             $fullTextWa = TemplateHelper::generateRenopsWA($ops, $dataForWa, $srus, $ops['korban'], $unsur, $alut);
-
-            // ISSUE-RENOPS-04: Normalisasi format tanggal dan waktu
-            $tglLaporan = !empty($data['tanggal_laporan']) ? substr($data['tanggal_laporan'], 0, 10) : ($renops['tanggal_laporan'] ?? date('Y-m-d'));
-            $waktuBriefing = OperasiModel::normalizeDateTime($data['waktu_briefing'] ?? $renops['waktu_briefing']);
-            $waktuMulaiOps = OperasiModel::normalizeDateTime($data['waktu_mulai_ops'] ?? $renops['waktu_mulai_ops']);
 
             $satuanJarak = in_array(strtoupper(trim((string)($data['satuan_jarak'] ?? ($renops['satuan_jarak'] ?? 'NM')))), ['KM', 'M', 'NM']) ? strtoupper(trim((string)($data['satuan_jarak'] ?? ($renops['satuan_jarak'] ?? 'NM')))) : 'NM';
             $hasSatuanCol = self::hasSatuanJarakColumn($db);
@@ -365,9 +424,6 @@ class RenopsModel {
             }
             array_push($sets, 'unsur_text = :unsur_text', 'alut_text = :alut_text', 'detail_unsur = :detail_unsur', 'detail_alut = :detail_alut', 'full_text_wa = :full_text_wa');
             $stmt = $db->prepare('UPDATE Renops SET ' . implode(', ', $sets) . ' WHERE id_renops = :id');
-
-            $rawHari = trim((string)($data['hari_ke'] ?? $renops['hari_ke']));
-            $hariKe = is_numeric($rawHari) ? "H.{$rawHari}" : strtoupper($rawHari);
 
             $updateParams = [
                 ':id' => $id,

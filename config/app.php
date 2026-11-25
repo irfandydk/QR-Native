@@ -403,7 +403,15 @@ function e(mixed $value): string {
  * Automatically escapes HTML tags, quotes, and ampersands to prevent XSS breakout.
  */
 function jsonSafe(mixed $value, int $flags = 0): string {
-    return json_encode($value, $flags | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+    $encoded = json_encode(
+        $value,
+        $flags | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE
+    );
+    if ($encoded === false) {
+        error_log('[QR-SAR jsonSafe] json_encode failed: ' . json_last_error_msg());
+        return 'null';
+    }
+    return $encoded;
 }
 
 /**

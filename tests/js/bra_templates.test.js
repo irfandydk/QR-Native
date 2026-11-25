@@ -369,3 +369,15 @@ test('renops and penutupan BRA propagate angin/gelombang and penutupan deduplica
   assert.equal((dp.sections[0].isi.match(/DEBRIEFING/g) || []).length, 1);
   assert.match(dp.sections[1].isi, /1\. CUACA : CERAH\n2\. ANGIN : TIMUR 5 KNOT\n3\. GELOMBANG : 0\.5 M/);
 });
+
+test('renops H.1 BRA omits briefing and uses waktu_mulai_ops or waktu_berangkat', () => {
+  const renH1 = {
+    id_renops: 10, hari_ke: 'H.1', waktu_briefing: null, waktu_mulai_ops: '2026-10-28 17:30:00', cuaca: 'Cerah',
+    detail_unsur: [], detail_alut: [],
+    srus: [{ nama_sru: 'SRU 1', koordinat_area: AREA, luas_area: '4 NM²', pola_pencarian: 'Parallel Track', track_spacing: '0.5 NM' }]
+  };
+  const dH1 = T.buildRenops(op, renH1);
+  assert.match(dH1.perihal, /HARI KE 1/);
+  assert.doesNotMatch(dH1.sections[0].isi, /BRIEFING/);
+  assert.match(dH1.sections[0].isi, /^PD TW 1028 1730 H TIM SAR GABUNGAN MELAKSANAKAN RENCANA OPERASI SAR HARI KE 1/);
+});

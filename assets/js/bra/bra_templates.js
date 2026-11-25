@@ -265,8 +265,14 @@
   function buildRenops(op, renops) {
     const x = hariNumber(renops.hari_ke), nama = kejadianOf(op);
     const srus = renops.srus || [];
+    const twBriefing = militaryTime(renops.waktu_briefing);
+    const twMulai = militaryTime(renops.waktu_mulai_ops || (x === 1 ? op.waktu_berangkat : ''));
+    const isH1 = x === 1 && !/\+/.test(String(renops.hari_ke || ''));
+    const intro = (!isH1 && twBriefing)
+      ? `PD TW ${twBriefing} TIM SAR GABUNGAN MELAKSANAKAN BRIEFING RENCANA OPERASI SAR HARI KE ${x} TERHADAP ${nama} DENGAN WAKTU MULAI PERGERAKAN TW ${twMulai}.`
+      : `PD TW ${twMulai} TIM SAR GABUNGAN MELAKSANAKAN RENCANA OPERASI SAR HARI KE ${x} TERHADAP ${nama}.`;
     return draft(`RENCANA OPERASI SAR HARI KE ${x} TERHADAP ${nama}.`, KABASARNAS, '', 'LANJUTAN', [
-      toSentence(`PD TW ${militaryTime(renops.waktu_briefing)} TIM SAR GABUNGAN MELAKSANAKAN BRIEFING RENCANA OPERASI SAR HARI KE ${x} TERHADAP ${nama} DENGAN WAKTU MULAI PERGERAKAN TW ${militaryTime(renops.waktu_mulai_ops)}.`),
+      toSentence(intro),
       srus.length ? 'PEMBAGIAN SRU TTK DUA\n' + srus.map((s, i) => sruBlock(s, i + 1)).join('\n') : '',
       listsCcc(renops, op, weatherOf(renops, op)),
       'LAPORAN PERKEMBANGAN MENYUSUL KMA KA KPP KENDARI SELAKU SMC KRM TTK HBS'

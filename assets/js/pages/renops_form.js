@@ -8,8 +8,17 @@ const idOperasi = renopsCfg.idOperasi || 0;
 const isRenopsEditMode = !!renopsCfg.editMode;
 const RENOPS_DRAFT_KEY = 'qr_sar_renops_draft_' + idOperasi;
 const OPERASI_START_DATE = renopsCfg.operasiStartDate || null;
+const OPERASI_WAKTU_BERANGKAT = renopsCfg.operasiWaktuBerangkat || '';
 const OPERASI_REOPEN_DATE = renopsCfg.operasiReopenDate || null;
 const OPERASI_BASE_HARI_REOPEN = renopsCfg.operasiBaseHariReopen || 0;
+
+function isRenopsHariPertama(hariStr) {
+  return /^(?:H[\.\-\s]*)?1$/i.test(String(hariStr || '').trim());
+}
+
+function getOperationPolygons() {
+  return (SAR_GIS_BUNDLE.polygons || []).filter((p) => p && Number(p.id_operasi) > 0);
+}
 
 // Escape HTML utility (Unified with QrSarUtils)
 const escapeHtml = (window.QrSarUtils && window.QrSarUtils.escapeHtml) || function(str) {
@@ -265,11 +274,12 @@ function renderSruList() {
   currentSrus.forEach((s, idx) => {
     const isManualMode = s.id_polygon === 'manual';
 
-    // Auto-detect and sync area, pattern, and sweep from GIS plotting if explicitly linked or matching named sector
+    // Auto-detect and sync area, pattern, and sweep from GIS plotting if explicitly linked or matching named sector (operation polygons only for name match)
+    const opPolygons = getOperationPolygons();
     if (!isManualMode && (!s.luas_area || s.luas_area === '10 Nm²' || s.luas_area === '10 NM²' || s.luas_area.trim() === '')) {
       const matchedPoly = (SAR_GIS_BUNDLE.polygons || []).find((p) => {
         if (s.id_polygon && String(p.id) === String(s.id_polygon)) return true;
-        if (!s.id_polygon && s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())) return true;
+        if (!s.id_polygon && Number(p.id_operasi) > 0 && s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())) return true;
         return false;
       });
       if (matchedPoly) {
@@ -313,21 +323,25 @@ function renderSruList() {
     const sapuanVal = s.total_sapuan || '';
 
     const polygonsList = SAR_GIS_BUNDLE.polygons || [];
+    const basePolygons = polygonsList.filter((p) => !p || !(Number(p.id_operasi) > 0));
     const isLinkedGis = !isManualMode && (
       (s.id_polygon && polygonsList.some(p => String(p.id) === String(s.id_polygon))) ||
-      (!s.id_polygon && polygonsList.some(p => s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())))
+      (!s.id_polygon && opPolygons.some(p => s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())))
     );
 
+    const renderPolyOption = (p) => {
+      const aNum = calculatePolygonAreaNm2(p);
+      const areaDisplay = formatRenopsAreaShort(aNum);
+      const isMatched = !isManualMode && (
+        (s.id_polygon && String(s.id_polygon) === String(p.id)) ||
+        (!s.id_polygon && Number(p.id_operasi) > 0 && s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase()))
+      );
+      return `<option value="${escapeHtml(p.id)}" ${isMatched ? 'selected' : ''}>${escapeHtml(p.name)} (${areaDisplay})</option>`;
+    };
+
     const polyOptionsHtml = `<option value="" ${!isLinkedGis ? 'selected' : ''}>-- Tanpa Sektor GIS (Input Manual) --</option>` +
-      polygonsList.map(p => {
-        const aNum = calculatePolygonAreaNm2(p);
-        const areaDisplay = formatRenopsAreaShort(aNum);
-        const isMatched = !isManualMode && (
-          (s.id_polygon && String(s.id_polygon) === String(p.id)) ||
-          (!s.id_polygon && s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase()))
-        );
-        return `<option value="${escapeHtml(p.id)}" ${isMatched ? 'selected' : ''}>${escapeHtml(p.name)} (${areaDisplay})</option>`;
-      }).join('');
+      opPolygons.map(renderPolyOption).join('') +
+      (basePolygons.length ? `<optgroup label="Base Map / Wilayah Kerja">${basePolygons.map(renderPolyOption).join('')}</optgroup>` : '');
 
     card.innerHTML = `
       <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-200/80 dark:border-slate-800">
@@ -502,7 +516,7 @@ window.setSruManualSapuan = setSruManualSapuan;
 
 // Tombol "Sinkronkan Sektor Plotting ke SRU": alur yang sama dengan "Impor per SRU" (menggabung, SRU manual tetap).
 async function syncAllPlottingSectorsToSru() {
-  if ((SAR_GIS_BUNDLE.polygons || []).length === 0) {
+  if (getOperationPolygons().length === 0) {
     await refreshGisBundle(false);
   }
   importAllPolygonsToSrus();
@@ -1475,9 +1489,10 @@ function getPatternDetails(matchedPattern) {
   return { pola, totalSapuan, spacing, detailText };
 }
 
-// ── Impor per SRU: satu search area = satu SRU; pola & rute dipasangkan lewat polygonId (RenopsImport) ──
-function gisImportItems() {
-  return RenopsImport.checklist(SAR_GIS_BUNDLE.polygons || [], SAR_GIS_BUNDLE.searchPatterns || [], SAR_GIS_BUNDLE.routes || []);
+// ── Impor per SRU: satu search area operasi = satu SRU; pola & rute dipasangkan lewat polygonId (RenopsImport) ──
+function gisImportItems(includeBaseMap = false) {
+  const polys = includeBaseMap ? (SAR_GIS_BUNDLE.polygons || []) : getOperationPolygons();
+  return RenopsImport.checklist(polys, SAR_GIS_BUNDLE.searchPatterns || [], SAR_GIS_BUNDLE.routes || []);
 }
 
 // Nilai bawaan baris SRU baru hasil impor (baris yang sudah ada tidak diberi bawaan: isian manual tetap).
@@ -1545,7 +1560,7 @@ function importAllPolygonsToSrus() {
 }
 
 function importPolygonToSru(polyId, targetIdx) {
-  const item = gisImportItems().find((it) => String(it.id) === String(polyId));
+  const item = gisImportItems(true).find((it) => String(it.id) === String(polyId));
   if (!item) return;
   currentSrus[targetIdx] = Object.assign(currentSrus[targetIdx] || { ...SRU_DEFAULTS }, describeAreaForSru(item));
   renderSruList();
@@ -1556,7 +1571,7 @@ function importPolygonToSru(polyId, targetIdx) {
 }
 
 function importPolygonToNewSru(polyId) {
-  const item = gisImportItems().find((it) => String(it.id) === String(polyId));
+  const item = gisImportItems(true).find((it) => String(it.id) === String(polyId));
   if (!item) return;
   currentSrus.push({ ...SRU_DEFAULTS, ...describeAreaForSru(item) });
   renderSruList();
@@ -1770,9 +1785,54 @@ document.addEventListener('input', (e) => {
 // Real-time Day Recalculation & Schedule Alignment Based on Input Date
 // OPERASI_START_DATE, OPERASI_REOPEN_DATE, OPERASI_BASE_HARI_REOPEN initialized above from renopsCfg
 
+function syncRenopsHariPertamaUI(isInitial = false) {
+  const hariVal = document.getElementById('renops_hari_ke')?.value || '';
+  const isH1 = isRenopsHariPertama(hariVal);
+  const tglInput = document.getElementById('renops_tanggal_laporan')?.value || '';
+  const gridEl = document.getElementById('renops-schedule-grid');
+  const briefingWrap = document.getElementById('field-renops-waktu-briefing');
+  const briefingEl = document.getElementById('renops_waktu_briefing');
+  const mulaiEl = document.getElementById('renops_waktu_mulai_ops');
+
+  if (gridEl) {
+    gridEl.classList.toggle('lg:grid-cols-3', isH1);
+    gridEl.classList.toggle('lg:grid-cols-4', !isH1);
+  }
+  if (briefingWrap) {
+    briefingWrap.hidden = isH1;
+  }
+  if (briefingEl) {
+    if (isH1) {
+      briefingEl.required = false;
+      briefingEl.disabled = true;
+      briefingEl.value = '';
+    } else {
+      briefingEl.disabled = false;
+      briefingEl.required = true;
+      if (!briefingEl.value && tglInput) {
+        briefingEl.value = `${tglInput}T07:00`;
+      }
+    }
+  }
+  if (mulaiEl && !isRenopsEditMode) {
+    if (isH1 && OPERASI_WAKTU_BERANGKAT) {
+      if (!isInitial || !mulaiEl.value) {
+        mulaiEl.value = OPERASI_WAKTU_BERANGKAT;
+      }
+    } else if (!isH1 && tglInput) {
+      if (!mulaiEl.value || (OPERASI_WAKTU_BERANGKAT && mulaiEl.value === OPERASI_WAKTU_BERANGKAT)) {
+        mulaiEl.value = `${tglInput}T07:30`;
+      }
+    }
+  }
+}
+
 function recalculateRenopsHariKe() {
   const tglInput = document.getElementById('renops_tanggal_laporan')?.value;
-  if (!tglInput || !OPERASI_START_DATE) return;
+  if (!tglInput || !OPERASI_START_DATE) {
+    syncRenopsHariPertamaUI(true);
+    return;
+  }
   const t2 = new Date(tglInput + 'T00:00:00');
   if (isNaN(t2.getTime())) return;
 
@@ -1784,6 +1844,7 @@ function recalculateRenopsHariKe() {
     if (!isNaN(tReopen.getTime()) && t2 >= tReopen) {
       const extDay = Math.max(1, Math.floor((t2 - tReopen) / 86400000) + 1);
       inputHari.value = 'H' + OPERASI_BASE_HARI_REOPEN + ' + ' + extDay;
+      syncRenopsHariPertamaUI(false);
       return;
     }
   }
@@ -1793,21 +1854,28 @@ function recalculateRenopsHariKe() {
   const diffDays = Math.floor((t2 - t1) / 86400000);
   const dayNum = Math.max(1, diffDays + 1);
   inputHari.value = 'H.' + dayNum;
+  syncRenopsHariPertamaUI(false);
 }
 
 function syncRenopsScheduleDates() {
   const tglInput = document.getElementById('renops_tanggal_laporan')?.value;
   if (!tglInput) return;
 
+  const isH1 = isRenopsHariPertama(document.getElementById('renops_hari_ke')?.value || '');
   const briefingEl = document.getElementById('renops_waktu_briefing');
-  if (briefingEl && briefingEl.value) {
-    const timePart = briefingEl.value.split('T')[1] || '07:00';
+  if (briefingEl && !isH1) {
+    const timePart = (briefingEl.value && briefingEl.value.includes('T')) ? briefingEl.value.split('T')[1] : '07:00';
     briefingEl.value = `${tglInput}T${timePart}`;
   }
   const mulaiEl = document.getElementById('renops_waktu_mulai_ops');
-  if (mulaiEl && mulaiEl.value) {
-    const timePart = mulaiEl.value.split('T')[1] || '07:30';
-    mulaiEl.value = `${tglInput}T${timePart}`;
+  if (mulaiEl) {
+    if (isH1 && OPERASI_WAKTU_BERANGKAT && !isRenopsEditMode) {
+      const brgktParts = OPERASI_WAKTU_BERANGKAT.split('T');
+      mulaiEl.value = `${tglInput}T${brgktParts[1] || '07:30'}`;
+    } else if (mulaiEl.value) {
+      const timePart = mulaiEl.value.split('T')[1] || '07:30';
+      mulaiEl.value = `${tglInput}T${timePart}`;
+    }
   }
 }
 
@@ -1819,6 +1887,8 @@ document.getElementById('renops_tanggal_laporan')?.addEventListener('change', ()
   recalculateRenopsHariKe();
   syncRenopsScheduleDates();
 });
+document.getElementById('renops_hari_ke')?.addEventListener('input', () => syncRenopsHariPertamaUI(false));
+document.getElementById('renops_hari_ke')?.addEventListener('change', () => syncRenopsHariPertamaUI(false));
 
 // Ensure all dynamic JSON fields are synced and draft is cleared on submission
 document.getElementById('form-renops')?.addEventListener('submit', function() {
@@ -1831,11 +1901,13 @@ document.getElementById('form-renops')?.addEventListener('submit', function() {
 document.addEventListener('DOMContentLoaded', () => {
   initRenopsUnitSwitcher();
   recalculateRenopsHariKe();
+  syncRenopsHariPertamaUI(true);
   renderSruList();
   renderUnsurList();
   renderAlutList();
   restoreRenopsDraft();
   recalculateRenopsHariKe();
+  syncRenopsHariPertamaUI(true);
 });
 
 // Expose public API for external scripts, testing & integration
