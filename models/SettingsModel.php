@@ -314,16 +314,17 @@ class SettingsModel {
         try {
             $newHash = password_hash($newPass, PASSWORD_DEFAULT);
 
-            // 1. Simpan di AppSettings untuk kompatibilitas legacy fallback
-            if ($roleUpper === 'ADMIN') {
+            $targetId = $targetUser['id'] ?? (($roleUpper === 'ADMIN') ? 'USR-ADMIN' : 'USR-USER');
+
+            // 1. Simpan di AppSettings untuk kompatibilitas legacy fallback (hanya untuk akun bawaan)
+            if ($targetId === 'USR-ADMIN') {
                 $db->prepare("UPDATE AppSettings SET admin_password = :p WHERE id = 1")->execute([':p' => $newHash]);
-            } else {
+            } elseif ($targetId === 'USR-USER') {
                 $db->prepare("UPDATE AppSettings SET user_password = :p WHERE id = 1")->execute([':p' => $newHash]);
             }
 
             // 2. Perbarui tabel Users secara presisi (HANYA id target, tanpa menimpa akun lain yang satu role)
             UserModel::ensureTableExists();
-            $targetId = $targetUser['id'] ?? (($roleUpper === 'ADMIN') ? 'USR-ADMIN' : 'USR-USER');
             $db->prepare("UPDATE `Users` SET password_hash = :p, updated_at = :now WHERE id = :id")->execute([
                 ':p' => $newHash,
                 ':now' => date('Y-m-d H:i:s'),

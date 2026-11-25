@@ -213,11 +213,19 @@ $openOpsCount = class_exists('OperasiModel') ? OperasiModel::countOpen() : 0;
     </div>
 
     <!-- User Session & Logout -->
+    <?php
+      $sidebarAvatarUrl = class_exists('UserModel') ? UserModel::resolveAvatarDisplayUrl((string)($currentUser['avatar_url'] ?? '')) : '';
+      $sidebarProfileTitle = (($currentUser['role'] ?? '') === 'USER') ? 'Profil & Foto Akun' : 'Pengaturan Akun Admin';
+    ?>
     <div class="sidebar-footer-user flex items-center gap-2 p-1.5 rounded-xl bg-slate-100/70 dark:bg-slate-800/50">
-      <a href="<?= BASE_URL ?>/profile.php" class="w-7 h-7 rounded-lg user-avatar-badge bg-orange-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs hover:opacity-90 transition cursor-pointer" title="Kelola Profil & Kata Sandi">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <a href="<?= BASE_URL ?>/profile.php" class="w-7 h-7 rounded-lg user-avatar-badge bg-orange-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs hover:opacity-90 transition cursor-pointer overflow-hidden" title="<?= e($sidebarProfileTitle) ?>">
+        <?php if ($sidebarAvatarUrl !== ''): ?>
+          <img src="<?= e($sidebarAvatarUrl) ?>" alt="Foto Profil" class="w-full h-full object-cover" />
+        <?php else: ?>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <?php endif; ?>
       </a>
-      <a href="<?= BASE_URL ?>/profile.php" class="sidebar-user-block min-w-0 flex-1 hover:opacity-80 transition cursor-pointer block" title="Kelola Profil & Kata Sandi">
+      <a href="<?= BASE_URL ?>/profile.php" class="sidebar-user-block min-w-0 flex-1 hover:opacity-80 transition cursor-pointer block" title="<?= e($sidebarProfileTitle) ?>">
         <div class="flex items-center gap-1.5">
           <p class="text-xs font-bold truncate text-slate-800 dark:text-slate-100">
             <?= e($currentUser['nama'] ?? $currentUser['username'] ?? 'Pengguna') ?>

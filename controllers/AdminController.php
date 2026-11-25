@@ -18,7 +18,10 @@ class AdminController extends BaseController {
         $action = $_POST['action'] ?? ($_GET['action'] ?? null);
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         $tab = $_GET['tab'] ?? 'admin';
-        if (!in_array($tab, ['admin', 'user', 'satker', 'ai', 'backup', 'logs'], true)) {
+        if ($tab === 'user') {
+            $tab = 'admin';
+        }
+        if (!in_array($tab, ['admin', 'satker', 'ai', 'backup', 'logs'], true)) {
             $tab = 'admin';
         }
 
@@ -53,7 +56,102 @@ class AdminController extends BaseController {
                 $this->redirect("/admin.php?tab=" . urlencode($tab));
             }
 
-            // A. Simpan Profil Administrator
+            // A0. Tambah Akun Baru (Admin atau User + Foto Profil Opsional)
+            if ($action === 'create_account') {
+                $avatarPath = '';
+                if (!empty($_FILES['account_avatar']['name']) && ($_FILES['account_avatar']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                    $up = UserModel::processAvatarUpload($_FILES['account_avatar']);
+                    if (empty($up['success'])) {
+                        $this->setFlash('error', (string)($up['error'] ?? 'Gagal mengunggah foto profil.'));
+                        $this->redirect('/admin.php?tab=admin');
+                    }
+                    $avatarPath = (string)($up['path'] ?? '');
+                }
+
+                $res = UserModel::create([
+                    'nama' => trim((string)($_POST['account_nama'] ?? '')),
+                    'username' => trim((string)($_POST['account_username'] ?? '')),
+                    'password' => trim((string)($_POST['account_password'] ?? '')),
+                    'role' => trim((string)($_POST['account_role'] ?? 'USER')),
+                    'nip' => trim((string)($_POST['account_nip'] ?? '')),
+                    'pangkat' => trim((string)($_POST['account_pangkat'] ?? '')),
+                    'jabatan' => trim((string)($_POST['account_jabatan'] ?? '')),
+                    'email' => trim((string)($_POST['account_email'] ?? '')),
+                    'no_hp' => trim((string)($_POST['account_no_hp'] ?? '')),
+                    'is_active' => !empty($_POST['account_is_active']) ? 1 : 0,
+                    'avatar_url' => $avatarPath,
+                ]);
+
+                if (!empty($res['success'])) {
+                    $this->setFlash('success', (string)($res['message'] ?? 'Akun baru berhasil ditambahkan.'));
+                } else {
+                    if ($avatarPath !== '') {
+                        UserModel::deleteAvatarFile($avatarPath);
+                    }
+                    $this->setFlash('error', (string)($res['error'] ?? 'Gagal menambahkan akun baru.'));
+                }
+                $this->redirect('/admin.php?tab=admin');
+            }
+
+            // A1. Perbarui Akun (Admin atau User + Foto Profil Opsional)
+            if ($action === 'update_account') {
+                $targetId = trim((string)($_POST['account_id'] ?? ''));
+                $actorId = isset($_SESSION['user']['id']) ? (string)$_SESSION['user']['id'] : (isset($_SESSION['user_id']) ? (string)$_SESSION['user_id'] : null);
+                $avatarPath = '';
+                $hasUpload = !empty($_FILES['account_avatar']['name']) && ($_FILES['account_avatar']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+                if ($hasUpload) {
+                    $up = UserModel::processAvatarUpload($_FILES['account_avatar']);
+                    if (empty($up['success'])) {
+                        $this->setFlash('error', (string)($up['error'] ?? 'Gagal mengunggah foto profil.'));
+                        $this->redirect('/admin.php?tab=admin');
+                    }
+                    $avatarPath = (string)($up['path'] ?? '');
+                }
+
+                $payload = [
+                    'nama' => trim((string)($_POST['account_nama'] ?? '')),
+                    'username' => trim((string)($_POST['account_username'] ?? '')),
+                    'password' => trim((string)($_POST['account_password'] ?? '')),
+                    'role' => trim((string)($_POST['account_role'] ?? 'USER')),
+                    'nip' => trim((string)($_POST['account_nip'] ?? '')),
+                    'pangkat' => trim((string)($_POST['account_pangkat'] ?? '')),
+                    'jabatan' => trim((string)($_POST['account_jabatan'] ?? '')),
+                    'email' => trim((string)($_POST['account_email'] ?? '')),
+                    'no_hp' => trim((string)($_POST['account_no_hp'] ?? '')),
+                    'is_active' => !empty($_POST['account_is_active']) ? 1 : 0,
+                    'clear_avatar' => !empty($_POST['clear_account_avatar']),
+                ];
+                if ($avatarPath !== '') {
+                    $payload['avatar_url'] = $avatarPath;
+                    $payload['clear_avatar'] = false;
+                }
+
+                $res = UserModel::update($targetId, $payload, $actorId);
+                if (!empty($res['success'])) {
+                    $this->setFlash('success', (string)($res['message'] ?? 'Data akun berhasil diperbarui.'));
+                } else {
+                    if ($avatarPath !== '') {
+                        UserModel::deleteAvatarFile($avatarPath);
+                    }
+                    $this->setFlash('error', (string)($res['error'] ?? 'Gagal memperbarui data akun.'));
+                }
+                $this->redirect('/admin.php?tab=admin');
+            }
+
+            // A2. Hapus Akun (Admin atau User)
+            if ($action === 'delete_account') {
+                $targetId = trim((string)($_POST['account_id'] ?? ''));
+                $actorId = isset($_SESSION['user']['id']) ? (string)$_SESSION['user']['id'] : (isset($_SESSION['user_id']) ? (string)$_SESSION['user_id'] : null);
+                $res = UserModel::delete($targetId, $actorId);
+                if (!empty($res['success'])) {
+                    $this->setFlash('success', (string)($res['message'] ?? 'Akun berhasil dihapus.'));
+                } else {
+                    $this->setFlash('error', (string)($res['error'] ?? 'Gagal menghapus akun.'));
+                }
+                $this->redirect('/admin.php?tab=admin');
+            }
+
+            // A. Simpan Profil Administrator (kompatibilitas mundur)
             if ($action === 'save_admin') {
                 $nama = trim($_POST['admin_nama'] ?? '');
                 $username = trim($_POST['admin_username'] ?? 'admin');
@@ -333,6 +431,7 @@ class AdminController extends BaseController {
 
         $viewData = [
             'tab' => $tab,
+            'currentUser' => AuthHelper::getCurrentUser(),
             'settings' => $settings,
             'aiConfig' => $aiConfig,
             'dbStats' => $dbStats,

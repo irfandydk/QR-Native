@@ -49,12 +49,15 @@ class AuthHelper {
             $_SESSION = [];
             return false;
         }
-        // Sandi bawaan dicek sekali per perubahan kredensial (password_verify mahal)
-        if (($_SESSION['pw_check_fp'] ?? '') !== $fp) {
-            $_SESSION['must_change_password'] = defined('DEFAULT_RESET_PASSWORD')
-                && password_verify(DEFAULT_RESET_PASSWORD, (string)($row['password_hash'] ?? ''));
-            $_SESSION['pw_check_fp'] = $fp;
+        // Sinkronkan foto profil & identitas terbaru dari DB agar perubahan oleh Admin langsung terlihat
+        if ($row && isset($_SESSION['user']) && is_array($_SESSION['user'])) {
+            $latestAvatar = (string)($row['avatar_url'] ?? '');
+            if (($_SESSION['user']['avatar_url'] ?? '') !== $latestAvatar) {
+                $_SESSION['user']['avatar_url'] = $latestAvatar;
+                $_SESSION['avatar_url'] = $latestAvatar;
+            }
         }
+        $_SESSION['must_change_password'] = false;
         if (PHP_SAPI !== 'cli') {
             self::$verifiedSessionKey = (string)$_SESSION['user_id'] . '|' . (string)($_SESSION['cred_fp'] ?? '') . '|' . (string)($_SESSION['auth_at'] ?? 0);
         }
@@ -62,8 +65,7 @@ class AuthHelper {
     }
 
     /**
-     * Nama skrip halaman tanpa .php dari URL permintaan, untuk gerbang wajib-ganti-sandi.
-     * Permintaan ber-PATH_INFO (/operasi.php/profile) dapat nama kosong agar tidak menyamar sebagai halaman pengecualian.
+     * Nama skrip halaman tanpa .php dari URL permintaan.
      */
     public static function currentPageName(array $server): string {
         if (($server['PATH_INFO'] ?? '') !== '') {
@@ -72,27 +74,14 @@ class AuthHelper {
         return preg_replace('/\.php$/', '', basename((string)parse_url((string)($server['REQUEST_URI'] ?? ''), PHP_URL_PATH)));
     }
 
-    /** Akun masih memakai sandi bawaan dan wajib menggantinya sebelum memakai aplikasi */
+    /** Fungsi wajib ganti sandi bawaan dinonaktifkan sesuai kebijakan operasional satker */
     public static function mustChangePassword(): bool {
-        return self::isLoggedIn() && !empty($_SESSION['must_change_password']);
+        return false;
     }
 
-    /**
-     * Halaman tujuan ganti sandi bila permintaan ini tidak termasuk alur ganti sandi, null bila boleh lanjut.
-     * $page: nama skrip tanpa .php (mis. 'profile', 'admin').
-     */
+    /** Tidak ada pengalihan wajib ganti sandi bawaan */
     public static function passwordChangeRedirect(string $role, string $page, array $get, string $method, array $post): ?string {
-        if (in_array($page, ['logout', 'login'], true)) {
-            return null;
-        }
-        if (strtoupper($role) === 'ADMIN') {
-            $isChangeForm = $page === 'admin' && (
-                (strtoupper($method) === 'GET' && ($get['tab'] ?? 'admin') === 'admin' && empty($get['action']))
-                || (strtoupper($method) === 'POST' && ($post['action'] ?? ($get['action'] ?? '')) === 'change_admin_pass')
-            );
-            return $isChangeForm ? null : BASE_URL . '/admin.php?tab=admin';
-        }
-        return $page === 'profile' ? null : BASE_URL . '/profile.php';
+        return null;
     }
 
     /** Sandi akun sesi ini baru saja diganti oleh pemiliknya: perbarui sidik agar sesi ini tetap sah */
@@ -120,18 +109,6 @@ class AuthHelper {
             header("Location: " . BASE_URL . "/login.php");
             exit;
         }
-        // Sandi bawaan wajib diganti dulu (CLI dikecualikan: tidak ada halaman tujuan)
-        if (PHP_SAPI !== 'cli' && self::mustChangePassword()) {
-            $page = self::currentPageName($_SERVER);
-            $to = self::passwordChangeRedirect((string)($_SESSION['role'] ?? 'USER'), $page, $_GET, (string)($_SERVER['REQUEST_METHOD'] ?? 'GET'), $_POST);
-            if ($to !== null) {
-                if (function_exists('setFlash')) {
-                    setFlash('warning', 'Akun Anda masih memakai kata sandi bawaan. Ganti kata sandi terlebih dahulu untuk melanjutkan.');
-                }
-                header('Location: ' . $to);
-                exit;
-            }
-        }
     }
 
     public static function requireAdmin(): void {
@@ -158,6 +135,7 @@ class AuthHelper {
                 'jabatan' => 'Tamu',
                 'email' => '',
                 'no_hp' => '',
+                'avatar_url' => '',
                 'loginAt' => null
             ];
         }
@@ -173,6 +151,7 @@ class AuthHelper {
             'jabatan' => $_SESSION['jabatan'] ?? 'Petugas Siaga SAR',
             'email' => $_SESSION['email'] ?? '',
             'no_hp' => $_SESSION['no_hp'] ?? '',
+            'avatar_url' => $_SESSION['avatar_url'] ?? '',
             'loginAt' => $_SESSION['login_at'] ?? date('Y-m-d H:i:s')
         ];
     }
@@ -315,6 +294,114 @@ class AuthHelper {
         unset($_SESSION['login_failed_attempts'], $_SESSION['login_lock_until']);
     }
 
+    /**
+     * Hitung jumlah kegagalan login dalam 5 menit terakhir untuk kombinasi (IP, username).
+     */
+    public static function getRecentFailedLoginCount(string $username): int {
+        $cleanUser = trim($username);
+        if ($cleanUser === '') {
+            return 0;
+        }
+        $now = time();
+        $ip = self::getClientIp();
+        $fiveMin = $now - 300;
+        try {
+            $db = getDB();
+            $stmt = $db->prepare("SELECT COUNT(*) FROM LoginThrottle WHERE ip_address = :ip AND LOWER(username) = LOWER(:u) AND attempt_time >= :time");
+            $stmt->execute([':ip' => $ip, ':u' => $cleanUser, ':time' => $fiveMin]);
+            return (int)$stmt->fetchColumn();
+        } catch (Throwable) {
+            $attempts = $_SESSION['login_failed_attempts'] ?? [];
+            if (!is_array($attempts)) return 0;
+            return count(array_filter($attempts, fn($t) => is_numeric($t) && ($now - (int)$t) < 300));
+        }
+    }
+
+    public static function getAdminResetChallenge(): ?array {
+        $ch = $_SESSION['admin_reset_challenge'] ?? null;
+        if (!is_array($ch) || empty($ch['user_id']) || empty($ch['username'])) {
+            return null;
+        }
+        if ((int)($ch['expires_at'] ?? 0) < time()) {
+            unset($_SESSION['admin_reset_challenge']);
+            return null;
+        }
+        return $ch;
+    }
+
+    public static function clearAdminResetChallenge(): void {
+        unset($_SESSION['admin_reset_challenge'], $_SESSION['admin_secret_attempts']);
+    }
+
+    /**
+     * Verifikasi kata rahasia reset Admin secara constant-time (mendukung env ADMIN_RESET_SECRET_WORD atau hash bawaan).
+     */
+    public static function verifyAdminResetSecretWord(string $input): bool {
+        $clean = trim($input);
+        if ($clean === '') {
+            return false;
+        }
+        $envSecret = trim((string)(getenv('ADMIN_RESET_SECRET_WORD') ?: ($_ENV['ADMIN_RESET_SECRET_WORD'] ?? '')));
+        if ($envSecret !== '') {
+            return hash_equals($envSecret, $clean);
+        }
+        $expectedHash = defined('ADMIN_RESET_SECRET_WORD_HASH') ? (string)ADMIN_RESET_SECRET_WORD_HASH : '';
+        if ($expectedHash === '') {
+            return false;
+        }
+        return hash_equals($expectedHash, hash('sha256', 'QR_SAR_ADMIN_RESET_V1:' . $clean));
+    }
+
+    /**
+     * Eksekusi reset password akun Admin ke sandi default setelah verifikasi kata rahasia.
+     * Catatan: pesan sukses sengaja TIDAK menampilkan isi password default.
+     *
+     * @return array{success:bool, message?:string, error?:string}
+     */
+    public static function executeAdminSecretReset(string $secretWord): array {
+        $challenge = self::getAdminResetChallenge();
+        if ($challenge === null) {
+            return ['success' => false, 'error' => 'Sesi verifikasi reset kata sandi Admin telah berakhir. Silakan ulangi proses login.'];
+        }
+
+        // Batasi percobaan kata rahasia (maks 5 kali per tantangan) agar tidak bisa brute-force
+        $secretFails = (int)($_SESSION['admin_secret_attempts'] ?? 0);
+        if ($secretFails >= 5) {
+            self::clearAdminResetChallenge();
+            return ['success' => false, 'error' => 'Terlalu banyak percobaan kata rahasia yang salah. Sesi reset dibatalkan.'];
+        }
+
+        if (!self::verifyAdminResetSecretWord($secretWord)) {
+            $_SESSION['admin_secret_attempts'] = $secretFails + 1;
+            if (class_exists('AuditHelper')) {
+                AuditHelper::log('ADMIN_SECRET_RESET_FAILED', "Kata rahasia reset Admin tidak cocok untuk @{$challenge['username']}", 'AUTH', (string)$challenge['user_id']);
+            }
+            return ['success' => false, 'error' => 'Kata rahasia tidak valid. Reset kata sandi tidak dapat diproses.'];
+        }
+
+        $targetUser = class_exists('UserModel') ? UserModel::getById((string)$challenge['user_id']) : null;
+        if (!$targetUser || strtoupper((string)($targetUser['role'] ?? '')) !== 'ADMIN' || empty($targetUser['is_active'])) {
+            self::clearAdminResetChallenge();
+            return ['success' => false, 'error' => 'Akun administrator tidak ditemukan atau tidak aktif.'];
+        }
+
+        if (!UserModel::resetPasswordToDefault((string)$targetUser['id'])) {
+            return ['success' => false, 'error' => 'Gagal mereset kata sandi administrator ke basis data.'];
+        }
+
+        self::resetLoginThrottle((string)$targetUser['username']);
+        self::clearAdminResetChallenge();
+
+        if (class_exists('AuditHelper')) {
+            AuditHelper::log('ADMIN_SECRET_PASSWORD_RESET', "Kata sandi administrator @{$targetUser['username']} berhasil direset ke default melalui verifikasi kata rahasia.", 'Users', (string)$targetUser['id']);
+        }
+
+        return [
+            'success' => true,
+            'message' => 'Kata sandi akun administrator berhasil direset ke pengaturan default. Silakan login kembali.',
+        ];
+    }
+
     public static function login(string $username, string $password): array {
         $cleanUser = trim($username);
         $cleanPass = trim($password);
@@ -322,6 +409,17 @@ class AuthHelper {
         // Brute-force throttle check (terikat pada IP + username sasaran)
         $throttleErr = self::checkLoginThrottle($cleanUser);
         if ($throttleErr !== null) {
+            // Jika akun ADMIN sudah mencapai >= 3 gagal dan ter-throttle, pastikan challenge secret word tetap tersedia
+            if (class_exists('UserModel') && $cleanUser !== '') {
+                $dbAdmin = UserModel::getByUsername($cleanUser);
+                if ($dbAdmin && !empty($dbAdmin['is_active']) && strtoupper((string)($dbAdmin['role'] ?? '')) === 'ADMIN') {
+                    $_SESSION['admin_reset_challenge'] = [
+                        'user_id' => (string)$dbAdmin['id'],
+                        'username' => (string)$dbAdmin['username'],
+                        'expires_at' => time() + 600,
+                    ];
+                }
+            }
             return [
                 'success' => false,
                 'error' => $throttleErr,
@@ -330,10 +428,12 @@ class AuthHelper {
         }
 
         // Tabel Users adalah satu-satunya sumber kredensial (AppSettings disinkronkan oleh migrate.php)
+        $dbUser = null;
         if (class_exists('UserModel')) {
             $dbUser = UserModel::getByUsername($cleanUser);
             if ($dbUser && !empty($dbUser['is_active']) && self::verifyPassword($cleanPass, (string)$dbUser['password_hash'])) {
                 self::resetLoginThrottle($cleanUser);
+                self::clearAdminResetChallenge();
                 UserModel::updateLastLogin((string)$dbUser['id']);
                 $roleUpper = strtoupper((string)($dbUser['role'] ?? 'USER'));
                 $user = [
@@ -347,6 +447,7 @@ class AuthHelper {
                     'jabatan' => $dbUser['jabatan'] ?: ($roleUpper === 'ADMIN' ? 'Kepala Kantor KPP Kendari' : 'Petugas Siaga SAR'),
                     'email' => $dbUser['email'] ?: '',
                     'no_hp' => $dbUser['no_hp'] ?: '',
+                    'avatar_url' => (string)($dbUser['avatar_url'] ?? ''),
                     'loginAt' => date('Y-m-d H:i:s')
                 ];
                 self::setSession($user);
@@ -364,6 +465,26 @@ class AuthHelper {
 
         if (class_exists('AuditHelper')) {
             AuditHelper::log('AUTH_LOGIN_FAILED', "Percobaan autentikasi gagal dengan nama pengguna: {$cleanUser}", 'AUTH', $cleanUser);
+        }
+
+        // Khusus akun ADMIN: setelah 3 kali salah password, munculkan verifikasi kata rahasia (secret word) untuk reset ke default
+        if ($dbUser && !empty($dbUser['is_active']) && strtoupper((string)($dbUser['role'] ?? '')) === 'ADMIN') {
+            $failCount = self::getRecentFailedLoginCount($cleanUser);
+            if ($failCount >= 3) {
+                $_SESSION['admin_reset_challenge'] = [
+                    'user_id' => (string)$dbUser['id'],
+                    'username' => (string)$dbUser['username'],
+                    'expires_at' => time() + 600,
+                ];
+                $_SESSION['admin_secret_attempts'] = 0;
+                $msg = 'Kata sandi administrator salah sebanyak 3 kali. Masukkan kata rahasia untuk mereset kata sandi ke pengaturan default.';
+                return [
+                    'success' => false,
+                    'admin_reset_required' => true,
+                    'error' => $msg,
+                    'message' => $msg,
+                ];
+            }
         }
 
         return [
@@ -440,6 +561,7 @@ class AuthHelper {
         $_SESSION['jabatan'] = $user['jabatan'] ?? 'Petugas SAR';
         $_SESSION['email'] = $user['email'] ?? '';
         $_SESSION['no_hp'] = $user['no_hp'] ?? '';
+        $_SESSION['avatar_url'] = $user['avatar_url'] ?? '';
         $_SESSION['login_at'] = $user['loginAt'] ?? ($user['login_at'] ?? date('Y-m-d H:i:s'));
         $_SESSION['user'] = $user;
         $_SESSION['auth_at'] = time();

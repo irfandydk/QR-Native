@@ -84,7 +84,7 @@ $userAdmin = UserModel::getByUsername('admin');
 report("Akun admin terdaftar di tabel Users", !empty($userAdmin));
 
 $adminSuccess = false;
-$passwordsToTry = ['Kendari304', 'admin', 'admin123'];
+$passwordsToTry = [DEFAULT_RESET_PASSWORD, 'Kendari304', 'admin', 'admin123'];
 foreach ($passwordsToTry as $p) {
     if (AuthHelper::verifyPassword($p, (string)$userAdmin['password_hash'])) {
         $resLogin = AuthHelper::login('admin', $p);
@@ -136,11 +136,11 @@ $resWrongOld = SettingsModel::changePassword('USER', 'PasswordLamaSalah999', 'Sa
 report("Ganti password dengan password lama salah ditolak", $resWrongOld['success'] === false);
 
 // Password too short (< 8 chars) rejected
-$resShort = SettingsModel::changePassword('USER', 'Kendari304', 'pendek');
+$resShort = SettingsModel::changePassword('USER', DEFAULT_RESET_PASSWORD, 'pendek');
 report("Ganti password baru kurang dari 8 karakter ditolak", $resShort['success'] === false);
 
 // Valid change
-$resValidChange = SettingsModel::changePassword('USER', 'Kendari304', 'KendariBaru304');
+$resValidChange = SettingsModel::changePassword('USER', DEFAULT_RESET_PASSWORD, 'KendariBaru304');
 report("Ganti password valid berhasil diperbarui", $resValidChange['success'] === true);
 
 // Verify new password works
@@ -149,8 +149,8 @@ report("Login user dengan password baru berhasil", $loginNewPass['success'] === 
 
 // Restore back to default
 SettingsModel::resetUserToDefault();
-$loginRestored = AuthHelper::login('user', 'Kendari304');
-report("Reset akun user mengembalikan password standar (Kendari304)", $loginRestored['success'] === true);
+$loginRestored = AuthHelper::login('user', DEFAULT_RESET_PASSWORD);
+report("Reset akun user mengembalikan password standar (DEFAULT_RESET_PASSWORD)", $loginRestored['success'] === true);
 
 // -------------------------------------------------------------------------
 // 5. Audit Proteksi Brute-Force & Rate Limiting (LoginThrottle)

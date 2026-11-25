@@ -52,11 +52,8 @@ $logoUrl = getAppLogoUrl();
 
   <!-- Flush Underline Tab Rail (No Duplicate Header Bar) -->
   <nav aria-label="Menu pengaturan admin" class="adm-tabs flex items-center overflow-x-auto no-print">
-    <a href="<?= BASE_URL ?>/admin.php?tab=admin" class="adm-tab-link <?= $tab === 'admin' ? 'active' : '' ?>">
-      <span>Profil &amp; Sandi Admin</span>
-    </a>
-    <a href="<?= BASE_URL ?>/admin.php?tab=user" class="adm-tab-link <?= $tab === 'user' ? 'active' : '' ?>">
-      <span>Akun Pengguna</span>
+    <a href="<?= BASE_URL ?>/admin.php?tab=admin" class="adm-tab-link <?= ($tab === 'admin' || $tab === 'user') ? 'active' : '' ?>">
+      <span>Akun &amp; Pengguna</span>
       <?php if (!empty($usersList)): ?>
         <span class="adm-tab-count"><?= count($usersList) ?></span>
       <?php endif; ?>

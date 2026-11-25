@@ -26,6 +26,9 @@ $defaultSystemTheme = $appSettings['default_theme'] ?? 'dark';
 $logoUrl = getAppLogoUrl();
 $satkerNama = trim((string)($appSettings['satker_nama'] ?? 'Kantor Pencarian dan Pertolongan Kelas A Kendari'));
 $loginHeroUrl = assetUrl('assets/images/auth/login-sar-hero.jpg');
+$adminResetChallenge = isset($adminResetChallenge) && is_array($adminResetChallenge)
+    ? $adminResetChallenge
+    : AuthHelper::getAdminResetChallenge();
 ?>
 <!DOCTYPE html>
 <html lang="id" data-ui="<?= $uiTheme ?>" data-theme="<?= e($defaultSystemTheme) ?>" class="<?= $defaultSystemTheme === 'dark' ? 'dark' : '' ?>">
@@ -470,6 +473,41 @@ $loginHeroUrl = assetUrl('assets/images/auth/login-sar-hero.jpg');
             </button>
           </div>
         </form>
+
+        <?php if (!empty($adminResetChallenge)): ?>
+          <!-- Panel Verifikasi Kata Rahasia Reset Sandi Admin (Muncul setelah 3x gagal login Admin) -->
+          <div id="adminSecretResetCard" class="mt-5 rounded-2xl border border-amber-400/50 bg-amber-50/90 dark:bg-amber-950/35 p-4 space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h2 class="text-xs font-bold text-amber-900 dark:text-amber-200 uppercase tracking-wide">Reset Kata Sandi Administrator</h2>
+                <p class="text-[11px] text-amber-800/90 dark:text-amber-300/90 mt-0.5">
+                  Akun <span class="font-mono font-bold">@<?= e((string)$adminResetChallenge['username']) ?></span> gagal login 3 kali. Masukkan kata rahasia untuk mereset kata sandi ke default.
+                </p>
+              </div>
+              <a href="<?= BASE_URL ?>/login.php?cancel_admin_reset=1" class="text-[11px] font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white shrink-0">Batal</a>
+            </div>
+
+            <form action="<?= BASE_URL ?>/login.php" method="POST" id="adminSecretResetForm" class="space-y-2.5">
+              <?= csrfInput() ?>
+              <input type="hidden" name="action" value="admin_secret_reset" />
+              <div>
+                <label for="adminSecretWordInput" class="block text-[11px] font-bold text-amber-900 dark:text-amber-200 mb-1">Kata Rahasia (Secret Word)</label>
+                <input
+                  type="password"
+                  id="adminSecretWordInput"
+                  name="secret_word"
+                  required
+                  autocomplete="off"
+                  placeholder="Masukkan kata rahasia..."
+                  class="w-full rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <button type="submit" id="btnExecAdminSecretReset" class="w-full rounded-xl bg-amber-600 hover:bg-amber-700 text-white py-2.5 px-4 text-xs font-bold transition cursor-pointer">
+                Verifikasi &amp; Reset Kata Sandi
+              </button>
+            </form>
+          </div>
+        <?php endif; ?>
       </div>
 
       <!-- Quiet Minimal Footer -->

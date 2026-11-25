@@ -1,7 +1,8 @@
 <?php
 /**
- * Test: akun yang masih memakai sandi bawaan (DEFAULT_RESET_PASSWORD) wajib mengganti sandi
- * sebelum memakai aplikasi. USER diarahkan ke profile.php, ADMIN ke admin.php?tab=admin.
+ * Test: Kebijakan nonaktif wajib ganti sandi bawaan & validasi nama halaman aman.
+ * Fitur wajib ganti sandi bawaan telah dinonaktifkan sesuai permintaan pengguna,
+ * sehingga akun dengan DEFAULT_RESET_PASSWORD tidak dipaksa redirect.
  */
 
 declare(strict_types=1);
@@ -15,7 +16,7 @@ if (php_sapi_name() !== 'cli') {
 
 require_once __DIR__ . '/../config/app.php';
 
-echo "=== TEST WAJIB GANTI SANDI BAWAAN ===\n\n";
+echo "=== TEST NONAKTIF WAJIB GANTI SANDI BAWAAN ===\n\n";
 
 $testPassed = 0;
 $testTotal = 0;
@@ -36,37 +37,23 @@ $setHash = fn(string $id, string $plain) => $db->prepare("UPDATE `Users` SET pas
     ->execute([':p' => password_hash($plain, PASSWORD_DEFAULT), ':id' => $id]);
 $has = fn(string $m) => method_exists('AuthHelper', $m);
 
-assertCondition($has('mustChangePassword') && $has('passwordChangeRedirect'), 'AuthHelper menyediakan mustChangePassword dan passwordChangeRedirect');
+assertCondition($has('mustChangePassword') && $has('passwordChangeRedirect'), 'AuthHelper tetap menyediakan method mustChangePassword dan passwordChangeRedirect untuk kompatibilitas');
 
 if ($has('mustChangePassword') && $has('passwordChangeRedirect')) {
-    // Sandi bawaan: wajib ganti
+    AuthHelper::resetLoginThrottle();
     $setHash('USR-USER', DEFAULT_RESET_PASSWORD);
     $_SESSION = [];
-    AuthHelper::login('user', DEFAULT_RESET_PASSWORD);
-    assertCondition(AuthHelper::mustChangePassword(), 'Login dengan sandi bawaan menandai wajib ganti sandi');
+    $loginRes = AuthHelper::login('user', DEFAULT_RESET_PASSWORD);
+    assertCondition(($loginRes['success'] ?? false) === true, 'Login USER dengan DEFAULT_RESET_PASSWORD berhasil');
+    assertCondition(AuthHelper::mustChangePassword() === false, 'Login dengan sandi bawaan TIDAK memicu wajib ganti sandi');
 
-    // Setelah mengganti sandi sendiri: tidak lagi wajib, sesi tetap login
-    $r = SettingsModel::changePassword('USER', DEFAULT_RESET_PASSWORD, 'SandiPetugasBaru26', 'USR-USER');
-    assertCondition(($r['success'] ?? false) && AuthHelper::isLoggedIn() && !AuthHelper::mustChangePassword(), 'Setelah ganti sandi, sesi tetap login dan tidak wajib ganti lagi');
-
-    // Sandi bukan bawaan: tidak wajib
-    $_SESSION = [];
-    AuthHelper::login('user', 'SandiPetugasBaru26');
-    assertCondition(!AuthHelper::mustChangePassword(), 'Sandi non-bawaan tidak memicu wajib ganti');
-
-    // Keputusan pengalihan
-    $b = BASE_URL;
-    assertCondition(AuthHelper::passwordChangeRedirect('USER', 'operasi', [], 'GET', []) === $b . '/profile.php', 'USER di halaman lain diarahkan ke profile.php');
-    assertCondition(AuthHelper::passwordChangeRedirect('USER', 'profile', [], 'POST', []) === null, 'USER boleh membuka dan mengirim profile.php');
-    assertCondition(AuthHelper::passwordChangeRedirect('USER', 'logout', [], 'POST', []) === null, 'USER boleh logout');
-    assertCondition(AuthHelper::passwordChangeRedirect('ADMIN', 'admin', ['tab' => 'user'], 'GET', []) === $b . '/admin.php?tab=admin', 'ADMIN di tab lain diarahkan ke tab ganti sandi admin');
-    assertCondition(AuthHelper::passwordChangeRedirect('ADMIN', 'admin', [], 'GET', []) === null, 'ADMIN boleh membuka admin.php (tab admin bawaan)');
-    assertCondition(AuthHelper::passwordChangeRedirect('ADMIN', 'admin', ['action' => 'change_admin_pass'], 'POST', []) === null, 'ADMIN boleh mengirim ganti sandi admin');
-    assertCondition(AuthHelper::passwordChangeRedirect('ADMIN', 'admin', ['action' => 'save_user'], 'POST', []) === $b . '/admin.php?tab=admin', 'ADMIN tidak boleh aksi admin lain sebelum ganti sandi');
-    assertCondition(AuthHelper::passwordChangeRedirect('ADMIN', 'bra', [], 'GET', []) === $b . '/admin.php?tab=admin', 'ADMIN di halaman lain diarahkan ke tab ganti sandi');
+    assertCondition(AuthHelper::passwordChangeRedirect('USER', 'operasi', [], 'GET', []) === null, 'USER di halaman operasi tidak dipaksa redirect');
+    assertCondition(AuthHelper::passwordChangeRedirect('USER', 'profile', [], 'POST', []) === null, 'USER di profile.php tidak dipaksa redirect');
+    assertCondition(AuthHelper::passwordChangeRedirect('ADMIN', 'admin', ['tab' => 'satker'], 'GET', []) === null, 'ADMIN di tab lain tidak dipaksa redirect');
+    assertCondition(AuthHelper::passwordChangeRedirect('ADMIN', 'bra', [], 'GET', []) === null, 'ADMIN di halaman lain tidak dipaksa redirect');
 }
 
-// Nama halaman untuk gerbang: PATH_INFO (/operasi.php/profile) tidak boleh menyamar sebagai halaman pengecualian
+// Nama halaman tetap divalidasi aman terhadap PATH_INFO spoofing
 $hasPage = method_exists('AuthHelper', 'currentPageName');
 assertCondition($hasPage, 'AuthHelper menyediakan currentPageName');
 if ($hasPage) {

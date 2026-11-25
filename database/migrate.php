@@ -173,6 +173,7 @@ try {
     if (class_exists('UserModel')) {
         echo "[RUN] Checking Users table...\n";
         UserModel::ensureTableExists(true);
+        UserModel::ensureSchemaUpdated(true);
         SettingsModel::getSettings(); // Instalasi baru: buat baris AppSettings default agar akun admin/user ikut tersinkron
         UserModel::syncFromAppSettings(true);
         echo "[OK] Users table validated.\n";

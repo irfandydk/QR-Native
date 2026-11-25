@@ -416,7 +416,8 @@ function assetUrl(string $path): string {
 }
 
 // Default initial password fallback for administrative reset routines
-defined('DEFAULT_RESET_PASSWORD') || define('DEFAULT_RESET_PASSWORD', getenv('DEFAULT_RESET_PASSWORD') ?: 'Kendari304');
+defined('DEFAULT_RESET_PASSWORD') || define('DEFAULT_RESET_PASSWORD', getenv('DEFAULT_RESET_PASSWORD') ?: 'Kendari2026#');
+defined('ADMIN_RESET_SECRET_WORD_HASH') || define('ADMIN_RESET_SECRET_WORD_HASH', 'c1977a2c4bdbfd4613922203521aa9187e6b36ca141fd78f7f67424816b7ff67');
 
 /**
  * Memastikan URL aset/logo/ikon memakai skema yang aman (http/https, jalur lokal /uploads|assets, atau data:image raster).
