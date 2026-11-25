@@ -27,7 +27,11 @@ class AiConfigService {
                 'gemini-3.8-flash' => 'Gemini 3.8 Flash (Direkomendasikan)',
                 'gemini-3.6-flash' => 'Gemini 3.6 Flash',
                 'gemini-3.5-flash-lite' => 'Gemini 3.5 Flash-Lite (Hemat & Cepat)',
-                'gemini-2.5-flash' => 'Gemini 2.5 Flash (Legacy)',
+                'gemini-3.1-pro-preview' => 'Gemini 3.1 Pro Preview',
+                'gemini-2.5-pro' => 'Gemini 2.5 Pro (Tier 1 / Penalaran)',
+                'gemini-2.5-flash' => 'Gemini 2.5 Flash',
+                'gemini-2.5-flash-lite' => 'Gemini 2.5 Flash-Lite',
+                'gemini-2.0-flash' => 'Gemini 2.0 Flash',
             ],
         ],
         'deepseek' => [

@@ -241,7 +241,77 @@ try {
         'Menghapus API Key default otomatis mempromosikan API Key aktif berikutnya sebagai default'
     );
 
-    // 11. Kontrak UI Admin & Endpoint API
+    // 11. Uji pengambilan seluruh model live dari API (Gemini v1beta/models dengan filter teks + DeepSeek /models) & kompatibilitas thinkingConfig Tier 1
+    AiHelper::setHttpClient(function (string $url, array $headers, array $payload, int $timeout = 15, string $method = 'POST'): array {
+        if ($method === 'GET' && str_contains($url, 'generativelanguage.googleapis.com/v1beta/models')) {
+            return [
+                'http_code' => 200,
+                'body' => json_encode([
+                    'models' => [
+                        ['name' => 'models/gemini-2.5-pro', 'displayName' => 'Gemini 2.5 Pro', 'supportedGenerationMethods' => ['generateContent']],
+                        ['name' => 'models/gemini-3.8-flash', 'displayName' => 'Gemini 3.8 Flash', 'supportedGenerationMethods' => ['generateContent']],
+                        ['name' => 'models/gemini-2.0-flash', 'displayName' => 'Gemini 2.0 Flash', 'supportedGenerationMethods' => ['generateContent']],
+                        ['name' => 'models/gemini-2.5-flash-preview-tts', 'displayName' => 'TTS Only', 'supportedGenerationMethods' => ['generateContent']],
+                        ['name' => 'models/text-embedding-004', 'displayName' => 'Embedding', 'supportedGenerationMethods' => ['embedContent']],
+                    ],
+                ]),
+                'error' => '',
+            ];
+        }
+        if ($method === 'GET' && str_contains($url, 'api.deepseek.com/models')) {
+            return [
+                'http_code' => 200,
+                'body' => json_encode([
+                    'object' => 'list',
+                    'data' => [
+                        ['id' => 'deepseek-chat', 'owned_by' => 'deepseek'],
+                        ['id' => 'deepseek-reasoner', 'owned_by' => 'deepseek'],
+                    ],
+                ]),
+                'error' => '',
+            ];
+        }
+        if ($method === 'POST' && str_contains($url, 'gemini-2.5-pro:generateContent')) {
+            // Pastikan gemini-2.5-pro TIDAK mengirim thinkingBudget: 0 (akan ditolak HTTP 400 oleh Google)
+            if (isset($payload['generationConfig']['thinkingConfig']['thinkingBudget']) && $payload['generationConfig']['thinkingConfig']['thinkingBudget'] === 0) {
+                return ['http_code' => 400, 'body' => '{"error":{"message":"thinkingBudget 0 not supported on Pro"}}', 'error' => ''];
+            }
+            return ['http_code' => 200, 'body' => json_encode(['modelVersion' => 'gemini-2.5-pro', 'candidates' => [['content' => ['parts' => [['text' => 'OK']]]]]]), 'error' => ''];
+        }
+        if ($method === 'POST' && str_contains($url, 'gemini-2.0-flash:generateContent')) {
+            if (isset($payload['generationConfig']['thinkingConfig'])) {
+                return ['http_code' => 400, 'body' => '{"error":{"message":"thinkingConfig not supported on 2.0"}}', 'error' => ''];
+            }
+            return ['http_code' => 200, 'body' => json_encode(['modelVersion' => 'gemini-2.0-flash', 'candidates' => [['content' => ['parts' => [['text' => 'OK']]]]]]), 'error' => ''];
+        }
+        return ['http_code' => 404, 'body' => '', 'error' => 'not mocked'];
+    });
+
+    $gemModelsRes = AiHelper::listAvailableModels('gemini', 'AIzaSyTestTier1Key');
+    $gemIds = array_column($gemModelsRes['models'] ?? [], 'id');
+    $dsModelsRes = AiHelper::listAvailableModels('deepseek', 'sk-test-tier1');
+    $dsIds = array_column($dsModelsRes['models'] ?? [], 'id');
+    $tPro = AiHelper::testConnection('gemini', 'AIzaSyTestTier1Key', 'gemini-2.5-pro');
+    $t20 = AiHelper::testConnection('gemini', 'AIzaSyTestTier1Key', 'gemini-2.0-flash');
+
+    assertAi(
+        !empty($gemModelsRes['success'])
+            && in_array('gemini-2.5-pro', $gemIds, true)
+            && in_array('gemini-3.8-flash', $gemIds, true)
+            && in_array('gemini-2.0-flash', $gemIds, true)
+            && !in_array('gemini-2.5-flash-preview-tts', $gemIds, true)
+            && !in_array('text-embedding-004', $gemIds, true)
+            && !empty($dsModelsRes['success'])
+            && in_array('deepseek-chat', $dsIds, true)
+            && in_array('deepseek-reasoner', $dsIds, true),
+        'AiHelper::listAvailableModels() mengambil seluruh model teks live dari Gemini & DeepSeek serta menyaring model non-teks (TTS/Embedding)'
+    );
+    assertAi(
+        !empty($tPro['success']) && !empty($t20['success']),
+        'Model Tier 1 gemini-2.5-pro dan gemini-2.0-flash berjalan aman tanpa kesalahan thinkingConfig'
+    );
+
+    // 12. Kontrak UI Admin & Endpoint API
     $adminIdx = (string)file_get_contents(ROOT_DIR . '/views/admin/index.php');
     $tabAi = (string)file_get_contents(ROOT_DIR . '/views/admin/partials/tab_ai.php');
     $tabSatker = (string)file_get_contents(ROOT_DIR . '/views/admin/partials/tab_satker.php');
@@ -252,9 +322,11 @@ try {
             && str_contains($tabAi, 'id="chkAiAutoFallback"')
             && str_contains($tabAi, 'id="selectAiProvider"')
             && str_contains($tabAi, 'id="selectAiModelPreset"')
+            && str_contains($tabAi, 'id="btnFetchAiModels"')
             && str_contains($tabSatker, 'admin.php?tab=ai')
-            && str_contains($aiApi, "'/ai/test-key'"),
-        'Kontrak UI tab Asisten AI, tautan dari tab Satker, dan endpoint /ai/test-key lengkap'
+            && str_contains($aiApi, "'/ai/test-key'")
+            && str_contains($aiApi, "'/ai/list-models'"),
+        'Kontrak UI tab Asisten AI (termasuk Muat Model API), tautan dari tab Satker, serta endpoint /ai/test-key & /ai/list-models lengkap'
     );
 } finally {
     AiHelper::setHttpClient(null);

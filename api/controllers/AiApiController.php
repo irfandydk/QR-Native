@@ -102,6 +102,40 @@ class AiApiController extends BaseApiController {
             return true;
         }
 
+        // 5. Fetch All Available Live Models for an API Key (Admin Only — supports Tier 1 / full catalog)
+        if ($path === '/ai/list-models' && $method === 'POST') {
+            self::requireAdmin();
+            self::requireCsrf($input);
+            self::checkAiRateLimit();
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+            }
+
+            $keyId = trim((string)($input['key_id'] ?? ''));
+            $provider = strtolower(trim((string)($input['provider'] ?? '')));
+            $apiKey = trim((string)($input['api_key'] ?? ''));
+
+            if ($keyId !== '') {
+                $resolved = AiConfigService::resolveKeyById($keyId);
+                if (!$resolved) {
+                    self::error('Profil API Key tidak ditemukan.', 404, 'AI_KEY_NOT_FOUND');
+                }
+                if ($provider === '') {
+                    $provider = (string)$resolved['provider'];
+                }
+                if ($apiKey === '') {
+                    $apiKey = (string)$resolved['api_key'];
+                }
+            }
+
+            if ($provider === '' || $apiKey === '') {
+                self::error('Masukkan API Key atau pilih profil tersimpan terlebih dahulu untuk memuat daftar model.', 400, 'VALIDATION_ERROR');
+            }
+
+            self::json(AiHelper::listAvailableModels($provider, $apiKey));
+            return true;
+        }
+
         return false;
     }
 }

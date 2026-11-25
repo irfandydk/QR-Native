@@ -190,8 +190,16 @@ $envFallbacks = is_array($aiConfig['env_fallbacks'] ?? null) ? $aiConfig['env_fa
         </div>
 
         <div class="space-y-1.5">
-          <label for="selectAiModelPreset" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Model AI <span class="text-rose-500">*</span></label>
-          <select id="selectAiModelPreset" name="ai_model_preset" class="control control-sm w-full font-mono text-xs font-semibold cursor-pointer"></select>
+          <div class="flex items-center justify-between gap-2">
+            <label for="selectAiModelPreset" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Model AI <span class="text-rose-500">*</span></label>
+            <span id="aiModelsLiveBadge" class="hidden text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="selectAiModelPreset" name="ai_model_preset" class="control control-sm flex-1 min-w-0 font-mono text-xs font-semibold cursor-pointer"></select>
+            <button type="button" id="btnFetchAiModels" class="adm-ghost-btn h-9 px-2.5 rounded-lg text-[11px] font-semibold shrink-0 cursor-pointer" title="Ambil seluruh daftar model langsung dari API Key Anda">
+              Muat Model API
+            </button>
+          </div>
         </div>
 
         <div id="wrapAiModelCustom" class="space-y-1.5 hidden">
@@ -239,6 +247,7 @@ $envFallbacks = is_array($aiConfig['env_fallbacks'] ?? null) ? $aiConfig['env_fa
 (function() {
   const PROVIDERS = <?= jsonSafe($aiProviders) ?>;
   const TEST_ENDPOINT = <?= jsonSafe(BASE_URL . '/api/index.php?path=/ai/test-key') ?>;
+  const LIST_MODELS_ENDPOINT = <?= jsonSafe(BASE_URL . '/api/index.php?path=/ai/list-models') ?>;
 
   const formHeading = document.getElementById('aiFormHeading');
   const btnCancelEdit = document.getElementById('btnCancelEditAiKey');
@@ -247,6 +256,8 @@ $envFallbacks = is_array($aiConfig['env_fallbacks'] ?? null) ? $aiConfig['env_fa
   const inputLabel = document.getElementById('inputAiLabel');
   const selectProvider = document.getElementById('selectAiProvider');
   const selectModelPreset = document.getElementById('selectAiModelPreset');
+  const btnFetchModels = document.getElementById('btnFetchAiModels');
+  const liveModelsBadge = document.getElementById('aiModelsLiveBadge');
   const wrapModelCustom = document.getElementById('wrapAiModelCustom');
   const inputModelCustom = document.getElementById('inputAiModelCustom');
   const inputApiKey = document.getElementById('inputAiApiKey');
@@ -264,22 +275,22 @@ $envFallbacks = is_array($aiConfig['env_fallbacks'] ?? null) ? $aiConfig['env_fa
     return (inp && inp.value) || window.CSRF_TOKEN || '';
   }
 
-  function populateModels(provider, selectedModel) {
-    const p = PROVIDERS[provider] || PROVIDERS.gemini;
-    if (!p || !selectModelPreset) return;
+  function renderModelOptions(listItems, selectedModel, isLive) {
+    if (!selectModelPreset) return;
     selectModelPreset.innerHTML = '';
-    const models = p.models || {};
     let matched = false;
-    Object.keys(models).forEach(function(mId) {
+
+    listItems.forEach(function(item) {
       const opt = document.createElement('option');
-      opt.value = mId;
-      opt.textContent = mId + ' — ' + models[mId];
-      if (selectedModel && selectedModel === mId) {
+      opt.value = item.id;
+      opt.textContent = item.label && item.label !== item.id ? (item.id + ' — ' + item.label) : item.id;
+      if (selectedModel && selectedModel === item.id) {
         opt.selected = true;
         matched = true;
       }
       selectModelPreset.appendChild(opt);
     });
+
     const customOpt = document.createElement('option');
     customOpt.value = '__custom__';
     customOpt.textContent = 'Model Kustom (ketik manual)...';
@@ -295,8 +306,93 @@ $envFallbacks = is_array($aiConfig['env_fallbacks'] ?? null) ? $aiConfig['env_fa
       wrapModelCustom.classList.add('hidden');
       inputModelCustom.value = '';
     }
+
+    if (liveModelsBadge) {
+      if (isLive && listItems.length > 0) {
+        liveModelsBadge.textContent = listItems.length + ' model live API';
+        liveModelsBadge.classList.remove('hidden');
+      } else {
+        liveModelsBadge.classList.add('hidden');
+      }
+    }
+  }
+
+  function populateModels(provider, selectedModel) {
+    const p = PROVIDERS[provider] || PROVIDERS.gemini;
+    if (!p) return;
+    const models = p.models || {};
+    const items = Object.keys(models).map(function(mId) {
+      return { id: mId, label: models[mId] };
+    });
+    renderModelOptions(items, selectedModel, false);
     if (inputApiKey && !inputId.value) {
       inputApiKey.placeholder = p.placeholder || 'Tempel API Key...';
+    }
+  }
+
+  async function fetchLiveModelsForForm(silent) {
+    const provider = selectProvider.value;
+    const apiKey = inputApiKey.value.trim();
+    const keyId = inputId.value.trim();
+    const currentSelected = selectModelPreset.value === '__custom__'
+      ? inputModelCustom.value.trim()
+      : selectModelPreset.value;
+
+    if (!apiKey && !keyId) {
+      if (!silent) {
+        formTestResult.className = 'rounded-xl px-3.5 py-2.5 text-xs font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300';
+        formTestResult.textContent = 'Masukkan API Key atau klik Edit pada kunci tersimpan terlebih dahulu untuk memuat semua model dari akun Anda.';
+        formTestResult.classList.remove('hidden');
+      }
+      return;
+    }
+
+    const origText = btnFetchModels ? btnFetchModels.textContent : 'Muat Model API';
+    if (btnFetchModels) {
+      btnFetchModels.disabled = true;
+      btnFetchModels.textContent = 'Memuat...';
+    }
+    try {
+      const resp = await fetch(LIST_MODELS_ENDPOINT, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCsrfToken(),
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({
+          csrf_token: getCsrfToken(),
+          key_id: keyId,
+          provider: provider,
+          api_key: apiKey,
+        }),
+      });
+      const res = await resp.json().catch(function() { return null; });
+      if (res && res.success && Array.isArray(res.models) && res.models.length > 0) {
+        renderModelOptions(res.models, currentSelected, true);
+        if (!silent) {
+          formTestResult.className = 'rounded-xl px-3.5 py-2.5 text-xs font-semibold bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300';
+          formTestResult.textContent = 'Berhasil memuat ' + res.models.length + ' model teks langsung dari akun ' + (PROVIDERS[provider] ? PROVIDERS[provider].label : provider) + ' Anda.';
+          formTestResult.classList.remove('hidden');
+        }
+      } else if (!silent) {
+        const msg = (res && (res.error || res.message)) || 'Gagal mengambil daftar model dari server provider.';
+        formTestResult.className = 'rounded-xl px-3.5 py-2.5 text-xs font-semibold bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300';
+        formTestResult.textContent = msg;
+        formTestResult.classList.remove('hidden');
+      }
+    } catch (e) {
+      if (!silent) {
+        formTestResult.className = 'rounded-xl px-3.5 py-2.5 text-xs font-semibold bg-rose-500/10 border border-rose-500/30 text-rose-700 dark:text-rose-300';
+        formTestResult.textContent = 'Gagal terhubung saat mengambil daftar model.';
+        formTestResult.classList.remove('hidden');
+      }
+    } finally {
+      if (btnFetchModels) {
+        btnFetchModels.disabled = false;
+        btnFetchModels.textContent = origText;
+      }
     }
   }
 
@@ -335,11 +431,30 @@ $envFallbacks = is_array($aiConfig['env_fallbacks'] ?? null) ? $aiConfig['env_fa
     formTestResult.classList.add('hidden');
     document.getElementById('aiKeyFormSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     inputLabel.focus();
+    // Muat seluruh daftar model live dari akun API Key tersimpan secara otomatis
+    fetchLiveModelsForForm(true);
   }
 
   selectProvider.addEventListener('change', function() {
     populateModels(selectProvider.value, '');
+    if (inputApiKey.value.trim().length >= 16) {
+      fetchLiveModelsForForm(true);
+    }
   });
+
+  if (btnFetchModels) {
+    btnFetchModels.addEventListener('click', function() {
+      fetchLiveModelsForForm(false);
+    });
+  }
+
+  if (inputApiKey) {
+    inputApiKey.addEventListener('change', function() {
+      if (inputApiKey.value.trim().length >= 16) {
+        fetchLiveModelsForForm(true);
+      }
+    });
+  }
 
   selectModelPreset.addEventListener('change', function() {
     const isCustom = selectModelPreset.value === '__custom__';

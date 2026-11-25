@@ -431,6 +431,181 @@ INSTRUCTION;
         ];
     }
 
+    /**
+     * Ambil seluruh daftar model teks yang tersedia secara live dari akun API Key pengguna (mendukung Tier 1 / penuh).
+     *
+     * @return array{success:bool, provider?:string, models?:array<int, array{id:string, label:string, description:string}>, source?:string, error?:string}
+     */
+    public static function listAvailableModels(string $provider, string $apiKey): array {
+        $provider = strtolower(trim($provider));
+        $apiKey = trim($apiKey);
+        if (!AiConfigService::isValidProvider($provider)) {
+            return ['success' => false, 'error' => 'Provider AI tidak didukung.'];
+        }
+        if ($apiKey === '') {
+            return ['success' => false, 'error' => 'API Key kosong atau belum disimpan.'];
+        }
+
+        if ($provider === 'gemini') {
+            return self::fetchGeminiModels($apiKey);
+        }
+        if ($provider === 'deepseek') {
+            return self::fetchDeepSeekModels($apiKey);
+        }
+
+        return ['success' => false, 'error' => 'Provider AI tidak dikenali.'];
+    }
+
+    private static function fetchGeminiModels(string $apiKey): array {
+        $collected = [];
+        $pageToken = '';
+        $maxPages = 3;
+
+        for ($page = 0; $page < $maxPages; $page++) {
+            $url = 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=200';
+            if ($pageToken !== '') {
+                $url .= '&pageToken=' . rawurlencode($pageToken);
+            }
+            $resp = self::requestJson('GET', $url, ['x-goog-api-key: ' . $apiKey], null, 15);
+            if ($resp['http_code'] !== 200 || $resp['body'] === '') {
+                if ($page === 0) {
+                    return ['success' => false, 'error' => self::extractApiError('Gemini', $resp)];
+                }
+                break;
+            }
+            $data = json_decode($resp['body'], true);
+            $rows = is_array($data['models'] ?? null) ? $data['models'] : [];
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $methods = is_array($row['supportedGenerationMethods'] ?? null) ? $row['supportedGenerationMethods'] : [];
+                if (!in_array('generateContent', $methods, true)) {
+                    continue;
+                }
+                $rawName = trim((string)($row['name'] ?? ''));
+                $id = preg_replace('/^models\//', '', $rawName) ?? $rawName;
+                if ($id === '' || self::isNonTextGeminiModel($id)) {
+                    continue;
+                }
+                $display = trim((string)($row['displayName'] ?? $id));
+                $desc = trim((string)($row['description'] ?? ''));
+                $collected[$id] = [
+                    'id' => $id,
+                    'label' => $display !== '' ? $display : $id,
+                    'description' => mb_substr($desc, 0, 140, 'UTF-8'),
+                ];
+            }
+            $pageToken = trim((string)($data['nextPageToken'] ?? ''));
+            if ($pageToken === '') {
+                break;
+            }
+        }
+
+        $models = array_values($collected);
+        usort($models, static function (array $a, array $b): int {
+            $pa = self::geminiModelSortScore($a['id']);
+            $pb = self::geminiModelSortScore($b['id']);
+            if ($pa !== $pb) {
+                return $pb <=> $pa;
+            }
+            return strcmp($a['id'], $b['id']);
+        });
+
+        return [
+            'success' => true,
+            'provider' => 'gemini',
+            'source' => 'live_api',
+            'count' => count($models),
+            'models' => $models,
+        ];
+    }
+
+    private static function isNonTextGeminiModel(string $modelId): bool {
+        $low = strtolower($modelId);
+        // Hanya tampilkan model generasi teks (hindari model khusus TTS, gambar, video, embedding, audio, robotika)
+        $blockedFragments = [
+            'embedding', 'imagen', 'veo', 'lyria', 'aqa', 'bisection', 'learnlm',
+            '-tts', '-image', 'image-generation', 'image-preview', 'native-audio',
+            'robotics', 'computer-use', 'transcribe', 'deep-research', 'genie',
+            'omni', 'live',
+        ];
+        foreach ($blockedFragments as $frag) {
+            if (str_contains($low, $frag)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static function geminiModelSortScore(string $modelId): int {
+        $low = strtolower($modelId);
+        $score = 0;
+        if (str_starts_with($low, 'gemini-4')) {
+            $score += 500;
+        } elseif (str_starts_with($low, 'gemini-3.8')) {
+            $score += 460;
+        } elseif (str_starts_with($low, 'gemini-3.')) {
+            $score += 420;
+        } elseif (str_starts_with($low, 'gemini-3')) {
+            $score += 400;
+        } elseif (str_starts_with($low, 'gemini-2.5')) {
+            $score += 320;
+        } elseif (str_starts_with($low, 'gemini-2.0')) {
+            $score += 240;
+        } elseif (str_starts_with($low, 'gemini-')) {
+            $score += 180;
+        } elseif (str_starts_with($low, 'gemma-')) {
+            $score += 80;
+        }
+        if (str_contains($low, 'flash') && !str_contains($low, 'lite')) {
+            $score += 30;
+        } elseif (str_contains($low, 'pro')) {
+            $score += 25;
+        } elseif (str_contains($low, 'lite')) {
+            $score += 20;
+        }
+        if (str_contains($low, 'preview') || str_contains($low, 'exp') || preg_match('/-\d{3,4}$/', $low)) {
+            $score -= 10;
+        }
+        return $score;
+    }
+
+    private static function fetchDeepSeekModels(string $apiKey): array {
+        $url = 'https://api.deepseek.com/models';
+        $resp = self::requestJson('GET', $url, ['Authorization: Bearer ' . $apiKey], null, 15);
+        if ($resp['http_code'] !== 200 || $resp['body'] === '') {
+            return ['success' => false, 'error' => self::extractApiError('DeepSeek', $resp)];
+        }
+
+        $data = json_decode($resp['body'], true);
+        $rows = is_array($data['data'] ?? null) ? $data['data'] : [];
+        $knownLabels = AiConfigService::PROVIDERS['deepseek']['models'] ?? [];
+        $models = [];
+        foreach ($rows as $row) {
+            if (!is_array($row) || empty($row['id'])) {
+                continue;
+            }
+            $id = trim((string)$row['id']);
+            if ($id === '') {
+                continue;
+            }
+            $models[] = [
+                'id' => $id,
+                'label' => $knownLabels[$id] ?? $id,
+                'description' => !empty($row['owned_by']) ? 'Provider: ' . (string)$row['owned_by'] : '',
+            ];
+        }
+
+        return [
+            'success' => true,
+            'provider' => 'deepseek',
+            'source' => 'live_api',
+            'count' => count($models),
+            'models' => $models,
+        ];
+    }
+
     private static function resolvePlan(): array {
         if (class_exists('AiConfigService')) {
             return AiConfigService::getExecutionPlan();
@@ -519,13 +694,14 @@ INSTRUCTION;
         $generationConfig = [
             'temperature' => 0.25,
             'topP' => 0.85,
-            'maxOutputTokens' => 2048,
+            'maxOutputTokens' => 4096,
         ];
 
-        // Konfigurasi thinking sesuai generasi seri Gemini
-        if (str_starts_with($modelName, 'gemini-2.5') || str_starts_with($modelName, 'gemini-2.0')) {
+        // Konfigurasi thinking aman per seri Gemini (hindari HTTP 400 pada 2.5-pro, 2.0-*, dan gemma-*)
+        $lowerModel = strtolower($modelName);
+        if (str_starts_with($lowerModel, 'gemini-2.5-flash')) {
             $generationConfig['thinkingConfig'] = ['thinkingBudget' => 0];
-        } elseif (str_starts_with($modelName, 'gemini-3.')) {
+        } elseif (str_starts_with($lowerModel, 'gemini-3.') || str_starts_with($lowerModel, 'gemini-3-') || str_starts_with($lowerModel, 'gemini-4-')) {
             $generationConfig['thinkingConfig'] = ['thinkingLevel' => 'low'];
         }
 
@@ -544,7 +720,7 @@ INSTRUCTION;
             'x-goog-api-key: ' . $apiKey,
         ];
 
-        $resp = self::postJson($url, $headers, $payload, $timeout);
+        $resp = self::requestJson('POST', $url, $headers, $payload, $timeout);
         if ($resp['http_code'] === 200 && $resp['body'] !== '') {
             $data = json_decode($resp['body'], true);
             $parts = $data['candidates'][0]['content']['parts'] ?? [];
@@ -607,7 +783,7 @@ INSTRUCTION;
             'Authorization: Bearer ' . $apiKey,
         ];
 
-        $resp = self::postJson($url, $headers, $payload, $timeout);
+        $resp = self::requestJson('POST', $url, $headers, $payload, $timeout);
         if ($resp['http_code'] === 200 && $resp['body'] !== '') {
             $data = json_decode($resp['body'], true);
             $text = trim((string)($data['choices'][0]['message']['content'] ?? ''));
@@ -628,13 +804,13 @@ INSTRUCTION;
     }
 
     /**
-     * HTTP POST JSON transport via cURL (atau mock client saat pengujian otomatis).
+     * HTTP JSON transport (GET / POST) via cURL (atau mock client saat pengujian otomatis).
      *
      * @return array{http_code:int, body:string, error:string}
      */
-    private static function postJson(string $url, array $headers, array $payload, int $timeout): array {
+    private static function requestJson(string $method, string $url, array $headers, ?array $payload, int $timeout): array {
         if (self::$httpClient !== null) {
-            $res = (self::$httpClient)($url, $headers, $payload, $timeout);
+            $res = (self::$httpClient)($url, $headers, $payload ?? [], $timeout, $method);
             return [
                 'http_code' => (int)($res['http_code'] ?? 0),
                 'body' => (string)($res['body'] ?? ''),
@@ -644,8 +820,12 @@ INSTRUCTION;
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        if (strtoupper($method) === 'POST') {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        } else {
+            curl_setopt($ch, CURLOPT_HTTPGET, true);
+        }
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 6);
