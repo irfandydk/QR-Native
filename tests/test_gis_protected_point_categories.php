@@ -222,7 +222,23 @@ try {
         'HTTP=' . ($validEditRes['__http_status__'] ?? 0) . ' msg=' . ($validEditRes['message'] ?? '')
     );
 
-    // 2e. USER CAN delete regular LKP point on OPEN operation
+    // 2e. USER cannot CREATE a new protected-category point (Kantor SAR / POS SAR / Unit Siaga SAR / Dermaga SAR)
+    $newProtectedId = "pt-prot-new-user-{$suffix}";
+    $createProtRes = $runGisController('/gis/points', 'POST', [
+        'id' => $newProtectedId,
+        'id_operasi' => $opId,
+        'label' => 'Kantor SAR Palsu Oleh User',
+        'category' => 'Kantor SAR',
+        'lat' => -4.05,
+        'lng' => 122.50,
+    ], 'USER');
+    assertProtected(
+        'USER ditolak membuat titik baru berkategori Pangkalan SAR (HTTP 403) dan titik tidak tersimpan',
+        ($createProtRes['__http_status__'] ?? 0) === 403 && !$pointExists($newProtectedId),
+        'HTTP=' . ($createProtRes['__http_status__'] ?? 0) . ' msg=' . ($createProtRes['message'] ?? $createProtRes['error'] ?? '')
+    );
+
+    // 2f. USER CAN delete regular LKP point on OPEN operation
     $delLkpRes = $runGisController("/gis/points/{$ptLkp}", 'DELETE', [], 'USER');
     assertProtected(
         'USER tetap dapat menghapus titik kategori biasa (LKP) pada operasi OPEN (HTTP 200)',

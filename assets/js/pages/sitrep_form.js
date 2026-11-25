@@ -29,28 +29,28 @@ function handleJenisLaporanChange(val) {
   if (isPenutupan) {
     if (debriefWrap) debriefWrap.classList.remove('hidden');
     if (lblPenutupan) {
-      lblPenutupan.className = 'cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold bg-red-600 text-white border-red-600';
+      lblPenutupan.className = 'cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-semibold bg-red-600 text-white border-red-600';
     }
     if (lblPerkembangan) {
-      lblPerkembangan.className = 'cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700';
+      lblPerkembangan.className = 'cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700';
     }
     if (btnSubmit) {
-      btnSubmit.classList.remove('bg-blue-600', 'hover:bg-blue-500');
+      btnSubmit.classList.remove('bg-orange-600', 'hover:bg-orange-500', 'bg-blue-600', 'hover:bg-blue-500');
       btnSubmit.classList.add('bg-red-600', 'hover:bg-red-500');
-      btnSubmit.querySelector('span:last-child').textContent = 'Terbitkan Laporan Penutupan Operasi';
+      btnSubmit.querySelector('span:last-child').textContent = isSitrepEditMode ? 'Simpan Laporan Penutupan' : 'Terbitkan Laporan Penutupan';
     }
   } else {
     if (debriefWrap) debriefWrap.classList.add('hidden');
     if (lblPerkembangan) {
-      lblPerkembangan.className = 'cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold bg-blue-600 text-white border-blue-600';
+      lblPerkembangan.className = 'cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-semibold bg-orange-600 text-white border-orange-600';
     }
     if (lblPenutupan) {
-      lblPenutupan.className = 'cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700';
+      lblPenutupan.className = 'cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all text-xs font-semibold bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700';
     }
     if (btnSubmit) {
-      btnSubmit.classList.remove('bg-red-600', 'hover:bg-red-500');
-      btnSubmit.classList.add('bg-blue-600', 'hover:bg-blue-500');
-      btnSubmit.querySelector('span:last-child').textContent = isSitrepEditMode ? 'Simpan Perubahan LAPBANG' : 'Terbitkan Laporan Perkembangan (LAPBANG)';
+      btnSubmit.classList.remove('bg-red-600', 'hover:bg-red-500', 'bg-blue-600', 'hover:bg-blue-500');
+      btnSubmit.classList.add('bg-orange-600', 'hover:bg-orange-500');
+      btnSubmit.querySelector('span:last-child').textContent = isSitrepEditMode ? 'Simpan Perubahan LAPBANG' : 'Terbitkan LAPBANG';
     }
   }
 }
@@ -260,7 +260,7 @@ function renderUnsurList() {
   if (currentUnsurList.length === 0) {
     container.innerHTML = `
       <div class="p-4 text-center rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-xs text-slate-400">
-        Belum ada unsur SAR yang ditambahkan. Gunakan dropdown Master Data atau input manual di atas.
+        Belum ada unsur SAR.
       </div>
     `;
   } else {
@@ -269,19 +269,19 @@ function renderUnsurList() {
       totalPersonil += jml;
 
       const row = document.createElement('div');
-      row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-blue-500/40 transition-colors';
+      row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
       row.setAttribute('data-unsur-idx', String(idx));
       row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
           <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none cursor-grab active:cursor-grabbing" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
-          <span class="w-5 h-5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 font-bold text-[11px] flex items-center justify-center shrink-0">
+          <span class="w-5 h-5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 font-mono font-bold tabular-nums text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
-          <input type="text" value="${escapeHtml(item.nama_unsur || '')}" onchange="updateUnsurItem(${idx}, 'nama_unsur', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-blue-500 focus:outline-none text-slate-900 dark:text-white" />
+          <input type="text" value="${escapeHtml(item.nama_unsur || '')}" onchange="updateUnsurItem(${idx}, 'nama_unsur', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-orange-500 focus:outline-none text-slate-900 dark:text-white" />
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <div class="flex items-center gap-1">
-            <input type="number" min="1" max="999" value="${jml}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-purple-600 dark:text-purple-400" />
+            <input type="number" min="1" max="999" value="${jml}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold font-mono tabular-nums text-center text-orange-600 dark:text-orange-400" />
             <span class="text-xs font-medium text-slate-400">Org</span>
           </div>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
@@ -382,11 +382,11 @@ function renderAlutList() {
   if (currentAlutList.length === 0) {
     container.innerHTML = `
       <div class="p-4 text-center rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-xs text-slate-400">
-        Belum ada armada alut / palsar yang ditambahkan. Gunakan dropdown Master Data atau input manual di atas.
+        Belum ada alut atau palsar.
       </div>
     `;
   } else {
-    // Urutan simpan = urutan tampil: per kategori (Darat → Laut → Udara → PALSAR), sama dengan naskah WA.
+    // Urutan simpan = urutan tampil: per kategori (Darat -> Laut -> Udara -> PALSAR), sama dengan naskah WA.
     currentAlutList.forEach((item) => {
       if (!AlutKategoriUI.normalize(item.kategori)) item.kategori = AlutKategoriUI.kategoriOf(item);
       totalAlut += (parseInt(item.jumlah_alut, 10) || 1);
@@ -394,7 +394,7 @@ function renderAlutList() {
     currentAlutList = AlutKategoriUI.sort(currentAlutList);
     AlutKategoriUI.groups(currentAlutList).forEach((grp) => {
       const head = document.createElement('div');
-      head.className = 'text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-1';
+      head.className = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-1';
       head.textContent = grp.label;
       container.appendChild(head);
       const box = document.createElement('div');
@@ -403,18 +403,18 @@ function renderAlutList() {
       grp.items.forEach(({ item, idx }) => {
         const jml = parseInt(item.jumlah_alut, 10) || 1;
         const row = document.createElement('div');
-        row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-blue-500/40 transition-colors';
+        row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
         row.setAttribute('data-alut-idx', String(idx));
         row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
           <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none cursor-grab active:cursor-grabbing" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
-          <span class="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-center shrink-0">
+          <span class="w-5 h-5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 font-mono font-bold tabular-nums text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
-          <input type="text" value="${escapeHtml(item.nama_alut || '')}" onchange="updateAlutItem(${idx}, 'nama_alut', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-blue-500 focus:outline-none text-slate-900 dark:text-white" />
+          <input type="text" value="${escapeHtml(item.nama_alut || '')}" onchange="updateAlutItem(${idx}, 'nama_alut', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-orange-500 focus:outline-none text-slate-900 dark:text-white" />
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <input type="number" min="1" max="999" value="${jml}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-emerald-600 dark:text-emerald-400" />
+          <input type="number" min="1" max="999" value="${jml}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold font-mono tabular-nums text-center text-orange-600 dark:text-orange-400" />
           <select onchange="updateAlutItem(${idx}, 'satuan', this.value)" class="control control-sm">
             <option value="Unit" ${item.satuan === 'Unit' ? 'selected' : ''}>Unit</option>
             <option value="Set" ${item.satuan === 'Set' ? 'selected' : ''}>Set</option>
@@ -698,10 +698,10 @@ function updateVictimStatusBadges() {
   const badgeContainer = document.getElementById('victim-status-badges');
   if (badgeContainer) {
     badgeContainer.innerHTML = `
-      <span class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">🟢 Selamat: ${s}</span>
-      <span class="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">🔴 MD: ${md}</span>
-      <span class="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">🟡 DP: ${dp}</span>
-      ${h > 0 ? `<span class="px-2 py-0.5 rounded-full bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/30">⚪ Hilang: ${h}</span>` : ''}
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/25 font-mono tabular-nums"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Selamat: ${s}</span>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/25 font-mono tabular-nums"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>MD: ${md}</span>
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25 font-mono tabular-nums"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>DP: ${dp}</span>
+      ${h > 0 ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-400 border border-slate-500/25 font-mono tabular-nums"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Hilang: ${h}</span>` : ''}
     `;
   }
 }

@@ -17,6 +17,8 @@ storage/cache/*
 !storage/cache/.gitkeep
 storage/backups/*
 !storage/backups/.gitkeep
+storage/sessions/*
+!storage/sessions/.gitkeep
 scratch/
 
 # Artefak deploy, dump database dan cookie sesi tidak boleh masuk repo (kebocoran 8b11dcc)

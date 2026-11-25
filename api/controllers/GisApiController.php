@@ -1066,6 +1066,8 @@ class GisApiController extends BaseApiController {
                     self::error('Operasi SAR telah berstatus DITUTUP (CLOSED). Data spasial terkait operasi ini terkunci.', 403);
                 }
             }
+        } elseif ($table === 'GisPoint' && !AuthHelper::isAdmin() && self::isProtectedPointCategory((string)($input['category'] ?? ''))) {
+            self::error('Akses ditolak: Hanya Administrator yang berwenang membuat titik baru kategori Pangkalan SAR dan Dermaga SAR.', 403);
         }
 
         // 2. Tentukan id_operasi sasaran

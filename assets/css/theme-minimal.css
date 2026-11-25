@@ -225,6 +225,34 @@ html[data-ui="minimal"] button:not(:disabled):active,
 html[data-ui="minimal"] .btn:not(:disabled):active { transform: scale(0.98); }
 html[data-ui="minimal"] .btn { border-radius: 12px; }
 
+/* ---------- Unified Operational Forms (Laporan Awal, RENOPS, LAPBANG) ---------- */
+html[data-ui="minimal"] .ops-section,
+html[data-ui="minimal"] .ops-modal-card {
+  background-color: var(--m-surface);
+  border-color: var(--m-border);
+  box-shadow: var(--m-shadow-sm);
+}
+html[data-ui="minimal"] .ops-section-head,
+html[data-ui="minimal"] .ops-modal-head,
+html[data-ui="minimal"] .ops-modal-foot {
+  border-color: var(--m-border);
+}
+html[data-ui="minimal"] .ops-subpanel,
+html[data-ui="minimal"] .ops-modal-foot {
+  background-color: var(--m-surface-2);
+  border-color: var(--m-border);
+}
+html[data-ui="minimal"] .ops-counter-pill {
+  background-color: var(--m-surface-2);
+  border-color: var(--m-border);
+  color: var(--m-text-2);
+}
+html[data-ui="minimal"] .ops-section-num {
+  background-color: var(--m-accent-soft);
+  color: var(--m-accent-text);
+  border-color: color-mix(in srgb, var(--m-accent) 35%, transparent);
+}
+
 /* ---------- Tabel konsisten ---------- */
 html[data-ui="minimal"] .page-body table { border-collapse: separate; border-spacing: 0; }
 html[data-ui="minimal"] .page-body table thead th {

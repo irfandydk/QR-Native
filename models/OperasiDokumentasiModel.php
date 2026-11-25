@@ -994,8 +994,50 @@ class OperasiDokumentasiModel {
             }
             return array_values(array_filter($candidatePaths, static fn (string $p): bool => !isset($stillUsed[$p])));
         } catch (Throwable) {
-            return $candidatePaths;
+            // Fail-safe: bila query DB gagal, jangan tandai berkas sebagai tidak terpakai
+            return [];
         }
+    }
+
+    /**
+     * Hapus berkas sumber slot kolase yatim (uploads/operasi_dokumentasi/src_*) yang lebih tua dari
+     * $olderThanSeconds dan tidak dirujuk oleh project_json arsip mana pun.
+     * Bersifat fail-safe: bila pembacaan DB gagal, tidak ada berkas yang dihapus.
+     */
+    public static function pruneOrphanSourceFiles(int $olderThanSeconds = 86400): int {
+        $dir = ROOT_DIR . '/' . self::REL_DIR;
+        if (!is_dir($dir)) {
+            return 0;
+        }
+        $files = glob($dir . '/src_*') ?: [];
+        if (empty($files)) {
+            return 0;
+        }
+
+        $cutoff = time() - max(0, $olderThanSeconds);
+        $candidates = [];
+        foreach ($files as $absPath) {
+            if (!is_file($absPath)) {
+                continue;
+            }
+            $mtime = @filemtime($absPath);
+            if ($mtime === false || $mtime > $cutoff) {
+                continue;
+            }
+            $candidates[] = self::REL_DIR . '/' . basename($absPath);
+        }
+
+        if (empty($candidates)) {
+            return 0;
+        }
+
+        $unreferenced = self::filterUnreferencedSourcePaths($candidates);
+        if (empty($unreferenced)) {
+            return 0;
+        }
+
+        self::deleteFiles($unreferenced);
+        return count($unreferenced);
     }
 
     /**

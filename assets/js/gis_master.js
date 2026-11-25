@@ -3473,7 +3473,7 @@
           <div class="flex items-center justify-between p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-[11px]">
             <div class="flex items-center gap-2">
               <span class="w-5 h-5 rounded-full bg-orange-500 text-white font-bold text-[11px] flex items-center justify-center">${String.fromCharCode(65 + (idx % 26))}</span>
-              <span class="font-bold text-white">${pt.label}</span>
+              <span class="font-bold text-white">${escapeHtml(pt.label)}</span>
             </div>
             <div class="text-[11px] font-mono text-slate-400">${decimalToDms(pt.lat, pt.lng)}</div>
             <button type="button" onclick="window.SAR_GIS.removeVertex(${idx})" class="text-slate-500 hover:text-red-400 p-0.5">✕</button>

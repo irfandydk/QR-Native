@@ -156,7 +156,11 @@ class DokumenPetaSnapshotModel {
         $komponenJson = is_string($komponen) ? $komponen : json_encode($komponen ?: [], JSON_UNESCAPED_UNICODE);
 
         $keterangan = isset($data['keterangan_tambahan']) ? trim((string)$data['keterangan_tambahan']) : null;
-        $capturedBy = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : (isset($data['captured_by']) ? (int)$data['captured_by'] : null);
+        $rawCapturedBy = $_SESSION['user_id'] ?? ($data['captured_by'] ?? null);
+        // Kolom captured_by bertipe INT sedangkan user_id berbentuk string (USR-ADMIN); hindari menulis 0 palsu.
+        $capturedBy = (is_int($rawCapturedBy) && $rawCapturedBy > 0)
+            ? $rawCapturedBy
+            : ((is_string($rawCapturedBy) && ctype_digit($rawCapturedBy) && (int)$rawCapturedBy > 0) ? (int)$rawCapturedBy : null);
 
         // Cek apakah sudah ada snapshot sebelumnya untuk kombinasi (id_operasi, jenis_dokumen, id_referensi)
         if ($idReferensi !== null) {

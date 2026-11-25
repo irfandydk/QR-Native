@@ -256,7 +256,7 @@ function renderSruList() {
   if (currentSrus.length === 0) {
     container.innerHTML = `
       <div class="p-4 text-center rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-xs text-slate-400">
-        Belum ada pembagian unit SRU. Klik tombol "+ Tambah SRU" di atas untuk menambahkan sektor pencarian.
+        Belum ada unit SRU.
       </div>
     `;
     return;
@@ -318,7 +318,7 @@ function renderSruList() {
       (!s.id_polygon && polygonsList.some(p => s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase())))
     );
 
-    const polyOptionsHtml = `<option value="" ${!isLinkedGis ? 'selected' : ''}>-- Tanpa Sektor GIS (Mode Input Manual) --</option>` +
+    const polyOptionsHtml = `<option value="" ${!isLinkedGis ? 'selected' : ''}>-- Tanpa Sektor GIS (Input Manual) --</option>` +
       polygonsList.map(p => {
         const aNum = calculatePolygonAreaNm2(p);
         const areaDisplay = formatRenopsAreaShort(aNum);
@@ -326,94 +326,75 @@ function renderSruList() {
           (s.id_polygon && String(s.id_polygon) === String(p.id)) ||
           (!s.id_polygon && s.nama_sru && p.name && s.nama_sru.toLowerCase().includes(p.name.toLowerCase()))
         );
-        const shapeIcon = p.shapeType === 'circle' ? '⭕' : (p.shapeType === 'rectangle' ? '⏹️' : '📐');
-        return `<option value="${escapeHtml(p.id)}" ${isMatched ? 'selected' : ''}>${shapeIcon} ${escapeHtml(p.name)} (${areaDisplay})</option>`;
+        return `<option value="${escapeHtml(p.id)}" ${isMatched ? 'selected' : ''}>${escapeHtml(p.name)} (${areaDisplay})</option>`;
       }).join('');
 
     card.innerHTML = `
-      <div class="flex items-center justify-between pb-2 border-b border-slate-200/80 dark:border-slate-800">
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="px-2 py-0.5 rounded font-mono font-bold text-xs bg-blue-500/15 text-blue-600 dark:text-blue-400">
+      <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-200/80 dark:border-slate-800">
+        <div class="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+          <span class="px-2 py-0.5 rounded-md font-mono font-bold tabular-nums text-xs bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20">
             SRU ${idx + 1}
           </span>
-          <input type="text" name="srus[${idx}][nama_sru]" value="${escapeHtml(s.nama_sru || '')}" placeholder="Nama SRU (contoh: SRU 1 Kapal RIB)" required class="control control-sm font-bold" onchange="currentSrus[${idx}].nama_sru = this.value">
-          <button type="button" onclick="openGisImportModal(${idx})" class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/25 transition cursor-pointer shadow-2xs" title="Buka modal import GIS lengkap untuk SRU ini">
-            <span>🗺️</span>
+          <input type="text" name="srus[${idx}][nama_sru]" value="${escapeHtml(s.nama_sru || '')}" placeholder="Nama SRU (contoh: SRU 1 Kapal RIB)" required class="control control-sm font-semibold flex-1 min-w-[12rem]" onchange="currentSrus[${idx}].nama_sru = this.value">
+          <button type="button" onclick="openGisImportModal(${idx})" class="btn-tactile inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/25 transition cursor-pointer shrink-0">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
             <span>Import Plotting</span>
           </button>
         </div>
-        <button type="button" onclick="removeSruRow(${idx})" class="p-1 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer" title="Hapus SRU">
+        <button type="button" onclick="removeSruRow(${idx})" class="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition cursor-pointer shrink-0" title="Hapus SRU">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
 
-      <!-- Quick Sector Linking Dropdown (Deteksi Langsung Search Area Baru) -->
-      <div class="flex items-center gap-2 p-2 rounded-xl bg-orange-500/5 dark:bg-orange-500/10 border border-orange-500/20 text-xs">
-        <span class="font-bold text-[11px] text-orange-600 dark:text-orange-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
-          <span>📐</span>
-          <span>Sektor Plotting GIS:</span>
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
+        <span class="font-semibold text-[11px] text-slate-600 dark:text-slate-400 uppercase tracking-wider shrink-0">
+          Sektor Plotting GIS:
         </span>
         <select onchange="applySektorToPlotting(${idx}, this.value)" class="control control-sm flex-1 cursor-pointer">
           ${polyOptionsHtml}
         </select>
       </div>
 
-      <!-- Ringkasan Data Taktis (Luas Area, Pola Pencarian & Total Sapuan) -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-xs">
-        <div class="flex items-center gap-2.5">
-          <div class="w-7 h-7 rounded-lg bg-blue-500/15 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 text-sm">
-            📐
-          </div>
-          <div class="min-w-0 flex-1">
-            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">${isLinkedGis ? 'Luas Area Pencarian' : 'Luas Area (Manual)'}</span>
-            ${isLinkedGis ? `
-              <span class="font-mono font-bold text-xs ${luasVal ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 italic'}">
-                ${luasVal ? `✓ ${escapeHtml(luasVal)}` : 'Belum Terdeteksi'}
-              </span>
-            ` : `
-              <input type="text" placeholder="Contoh: 10 NM² (opsional)" value="${escapeHtml(s.luas_area || '')}" class="control control-xs w-full text-xs font-mono mt-0.5" oninput="setSruManualLuas(${idx}, this.value)">
-            `}
-          </div>
+        <div class="min-w-0">
+          <span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">${isLinkedGis ? 'Luas Area' : 'Luas Area (Manual)'}</span>
+          ${isLinkedGis ? `
+            <span class="font-mono font-bold tabular-nums text-xs ${luasVal ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 italic'}">
+              ${luasVal ? escapeHtml(luasVal) : 'Belum Terdeteksi'}
+            </span>
+          ` : `
+            <input type="text" placeholder="Contoh: 10 NM²" value="${escapeHtml(s.luas_area || '')}" class="control control-sm w-full text-xs font-mono tabular-nums mt-1" oninput="setSruManualLuas(${idx}, this.value)">
+          `}
         </div>
 
-        <div class="flex items-center gap-2.5">
-          <div class="w-7 h-7 rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0 text-sm">
-            ⚡
-          </div>
-          <div class="min-w-0 flex-1">
-            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">${isLinkedGis ? 'Pola Pencarian' : 'Pola Pencarian (Manual)'}</span>
-            ${isLinkedGis ? `
-              <span class="font-bold text-xs ${polaVal ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400 italic'} truncate block">
-                ${polaVal ? `✓ ${escapeHtml(polaVal)}` : '- (Belum ditentukan / Pilih dari Peta Plotting)'}
-              </span>
-            ` : `
-              <select onchange="setSruManualPola(${idx}, this.value)" class="control control-xs w-full text-xs font-medium cursor-pointer mt-0.5">
-                <option value="" ${!polaVal ? 'selected' : ''}>- (Belum ditentukan / Pilih dari Peta Plotting)</option>
-                <option value="Parallel Track Search" ${polaVal === 'Parallel Track Search' ? 'selected' : ''}>Parallel Track Search</option>
-                <option value="Creeping Line Search" ${polaVal === 'Creeping Line Search' ? 'selected' : ''}>Creeping Line Search</option>
-                <option value="Expanding Square Search" ${polaVal === 'Expanding Square Search' ? 'selected' : ''}>Expanding Square Search</option>
-                <option value="Sector Search" ${polaVal === 'Sector Search' ? 'selected' : ''}>Sector Search</option>
-                <option value="Track Line Search" ${polaVal === 'Track Line Search' ? 'selected' : ''}>Track Line Search</option>
-                <option value="Pola Pencarian E-SAR" ${polaVal === 'Pola Pencarian E-SAR' ? 'selected' : ''}>Pola Pencarian E-SAR</option>
-              </select>
-            `}
-          </div>
+        <div class="min-w-0 sm:border-l sm:border-slate-100 sm:dark:border-slate-800 sm:pl-3">
+          <span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">${isLinkedGis ? 'Pola Pencarian' : 'Pola Pencarian (Manual)'}</span>
+          ${isLinkedGis ? `
+            <span class="font-semibold text-xs ${polaVal ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400 italic'} truncate block">
+              ${polaVal ? escapeHtml(polaVal) : '- (Belum ditentukan / Pilih dari Peta Plotting)'}
+            </span>
+          ` : `
+            <select onchange="setSruManualPola(${idx}, this.value)" class="control control-sm w-full text-xs font-medium cursor-pointer mt-1">
+              <option value="" ${!polaVal ? 'selected' : ''}>- (Belum ditentukan / Pilih dari Peta Plotting)</option>
+              <option value="Parallel Track Search" ${polaVal === 'Parallel Track Search' ? 'selected' : ''}>Parallel Track Search</option>
+              <option value="Creeping Line Search" ${polaVal === 'Creeping Line Search' ? 'selected' : ''}>Creeping Line Search</option>
+              <option value="Expanding Square Search" ${polaVal === 'Expanding Square Search' ? 'selected' : ''}>Expanding Square Search</option>
+              <option value="Sector Search" ${polaVal === 'Sector Search' ? 'selected' : ''}>Sector Search</option>
+              <option value="Track Line Search" ${polaVal === 'Track Line Search' ? 'selected' : ''}>Track Line Search</option>
+              <option value="Pola Pencarian E-SAR" ${polaVal === 'Pola Pencarian E-SAR' ? 'selected' : ''}>Pola Pencarian E-SAR</option>
+            </select>
+          `}
         </div>
 
-        <div class="flex items-center gap-2.5">
-          <div class="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 text-sm">
-            🔁
-          </div>
-          <div class="min-w-0 flex-1">
-            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400">${isLinkedGis ? 'Total Sapuan / Lintasan' : 'Total Sapuan (Manual)'}</span>
-            ${isLinkedGis ? `
-              <span class="font-mono font-semibold text-[11px] ${sapuanVal ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 italic'} truncate block" title="${escapeHtml(sapuanVal)}">
-                ${sapuanVal ? `✓ ${escapeHtml(sapuanVal)}` : 'Otomatis dari Pola SAR'}
-              </span>
-            ` : `
-              <input type="text" placeholder="Contoh: 6 Sapuan (opsional)" value="${escapeHtml(s.total_sapuan || '')}" class="control control-xs w-full text-xs font-mono mt-0.5" oninput="setSruManualSapuan(${idx}, this.value)">
-            `}
-          </div>
+        <div class="min-w-0 sm:border-l sm:border-slate-100 sm:dark:border-slate-800 sm:pl-3">
+          <span class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400">${isLinkedGis ? 'Total Sapuan' : 'Total Sapuan (Manual)'}</span>
+          ${isLinkedGis ? `
+            <span class="font-mono font-semibold tabular-nums text-[11px] ${sapuanVal ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 italic'} truncate block" title="${escapeHtml(sapuanVal)}">
+              ${sapuanVal ? escapeHtml(sapuanVal) : '-'}
+            </span>
+          ` : `
+            <input type="text" placeholder="Contoh: 6 Sapuan" value="${escapeHtml(s.total_sapuan || '')}" class="control control-sm w-full text-xs font-mono tabular-nums mt-1" oninput="setSruManualSapuan(${idx}, this.value)">
+          `}
         </div>
       </div>
 
@@ -425,13 +406,10 @@ function renderSruList() {
       <input type="hidden" name="srus[${idx}][track_spacing]" value="${escapeHtml(s.track_spacing || '')}">
 
       <div>
-        <div class="flex items-center justify-between mb-1">
-          <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-            Koordinat Batas Sektor & Rincian Tugas
-          </label>
-          <span class="text-[11px] text-slate-400 font-mono">Format Standar Basarnas DMS</span>
-        </div>
-        <textarea name="srus[${idx}][koordinat_area]" rows="3" placeholder="Koordinat batas sektor / tugas penyisiran (Otomatis diambil dari peta plotting)..." class="control control-sm w-full font-mono leading-relaxed" onchange="currentSrus[${idx}].koordinat_area = this.value">${escapeHtml(s.koordinat_area || '')}</textarea>
+        <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
+          Koordinat Batas Sektor &amp; Rincian Tugas
+        </label>
+        <textarea name="srus[${idx}][koordinat_area]" rows="3" placeholder="Koordinat batas sektor / tugas penyisiran..." class="control control-sm w-full font-mono leading-relaxed" onchange="currentSrus[${idx}].koordinat_area = this.value">${escapeHtml(s.koordinat_area || '')}</textarea>
       </div>
     `;
     container.appendChild(card);
@@ -569,7 +547,7 @@ function renderUnsurList() {
   if (currentUnsurList.length === 0) {
     container.innerHTML = `
       <div class="p-4 text-center rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-xs text-slate-400">
-        Belum ada unsur SAR yang ditambahkan. Gunakan dropdown Master Data atau input manual di atas.
+        Belum ada unsur SAR.
       </div>
     `;
   } else {
@@ -578,19 +556,19 @@ function renderUnsurList() {
       totalPersonil += jml;
 
       const row = document.createElement('div');
-      row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
+      row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
       row.setAttribute('data-unsur-idx', String(idx));
       row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
           <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none cursor-grab active:cursor-grabbing" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
-          <span class="w-5 h-5 rounded-full bg-purple-500/15 text-purple-600 dark:text-purple-400 font-bold text-[11px] flex items-center justify-center shrink-0">
+          <span class="w-5 h-5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 font-mono font-bold tabular-nums text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
           <input type="text" value="${escapeHtml(item.nama_unsur || '')}" onchange="updateUnsurItem(${idx}, 'nama_unsur', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-orange-500 focus:outline-none text-slate-900 dark:text-white" />
         </div>
         <div class="flex items-center gap-2 shrink-0">
           <div class="flex items-center gap-1">
-            <input type="number" min="1" max="999" value="${jml}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-purple-600 dark:text-purple-400" />
+            <input type="number" min="1" max="999" value="${jml}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold font-mono tabular-nums text-center text-orange-600 dark:text-orange-400" />
             <span class="text-xs font-medium text-slate-400">Org</span>
           </div>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
@@ -691,11 +669,11 @@ function renderAlutList() {
   if (currentAlutList.length === 0) {
     container.innerHTML = `
       <div class="p-4 text-center rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-xs text-slate-400">
-        Belum ada armada alut / palsar yang ditambahkan. Gunakan dropdown Master Data atau input manual di atas.
+        Belum ada alut atau palsar.
       </div>
     `;
   } else {
-    // Urutan simpan = urutan tampil: per kategori (Darat → Laut → Udara → PALSAR), sama dengan naskah WA.
+    // Urutan simpan = urutan tampil: per kategori (Darat -> Laut -> Udara -> PALSAR), sama dengan naskah WA.
     currentAlutList.forEach((item) => {
       if (!AlutKategoriUI.normalize(item.kategori)) item.kategori = AlutKategoriUI.kategoriOf(item);
       totalAlut += (parseInt(item.jumlah_alut, 10) || 1);
@@ -703,7 +681,7 @@ function renderAlutList() {
     currentAlutList = AlutKategoriUI.sort(currentAlutList);
     AlutKategoriUI.groups(currentAlutList).forEach((grp) => {
       const head = document.createElement('div');
-      head.className = 'text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-1';
+      head.className = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-1';
       head.textContent = grp.label;
       container.appendChild(head);
       const box = document.createElement('div');
@@ -712,18 +690,18 @@ function renderAlutList() {
       grp.items.forEach(({ item, idx }) => {
         const jml = parseInt(item.jumlah_alut, 10) || 1;
         const row = document.createElement('div');
-        row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
+        row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
         row.setAttribute('data-alut-idx', String(idx));
         row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
           <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none cursor-grab active:cursor-grabbing" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
-          <span class="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center justify-center shrink-0">
+          <span class="w-5 h-5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 font-mono font-bold tabular-nums text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
           <input type="text" value="${escapeHtml(item.nama_alut || '')}" onchange="updateAlutItem(${idx}, 'nama_alut', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-orange-500 focus:outline-none text-slate-900 dark:text-white" />
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <input type="number" min="1" max="999" value="${jml}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-emerald-600 dark:text-emerald-400" />
+          <input type="number" min="1" max="999" value="${jml}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold font-mono tabular-nums text-center text-orange-600 dark:text-orange-400" />
           <select onchange="updateAlutItem(${idx}, 'satuan', this.value)" class="control control-sm">
             <option value="Unit" ${item.satuan === 'Unit' ? 'selected' : ''}>Unit</option>
             <option value="Set" ${item.satuan === 'Set' ? 'selected' : ''}>Set</option>

@@ -16,6 +16,9 @@ class DashboardController extends BaseController {
 
         $stats = OperasiModel::getStats();
         $activeOperations = OperasiModel::getListSimple('OPEN', 3);
+        $dokStats = class_exists('OperasiDokumentasiModel')
+            ? OperasiDokumentasiModel::getArchiveStats()
+            : ['total' => 0, 'umum' => 0, 'operasi' => 0, 'image' => 0, 'video' => 0];
         $appSettings = SettingsModel::getSettings();
         $currentUser = AuthHelper::getCurrentUser();
         $isAdmin = AuthHelper::isAdmin();
@@ -23,6 +26,7 @@ class DashboardController extends BaseController {
         $this->render('dashboard', [
             'stats' => $stats,
             'activeOperations' => $activeOperations,
+            'dokStats' => $dokStats,
             'appSettings' => $appSettings,
             'currentUser' => $currentUser,
             'isAdmin' => $isAdmin,

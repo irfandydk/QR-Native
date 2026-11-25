@@ -87,15 +87,16 @@ $dashCtrlSrc = (string)file_get_contents($rootDir . '/controllers/DashboardContr
 $dashViewSrc = (string)file_get_contents($rootDir . '/views/dashboard.php');
 
 assertDash(
-    'DashboardController::index() mengirimkan stats, activeOperations (LIMIT 3), dan appSettings ke views/dashboard.php',
+    'DashboardController::index() mengirimkan stats, activeOperations (LIMIT 3), dokStats, dan appSettings ke views/dashboard.php',
     str_contains($dashCtrlSrc, 'OperasiModel::getStats()')
         && str_contains($dashCtrlSrc, "OperasiModel::getListSimple('OPEN', 3)")
+        && str_contains($dashCtrlSrc, 'OperasiDokumentasiModel::getArchiveStats()')
         && str_contains($dashCtrlSrc, "SettingsModel::getSettings()")
         && str_contains($dashCtrlSrc, "'route' => 'dashboard'")
 );
 
 assertDash(
-    'views/dashboard.php memuat blok inti (Hero, Metrik Relevan, Alur Kerja 5 Poin, Fitur Utama, Keunggulan & Manfaat)',
+    'views/dashboard.php memuat blok inti (Hero, 4 KPI termasuk Dokumentasi, Alur Kerja 6 Tahap, Fitur Utama, Keunggulan & Manfaat)',
     str_contains($dashViewSrc, 'id="dashHeroTitle"')
         && str_contains($dashViewSrc, 'id="dashWorkflowTitle"')
         && str_contains($dashViewSrc, 'id="dashFeaturesTitle"')
@@ -103,6 +104,8 @@ assertDash(
         && str_contains($dashViewSrc, '/operasi.php')
         && str_contains($dashViewSrc, '/gis.php')
         && str_contains($dashViewSrc, '/bra.php')
+        && str_contains($dashViewSrc, '/dokumentasi.php')
+        && str_contains($dashViewSrc, 'Dokumentasi kolase')
         && str_contains($dashViewSrc, 'Keunggulan')
         && str_contains($dashViewSrc, 'Manfaat')
 );
@@ -157,13 +160,17 @@ assertDash(
 );
 
 assertDash(
-    'Ketiga aset gambar generatif lokal Dashboard tersedia dan dimuat di views/dashboard.php',
+    'Seluruh 5 aset gambar generatif lokal Dashboard (termasuk Dokumentasi & BRA) tersedia dan dimuat di views/dashboard.php',
     file_exists($rootDir . '/assets/images/dashboard/hero-sar-ops.jpg')
         && file_exists($rootDir . '/assets/images/dashboard/feature-gis-tactical.jpg')
+        && file_exists($rootDir . '/assets/images/dashboard/feature-dokumentasi-kolase.jpg')
         && file_exists($rootDir . '/assets/images/dashboard/feature-command-desk.jpg')
+        && file_exists($rootDir . '/assets/images/dashboard/feature-bra-radio.jpg')
         && str_contains($htmlUser, 'assets/images/dashboard/hero-sar-ops.jpg')
         && str_contains($htmlUser, 'assets/images/dashboard/feature-gis-tactical.jpg')
+        && str_contains($htmlUser, 'assets/images/dashboard/feature-dokumentasi-kolase.jpg')
         && str_contains($htmlUser, 'assets/images/dashboard/feature-command-desk.jpg')
+        && str_contains($htmlUser, 'assets/images/dashboard/feature-bra-radio.jpg')
 );
 
 assertDash(

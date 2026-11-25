@@ -78,7 +78,7 @@ if (!defined('APP_NAME')) {
     </div>
 
     <div class="pl-3 py-1 border-l-2 border-amber-500 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-      Gunakan kombinasi minimal 4 karakter. Standar awal: <strong class="font-mono text-slate-800 dark:text-slate-200">Kendari304</strong>.
+      Gunakan kombinasi minimal 8 karakter (huruf, angka, dan simbol) untuk melindungi akun Administrator.
     </div>
 
     <form action="<?= BASE_URL ?>/admin.php?action=change_admin_pass" method="POST" class="space-y-3.5">

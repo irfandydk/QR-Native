@@ -31,28 +31,32 @@ function renderUnsurList() {
   if (unsurSortable) { unsurSortable.destroy(); unsurSortable = null; }
   container.innerHTML = '';
 
+  let totalPersonil = 0;
+
   if (currentUnsurList.length === 0) {
     container.innerHTML = `
       <div class="p-4 text-center rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-xs text-slate-400">
-        Belum ada unsur SAR yang ditambahkan. Gunakan dropdown Master Data Tim atau form di atas.
+        Belum ada unsur SAR.
       </div>
     `;
   } else {
     currentUnsurList.forEach((item, idx) => {
+      const jml = parseInt(item.jumlah_personil, 10) || 1;
+      totalPersonil += jml;
       const row = document.createElement('div');
-      row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
+      row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
       row.setAttribute('data-unsur-idx', String(idx));
       row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
           <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
-          <span class="w-5 h-5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold text-[11px] flex items-center justify-center shrink-0">
+          <span class="w-5 h-5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 font-mono font-bold tabular-nums text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
           <input type="text" value="${escapeHtml(item.nama_unsur || '')}" onchange="updateUnsurItem(${idx}, 'nama_unsur', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-orange-500 focus:outline-none text-slate-900 dark:text-white" />
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <input type="number" min="1" max="999" value="${item.jumlah_personil || 1}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-orange-600 dark:text-orange-400" />
-          <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Org</span>
+          <input type="number" min="1" max="999" value="${jml}" onchange="updateUnsurItem(${idx}, 'jumlah_personil', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold font-mono tabular-nums text-center text-orange-600 dark:text-orange-400" />
+          <span class="text-xs font-medium text-slate-500 dark:text-slate-400">Org</span>
           <div class="flex items-center gap-0.5 border-l border-slate-200 dark:border-slate-800 pl-2">
             <button type="button" onclick="removeUnsurRow(${idx})" class="p-1 rounded text-slate-400 hover:text-red-500 cursor-pointer" title="Hapus Unsur">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -73,6 +77,9 @@ function renderUnsurList() {
       });
     }
   }
+
+  const badgeEl = document.getElementById('ops-total-personil');
+  if (badgeEl) badgeEl.textContent = `Total: ${totalPersonil} Org`;
 
   syncUnsurFields();
 }
@@ -242,40 +249,44 @@ function renderAlutList() {
   alutSortables = [];
   container.innerHTML = '';
 
+  let totalAlut = 0;
+
   if (currentAlutList.length === 0) {
     container.innerHTML = `
       <div class="p-4 text-center rounded-xl border border-dashed border-slate-300 dark:border-slate-800 text-xs text-slate-400">
-        Belum ada armada alut / palsar yang ditambahkan. Gunakan dropdown Master Data atau rekomendasi cepat di atas.
+        Belum ada alut atau palsar.
       </div>
     `;
   } else {
-    // Urutan simpan = urutan tampil: per kategori (Darat → Laut → Udara → PALSAR), sama dengan naskah WA.
+    // Urutan simpan = urutan tampil: per kategori (Darat -> Laut -> Udara -> PALSAR), sama dengan naskah WA.
     currentAlutList.forEach((item) => {
       if (!AlutKategoriUI.normalize(item.kategori)) item.kategori = AlutKategoriUI.kategoriOf(item);
+      totalAlut += (parseInt(item.jumlah_alut, 10) || 1);
     });
     currentAlutList = AlutKategoriUI.sort(currentAlutList);
     AlutKategoriUI.groups(currentAlutList).forEach((grp) => {
       const head = document.createElement('div');
-      head.className = 'text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-1';
+      head.className = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 pt-1';
       head.textContent = grp.label;
       container.appendChild(head);
       const box = document.createElement('div');
       box.className = 'space-y-2';
       box.setAttribute('data-alut-group', grp.kode);
       grp.items.forEach(({ item, idx }) => {
+        const jml = parseInt(item.jumlah_alut, 10) || 1;
         const row = document.createElement('div');
-        row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-slate-50 dark:bg-slate-950/70 border-slate-200 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
+        row.className = 'p-2.5 rounded-xl border flex items-center justify-between gap-2.5 bg-white dark:bg-slate-900/80 border-slate-200/80 dark:border-slate-800 hover:border-orange-500/40 transition-colors';
         row.setAttribute('data-alut-idx', String(idx));
         row.innerHTML = `
         <div class="flex items-center gap-2 flex-1 min-w-0">
           <span class="drag-handle text-slate-400 hover:text-slate-700 dark:hover:text-white px-0.5 select-none" style="cursor:grab;touch-action:none" title="Geser untuk mengubah urutan">⋮⋮</span>
-          <span class="w-5 h-5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold text-[11px] flex items-center justify-center shrink-0">
+          <span class="w-5 h-5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400 font-mono font-bold tabular-nums text-[11px] flex items-center justify-center shrink-0">
             ${idx + 1}
           </span>
           <input type="text" value="${escapeHtml(item.nama_alut || '')}" onchange="updateAlutItem(${idx}, 'nama_alut', this.value)" class="flex-1 text-xs font-semibold px-2 py-1 rounded bg-transparent border border-transparent hover:border-slate-300 dark:hover:border-slate-700 focus:border-orange-500 focus:outline-none text-slate-900 dark:text-white" />
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <input type="number" min="1" max="999" value="${item.jumlah_alut || 1}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold text-center text-orange-600 dark:text-orange-400" />
+          <input type="number" min="1" max="999" value="${jml}" onchange="updateAlutItem(${idx}, 'jumlah_alut', parseInt(this.value, 10) || 1)" class="control control-sm w-12 font-bold font-mono tabular-nums text-center text-orange-600 dark:text-orange-400" />
           <select onchange="updateAlutItem(${idx}, 'satuan', this.value)" class="control control-sm">
             <option value="Unit" ${item.satuan === 'Unit' ? 'selected' : ''}>Unit</option>
             <option value="Set" ${item.satuan === 'Set' ? 'selected' : ''}>Set</option>
@@ -308,6 +319,9 @@ function renderAlutList() {
       }
     });
   }
+
+  const badgeEl = document.getElementById('ops-total-alut');
+  if (badgeEl) badgeEl.textContent = `Total: ${totalAlut} Alut`;
 
   syncAlutFields();
 }
@@ -707,18 +721,18 @@ function toggleTacticalMapMinimize(forceState) {
   if (willMinimize) {
     bodyEl.classList.add('hidden');
     stripEl.classList.remove('hidden');
-    if (btnIcon) btnIcon.textContent = '🔼';
+    if (btnIcon) btnIcon.textContent = '';
     if (btnText) btnText.textContent = 'Buka Peta';
-    if (btnToggle) btnToggle.title = 'Buka / Tampilkan kembali peta taktis LKP';
+    if (btnToggle) btnToggle.title = 'Tampilkan peta taktis LKP';
     try {
       localStorage.setItem('qr_sar_map_minimized', 'true');
     } catch (e) {}
   } else {
     bodyEl.classList.remove('hidden');
     stripEl.classList.add('hidden');
-    if (btnIcon) btnIcon.textContent = '🔽';
+    if (btnIcon) btnIcon.textContent = '';
     if (btnText) btnText.textContent = 'Minimize';
-    if (btnToggle) btnToggle.title = 'Sembunyikan / Perkecil tampilan peta untuk menghemat ruang';
+    if (btnToggle) btnToggle.title = 'Sembunyikan peta taktis';
     try {
       localStorage.setItem('qr_sar_map_minimized', 'false');
     } catch (e) {}
@@ -1068,7 +1082,7 @@ function setRoutingMode(mode, updateState = true) {
     }
 
     if (instructionText) {
-      instructionText.textContent = 'Geser pin merah 🚨 untuk mengatur LKP, atau klik peta untuk pindah posisi.';
+      instructionText.textContent = 'Geser pin LKP atau klik peta untuk pindah posisi.';
     }
   }
 
@@ -1314,7 +1328,7 @@ function recalculateTacticalMetrics(autoApply = false) {
   const fbEl = document.getElementById('origin_calc_feedback');
   if (fbEl) {
     const routeTypeStr = tacticalState.routingMode === 'manual' ? `Jalur Navigasi (${tacticalState.manualWaypoints.length} WP)` : 'Garis Lurus';
-    fbEl.innerHTML = `📍 Terkalkulasi dari <strong>${escapeHtml(tacticalState.originName)}</strong> ke LKP [${routeTypeStr}]: <strong>${totalNm.toFixed(1)} NM</strong> (${totalKm.toFixed(1)} KM), Radial <strong>${departureRadial.toString().padStart(3, '0')}°</strong>`;
+    fbEl.innerHTML = `Dari <strong>${escapeHtml(tacticalState.originName)}</strong> ke LKP [${routeTypeStr}]: <strong>${totalNm.toFixed(1)} NM</strong> (${totalKm.toFixed(1)} KM), Radial <strong>${departureRadial.toString().padStart(3, '0')}°</strong>`;
   }
 
   // Update Hidden Inputs for GIS & Backend Sync
@@ -1635,12 +1649,12 @@ function addKorbanRow() {
         <option value="Perempuan">Perempuan</option>
       </select>
     </td>
-    <td class="py-3 px-3">
-      <select name="korban[${count}][status_korban]" class="control control-sm w-full font-bold">
-        <option value="DP" selected>🟡 Dalam Pencarian (DP)</option>
-        <option value="S">🟢 Selamat (S)</option>
-        <option value="MD">🔴 Meninggal Dunia (MD)</option>
-        <option value="H">⚪ Hilang / Nihil (H)</option>
+    <td class="py-2.5 px-3">
+      <select name="korban[${count}][status_korban]" class="control control-sm w-full font-semibold">
+        <option value="DP" selected>Dalam Pencarian (DP)</option>
+        <option value="S">Selamat (S)</option>
+        <option value="MD">Meninggal Dunia (MD)</option>
+        <option value="H">Hilang / Nihil (H)</option>
       </select>
     </td>
     <td class="py-3 px-3">
@@ -2179,9 +2193,17 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   setInterval(saveLocalStorageDraft, 10000);
 
-  // Keepalive Heartbeat: Ping server every 5 minutes to keep PHP session active
+  // Keepalive Heartbeat: Ping server setiap 5 menit HANYA bila ada interaksi pengguna dalam 5 menit terakhir,
+  // sehingga batas diam (idle timeout) 2 jam tetap bekerja saat komputer posko ditinggalkan.
+  let lastUserActivityAt = Date.now();
+  const markFormActivity = () => { lastUserActivityAt = Date.now(); };
+  ['input', 'keydown', 'pointerdown', 'change'].forEach((evt) => {
+    document.addEventListener(evt, markFormActivity, { passive: true });
+  });
   setInterval(function() {
-    fetch((window.BASE_URL || '') + '/api/index.php?path=/auth/ping', { method: 'GET' }).catch(() => {});
+    if (Date.now() - lastUserActivityAt < 300000) {
+      fetch((window.BASE_URL || '') + '/api/index.php?path=/auth/ping', { method: 'GET' }).catch(() => {});
+    }
   }, 300000);
 });
 

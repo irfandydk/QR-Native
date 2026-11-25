@@ -108,6 +108,19 @@ if (session_status() === PHP_SESSION_NONE) {
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
     ini_set('session.cookie_httponly', '1');
+    // Selaraskan umur GC berkas sesi dengan batas mutlak 12 jam (AuthHelper::SESSION_MAX_AGE)
+    // agar sesi tidak gugur lebih awal di batas default PHP 24 menit (1440 detik).
+    ini_set('session.gc_maxlifetime', '43200');
+
+    // Pisahkan direktori sesi ke storage/sessions hanya jika benar-benar writable (fail-safe Docker/CasaOS)
+    $sessionDir = dirname(__DIR__) . '/storage/sessions';
+    if (!is_dir($sessionDir)) {
+        @mkdir($sessionDir, 0770, true);
+    }
+    if (is_dir($sessionDir) && is_writable($sessionDir)) {
+        ini_set('session.save_path', $sessionDir);
+        ini_set('session.gc_probability', '1');
+    }
     
     $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (isset($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443)

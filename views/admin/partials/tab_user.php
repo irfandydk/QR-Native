@@ -19,7 +19,7 @@ if (!defined('APP_NAME')) {
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Kredensial petugas siaga SAR dan Senkom.</p>
       </div>
 
-      <form action="<?= BASE_URL ?>/admin.php?action=reset_user" method="POST" data-confirm="Apakah Anda yakin ingin mereset akun pengguna operasional ke setelan standar (Username: user, Kata Sandi: Kendari304)?" data-confirm-title="Konfirmasi Reset Akun Pengguna" data-confirm-btn="Ya, Reset ke Standar">
+      <form action="<?= BASE_URL ?>/admin.php?action=reset_user" method="POST" data-confirm="Apakah Anda yakin ingin mereset akun pengguna operasional ke username 'user' dengan sandi sementara acak baru? Sandi baru akan ditampilkan sekali setelah reset." data-confirm-title="Konfirmasi Reset Akun Pengguna" data-confirm-btn="Ya, Reset Akun">
         <?= csrfInput() ?>
         <button type="submit" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-rose-500/25 bg-rose-500/10 hover:bg-rose-600 text-rose-600 dark:text-rose-400 hover:text-white text-xs font-semibold transition cursor-pointer">
           <span>Reset ke Standar</span>

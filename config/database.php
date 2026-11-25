@@ -31,6 +31,7 @@ class Database {
             try {
                 self::$instance = new PDO($dsn, $username, $password, $options);
                 self::$instance->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
+                self::$instance->exec("SET time_zone = '+08:00'");
             } catch (PDOException $e) {
                 error_log("[QR-SAR DB Error] " . $e->getMessage());
                 if (class_exists('LogService')) {

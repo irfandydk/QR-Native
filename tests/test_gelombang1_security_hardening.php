@@ -248,12 +248,32 @@ try {
         'G2-6 AdminController memuat getDbStats() hanya di tab backup & memanggil cleanOldLogs saat prune_audit'
     );
 
+    $chromePdfSrc = (string)file_get_contents(ROOT_DIR . '/services/ChromePdfService.php');
     $renopsPdfSrc = (string)file_get_contents(ROOT_DIR . '/services/RenopsPdfService.php');
     $braPdfSrc = (string)file_get_contents(ROOT_DIR . '/services/BraPdfService.php');
     assertCond(
-        str_contains($renopsPdfSrc, 'proc_open') && str_contains($renopsPdfSrc, 'proc_terminate')
-        && str_contains($braPdfSrc, 'proc_open') && str_contains($braPdfSrc, 'proc_terminate'),
-        'G2-3 RenopsPdfService & BraPdfService menggunakan proc_open berbatas waktu (timeout + proc_terminate)'
+        str_contains($chromePdfSrc, 'proc_open') && str_contains($chromePdfSrc, 'proc_terminate')
+        && str_contains($chromePdfSrc, 'LOCK_EX | LOCK_NB')
+        && str_contains($renopsPdfSrc, 'ChromePdfService::renderHtmlToPdf')
+        && str_contains($braPdfSrc, 'ChromePdfService::renderHtmlToPdf'),
+        'G2-3 ChromePdfService bersama memakai proc_open berbatas waktu + flock(LOCK_EX|LOCK_NB) dan didelegasikan oleh BraPdfService & RenopsPdfService'
+    );
+
+    // G3-3 Uji perilaku kunci konkurensi PDF: saat lock dipegang proses lain, renderHtmlToPdf() langsung mengembalikan null
+    $lockHeld = @fopen(ChromePdfService::getLockFilePath(), 'c');
+    $lockedOk = $lockHeld !== false && @flock($lockHeld, LOCK_EX | LOCK_NB);
+    $nullWhenBusy = null;
+    if ($lockedOk) {
+        $probeCmd = 'DB_DATABASE=' . escapeshellarg(getenv('DB_DATABASE') ?: 'qrsar_test') . ' '
+            . escapeshellarg(PHP_BINARY) . ' -r '
+            . escapeshellarg('require ' . var_export(ROOT_DIR . '/config/app.php', true) . '; var_export(BraPdfService::renderHtmlToPdf("<html><body>x</body></html>") === null);');
+        $nullWhenBusy = trim((string)shell_exec($probeCmd));
+        @flock($lockHeld, LOCK_UN);
+        @fclose($lockHeld);
+    }
+    assertCond(
+        $lockedOk && $nullWhenBusy === 'true',
+        'G3-3 Saat kunci ChromePdfService dipegang proses lain, renderHtmlToPdf() langsung mengembalikan null tanpa menyalakan Chrome'
     );
 
     $rejectedMultiDrop = false;
@@ -273,8 +293,87 @@ try {
     $gisMasterSrc = (string)file_get_contents(ROOT_DIR . '/assets/js/gis_master.js');
     assertCond(
         !str_contains($logSvcSrc, 'HTTP_X_FORWARDED_FOR') && str_contains($logSvcSrc, 'AuthHelper::getClientIp()')
-        && str_contains($gisMasterSrc, '${escapeHtml(msg)}'),
-        'G2-5 LogService memakai AuthHelper::getClientIp() & showRouteSaveFeedback meng-escape msg'
+        && str_contains($gisMasterSrc, '${escapeHtml(msg)}')
+        && str_contains($gisMasterSrc, '${escapeHtml(pt.label)}')
+        && !str_contains($gisMasterSrc, '<span class="font-bold text-white">${pt.label}</span>'),
+        'G2-5 LogService memakai AuthHelper::getClientIp(), showRouteSaveFeedback meng-escape msg, & tabel vertex poligon meng-escape pt.label'
+    );
+
+    // G3-2 Uji kegagalan unik username: updateUserProfile memakai username milik ADMIN harus mengembalikan false & me-rollback sandi
+    $adminRowNow = UserModel::getById('USR-ADMIN');
+    $userRowBefore = UserModel::getById('USR-USER');
+    $dupFail = SettingsModel::updateUserProfile([
+        'username' => (string)($adminRowNow['username'] ?? 'admin'),
+        'nama' => 'Collision Test',
+        'password' => 'SandiHarusRollback99',
+    ]);
+    $userRowAfter = UserModel::getById('USR-USER');
+    assertCond(
+        $dupFail === false && ($userRowAfter['password_hash'] ?? '') === ($userRowBefore['password_hash'] ?? ''),
+        'G3-2 SettingsModel::updateUserProfile menolak duplikat username ADMIN (return false) dan me-rollback sandi'
+    );
+    assertCond(
+        str_contains($adminCtrlSrc, '!SettingsModel::updateAdminProfile(')
+        && str_contains($adminCtrlSrc, '!SettingsModel::updateUserProfile(')
+        && str_contains($adminCtrlSrc, '!SettingsModel::resetUserToDefault(')
+        && str_contains($adminCtrlSrc, '!SettingsModel::updateSettings('),
+        'G3-2 AdminController memeriksa return bool untuk save_admin, save_user, reset_user, dan save_satker'
+    );
+
+    // G3-4 Zona waktu koneksi MySQL dikunci ke +08:00 (WITA)
+    $mysqlTz = (string)$db->query('SELECT @@session.time_zone')->fetchColumn();
+    assertCond($mysqlTz === '+08:00', 'G3-4 Koneksi MySQL mengunci @@session.time_zone ke +08:00 (WITA), didapat: ' . $mysqlTz);
+
+    // G3-5 Session GC maxlifetime 12 jam + guard is_writable untuk storage/sessions
+    assertCond(
+        str_contains($appConfigSrc, "ini_set('session.gc_maxlifetime', '43200')")
+        && str_contains($appConfigSrc, 'is_writable($sessionDir)'),
+        'G3-5 config/app.php mengatur session.gc_maxlifetime=43200 dan guard is_writable untuk storage/sessions'
+    );
+
+    // G3-6 Tidak ada bocoran sandi literal Kendari304 di UI admin & reset_user membuat sandi acak
+    $tabAdminSrc = (string)file_get_contents(ROOT_DIR . '/views/admin/partials/tab_admin.php');
+    $tabUserSrc = (string)file_get_contents(ROOT_DIR . '/views/admin/partials/tab_user.php');
+    assertCond(
+        !str_contains($adminCtrlSrc, 'Kendari304')
+        && !str_contains($tabAdminSrc, 'Kendari304')
+        && !str_contains($tabUserSrc, 'Kendari304')
+        && str_contains($adminCtrlSrc, 'random_bytes('),
+        'G3-6 AdminController & views/admin bebas dari sandi literal Kendari304 dan reset_user memakai random_bytes()'
+    );
+
+    // G3-7 Pembersihan berkas sumber kolase yatim (src_*) > 24 jam tanpa menyentuh berkas baru
+    $dokDir = UPLOADS_DIR . '/operasi_dokumentasi';
+    if (!is_dir($dokDir)) {
+        @mkdir($dokDir, 0775, true);
+    }
+    $oldOrphan = $dokDir . '/src_g3_orphan_old_' . bin2hex(random_bytes(4)) . '.jpg';
+    $freshOrphan = $dokDir . '/src_g3_orphan_fresh_' . bin2hex(random_bytes(4)) . '.jpg';
+    @file_put_contents($oldOrphan, 'dummy');
+    @file_put_contents($freshOrphan, 'dummy');
+    @touch($oldOrphan, time() - 90000);
+    $prunedCount = OperasiDokumentasiModel::pruneOrphanSourceFiles(86400);
+    $oldRemoved = !is_file($oldOrphan);
+    $freshKept = is_file($freshOrphan);
+    @unlink($oldOrphan);
+    @unlink($freshOrphan);
+    assertCond(
+        $prunedCount >= 1 && $oldRemoved && $freshKept,
+        'G3-7 OperasiDokumentasiModel::pruneOrphanSourceFiles menghapus src_* yatim > 24 jam dan mempertahankan berkas baru'
+    );
+
+    // G3-8 Keepalive ping operasi_form.js terikat aktivitas pengguna
+    $opsFormJsSrc = (string)file_get_contents(ROOT_DIR . '/assets/js/pages/operasi_form.js');
+    assertCond(
+        str_contains($opsFormJsSrc, 'lastUserActivityAt') && str_contains($opsFormJsSrc, 'Date.now() - lastUserActivityAt < 300000'),
+        'G3-8 Ping keepalive operasi_form.js hanya dikirim saat ada interaksi pengguna dalam 5 menit terakhir'
+    );
+
+    // G3-9 DokumenPetaSnapshotModel tidak menulis angka 0 palsu ke captured_by saat user_id berbentuk string (USR-ADMIN)
+    $snapModelSrc = (string)file_get_contents(ROOT_DIR . '/models/DokumenPetaSnapshotModel.php');
+    assertCond(
+        str_contains($snapModelSrc, 'ctype_digit(') && !str_contains($snapModelSrc, "\$capturedBy = isset(\$_SESSION['user_id']) ? (int)\$_SESSION['user_id']"),
+        'G3-9 DokumenPetaSnapshotModel menyimpan NULL (bukan 0 palsu) pada captured_by untuk user_id teks'
     );
 
     $loginViewSrc = (string)file_get_contents(ROOT_DIR . '/views/auth/login.php');

@@ -69,7 +69,10 @@ class AdminController extends BaseController {
                         'email' => trim($_POST['admin_email'] ?? ''),
                         'no_hp' => trim($_POST['admin_no_hp'] ?? '')
                     ];
-                    SettingsModel::updateAdminProfile($data);
+                    if (!SettingsModel::updateAdminProfile($data)) {
+                        $this->setFlash('error', 'Gagal memperbarui profil Administrator: username mungkin sudah digunakan oleh akun lain.');
+                        $this->redirect('/admin.php?tab=admin');
+                    }
 
                     // Sync current session if role is admin
                     if (isset($_SESSION['user']) && ($_SESSION['user']['role'] ?? '') === 'ADMIN') {
@@ -137,16 +140,23 @@ class AdminController extends BaseController {
                         }
                         $data['password'] = $newPass;
                     }
-                    SettingsModel::updateUserProfile($data);
-                    $this->setFlash('success', 'Data identitas, hak akses, dan kredensial pengguna operasional (User) berhasil diperbarui.');
+                    if (!SettingsModel::updateUserProfile($data)) {
+                        $this->setFlash('error', 'Gagal memperbarui akun pengguna: username mungkin sudah digunakan oleh akun lain.');
+                    } else {
+                        $this->setFlash('success', 'Data identitas, hak akses, dan kredensial pengguna operasional (User) berhasil diperbarui.');
+                    }
                 }
                 $this->redirect('/admin.php?tab=user');
             }
 
-            // D. Reset Akun Pengguna ke Standar
+            // D. Reset Akun Pengguna ke Standar (sandi sementara acak sekali pakai)
             if ($action === 'reset_user') {
-                SettingsModel::resetUserToDefault();
-                $this->setFlash('success', 'Akun Pengguna Operasional berhasil direset ke standar (Username: user, Sandi: Kendari304).');
+                $tempPass = 'SAR-' . strtoupper(bin2hex(random_bytes(4)));
+                if (!SettingsModel::resetUserToDefault($tempPass)) {
+                    $this->setFlash('error', 'Gagal mereset akun Pengguna Operasional: username "user" mungkin sedang dipakai akun lain.');
+                } else {
+                    $this->setFlash('success', "Akun Pengguna Operasional berhasil direset (Username: user, Sandi sementara: {$tempPass}). Catat sandi ini dan segera ganti setelah login.");
+                }
                 $this->redirect('/admin.php?tab=user');
             }
 
@@ -182,8 +192,9 @@ class AdminController extends BaseController {
                     $this->prosesLogoSatker('logo_file_2', 'logo_url_2', $data);
                     $this->prosesLogoSatker('logo_file_3', 'logo_url_3', $data);
 
-                    SettingsModel::updateSettings($data);
-                    if ((SettingsModel::getSettings()['ui_theme'] ?? null) === null) {
+                    if (!SettingsModel::updateSettings($data)) {
+                        $this->setFlash('error', 'Gagal menyimpan pengaturan Satuan Kerja ke basis data.');
+                    } elseif ((SettingsModel::getSettings()['ui_theme'] ?? null) === null) {
                         $this->setFlash('error', 'Pengaturan satker tersimpan, tetapi Gaya Tampilan belum bisa disimpan karena migrasi database belum dijalankan. Jalankan: php database/migrate.php');
                     } else {
                         $this->setFlash('success', 'Identitas kantor SAR, nomor WhatsApp, call sign radio, kop surat, dan gaya tampilan berhasil diperbarui.');
@@ -217,17 +228,21 @@ class AdminController extends BaseController {
                 $this->redirect('/admin.php?tab=backup');
             }
 
-            // G. Pembersihan Log Audit Berkala (Retention Policy & Pruning)
+            // G. Pembersihan Log Audit Berkala & Berkas Sumber Kolase Yatim
             if ($action === 'prune_audit') {
                 $days = (int)($_POST['older_than_days'] ?? 180);
                 $res = AuditHelper::pruneLogs($days);
                 if (class_exists('LogService')) {
                     LogService::cleanOldLogs(30);
                 }
-                if ($res['deleted'] > 0) {
-                    $this->setFlash('success', "Pembersihan arsip sukses: {$res['deleted']} baris log audit berumur > {$res['days']} hari berhasil dibersihkan.");
+                $prunedOrphans = class_exists('OperasiDokumentasiModel')
+                    ? OperasiDokumentasiModel::pruneOrphanSourceFiles(86400)
+                    : 0;
+                $extraOrphanMsg = $prunedOrphans > 0 ? " dan {$prunedOrphans} berkas sumber kolase yatim (> 24 jam)" : '';
+                if ($res['deleted'] > 0 || $prunedOrphans > 0) {
+                    $this->setFlash('success', "Pembersihan arsip sukses: {$res['deleted']} baris log audit berumur > {$res['days']} hari{$extraOrphanMsg} berhasil dibersihkan.");
                 } else {
-                    $this->setFlash('info', "Pemeriksaan selesai: Tidak ada log audit yang berumur lebih dari {$res['days']} hari untuk dibersihkan.");
+                    $this->setFlash('info', "Pemeriksaan selesai: Tidak ada log audit yang berumur lebih dari {$res['days']} hari maupun berkas kolase yatim untuk dibersihkan.");
                 }
                 $this->redirect('/admin.php?tab=logs');
             }

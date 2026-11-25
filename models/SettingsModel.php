@@ -122,7 +122,7 @@ class SettingsModel {
                     email = :email, 
                     no_hp = :no_hp, 
                     updated_at = :now 
-                    WHERE id = 'USR-ADMIN' OR username = 'admin'")->execute([
+                    WHERE id = 'USR-ADMIN'")->execute([
                     ':username' => $adminUser,
                     ':nama' => $data['nama'] ?? '',
                     ':nip' => $data['nip'] ?? '',
@@ -205,7 +205,7 @@ class SettingsModel {
                     $uSql .= ", password_hash = :password";
                     $uParams[':password'] = $params[':password'];
                 }
-                $uSql .= ", updated_at = :now WHERE id = 'USR-USER' OR username = 'user'";
+                $uSql .= ", updated_at = :now WHERE id = 'USR-USER'";
                 $uParams[':now'] = date('Y-m-d H:i:s');
                 $db->prepare($uSql)->execute($uParams);
 
@@ -222,13 +222,16 @@ class SettingsModel {
         }
     }
 
-    public static function resetUserToDefault(): bool {
+    public static function resetUserToDefault(?string $customPassword = null): bool {
         $db = getDB();
         $inTx = $db->inTransaction();
         if (!$inTx) $db->beginTransaction();
 
         try {
-            $defaultHash = password_hash(DEFAULT_RESET_PASSWORD, PASSWORD_DEFAULT);
+            $rawPass = ($customPassword !== null && trim($customPassword) !== '')
+                ? trim($customPassword)
+                : DEFAULT_RESET_PASSWORD;
+            $defaultHash = password_hash($rawPass, PASSWORD_DEFAULT);
             $stmt = $db->prepare("UPDATE AppSettings SET
                 user_username = 'user',
                 user_password = :p,
@@ -253,7 +256,7 @@ class SettingsModel {
                     email = 'operator.kendari@basarnas.go.id', 
                     no_hp = '0811-4091-115', 
                     updated_at = :now 
-                    WHERE id = 'USR-USER' OR username = 'user'")->execute([
+                    WHERE id = 'USR-USER'")->execute([
                     ':p' => $defaultHash, 
                     ':now' => date('Y-m-d H:i:s')
                 ]);
