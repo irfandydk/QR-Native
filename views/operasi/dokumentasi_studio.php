@@ -237,13 +237,10 @@ if ($isEditMode) {
     <aside class="dok-studio-card rounded-2xl overflow-hidden lg:sticky lg:top-20">
       <!-- 4-Tab Studio Inspector Navigation -->
       <div class="grid grid-cols-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40" role="tablist" aria-label="Pengaturan Kolase">
-        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer truncate" data-studio-tab="teks" data-active="true">Teks</button>
-        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer truncate" data-studio-tab="desain" data-active="false">Desain</button>
-        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer truncate" data-studio-tab="grid" data-active="false">Grid</button>
-        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer flex items-center justify-center gap-0.5 min-w-0" data-studio-tab="media" data-active="false">
-          <span class="truncate">Media</span>
-          <span id="filledSlotsBadge" class="font-mono text-[9.5px] px-1 rounded bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 shrink-0">0/6</span>
-        </button>
+        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer" data-studio-tab="teks" data-active="true">Teks</button>
+        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer" data-studio-tab="desain" data-active="false">Desain</button>
+        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer" data-studio-tab="grid" data-active="false">Grid</button>
+        <button type="button" role="tab" class="dok-tab-btn h-9 px-1 text-[11px] font-semibold cursor-pointer" data-studio-tab="media" data-active="false">Media</button>
       </div>
 
       <!-- TAB 1: Teks & Identitas -->
@@ -444,6 +441,7 @@ if ($isEditMode) {
       <div class="px-3.5 py-2 border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/40 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div class="flex flex-wrap items-center gap-1.5 min-w-0">
           <span id="previewMetaPill" class="px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-semibold">2:3 &bull; 6 Slot &bull; 2K</span>
+          <span id="filledSlotsBadge" class="px-2 py-0.5 rounded-md bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[11px] font-semibold">0/6</span>
           <span id="previewModeBadge" class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-bold text-[10px] uppercase tracking-wider">FOTO</span>
         </div>
 
